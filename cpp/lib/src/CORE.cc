@@ -110,8 +110,8 @@ std::string DataProvider::getHomepageUrl() const {
 }
 
 
-std::string DataProvider::getId() const {
-    return getStringOrDefault("id");
+unsigned long DataProvider::getId() const {
+    return json_["id"];
 }
 
 
@@ -146,6 +146,20 @@ std::vector<Author> Work::getAuthors() const {
         }
     }
     return result;
+}
+
+
+std::vector<unsigned long> Work::getDataProviderIds() const {
+    std::vector<unsigned long> ids;
+
+    const auto data_providers(json_["dataProviders"]);
+    if (data_providers.is_array()) {
+        for (const auto &data_provider : data_providers) {
+            ids.emplace_back(data_provider["id"]);
+        }
+    }
+
+    return ids;
 }
 
 
@@ -383,8 +397,12 @@ SearchResponseWorks SearchWorks(const SearchParamsWorks &params) {
 }
 
 
-void SearchBatch(const SearchParams &params, const std::string &output_dir, const unsigned limit) {
-    if (not FileUtil::IsDirectory(output_dir))
+void SearchBatchHelper(const SearchParams &params, const std::string &output_dir, std::vector<Entity> * const output_list,
+                       const unsigned limit) {
+    if (output_dir.empty() and output_list == nullptr)
+        LOG_ERROR("You must either specify output_directory or output_list (or both)!");
+
+    if (not output_dir.empty() and not FileUtil::IsDirectory(output_dir))
         FileUtil::MakeDirectoryOrDie(output_dir, /*recursive=*/true);
     SearchParams current_params = params;
 
@@ -399,11 +417,17 @@ void SearchBatch(const SearchParams &params, const std::string &output_dir, cons
     SearchResponse response(response_json);
 
     int i(1);
-    std::string output_file(output_dir + "/" + std::to_string(i) + ".json");
-    LOG_INFO("Downloaded file: " + output_file + " (" + std::to_string(response.offset_) + "-"
-             + std::to_string(response.offset_ + response.limit_) + "/" + std::to_string(response.total_hits_) + ")");
-
-    FileUtil::WriteStringOrDie(output_file, response_json);
+    LOG_INFO("Downloaded entities " + std::to_string(response.offset_) + "-" + std::to_string(response.offset_ + response.limit_) + "/"
+             + std::to_string(response.total_hits_) + ")");
+    if (not output_dir.empty()) {
+        const std::string output_file(output_dir + "/" + std::to_string(i) + ".json");
+        FileUtil::WriteStringOrDie(output_file, response_json);
+    }
+    if (output_list != nullptr) {
+        for (const auto &entity : response.results_) {
+            output_list->emplace_back(entity);
+        }
+    }
 
     unsigned max_offset(response.total_hits_);
     if (limit > 0 && limit < max_offset)
@@ -415,7 +439,6 @@ void SearchBatch(const SearchParams &params, const std::string &output_dir, cons
             current_params.limit_ = max_offset - current_params.offset_;
 
         ++i;
-        output_file = output_dir + "/" + std::to_string(i) + ".json";
 
         if (not response.scroll_id_.empty())
             current_params.scroll_id_ = response.scroll_id_;
@@ -423,10 +446,52 @@ void SearchBatch(const SearchParams &params, const std::string &output_dir, cons
         response_json = SearchRaw(current_params);
         response = SearchResponse(response_json);
 
-        LOG_INFO("Downloaded file: " + output_file + " (" + std::to_string(current_params.offset_) + "-"
+        LOG_INFO("Downloaded entities " + std::to_string(current_params.offset_) + "-"
                  + std::to_string(current_params.offset_ + current_params.limit_) + "/" + std::to_string(response.total_hits_) + ")");
-        FileUtil::WriteStringOrDie(output_file, response_json);
+        if (not output_dir.empty()) {
+            const std::string output_file(output_dir + "/" + std::to_string(i) + ".json");
+            FileUtil::WriteStringOrDie(output_file, response_json);
+        }
+        if (output_list != nullptr) {
+            for (const auto &entity : response.results_) {
+                output_list->emplace_back(entity);
+            }
+        }
     }
+}
+
+
+void SearchBatch(const SearchParams &params, const std::string &output_dir, const unsigned limit) {
+    SearchBatchHelper(params, output_dir, /* output_list=*/nullptr, limit);
+}
+
+
+std::vector<Entity> SearchBatch(const SearchParams &params, const unsigned limit) {
+    std::vector<Entity> output_list;
+    SearchBatchHelper(params, /* output_dir=*/"", &output_list, limit);
+    return output_list;
+}
+
+
+std::vector<Work> SearchBatch(const SearchParamsWorks &params, const unsigned limit) {
+    const SearchParams entity_params((SearchParams)params);
+    auto entities(SearchBatch(entity_params, limit));
+
+    std::vector<Work> works;
+    for (auto &entity : entities)
+        works.emplace_back(entity.getJson());
+    return works;
+}
+
+
+std::vector<DataProvider> SearchBatch(const SearchParamsDataProviders &params, const unsigned limit) {
+    const SearchParams entity_params((SearchParams)params);
+    auto entities(SearchBatch(entity_params, limit));
+
+    std::vector<DataProvider> data_providers;
+    for (auto &entity : entities)
+        data_providers.emplace_back(entity.getJson());
+    return data_providers;
 }
 
 
