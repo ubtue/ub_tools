@@ -95,6 +95,41 @@ std::string Entity::getStringOrDefault(const std::string &json_key) const {
 }
 
 
+std::string DataProvider::getCreatedDate() const {
+    return getStringOrDefault("createdDate");
+}
+
+
+std::string DataProvider::getEmail() const {
+    return getStringOrDefault("email");
+}
+
+
+std::string DataProvider::getHomepageUrl() const {
+    return getStringOrDefault("homepageUrl");
+}
+
+
+std::string DataProvider::getId() const {
+    return getStringOrDefault("id");
+}
+
+
+std::string DataProvider::getMetadataFormat() const {
+    return getStringOrDefault("metadataFormat");
+}
+
+
+std::string DataProvider::getName() const {
+    return getStringOrDefault("name");
+}
+
+
+std::string DataProvider::getType() const {
+    return getStringOrDefault("type");
+}
+
+
 std::string Work::getAbstract() const {
     return getStringOrDefault("abstract");
 }
@@ -172,62 +207,48 @@ unsigned Work::getYearPublished() const {
 
 
 std::string Download(const std::string &url) {
-    {
-        Downloader::Params downloader_params;
-        downloader_params.additional_headers_.push_back("Authorization: Bearer " + GetAPIKey());
-        // downloader_params.debugging_ = true;
+    Downloader::Params downloader_params;
+    downloader_params.additional_headers_.push_back("Authorization: Bearer " + GetAPIKey());
+    downloader_params.fail_on_error_ = false; // needed to be able to parse headers even after failing
+    // downloader_params.debugging_ = true;
 
-        static Downloader downloader(downloader_params);
-        downloader.newUrl(url);
+    static Downloader downloader(downloader_params);
+    downloader.newUrl(url);
 
-        // Downloader downloader(url, downloader_params);
-        if (downloader.getResponseCode() == 429) {
-            LOG_INFO(downloader.getMessageHeader());
-            const auto header(downloader.getMessageHeaderObject());
-            if (header.getXRatelimitRemaining() == 0) {
-                const time_t sleep_until_time(header.getXRatelimitRetryAfter("%Y-%m-%dT%H:%M:%S%z"));
-                if (sleep_until_time != TimeUtil::BAD_TIME_T) {
-                    const std::string sleep_until_string(TimeUtil::TimeTToLocalTimeString(sleep_until_time));
+    if (downloader.anErrorOccurred())
+        LOG_ERROR(downloader.getLastErrorMessage() + ", curlcode: " + std::to_string(downloader.getLastErrorCode()));
+    else if (downloader.getResponseCode() == 429) {
+        const auto header(downloader.getMessageHeaderObject());
+        if (header.getXRatelimitRemaining() == 0) {
+            const time_t sleep_until_time(header.getXRatelimitRetryAfter("%Y-%m-%dT%H:%M:%S%z"));
+            if (sleep_until_time != TimeUtil::BAD_TIME_T) {
+                const std::string sleep_until_string(TimeUtil::TimeTToLocalTimeString(sleep_until_time));
 
-                    // We're allowed to perform 150 requests within a 5 minute window due to our license.
-                    // However, in practical terms responses might get a penalty e.g. when using the scroll mechanism,
-                    // so it's more likely to be 75.
-                    LOG_WARNING("Rate limiting active + too many requests! Sleeping until " + sleep_until_string);
-                    std::this_thread::sleep_until(std::chrono::system_clock::from_time_t(sleep_until_time));
+                // We're allowed to perform 150 requests within a 5 minute window due to our license.
+                // However, in practical terms responses might get a penalty e.g. when using the scroll mechanism,
+                // so it's more likely to be 75.
+                LOG_WARNING("Rate limiting active + too many requests! Sleeping until " + sleep_until_string);
+                std::this_thread::sleep_until(std::chrono::system_clock::from_time_t(sleep_until_time));
 
-                    // sleep another 60 seconds just in case we have a system time difference between client and server
-                    // (even if timezone is already considered)
-                    const unsigned sleep_offset(60);
-                    LOG_WARNING("Sleeping another " + std::to_string(sleep_offset)
-                                + "s due to possible client/server system time difference");
-                    ::sleep(sleep_offset);
-                } else {
-                    const unsigned sleep_seconds(60);
-                    LOG_WARNING("Rate limiting active + too many requests! Could not determine retry_after timestamp! Sleeping for "
-                                + std::to_string(sleep_seconds) + "s");
-                    ::sleep(sleep_seconds);
-                }
+                // sleep another 60 seconds just in case we have a system time difference between client and server
+                // (even if timezone is already considered)
+                const unsigned sleep_offset(60);
+                LOG_WARNING("Sleeping another " + std::to_string(sleep_offset) + "s due to possible client/server system time difference");
+                ::sleep(sleep_offset);
+            } else {
+                const unsigned sleep_seconds(60);
+                LOG_WARNING("Rate limiting active + too many requests! Could not determine retry_after timestamp! Sleeping for "
+                            + std::to_string(sleep_seconds) + "s");
+                ::sleep(sleep_seconds);
             }
-        } else {
-            // Scroll-based operations may cause problems after sleeping to long due to a server side restrictions.
-            // => Scroll IDs are timed out after 10 minutes.
-            // If this causes too much problems, we might want to sleep pre-emptively even if the previous operation was successful
-            // to avoid ever exceeding the regular rate limit and having to sleep for 5-10 minutes.
-            // unsigned sleep_time(30);
-            // LOG_INFO("Pre-emptive sleep for " + std::to_string(sleep_time) + "s");
-            //::sleep(sleep_time);
-
-            if (downloader.anErrorOccurred())
-                throw std::runtime_error(downloader.getLastErrorMessage());
-
-            return downloader.getMessageBody();
         }
-    }
 
-    // Retry if we ran into any errors.
-    // The existing downloader object should be destroyed before doing this.
-    LOG_WARNING("Retrying...");
-    return Download(url);
+        // try again after sleep
+        return Download(url);
+    } else if (downloader.getResponseCode() >= 400)
+        LOG_ERROR("HTTP Error Code " + std::to_string(downloader.getResponseCode()) + "! Full header:" + downloader.getMessageHeader());
+    else
+        return downloader.getMessageBody();
 }
 
 
@@ -308,6 +329,20 @@ SearchResponse::SearchResponse(const std::string &json) {
 }
 
 
+SearchResponseDataProviders::SearchResponseDataProviders(const SearchResponse &response) {
+    total_hits_ = response.total_hits_;
+    limit_ = response.limit_;
+    offset_ = response.offset_;
+    scroll_id_ = response.scroll_id_;
+    tooks_ = response.tooks_;
+    es_took_ = response.es_took_;
+
+    for (const auto &result : response.results_) {
+        results_.emplace_back(DataProvider(result.getJson()));
+    }
+}
+
+
 SearchResponseWorks::SearchResponseWorks(const SearchResponse &response) {
     total_hits_ = response.total_hits_;
     limit_ = response.limit_;
@@ -331,6 +366,13 @@ std::string SearchRaw(const SearchParams &params) {
 SearchResponse Search(const SearchParams &params) {
     const std::string json(SearchRaw(params));
     return SearchResponse(json);
+}
+
+
+SearchResponseDataProviders SearchDataProviders(const SearchParamsDataProviders &params) {
+    const auto response_raw(Search(params));
+    SearchResponseDataProviders response(response_raw);
+    return response;
 }
 
 

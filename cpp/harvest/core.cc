@@ -381,12 +381,11 @@ void Search(int argc, char **argv) {
     const std::string output_dir(argv[3]);
 
     // Setup CORE instance & parameters
-    CORE::SearchParams params;
+    CORE::SearchParamsWorks params;
     params.q_ = query;
     params.scroll_ = true;
     params.limit_ = 1000;
     params.exclude_ = { "fullText" };
-    params.entity_type_ = CORE::EntityType::WORK;
     unsigned limit(0);
     if (argc == 5)
         limit = StringUtil::ToUnsigned(argv[4]);
@@ -467,12 +466,15 @@ void DataProviders(int argc, char ** /*argv*/) {
     if (argc != 2)
         Usage();
 
-    CORE::SearchParams params;
+    CORE::SearchParamsDataProviders params;
     params.q_ = "*";
     params.limit_ = 100;
-    params.entity_type_ = CORE::EntityType::DATA_PROVIDER;
-    const auto result(CORE::Search(params));
+    const auto result(CORE::SearchDataProviders(params));
     LOG_INFO(std::to_string(result.total_hits_));
+
+    for (const auto &data_provider : result.results_) {
+        LOG_INFO(data_provider.getName() + ": " + data_provider.getMetadataFormat());
+    }
 }
 
 

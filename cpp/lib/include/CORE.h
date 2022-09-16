@@ -74,6 +74,21 @@ public:
 };
 
 
+class DataProvider : public Entity {
+public:
+    // Additional properties available, e.g. location, logo, OAI PMH information...
+    std::string getCreatedDate() const;
+    std::string getEmail() const;
+    std::string getHomepageUrl() const;
+    std::string getId() const;
+    std::string getMetadataFormat() const;
+    std::string getName() const;
+    std::string getType() const;
+
+    using Entity::Entity;
+};
+
+
 class Work : public Entity {
 public:
     std::string getAbstract() const;
@@ -113,8 +128,13 @@ struct SearchParams {
 };
 
 
+struct SearchParamsDataProviders : public SearchParams {
+    SearchParamsDataProviders() { entity_type_ = DATA_PROVIDER; }
+};
+
+
 struct SearchParamsWorks : public SearchParams {
-    EntityType entity_type_ = WORK;
+    SearchParamsWorks() { entity_type_ = WORK; }
 };
 
 
@@ -132,6 +152,13 @@ struct SearchResponse {
 };
 
 
+struct SearchResponseDataProviders : public SearchResponse {
+    std::vector<DataProvider> results_;
+
+    SearchResponseDataProviders(const SearchResponse &response);
+};
+
+
 struct SearchResponseWorks : public SearchResponse {
     std::vector<Work> results_;
 
@@ -143,9 +170,8 @@ void DownloadWork(const unsigned id, const std::string &output_file);
 
 
 /** \brief will search from offset_ to limit_ (only once). */
+SearchResponseDataProviders SearchDataProviders(const SearchParamsDataProviders &params);
 SearchResponseWorks SearchWorks(const SearchParamsWorks &params);
-
-
 SearchResponse Search(const SearchParams &params);
 
 

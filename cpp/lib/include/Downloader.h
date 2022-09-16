@@ -100,6 +100,7 @@ public:
         std::string authentication_username_;
         std::string authentication_password_;
         bool use_cookies_txt_;
+        bool fail_on_error_;
 
     public:
         explicit Params(const std::string &user_agent = DEFAULT_USER_AGENT_STRING,
@@ -111,7 +112,7 @@ public:
                         const bool ignore_ssl_certificates = false, const std::string &proxy_host_and_port = "",
                         const std::vector<std::string> &additional_headers = {}, const std::string &post_data = "",
                         const std::string &authentication_username = "", const std::string &authentication_password = "",
-                        const bool use_cookies_txt = false);
+                        const bool use_cookies_txt = false, const bool fail_on_error = true);
     };
 
     typedef size_t (*WriteFunc)(void *data, size_t size, size_t nmemb, void *this_pointer);
