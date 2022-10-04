@@ -1,0 +1,7 @@
+ id                     | UIDa
+ name                   | 245a
+#published_at           | 008 (InsertCreationField)
+ published_at           | XXXx (InsertCreationDates)
+#article                | 520a (InsertStrippedRemoveHTML)
+ doi                    | 024a (InsertDOI)
+ article_number         | 856u (InsertBibWissLink)

@@ -81,7 +81,7 @@ public:
 
 const std::map<std::string, ChannelDesc> subsystem_type_to_channel_desc_map = {
     { "relbib", ChannelDesc("RelBib Aggregator", "https://relbib.de/") },
-    { "ixtheo", ChannelDesc("IxTheo Aggregator", "https://itheo.de/") },
+    { "ixtheo", ChannelDesc("IxTheo Aggregator", "https://ixtheo.de/") },
     { "krimdok", ChannelDesc("KrimDok Aggregator", "https://krimdok.uni-tuebingen.de/") },
 };
 
@@ -194,9 +194,9 @@ void PerformDescriptionSubstitutions(const std::string &patterns_and_replacement
 
 // \return the number of new items or an error constant < 0 (see declarations above)
 int ProcessFeed(const std::string &feed_id, const std::string &feed_name, const std::string &feed_url,
-                     const std::string &title_suppression_regex_str, const std::string &patterns_and_replacements,
-                     const std::string &strptime_format, Downloader * const downloader, DbConnection * const db_connection,
-                     const unsigned downloader_time_limit) {
+                const std::string &title_suppression_regex_str, const std::string &patterns_and_replacements,
+                const std::string &strptime_format, Downloader * const downloader, DbConnection * const db_connection,
+                const unsigned downloader_time_limit) {
     SyndicationFormat::AugmentParams augment_params;
     augment_params.strptime_format_ = strptime_format;
 
@@ -205,18 +205,16 @@ int ProcessFeed(const std::string &feed_id, const std::string &feed_name, const 
 
     unsigned new_item_count(0);
     if (not downloader->newUrl(feed_url, downloader_time_limit)) {
-        LOG_WARNING(feed_name + " [" + feed_url + "]" + " - failed to download the feed: "+ downloader->getLastErrorMessage());
+        LOG_WARNING(feed_name + " [" + feed_url + "]" + " - failed to download the feed: " + downloader->getLastErrorMessage());
         return ERROR_DOWNLOAD;
-    }
-    else {
+    } else {
         std::string error_message;
         std::unique_ptr<SyndicationFormat> syndication_format(
             SyndicationFormat::Factory(downloader->getMessageBody(), augment_params, &error_message));
         if (unlikely(syndication_format == nullptr)) {
             LOG_WARNING("failed to parse feed: " + error_message);
             return ERROR_PARSING;
-        }
-        else {
+        } else {
             for (auto &item : *syndication_format) {
                 if (title_suppression_regex != nullptr and title_suppression_regex->matched(item.getTitle())) {
                     LOG_INFO("Suppressed item because of title: \"" + StringUtil::ShortenText(item.getTitle(), 40) + "\".");
@@ -285,9 +283,9 @@ int ProcessFeeds(const std::string &subsystem_type, const std::string &xml_outpu
     while (const auto row = result_set.getNextRow()) {
         LOG_INFO("Processing feed \"" + row["feed_name"] + "\".");
         const int new_item_count(ProcessFeed(row["id"], row["feed_name"], row["feed_url"], row.getValue("title_suppression_regex"),
-                                                  row.getValue("descriptions_and_substitutions"), row.getValue("strptime_format"),
-                                                  downloader, db_connection,
-                                                  StringUtil::ToUnsigned(row["downloader_time_limit"]) * SECONDS_TO_MILLISECONDS));
+                                             row.getValue("descriptions_and_substitutions"), row.getValue("strptime_format"), downloader,
+                                             db_connection,
+                                             StringUtil::ToUnsigned(row["downloader_time_limit"]) * SECONDS_TO_MILLISECONDS));
         if (new_item_count < 0)
             ++number_feeds_with_error;
         else
@@ -341,7 +339,8 @@ int Main(int argc, char *argv[]) {
         if (number_feeds_with_error > 0) {
             const auto subject(program_basename + " on " + DnsUtil::GetHostname() + " (subsystem_type: " + subsystem_type + ")");
             const auto message_body("number of feeds that could not be downloaded: " + std::to_string(number_feeds_with_error));
-            if (EmailSender::SimplerSendEmail("no_reply@ub.uni-tuebingen.de", { email_address }, subject, message_body, EmailSender::VERY_HIGH)
+            if (EmailSender::SimplerSendEmail("no_reply@ub.uni-tuebingen.de", { email_address }, subject, message_body,
+                                              EmailSender::VERY_HIGH)
                 < 299)
                 return EXIT_FAILURE;
             else

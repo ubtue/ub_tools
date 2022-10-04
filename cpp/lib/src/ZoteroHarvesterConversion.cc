@@ -452,8 +452,8 @@ void AdjustFirstAndLastNameByLanguage(std::string * const first_name, std::strin
         if (y_iterator != first_name_tokens.end()) {
             const auto offset(std::distance(first_name_tokens.begin(), y_iterator));
             if (offset >= 1) {
-                last_name_tokens.insert(last_name_tokens.begin(), std::make_move_iterator(last_name_tokens.begin() + (offset - 1)),
-                                        std::make_move_iterator(last_name_tokens.end()));
+                last_name_tokens.insert(last_name_tokens.begin(), std::make_move_iterator(first_name_tokens.begin() + (offset - 1)),
+                                        std::make_move_iterator(first_name_tokens.end()));
                 first_name_tokens.erase(first_name_tokens.begin() + (offset - 1));
                 JoinAuthorTokens(first_name_tokens, first_name, last_name_tokens, last_name);
                 return;
@@ -999,7 +999,7 @@ std::string ConvertRomanPageRangeToArabic(const std::string &pages, const Thread
         return pages;
     }
     if (match_result.size() <= 2 /*direct match or full match and one subgroup*/)
-        return std::to_string(StringUtil::RomanNumeralToDecimal(pages));
+        return std::to_string(StringUtil::RomanNumeralToDecimal(StringUtil::ASCIIToUpper(pages)));
     return std::to_string(StringUtil::RomanNumeralToDecimal(StringUtil::ASCIIToUpper(match_result[1]))) + '-' +
         std::to_string(StringUtil::RomanNumeralToDecimal(StringUtil::ASCIIToUpper(match_result[2])));
 }
@@ -1361,7 +1361,7 @@ static bool ExcludeUndesiredItemTypes(const MetadataRecord &metadata_record) {
 }
 
 
-const std::vector<std::string> VALID_ITEM_TYPES_FOR_ONLINE_FIRST{ "journalArticle", "magazineArticle", "review" };
+const std::vector<std::string> VALID_ITEM_TYPES_FOR_ONLINE_FIRST{ "journalArticle", "magazineArticle", "review", "note", "review_note" };
 
 
 bool ExcludeOnlineFirstRecord(const MetadataRecord &metadata_record, const ConversionParams &parameters) {

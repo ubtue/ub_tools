@@ -265,6 +265,7 @@ std::string ReadStringFromPseudoFileOrDie(const std::string &path);
 
 /** \brief Append "data" to "path".  If "path" does not exist, it will be created. */
 bool AppendString(const std::string &path, const std::string &data);
+void AppendStringOrDie(const std::string &path, const std::string &data);
 
 
 /** \brief  Does the named file (or directory) exist?.
@@ -380,6 +381,7 @@ bool IsDirectory(const std::string &dir_name);
  */
 bool MakeDirectory(const std::string &path, const bool recursive = false, const mode_t mode = 0755);
 void MakeDirectoryOrDie(const std::string &path, const bool recursive = false, const mode_t mode = 0755);
+void MakeParentDirectoryOrDie(const std::string &path, const bool recursive = false, const mode_t mode = 0755);
 
 
 /** \brief  Recursively delete a directory and all the files and subdirectories contained in it.

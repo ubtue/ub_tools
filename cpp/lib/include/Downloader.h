@@ -99,6 +99,8 @@ public:
         std::string post_data_;
         std::string authentication_username_;
         std::string authentication_password_;
+        bool use_cookies_txt_;
+        bool fail_on_error_;
 
     public:
         explicit Params(const std::string &user_agent = DEFAULT_USER_AGENT_STRING,
@@ -109,7 +111,8 @@ public:
                         const bool follow_redirects = true, const unsigned meta_redirect_threshold = DEFAULT_META_REDIRECT_THRESHOLD,
                         const bool ignore_ssl_certificates = false, const std::string &proxy_host_and_port = "",
                         const std::vector<std::string> &additional_headers = {}, const std::string &post_data = "",
-                        const std::string &authentication_username = "", const std::string &authentication_password = "");
+                        const std::string &authentication_username = "", const std::string &authentication_password = "",
+                        const bool use_cookies_txt = false, const bool fail_on_error = true);
     };
 
     typedef size_t (*WriteFunc)(void *data, size_t size, size_t nmemb, void *this_pointer);
@@ -168,7 +171,7 @@ public:
     const std::string &getUserAgent() const { return params_.user_agent_; }
 
     /** \note Get HTTP response code */
-    unsigned getResponseCode();
+    unsigned getResponseCode() const;
 
     void setAcceptableLanguages(const std::string &acceptable_languages);
     void setHonourRobotsDotTxt(const bool honour_robots_dot_txt) { params_.honour_robots_dot_txt_ = honour_robots_dot_txt; };

@@ -58,7 +58,22 @@ echo "Checking write access to output file..."
 >> "$id_output_file" || (echo "Cannot write to $id_output_file" && exit 1)
 
 echo "Querying Elasticsearch..."
-response=$(curl --silent --request GET --header "Content-Type: application/json" $ES_HOST_AND_PORT/$ES_INDEX'/_search/?scroll=1m' --data '{ "_source": ["id"], "size" : 1000, "query":{ "match_all": {} } }')
+response=$(curl --silent --request GET --header "Content-Type: application/json" $ES_HOST_AND_PORT/$ES_INDEX'/_search/?scroll=1m' --data '{ "_source": ["id"], "size" : 1000,
+ "query" : {
+    "constant_score" : {
+        "filter" : {
+          "bool" : {
+            "must_not" : {
+              "exists" : {
+                 "field" : "expiration"
+              }
+            }
+          }
+        }
+     }
+   }
+}')
+
 echo "Processing Elasticsearch response..."
 GetDownloadStats "$response"
 scroll_id=$(GetScrollId "$response")

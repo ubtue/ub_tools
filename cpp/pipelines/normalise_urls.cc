@@ -83,12 +83,25 @@ bool IsSuffixOfAnyURL(const std::unordered_set<std::string> &urls, const std::st
 }
 
 
+bool SkipDOIBecauseOfEmbargo(MARC::Record * const record, const std::string &doi) {
+    auto local_block_starts(record->findStartOfAllLocalDataBlocks());
+    for (const auto local_block_start : local_block_starts) {
+        for (const auto &_local_866_field : record->getLocalTagRange("866", local_block_start)) {
+            const std::string _local_866a_content(_local_866_field.getFirstSubfieldWithCode('x'));
+            if (_local_866a_content.find(doi) != std::string::npos)
+                return true;
+        }
+    }
+    return false;
+}
+
+
 bool CreateUrlsFrom024(MARC::Record * const record) {
     std::vector<std::string> _024_dois;
     for (const auto &_024_field : record->getTagRange("024")) {
         if (_024_field.getFirstSubfieldWithCode('2') == "doi") {
             const std::string doi(_024_field.getFirstSubfieldWithCode('a'));
-            if (not doi.empty())
+            if (not doi.empty() and not SkipDOIBecauseOfEmbargo(record, doi))
                 _024_dois.emplace_back(doi);
         }
     }

@@ -240,7 +240,7 @@ public:
 };
 
 
-class ObjectNode final : public JSONNode {
+class ObjectNode : public JSONNode {
     std::unordered_map<std::string, std::shared_ptr<JSONNode>> entries_;
 
 public:

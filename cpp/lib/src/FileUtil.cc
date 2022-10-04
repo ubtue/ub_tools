@@ -330,6 +330,12 @@ bool AppendString(const std::string &path, const std::string &data) {
 }
 
 
+void AppendStringOrDie(const std::string &path, const std::string &data) {
+    if (not FileUtil::AppendString(path, data))
+        LOG_ERROR("failed to append data to \"" + path + "\"!");
+}
+
+
 // AccessErrnoToString -- Converts an errno set by access(2) to a string.
 //                        The string values were copied and pasted from a Linux man page.
 //
@@ -684,6 +690,10 @@ bool MakeDirectory(const std::string &path, const bool recursive, const mode_t m
 void MakeDirectoryOrDie(const std::string &path, const bool recursive, const mode_t mode) {
     if (not MakeDirectory(path, recursive, mode))
         LOG_ERROR("failed to create directory \"" + path + "\"!");
+}
+
+void MakeParentDirectoryOrDie(const std::string &path, const bool recursive, const mode_t mode) {
+    MakeDirectoryOrDie(GetDirname(path), recursive, mode);
 }
 
 
