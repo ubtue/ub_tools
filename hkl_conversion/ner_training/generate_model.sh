@@ -15,7 +15,7 @@ PATH=".:${PATH}"
 # Merge individual files to one
 > ${cumulated_file}
 fix_label_studio_conll_files.sh "${annotations_dir}"
-for file in $(ls -1 --directory "${annotations_dir}"/*); do
+for file in $(ls -1 --directory "${annotations_dir}"/*.conll); do
     if [[ "${file}" == "${cumulated_file}" ]]; then
         continue;
     fi
