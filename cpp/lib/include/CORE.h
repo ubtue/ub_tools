@@ -67,7 +67,25 @@ protected:
 public:
     Entity(const nlohmann::json &json) { json_ = json; }
 
+    std::string getFilteredReason() const;
+    void setFilteredReason(const std::string &reason);
+
     nlohmann::json getJson() const { return json_; }
+};
+
+
+class DataProvider : public Entity {
+public:
+    // Additional properties available, e.g. location, logo, OAI PMH information...
+    std::string getCreatedDate() const;
+    std::string getEmail() const;
+    std::string getHomepageUrl() const;
+    unsigned long getId() const;
+    std::string getMetadataFormat() const;
+    std::string getName() const;
+    std::string getType() const;
+
+    using Entity::Entity;
 };
 
 
@@ -75,6 +93,7 @@ class Work : public Entity {
 public:
     std::string getAbstract() const;
     std::vector<Author> getAuthors() const;
+    std::vector<unsigned long> getDataProviderIds() const; // JSON also contains name field, but that always seems to be empty
     std::string getDocumentType() const;
     std::string getDownloadUrl() const;
     std::string getFieldOfStudy() const;
@@ -93,15 +112,15 @@ public:
 
 struct SearchParams {
     std::string q_;
-    bool scroll_ = false;
+    bool scroll_ = false; // use this mechanism if you expect > 10.000 results.
     unsigned offset_ = 0;
-    unsigned limit_ = 10;
+    unsigned limit_ = 10; // can be 100 due to documentation, but in practical terms even 1000.
     std::string scroll_id_;
     std::string entity_id_;
     EntityType entity_type_;
     bool stats_ = false;
     bool raw_stats_ = false;
-    std::vector<std::string> exclude_ = {};
+    std::vector<std::string> exclude_ = {}; // exclude e.g. "fullText" field from result for better performance.
     std::vector<std::string> sort_ = {};
     std::string accept_;
     bool measure_ = false;
@@ -110,8 +129,13 @@ struct SearchParams {
 };
 
 
+struct SearchParamsDataProviders : public SearchParams {
+    SearchParamsDataProviders() { entity_type_ = DATA_PROVIDER; }
+};
+
+
 struct SearchParamsWorks : public SearchParams {
-    EntityType entity_type_ = WORK;
+    SearchParamsWorks() { entity_type_ = WORK; }
 };
 
 
@@ -129,6 +153,13 @@ struct SearchResponse {
 };
 
 
+struct SearchResponseDataProviders : public SearchResponse {
+    std::vector<DataProvider> results_;
+
+    SearchResponseDataProviders(const SearchResponse &response);
+};
+
+
 struct SearchResponseWorks : public SearchResponse {
     std::vector<Work> results_;
 
@@ -140,13 +171,23 @@ void DownloadWork(const unsigned id, const std::string &output_file);
 
 
 /** \brief will search from offset_ to limit_ (only once). */
+SearchResponseDataProviders SearchDataProviders(const SearchParamsDataProviders &params);
 SearchResponseWorks SearchWorks(const SearchParamsWorks &params);
+SearchResponse Search(const SearchParams &params);
 
 
 /** \brief will search from offset_ to end in multiple searches
  *         and write JSON files to output dir.
  */
 void SearchBatch(const SearchParams &params, const std::string &output_dir, const unsigned limit = 0);
+
+/** \brief will search from offset_ to end in multiple searches
+ *         and return a list with combined results.
+ *         Rather use SearchBatch with output_dir if you expect big results.
+ */
+std::vector<Entity> SearchBatch(const SearchParams &params, const unsigned limit = 0);
+std::vector<Work> SearchBatch(const SearchParamsWorks &params, const unsigned limit = 0);
+std::vector<DataProvider> SearchBatch(const SearchParamsDataProviders &params, const unsigned limit = 0);
 
 nlohmann::json ParseFile(const std::string &file);
 std::vector<Entity> GetEntitiesFromFile(const std::string &file);

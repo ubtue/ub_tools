@@ -25,6 +25,7 @@
 #include "DbConnection.h"
 #include "DbResultSet.h"
 
+const unsigned POSTGRES_PORT(5432);
 
 class PostgresDbConnection final : public DbConnection {
     friend class DbConnection;
@@ -38,7 +39,7 @@ class PostgresDbConnection final : public DbConnection {
 protected:
     PostgresDbConnection(PGconn * const pg_conn, const std::string &user, const std::string &passwd, const std::string &host,
                          const unsigned port)
-        : DbConnection(this), pg_conn_(pg_conn), pg_result_(nullptr), user_(user), passwd_(passwd), host_(host), port_(port) { }
+        : pg_conn_(pg_conn), pg_result_(nullptr), user_(user), passwd_(passwd), host_(host), port_(port) { }
     inline virtual ~PostgresDbConnection();
 
     inline virtual DbConnection::Type getType() const override { return DbConnection::T_POSTGRES; }

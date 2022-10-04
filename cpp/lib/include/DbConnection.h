@@ -108,6 +108,8 @@ public:
                                         const std::string &hostname = "localhost", const unsigned port = 5432,
                                         const std::string &options = "");
 
+    static DbConnection PostgresFactory(const IniFile &ini_file, const std::string &ini_file_section = "Database");
+
     inline virtual ~DbConnection() {
         delete db_connection_;
         db_connection_ = nullptr;

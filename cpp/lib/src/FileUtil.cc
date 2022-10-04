@@ -330,6 +330,12 @@ bool AppendString(const std::string &path, const std::string &data) {
 }
 
 
+void AppendStringOrDie(const std::string &path, const std::string &data) {
+    if (not FileUtil::AppendString(path, data))
+        LOG_ERROR("failed to append data to \"" + path + "\"!");
+}
+
+
 // AccessErrnoToString -- Converts an errno set by access(2) to a string.
 //                        The string values were copied and pasted from a Linux man page.
 //

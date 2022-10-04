@@ -78,10 +78,55 @@ Language::Language(const nlohmann::json &json_obj) {
 }
 
 
+std::string Entity::getFilteredReason() const {
+    return getStringOrDefault("filteredReason");
+}
+
+
+void Entity::setFilteredReason(const std::string &reason) {
+    json_["filteredReason"] = reason;
+}
+
+
 std::string Entity::getStringOrDefault(const std::string &json_key) const {
     if (json_[json_key].is_string())
         return json_[json_key];
     return "";
+}
+
+
+std::string DataProvider::getCreatedDate() const {
+    return getStringOrDefault("createdDate");
+}
+
+
+std::string DataProvider::getEmail() const {
+    return getStringOrDefault("email");
+}
+
+
+std::string DataProvider::getHomepageUrl() const {
+    return getStringOrDefault("homepageUrl");
+}
+
+
+unsigned long DataProvider::getId() const {
+    return json_["id"];
+}
+
+
+std::string DataProvider::getMetadataFormat() const {
+    return getStringOrDefault("metadataFormat");
+}
+
+
+std::string DataProvider::getName() const {
+    return getStringOrDefault("name");
+}
+
+
+std::string DataProvider::getType() const {
+    return getStringOrDefault("type");
 }
 
 
@@ -101,6 +146,20 @@ std::vector<Author> Work::getAuthors() const {
         }
     }
     return result;
+}
+
+
+std::vector<unsigned long> Work::getDataProviderIds() const {
+    std::vector<unsigned long> ids;
+
+    const auto data_providers(json_["dataProviders"]);
+    if (data_providers.is_array()) {
+        for (const auto &data_provider : data_providers) {
+            ids.emplace_back(data_provider["id"]);
+        }
+    }
+
+    return ids;
 }
 
 
@@ -162,48 +221,48 @@ unsigned Work::getYearPublished() const {
 
 
 std::string Download(const std::string &url) {
-    {
-        Downloader::Params downloader_params;
-        downloader_params.additional_headers_.push_back("Authorization: Bearer " + GetAPIKey());
-        // downloader_params.debugging_ = true;
+    Downloader::Params downloader_params;
+    downloader_params.additional_headers_.push_back("Authorization: Bearer " + GetAPIKey());
+    downloader_params.fail_on_error_ = false; // needed to be able to parse headers even after failing
+    // downloader_params.debugging_ = true;
 
-        static Downloader downloader(downloader_params);
-        downloader.newUrl(url);
+    static Downloader downloader(downloader_params);
+    downloader.newUrl(url);
 
-        // Downloader downloader(url, downloader_params);
-        if (downloader.getResponseCode() == 429) {
-            LOG_INFO(downloader.getMessageHeader());
-            const auto header(downloader.getMessageHeaderObject());
-            if (header.getXRatelimitRemaining() == 0) {
-                // Conversion problems due to special 8601 format that is not supported yet by TimeUtil.
-                // If we solve that, we might be able to ret the exact time to sleep from the response header.
-                const time_t sleep_until_time(header.getXRatelimitRetryAfter("%Y-%m-%dT%H:%M:%S%z"));
-                if (sleep_until_time != TimeUtil::BAD_TIME_T) {
-                    const std::string sleep_until_string(TimeUtil::TimeTToLocalTimeString(sleep_until_time));
+    if (downloader.anErrorOccurred())
+        LOG_ERROR(downloader.getLastErrorMessage() + ", curlcode: " + std::to_string(downloader.getLastErrorCode()));
+    else if (downloader.getResponseCode() == 429) {
+        const auto header(downloader.getMessageHeaderObject());
+        if (header.getXRatelimitRemaining() == 0) {
+            const time_t sleep_until_time(header.getXRatelimitRetryAfter("%Y-%m-%dT%H:%M:%S%z"));
+            if (sleep_until_time != TimeUtil::BAD_TIME_T) {
+                const std::string sleep_until_string(TimeUtil::TimeTToLocalTimeString(sleep_until_time));
 
-                    LOG_WARNING("Rate limiting active + too many requests! Sleeping until " + sleep_until_string);
-                    std::this_thread::sleep_until(std::chrono::system_clock::from_time_t(sleep_until_time));
-                } else {
-                    const unsigned sleep_seconds(60);
-                    LOG_WARNING("Rate limiting active + too many requests! Could not determine retry_after timestamp! Sleeping for "
-                                + std::to_string(sleep_seconds) + "s");
-                    ::sleep(sleep_seconds);
-                }
+                // We're allowed to perform 150 requests within a 5 minute window due to our license.
+                // However, in practical terms responses might get a penalty e.g. when using the scroll mechanism,
+                // so it's more likely to be 75.
+                LOG_WARNING("Rate limiting active + too many requests! Sleeping until " + sleep_until_string);
+                std::this_thread::sleep_until(std::chrono::system_clock::from_time_t(sleep_until_time));
 
-                LOG_WARNING("Sleeping for additional 60 minutes, since rate limit information is not reliable.");
-                ::sleep(3600);
+                // sleep another 60 seconds just in case we have a system time difference between client and server
+                // (even if timezone is already considered)
+                const unsigned sleep_offset(60);
+                LOG_WARNING("Sleeping another " + std::to_string(sleep_offset) + "s due to possible client/server system time difference");
+                ::sleep(sleep_offset);
+            } else {
+                const unsigned sleep_seconds(60);
+                LOG_WARNING("Rate limiting active + too many requests! Could not determine retry_after timestamp! Sleeping for "
+                            + std::to_string(sleep_seconds) + "s");
+                ::sleep(sleep_seconds);
             }
-        } else {
-            if (downloader.anErrorOccurred())
-                throw std::runtime_error(downloader.getLastErrorMessage());
-
-            return downloader.getMessageBody();
         }
-    }
 
-    // Retry if we ran into any errors.
-    // The existing downloader object should be destroyed before doing this.
-    return Download(url);
+        // try again after sleep
+        return Download(url);
+    } else if (downloader.getResponseCode() >= 400)
+        LOG_ERROR("HTTP Error Code " + std::to_string(downloader.getResponseCode()) + "! Full header:" + downloader.getMessageHeader());
+    else
+        return downloader.getMessageBody();
 }
 
 
@@ -284,6 +343,20 @@ SearchResponse::SearchResponse(const std::string &json) {
 }
 
 
+SearchResponseDataProviders::SearchResponseDataProviders(const SearchResponse &response) {
+    total_hits_ = response.total_hits_;
+    limit_ = response.limit_;
+    offset_ = response.offset_;
+    scroll_id_ = response.scroll_id_;
+    tooks_ = response.tooks_;
+    es_took_ = response.es_took_;
+
+    for (const auto &result : response.results_) {
+        results_.emplace_back(DataProvider(result.getJson()));
+    }
+}
+
+
 SearchResponseWorks::SearchResponseWorks(const SearchResponse &response) {
     total_hits_ = response.total_hits_;
     limit_ = response.limit_;
@@ -310,6 +383,13 @@ SearchResponse Search(const SearchParams &params) {
 }
 
 
+SearchResponseDataProviders SearchDataProviders(const SearchParamsDataProviders &params) {
+    const auto response_raw(Search(params));
+    SearchResponseDataProviders response(response_raw);
+    return response;
+}
+
+
 SearchResponseWorks SearchWorks(const SearchParamsWorks &params) {
     const auto response_raw(Search(params));
     SearchResponseWorks response(response_raw);
@@ -317,8 +397,12 @@ SearchResponseWorks SearchWorks(const SearchParamsWorks &params) {
 }
 
 
-void SearchBatch(const SearchParams &params, const std::string &output_dir, const unsigned limit) {
-    if (not FileUtil::IsDirectory(output_dir))
+void SearchBatchHelper(const SearchParams &params, const std::string &output_dir, std::vector<Entity> * const output_list,
+                       const unsigned limit) {
+    if (output_dir.empty() and output_list == nullptr)
+        LOG_ERROR("You must either specify output_directory or output_list (or both)!");
+
+    if (not output_dir.empty() and not FileUtil::IsDirectory(output_dir))
         FileUtil::MakeDirectoryOrDie(output_dir, /*recursive=*/true);
     SearchParams current_params = params;
 
@@ -333,11 +417,17 @@ void SearchBatch(const SearchParams &params, const std::string &output_dir, cons
     SearchResponse response(response_json);
 
     int i(1);
-    std::string output_file(output_dir + "/" + std::to_string(i) + ".json");
-    LOG_INFO("Downloaded file: " + output_file + " (" + std::to_string(response.offset_) + "-"
-             + std::to_string(response.offset_ + response.limit_) + "/" + std::to_string(response.total_hits_) + ")");
-
-    FileUtil::WriteStringOrDie(output_file, response_json);
+    LOG_INFO("Downloaded entities " + std::to_string(response.offset_) + "-" + std::to_string(response.offset_ + response.limit_) + "/"
+             + std::to_string(response.total_hits_) + ")");
+    if (not output_dir.empty()) {
+        const std::string output_file(output_dir + "/" + std::to_string(i) + ".json");
+        FileUtil::WriteStringOrDie(output_file, response_json);
+    }
+    if (output_list != nullptr) {
+        for (const auto &entity : response.results_) {
+            output_list->emplace_back(entity);
+        }
+    }
 
     unsigned max_offset(response.total_hits_);
     if (limit > 0 && limit < max_offset)
@@ -349,7 +439,6 @@ void SearchBatch(const SearchParams &params, const std::string &output_dir, cons
             current_params.limit_ = max_offset - current_params.offset_;
 
         ++i;
-        output_file = output_dir + "/" + std::to_string(i) + ".json";
 
         if (not response.scroll_id_.empty())
             current_params.scroll_id_ = response.scroll_id_;
@@ -357,10 +446,52 @@ void SearchBatch(const SearchParams &params, const std::string &output_dir, cons
         response_json = SearchRaw(current_params);
         response = SearchResponse(response_json);
 
-        LOG_INFO("Downloaded file: " + output_file + " (" + std::to_string(response.offset_) + "-"
-                 + std::to_string(response.offset_ + response.limit_) + "/" + std::to_string(response.total_hits_) + ")");
-        FileUtil::WriteStringOrDie(output_file, response_json);
+        LOG_INFO("Downloaded entities " + std::to_string(current_params.offset_) + "-"
+                 + std::to_string(current_params.offset_ + current_params.limit_) + "/" + std::to_string(response.total_hits_) + ")");
+        if (not output_dir.empty()) {
+            const std::string output_file(output_dir + "/" + std::to_string(i) + ".json");
+            FileUtil::WriteStringOrDie(output_file, response_json);
+        }
+        if (output_list != nullptr) {
+            for (const auto &entity : response.results_) {
+                output_list->emplace_back(entity);
+            }
+        }
     }
+}
+
+
+void SearchBatch(const SearchParams &params, const std::string &output_dir, const unsigned limit) {
+    SearchBatchHelper(params, output_dir, /* output_list=*/nullptr, limit);
+}
+
+
+std::vector<Entity> SearchBatch(const SearchParams &params, const unsigned limit) {
+    std::vector<Entity> output_list;
+    SearchBatchHelper(params, /* output_dir=*/"", &output_list, limit);
+    return output_list;
+}
+
+
+std::vector<Work> SearchBatch(const SearchParamsWorks &params, const unsigned limit) {
+    const SearchParams entity_params((SearchParams)params);
+    auto entities(SearchBatch(entity_params, limit));
+
+    std::vector<Work> works;
+    for (auto &entity : entities)
+        works.emplace_back(entity.getJson());
+    return works;
+}
+
+
+std::vector<DataProvider> SearchBatch(const SearchParamsDataProviders &params, const unsigned limit) {
+    const SearchParams entity_params((SearchParams)params);
+    auto entities(SearchBatch(entity_params, limit));
+
+    std::vector<DataProvider> data_providers;
+    for (auto &entity : entities)
+        data_providers.emplace_back(entity.getJson());
+    return data_providers;
 }
 
 
@@ -405,19 +536,19 @@ std::vector<Work> GetWorksFromFile(const std::string &file) {
 
 void OutputFileStart(const std::string &path) {
     FileUtil::MakeParentDirectoryOrDie(path, /*recursive=*/true);
-    FileUtil::AppendString(path, "[\n");
+    FileUtil::WriteStringOrDie(path, "[\n");
 }
 
 
 void OutputFileAppend(const std::string &path, const Entity &entity, const bool first) {
     if (not first)
-        FileUtil::AppendString(path, ",\n");
-    FileUtil::AppendString(path, entity.getJson().dump());
+        FileUtil::AppendStringOrDie(path, ",\n");
+    FileUtil::AppendStringOrDie(path, entity.getJson().dump());
 }
 
 
 void OutputFileEnd(const std::string &path) {
-    FileUtil::AppendString(path, "\n]");
+    FileUtil::AppendStringOrDie(path, "\n]");
 }
 
 

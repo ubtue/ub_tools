@@ -284,6 +284,18 @@ bool InsertField(MARC::Record * const record, const MARC::Tag &tag, const char s
 }
 
 
+bool HasGlobalFlag(const std::string &replacement_regex) {
+    return *(replacement_regex.rbegin()) == 'g' and *(replacement_regex.rbegin() + 1) == '/';
+}
+
+
+std::vector<std::string> GetSplitReplacementRegexWithoutGlobalFlag(const std::string &replacement_regex) {
+    const std::string replacement_regex_without_global_flag(
+        HasGlobalFlag(replacement_regex) ? replacement_regex.substr(0, replacement_regex.length() - 2) : replacement_regex);
+    return StringUtil::Split(replacement_regex_without_global_flag, '/', '\\' /* escape_char */, true /* suppress_empty_components */);
+}
+
+
 bool InsertFieldRegex(MARC::Record * const record, const MARC::Tag &tag, const char subfield_code, const std::string &replacement_regex,
                       std::string * const error_message, CompiledPattern * const condition = nullptr) {
     if (subfield_code == CompiledPattern::NO_SUBFIELD_CODE)
@@ -298,12 +310,13 @@ bool InsertFieldRegex(MARC::Record * const record, const MARC::Tag &tag, const c
     if (not condition->matched(*record, &subfield_value, &start_pos, &end_pos))
         return false;
 
-    std::vector<std::string> pattern_and_replacement;
-    if (StringUtil::Split(replacement_regex, '/', &pattern_and_replacement, true /* suppress_empty_components */) != 2)
-        LOG_ERROR("Invalid replacement pattern :\"" + replacement_regex + "\"\nMust follow /pattern/replacement/ scheme");
+    bool global(HasGlobalFlag(replacement_regex));
+    std::vector<std::string> pattern_and_replacement(GetSplitReplacementRegexWithoutGlobalFlag(replacement_regex));
+    if (unlikely(pattern_and_replacement.size() != 2))
+        LOG_ERROR("Invalid replacement pattern :\"" + replacement_regex + "\"\nMust follow /pattern/replacement/g? scheme");
 
     ThreadSafeRegexMatcher replace_matcher(pattern_and_replacement[0]);
-    const std::string insertion_text(replace_matcher.replaceWithBackreferences(subfield_value, pattern_and_replacement[1]));
+    const std::string insertion_text(replace_matcher.replaceWithBackreferences(subfield_value, pattern_and_replacement[1], global));
 
 
     if (not record->insertField(tag, { { subfield_code, insertion_text } })) {
@@ -364,14 +377,16 @@ bool ReplaceSubfieldRegex(MARC::Record * const record, const MARC::Tag &tag, con
         if (not subfields.hasSubfield(subfield_code))
             continue;
 
-        std::vector<std::string> pattern_and_replacement;
-        if (StringUtil::Split(replacement_regex, '/', &pattern_and_replacement, true /* suppress_empty_components */) != 2)
-            LOG_ERROR("Invalid replacement pattern :\"" + replacement_regex + "\"\nMust follow /pattern/replacement/ scheme");
+
+        bool global(HasGlobalFlag(replacement_regex));
+        std::vector<std::string> pattern_and_replacement(GetSplitReplacementRegexWithoutGlobalFlag(replacement_regex));
+        if (unlikely(pattern_and_replacement.size() != 2))
+            LOG_ERROR("Invalid replacement pattern :\"" + replacement_regex + "\"\nMust follow /pattern/replacement/g? scheme");
 
         const std::string subfield_value(subfields.getFirstSubfieldWithCode(subfield_code));
         ThreadSafeRegexMatcher replace_matcher(pattern_and_replacement[0]);
 
-        const std::string replacement_text(replace_matcher.replaceWithBackreferences(subfield_value, pattern_and_replacement[1]));
+        const std::string replacement_text(replace_matcher.replaceWithBackreferences(subfield_value, pattern_and_replacement[1], global));
 
         if (subfields.replaceFirstSubfield(subfield_code, replacement_text)) {
             field.setSubfields(subfields);
@@ -435,11 +450,12 @@ bool AddSubfieldRegex(MARC::Record * const record, const MARC::Tag &tag, const c
             if (std::none_of(subfield_values_to_match.cbegin(), subfield_values_to_match.cend(),
                              [condition](const std::string &subfield_value) { return condition->getMatcher().matched(subfield_value); }))
                 continue;
-            std::vector<std::string> pattern_and_replacement;
-            if (StringUtil::Split(replacement_regex, '/', &pattern_and_replacement, true /* suppress_empty_components */) != 2)
-                LOG_ERROR("Invalid replacement pattern :\"" + replacement_regex + "\"\nMust follow /pattern/replacement/ scheme");
+            bool global(HasGlobalFlag(replacement_regex));
+            std::vector<std::string> pattern_and_replacement(GetSplitReplacementRegexWithoutGlobalFlag(replacement_regex));
+            if (pattern_and_replacement.size() != 2)
+                LOG_ERROR("Invalid replacement pattern :\"" + replacement_regex + "\"\nMust follow /pattern/replacement/g? scheme");
             ThreadSafeRegexMatcher replace_matcher(pattern_and_replacement[0]);
-            const std::string insertion_text(replace_matcher.replaceWithBackreferences(subfield_value, pattern_and_replacement[1]));
+            const std::string insertion_text(replace_matcher.replaceWithBackreferences(subfield_value, pattern_and_replacement[1], global));
             subfields.addSubfield(subfield_code, insertion_text);
             field.setSubfields(subfields);
             modified_at_least_one = true;

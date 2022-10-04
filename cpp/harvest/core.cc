@@ -18,6 +18,7 @@
  */
 
 #include <iostream>
+#include <map>
 #include <set>
 #include <unordered_map>
 #include "CORE.h"
@@ -53,12 +54,10 @@ namespace {
         "\t- input_dir: A dir with multiple JSON files to merge, typically from a search result.\n"
         "\t- output_file: The directory to store the merged JSON result file.\n"
         "\n"
-        "filter input_file output_file\n"
+        "filter input_file output_file filtered_file\n"
         "\t- input_file: A single JSON input file.\n"
         "\t- output_file: The target JSON file without filtered datasets.\n"
-        "\t- filtered_file_tuebingen: File to store datasets that have been filtered because they belong to tuebingen.\n"
-        "\t- filtered_file_incomplete: File to store datasets that have been filtered because they are incomplete.\n"
-        "\t- filtered_file_duplicates: File to store datasets that have been filtered because they are duplicates.\n"
+        "\t- filtered_file: File to store datasets that have been removed when filtering. The reason will be stored in each JSON entry.\n"
         "\n"
         "count input_file\n"
         "\t- input_file: The JSON file to count the results from. Result will be written to stdout.\n"
@@ -76,6 +75,9 @@ namespace {
         "project. An example would be DE-2619 for criminology.\n"
         "\t- input_file: The JSON file to convert.\n"
         "\t- output_file: The MARC or XML file to write to.\n"
+        "\n"
+        "data-providers output_file\n"
+        "\t- output_file: The CSV file to write to.\n"
         "\n");
 }
 
@@ -116,68 +118,42 @@ void ConvertDownloadURL(const CORE::Work &work, MARC::Record * const record) {
 }
 
 
-bool ConvertLanguage(const CORE::Work &work, MARC::Record * const record) {
-    if (work.getLanguage().code_.empty())
-        return false;
-    std::string lang = MARC::MapToMARCLanguageCode(work.getLanguage().code_);
-    if (lang != "eng" and lang != "ger" and lang != "spa" and lang != "baq" and lang != "cat" and lang != "por" and lang != "ita"
-        and lang != "dut")
-        return false;
+void ConvertLanguage(const CORE::Work &work, MARC::Record * const record) {
+    const std::string lang(MARC::MapToMARCLanguageCode(work.getLanguage().code_));
     record->insertField("041", 'a', lang);
-    return true;
 }
 
 
-// \return True if an abstract was found, else false.
-bool ConvertAbstract(const CORE::Work &work, MARC::Record * const record) {
+void ConvertAbstract(const CORE::Work &work, MARC::Record * const record) {
     const std::string abstract(work.getAbstract());
-    if (abstract.empty())
-        return false;
-    std::string abstract_value = abstract.length() > 5 ? abstract : "not available";
-    record->insertField("520", 'a', StringUtil::Truncate(MARC::Record::MAX_VARIABLE_FIELD_DATA_LENGTH, abstract_value));
-    return true;
+    if (not abstract.empty() and abstract.length() > 5)
+        record->insertField("520", 'a', StringUtil::Truncate(MARC::Record::MAX_VARIABLE_FIELD_DATA_LENGTH, abstract));
 }
 
 
-// \return True if any uncontrolled terms were found, else false.
-bool ConvertUncontrolledIndexTerms(const CORE::Work &work, MARC::Record * const record) {
-    bool found_at_least_one_index_term(false);
-
-    if (not work.getDocumentType().empty() and work.getDocumentType() != "unknown") {
+void ConvertUncontrolledIndexTerms(const CORE::Work &work, MARC::Record * const record) {
+    if (not work.getDocumentType().empty() and work.getDocumentType() != "unknown")
         record->insertField("653", 'a', work.getDocumentType());
-        found_at_least_one_index_term = true;
-    }
-
-    if (work.getFieldOfStudy().empty())
-        return found_at_least_one_index_term;
-
-    record->insertField("653", 'a', work.getFieldOfStudy());
-    found_at_least_one_index_term = true;
-
-    return found_at_least_one_index_term;
+    if (not work.getFieldOfStudy().empty())
+        record->insertField("653", 'a', work.getFieldOfStudy());
 }
 
 
-// \return True if any uncontrolled terms were found, else false.
-bool ConvertYearPublished(const CORE::Work &work, MARC::Record * const record) {
-    if (work.getYearPublished() == 0)
-        return false;
-    record->insertField("264", 'c', std::to_string(work.getYearPublished()), /*indicator1=*/' ', /*indicator2=*/'1');
-    return true;
+void ConvertYearPublished(const CORE::Work &work, MARC::Record * const record) {
+    if (work.getYearPublished() != 0)
+        record->insertField("264", 'c', std::to_string(work.getYearPublished()), /*indicator1=*/' ', /*indicator2=*/'1');
 }
 
 
-bool ConvertJournal(const CORE::Work &work, MARC::Record * const record) {
+void ConvertJournal(const CORE::Work &work, MARC::Record * const record) {
     for (const auto &journal : work.getJournals()) {
         for (const auto &identifier : journal.identifiers_) {
             if (MiscUtil::IsPossibleISSN(identifier)) {
                 record->insertField("773", { { 'x', identifier } },
                                     /*indicator1=*/'0', /*indicator2=*/'8');
-                return true;
             }
         }
     }
-    return false;
 }
 
 
@@ -219,8 +195,7 @@ void ConvertJSONToMARC(const std::vector<CORE::Work> &works, MARC::Writer * cons
         new_record.insertField("852", 'a', project_sigil);
         ConvertYear(work, &new_record);
         ConvertDownloadURL(work, &new_record);
-        if (not ConvertLanguage(work, &new_record))
-            continue;
+        ConvertLanguage(work, &new_record);
         ConvertAbstract(work, &new_record);
         ConvertUncontrolledIndexTerms(work, &new_record);
         ConvertYearPublished(work, &new_record);
@@ -294,7 +269,7 @@ void Download(int argc, char **argv) {
 
 
 void Filter(int argc, char **argv) {
-    if (argc != 7)
+    if (argc != 5)
         Usage();
 
     bool ignore_unique_id_dups(false);
@@ -305,32 +280,44 @@ void Filter(int argc, char **argv) {
 
     const std::string input_file(argv[2]);
     const std::string output_file(argv[3]);
-    const std::string filter_file_tuebingen(argv[4]);
-    const std::string filter_file_incomplete(argv[5]);
-    const std::string filter_file_duplicate(argv[6]);
+    const std::string filter_file(argv[4]);
 
     const auto works(CORE::GetWorksFromFile(input_file));
     CORE::OutputFileStart(output_file);
-    CORE::OutputFileStart(filter_file_tuebingen);
-    CORE::OutputFileStart(filter_file_incomplete);
-    CORE::OutputFileStart(filter_file_duplicate);
+    CORE::OutputFileStart(filter_file);
     bool first(true);
-    unsigned skipped_uni_tue(0), skipped_dupe_count(0), skipped_incomplete_count(0);
+    unsigned skipped(0), skipped_uni_tue_count(0), skipped_dupe_count(0), skipped_incomplete_count(0), skipped_language_count(0);
     KeyValueDB unique_id_to_date_map(UNIQUE_ID_TO_DATE_MAP_PATH);
-    for (const auto &work : works) {
+    for (auto work : works) {
         if (work.getPublisher() == "Universität Tübingen") {
-            CORE::OutputFileAppend(filter_file_tuebingen, work, skipped_uni_tue == 0);
-            ++skipped_uni_tue;
+            work.setFilteredReason("Universität Tübingen");
+            CORE::OutputFileAppend(filter_file, work, skipped == 0);
+            ++skipped;
+            ++skipped_uni_tue_count;
             continue;
         }
         if (work.getTitle() == "" or work.getAuthors().empty()) {
-            CORE::OutputFileAppend(filter_file_incomplete, work, skipped_incomplete_count == 0);
+            work.setFilteredReason("Empty title or authors");
+            CORE::OutputFileAppend(filter_file, work, skipped == 0);
+            ++skipped;
             ++skipped_incomplete_count;
             continue;
         }
+
+        static const std::unordered_set<std::string> allowed_languages({ "eng", "ger", "spa", "baq", "cat", "por", "ita", "dut" });
+        if (work.getLanguage().code_.empty() or not allowed_languages.contains(MARC::MapToMARCLanguageCode(work.getLanguage().code_))) {
+            work.setFilteredReason("Language empty or not allowed");
+            CORE::OutputFileAppend(filter_file, work, skipped == 0);
+            ++skipped;
+            ++skipped_language_count;
+            continue;
+        }
+
         const std::string control_number(ConvertId(std::to_string(work.getId())));
         if (ignore_unique_id_dups and unique_id_to_date_map.keyIsPresent(control_number)) {
-            CORE::OutputFileAppend(filter_file_duplicate, work, skipped_dupe_count == 0);
+            work.setFilteredReason("Duplicate");
+            CORE::OutputFileAppend(filter_file, work, skipped == 0);
+            ++skipped;
             ++skipped_dupe_count;
             continue;
         }
@@ -338,13 +325,15 @@ void Filter(int argc, char **argv) {
         first = false;
     }
     CORE::OutputFileEnd(output_file);
-    CORE::OutputFileEnd(filter_file_tuebingen);
-    CORE::OutputFileEnd(filter_file_incomplete);
-    CORE::OutputFileEnd(filter_file_duplicate);
+    CORE::OutputFileEnd(filter_file);
 
-    LOG_INFO("Filtered " + std::to_string(skipped_uni_tue) + " Uni Tübingen records");
-    LOG_INFO("Filtered " + std::to_string(skipped_incomplete_count) + " incomplete records");
-    LOG_INFO("Filtered " + std::to_string(skipped_dupe_count) + " duplicate records");
+    LOG_INFO(
+        "Filtered " + std::to_string(skipped) + " records, thereof:\n"
+        "- " + std::to_string(skipped_uni_tue_count) + " Uni Tübingen\n"
+        "- " + std::to_string(skipped_incomplete_count) + " incomplete\n"
+        "- " + std::to_string(skipped_dupe_count) + " duplicate\n"
+        "- " + std::to_string(skipped_language_count) + " language"
+    );
 }
 
 
@@ -394,11 +383,11 @@ void Search(int argc, char **argv) {
     const std::string output_dir(argv[3]);
 
     // Setup CORE instance & parameters
-    CORE::SearchParams params;
+    CORE::SearchParamsWorks params;
     params.q_ = query;
-    params.exclude_ = { "fullText" }; // for performance reasons
-    params.limit_ = 100;              // default per request = 10, max 100
-    params.entity_type_ = CORE::EntityType::WORK;
+    params.scroll_ = true;
+    params.limit_ = 1000;
+    params.exclude_ = { "fullText" };
     unsigned limit(0);
     if (argc == 5)
         limit = StringUtil::ToUnsigned(argv[4]);
@@ -435,6 +424,7 @@ void Statistics(int argc, char **argv) {
     unsigned count_empty_title(0);
     unsigned count_empty_authors(0);
 
+    std::map<unsigned long, unsigned> data_providers;
     std::map<std::string, unsigned> languages;
     for (const auto &work : works) {
         if (work.isArticle())
@@ -450,10 +440,19 @@ void Statistics(int argc, char **argv) {
         if (language_iter == languages.end())
             languages[work.getLanguage().code_] = 1;
         else
-            ++languages[work.getLanguage().code_];
+            ++language_iter->second;
 
         if (work.getPublisher() == "Universität Tübingen")
             ++count_uni_tue;
+
+        const auto data_provider_ids(work.getDataProviderIds());
+        for (const auto &data_provider_id : data_provider_ids) {
+            const auto data_providers_iter(data_providers.find(data_provider_id));
+            if (data_providers_iter == data_providers.end())
+                data_providers[data_provider_id] = 1;
+            else
+                ++data_providers_iter->second;
+        }
     }
 
     LOG_INFO("Statistics for " + core_file + ":");
@@ -471,6 +470,43 @@ void Statistics(int argc, char **argv) {
         first = false;
     }
     LOG_INFO(languages_msg);
+
+    std::string data_providers_msg("data providers:\n");
+    std::vector<std::pair<long unsigned, unsigned>> data_providers_sort;
+    for (const auto &item : data_providers) {
+        data_providers_sort.emplace_back(item);
+    }
+    std::sort(data_providers_sort.begin(), data_providers_sort.end(), [](const auto &x, const auto &y) { return x.second > y.second; });
+    for (const auto &[data_provider_id, count] : data_providers_sort) {
+        data_providers_msg += "ID: " + std::to_string(data_provider_id) + ", count: " + std::to_string(count) + "\n";
+    }
+    LOG_INFO(data_providers_msg);
+}
+
+
+void DataProviders(int argc, char **argv) {
+    // Parse args
+    if (argc != 3)
+        Usage();
+
+    const std::string output_file(argv[2]);
+
+    CORE::SearchParamsDataProviders params;
+    params.q_ = "*";
+    params.limit_ = 1000;
+    const auto data_providers(CORE::SearchBatch(params));
+
+    unsigned count(0);
+    FileUtil::WriteStringOrDie(output_file, "ID;Name;Homepage URL;Type;Metadata Format;Created Date\n");
+    for (const auto &data_provider : data_providers) {
+        ++count;
+        FileUtil::AppendStringOrDie(output_file, std::to_string(data_provider.getId()) + ";" + TextUtil::CSVEscape(data_provider.getName())
+                                                     + ";" + TextUtil::CSVEscape(data_provider.getHomepageUrl()) + ";"
+                                                     + TextUtil::CSVEscape(data_provider.getType()) + ";"
+                                                     + TextUtil::CSVEscape(data_provider.getMetadataFormat()) + ";"
+                                                     + TextUtil::CSVEscape(data_provider.getCreatedDate()) + "\n");
+    }
+    LOG_INFO("Generated " + output_file + " with " + std::to_string(count) + " entries.");
 }
 
 
@@ -496,6 +532,8 @@ int Main(int argc, char **argv) {
         Count(argc, argv);
     else if (mode == "statistics")
         Statistics(argc, argv);
+    else if (mode == "data-providers")
+        DataProviders(argc, argv);
     else
         Usage();
 
