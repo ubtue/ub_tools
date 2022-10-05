@@ -76,7 +76,7 @@ for record_ppn in "${!ppns_and_titles[@]}"; do
         reference_title="${references[${record_title}]:-}"
         arguments+=" --insert-field-if '500a:Verweis auf \"${reference_title}\"' '001:${record_ppn}'"
         reference_ppn="${titles_and_ppns[${reference_title}]:-BIB00000000}"
-        reference_year="${ppns_and_years[${reference_ppn}]:-2007}"
+        reference_year="${ppns_and_years[${reference_ppn}]:-2005}"
         arguments+=" --insert-field-if '264c:${reference_year}' '001:${record_ppn}' \
                      --insert-field-if '936j:${reference_year}' '001:${record_ppn}'"
 
