@@ -1266,6 +1266,12 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
     } else if ((zeder_instance == Zeder::Flavour::KRIMDOK) and not parameters.download_item_.journal_.selective_evaluation_) {
         marc_record->insertFieldAtEnd("935", { { 'a', "mkri" } });
     }
+    // Add additionally configured selectors
+    std::vector<std::string> additional_selectors;
+    StringUtil::SplitThenTrimWhite(parameters.download_item_.journal_.additional_selectors_, ",", &additional_selectors);
+    for (const auto additional_selector : additional_selectors)
+        marc_record->insertFieldAtEnd("935", { { 'a', additional_selector } });
+
     marc_record->insertField("852", { { 'a', parameters.group_params_.isil_ } });
 
     // Zotero sigil
