@@ -1116,7 +1116,7 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
     else
         year = TimeUtil::GetCurrentYear();
 
-    marc_record->insertField("264", { { 'c', year } });
+    marc_record->insertField("264", { { 'c', year } }, ' ', '1');
 
     // URL
     if (not metadata_record.url_.empty()) {
