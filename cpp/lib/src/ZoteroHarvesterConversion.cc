@@ -532,11 +532,11 @@ ThreadSafeRegexMatcher LANGUAGE_WITH_POTENTIAL_SUBLANGUAGE("(?i)(?:([a-z]{2,3})(
 
 
 void StripLanguageSubcodes(std::set<std::string> * const languages) {
-    std::for_each(languages->begin(), languages->end(), [languages](const std::string& language) {
-                      auto stripped_language(languages->extract(language));
-                      stripped_language.value() = LANGUAGE_WITH_POTENTIAL_SUBLANGUAGE.replaceWithBackreferences(language, "\\1");
-                      languages->insert(std::move(stripped_language));
-                 });
+    std::for_each(languages->begin(), languages->end(), [languages](const std::string &language) {
+        auto stripped_language(languages->extract(language));
+        stripped_language.value() = LANGUAGE_WITH_POTENTIAL_SUBLANGUAGE.replaceWithBackreferences(language, "\\1");
+        languages->insert(std::move(stripped_language));
+    });
 }
 
 
@@ -641,9 +641,9 @@ void AdjustLanguages(MetadataRecord * const metadata_record, const Config::Journ
             }
 
         } else if (metadata_record->languages_.empty()) {
-            if (not journal_params.language_params_.expected_languages_.empty() and
-                (journal_params.language_params_.expected_languages_.find(detected_language)
-                == journal_params.language_params_.expected_languages_.end()))
+            if (not journal_params.language_params_.expected_languages_.empty()
+                and (journal_params.language_params_.expected_languages_.find(detected_language)
+                     == journal_params.language_params_.expected_languages_.end()))
             {
                 LOG_INFO("No language from Zotero but detected language : " + detected_language + " is not in the given set of admissible languages. "
                          "No language will be set");
@@ -651,7 +651,7 @@ void AdjustLanguages(MetadataRecord * const metadata_record, const Config::Journ
             } else {
                 LOG_INFO("No language from Zotero - setting " + configured_or_detected_info + " language: " + detected_language);
                 metadata_record->languages_.emplace(detected_language);
-           }
+            }
         } else if (*metadata_record->languages_.begin() == detected_language and metadata_record->languages_.size() == 1)
             LOG_INFO("The given language is equal to the " + configured_or_detected_info + " language: " + detected_language);
         else {
@@ -986,9 +986,9 @@ void RewriteMarcFields(MARC::Record * const marc_record, const ConversionParams 
 
 
 ThreadSafeRegexMatcher::MatchResult MatchRomanPageOrPageRange(const std::string &pages) {
-    static const auto roman_page_range_matcher(ThreadSafeRegexMatcher("([ivxlcdm]+)(?:[\\W]([ivxlcdm]+))?",
-                                               ThreadSafeRegexMatcher::ENABLE_UTF8 |
-                                               ThreadSafeRegexMatcher::ENABLE_UCP | ThreadSafeRegexMatcher::CASE_INSENSITIVE));
+    static const auto roman_page_range_matcher(ThreadSafeRegexMatcher(
+        "([ivxlcdm]+)(?:[\\W]([ivxlcdm]+))?",
+        ThreadSafeRegexMatcher::ENABLE_UTF8 | ThreadSafeRegexMatcher::ENABLE_UCP | ThreadSafeRegexMatcher::CASE_INSENSITIVE));
     return roman_page_range_matcher.match(pages);
 }
 
@@ -1000,8 +1000,8 @@ std::string ConvertRomanPageRangeToArabic(const std::string &pages, const Thread
     }
     if (match_result.size() <= 2 /*direct match or full match and one subgroup*/)
         return std::to_string(StringUtil::RomanNumeralToDecimal(StringUtil::ASCIIToUpper(pages)));
-    return std::to_string(StringUtil::RomanNumeralToDecimal(StringUtil::ASCIIToUpper(match_result[1]))) + '-' +
-        std::to_string(StringUtil::RomanNumeralToDecimal(StringUtil::ASCIIToUpper(match_result[2])));
+    return std::to_string(StringUtil::RomanNumeralToDecimal(StringUtil::ASCIIToUpper(match_result[1]))) + '-'
+           + std::to_string(StringUtil::RomanNumeralToDecimal(StringUtil::ASCIIToUpper(match_result[2])));
 }
 
 
@@ -1104,8 +1104,8 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
     // Date & Year
     const auto &date(metadata_record.date_);
     const auto &item_type(metadata_record.item_type_);
-    if (not date.empty() and item_type != "journalArticle" and item_type != "review"
-        and item_type != "note" and item_type != "review_note") {
+    if (not date.empty() and item_type != "journalArticle" and item_type != "review" and item_type != "note" and item_type != "review_note")
+    {
         marc_record->insertField("362", { { 'a', date } });
     }
 
@@ -1169,7 +1169,7 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
     const bool _773_subfields_iaxw_present(not _773_subfields.empty());
     bool _773_subfield_g_present(false);
     std::string _773_g_content;
-    if (not (volume.empty() and issue.empty())) {
+    if (not(volume.empty() and issue.empty())) {
         if (not volume.empty()) {
             _773_g_content += volume + " (" + year + ")";
             if (not issue.empty())
@@ -1210,16 +1210,16 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
         } else if (const auto match_result = MatchRomanPageOrPageRange(pages); unlikely(match_result)) {
             const std::string converted_pages(ConvertRomanPageRangeToArabic(pages, match_result));
             _936_subfields.appendSubfield('h', converted_pages);
-             LOG_DEBUG("converted roman numeral page range '" + pages + "' to decimal page range '" + converted_pages + "'");
+            LOG_DEBUG("converted roman numeral page range '" + pages + "' to decimal page range '" + converted_pages + "'");
             include_936_y = true;
-        }  else
+        } else
             _936_subfields.appendSubfield('h', pages);
     }
 
     _936_subfields.appendSubfield('j', year);
     // For roman pages insert additionally needed y-field
     if (unlikely(include_936_y and _773_subfield_g_present))
-       _936_subfields.appendSubfield('y', _773_g_content);
+        _936_subfields.appendSubfield('y', _773_g_content);
     if (not _936_subfields.empty())
         marc_record->insertField("936", _936_subfields, 'u', 'w');
 
@@ -1269,7 +1269,7 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
     // Add additionally configured selectors
     std::vector<std::string> additional_selectors;
     StringUtil::SplitThenTrimWhite(parameters.download_item_.journal_.additional_selectors_, ",", &additional_selectors);
-    for (const auto additional_selector : additional_selectors)
+    for (const auto &additional_selector : additional_selectors)
         marc_record->insertFieldAtEnd("935", { { 'a', additional_selector } });
 
     marc_record->insertField("852", { { 'a', parameters.group_params_.isil_ } });
