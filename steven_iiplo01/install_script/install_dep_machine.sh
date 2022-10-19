@@ -1,4 +1,27 @@
 #!/bin/bash
+
+##################
+# script for installation of based-machine
+# os: ubuntu 22.04
+# by Steven Lolong (steven.lolong@uni-tuebingen.de)
+# based on the script maintained by by Mario Trojan
+##################
+
+
+#######################
+# copy this file into /tmp/
+# change file property to 700
+# chmod 700 /tmp/install_dep_machine.sh
+#######################
+
+
+cd /
+export JAVA_TOOL_OPTIONS="-Dfile.encoding=UTF8"
+
+apt-get --yes update \
+    && apt-get --yes install curl \
+    && apt-get --yes install sudo wget
+
 if [[ $# > 1 ]]; then
     echo "usage: $0 [system_type]"
     echo "          ixtheo|krimdok: Also install specific dependencies"
@@ -17,10 +40,6 @@ fi
 #--------------------------------- UB_TOOLS ---------------------------------#
 ColorEcho "installing/updating ub_tools dependencies..."
 
-apt-get --yes update
-
-# install additional libraries for docker environment
-apt-get --yes install sudo wget
 
 # install software-properties-common for apt-add-repository
 apt-get --yes install software-properties-common
