@@ -115,7 +115,8 @@ chown -R www-data:www-data /usr/local/vufind/local/tuefind/local_overrides/*.con
 # chown -R www-data:www-data /usr/local/vufind/local/tuefind/instances/ixtheo/config
 chown -R www-data:www-data /usr/local/vufind/local/tuefind/instances/ixtheo/cache
 # chmod 775 /usr/local/vufind/local/tuefind/instances/ixtheo/config
-chmod 775 /usr/local/vufind/local/tuefind/instances/ixtheo/cache
+chmod -R 775 /usr/local/vufind/local/tuefind/instances/ixtheo/cache
+
 
 # chown -R www-data:www-data /usr/local/vufind/local/config
 chown -R www-data:www-data /usr/local/vufind/local/cache
@@ -136,13 +137,15 @@ rm /root/justquit.ans
 ColorEcho "steven-sh -> copy *.mrc as example files"
 cp /media/sf_iiplo01/ub_tools_ubuntu2204_slolong/docker/ixtheo/*.mrc /usr/local/ub_tools/bsz_daten/
 
+ColorEcho "steven-sh -> restart vufind"
+systemctl restart vufind 
+
 ColorEcho "steven-sh -> running exporting .mrc file"
 . /etc/profile.d/vufind.sh \
     && /usr/local/vufind/import-marc.sh /usr/local/ub_tools/bsz_daten/biblio.mrc \
     && /usr/local/vufind/import-marc-auth.sh /usr/local/ub_tools/bsz_daten/auth.mrs
     # && sudo -u solr /usr/local/vufind/solr.sh stop\
     # && sudo -u solr /usr/local/vufind/solr.sh start \
-
 
 ColorEcho "steven-sh -> removing default apache website"
 rm /etc/apache2/sites-enabled/000-default.conf
