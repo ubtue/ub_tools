@@ -17,8 +17,10 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <fstream>
 #include <iostream>
 #include <map>
+#include <regex>
 #include <set>
 #include <unordered_map>
 #include "CORE.h"
@@ -54,10 +56,12 @@ namespace {
         "\t- input_dir: A dir with multiple JSON files to merge, typically from a search result.\n"
         "\t- output_file: The directory to store the merged JSON result file.\n"
         "\n"
-        "filter input_file output_file filtered_file\n"
+        "filter input_file output_file filtered_file keyword_file\n"
         "\t- input_file: A single JSON input file.\n"
         "\t- output_file: The target JSON file without filtered datasets.\n"
         "\t- filtered_file: File to store datasets that have been removed when filtering. The reason will be stored in each JSON entry.\n"
+        "\t- filter operator: 'equal' or 'not_equal'"
+        "\t- keyword_file: File that store all keywords to be used as a filter.\n"
         "\n"
         "count input_file\n"
         "\t- input_file: The JSON file to count the results from. Result will be written to stdout.\n"
@@ -267,62 +271,120 @@ void Download(int argc, char **argv) {
     CORE::DownloadWork(id, output_file);
 }
 
+bool IsIn(const std::string key, const std::vector<std::string> &filterKeys) {
+    return std::find(filterKeys.begin(), filterKeys.end(), key) != filterKeys.end();
+}
 
 void Filter(int argc, char **argv) {
-    if (argc != 5)
+    // if (argc != 5)
+    if (argc != 7)
         Usage();
 
-    bool ignore_unique_id_dups(false);
-    if (std::strcmp(argv[1], "--ignore-unique-id-dups") == 0) {
-        ignore_unique_id_dups = true;
-        --argc, ++argv;
-    }
+    // bool ignore_unique_id_dups(false);
 
     const std::string input_file(argv[2]);
     const std::string output_file(argv[3]);
     const std::string filter_file(argv[4]);
+    const std::string filter_operator(argv[5]);
+    const std::string keyword_file(argv[6]);
+
+    std::string filterKey;
+    std::vector<std::string> filterKeys;
+    std::ifstream fFilter(keyword_file);
+
+    // array constructor
+    while (std::getline(fFilter, filterKey)) {
+        filterKeys.push_back(std::regex_replace(filterKey, std::regex("\\s+$"), std::string("")));
+    }
 
     const auto works(CORE::GetWorksFromFile(input_file));
     CORE::OutputFileStart(output_file);
     CORE::OutputFileStart(filter_file);
     bool first(true);
     unsigned skipped(0), skipped_uni_tue_count(0), skipped_dupe_count(0), skipped_incomplete_count(0), skipped_language_count(0);
-    KeyValueDB unique_id_to_date_map(UNIQUE_ID_TO_DATE_MAP_PATH);
+    // KeyValueDB unique_id_to_date_map(UNIQUE_ID_TO_DATE_MAP_PATH);
     for (auto work : works) {
-        if (work.getPublisher() == "Universität Tübingen") {
-            work.setFilteredReason("Universität Tübingen");
-            CORE::OutputFileAppend(filter_file, work, skipped == 0);
-            ++skipped;
-            ++skipped_uni_tue_count;
-            continue;
-        }
-        if (work.getTitle() == "" or work.getAuthors().empty()) {
-            work.setFilteredReason("Empty title or authors");
-            CORE::OutputFileAppend(filter_file, work, skipped == 0);
-            ++skipped;
-            ++skipped_incomplete_count;
-            continue;
-        }
+        if (filter_operator == "equal") {
+            if (IsIn(std::to_string(work.getId()), filterKeys)) {
+                std::cout << work.getId() << std::endl;
+                if (work.getPublisher() == "Universität Tübingen") {
+                    work.setFilteredReason("Universität Tübingen");
+                    CORE::OutputFileAppend(filter_file, work, skipped == 0);
+                    ++skipped;
+                    ++skipped_uni_tue_count;
+                    continue;
+                }
+                if (work.getTitle() == "" or work.getAuthors().empty()) {
+                    work.setFilteredReason("Empty title or authors");
+                    CORE::OutputFileAppend(filter_file, work, skipped == 0);
+                    ++skipped;
+                    ++skipped_incomplete_count;
+                    continue;
+                }
 
-        static const std::unordered_set<std::string> allowed_languages({ "eng", "ger", "spa", "baq", "cat", "por", "ita", "dut" });
-        if (work.getLanguage().code_.empty() or not allowed_languages.contains(MARC::MapToMARCLanguageCode(work.getLanguage().code_))) {
-            work.setFilteredReason("Language empty or not allowed");
-            CORE::OutputFileAppend(filter_file, work, skipped == 0);
-            ++skipped;
-            ++skipped_language_count;
-            continue;
-        }
+                static const std::unordered_set<std::string> allowed_languages({ "eng", "ger", "spa", "baq", "cat", "por", "ita", "dut" });
+                if (work.getLanguage().code_.empty()
+                    or not allowed_languages.contains(MARC::MapToMARCLanguageCode(work.getLanguage().code_))) {
+                    work.setFilteredReason("Language empty or not allowed");
+                    CORE::OutputFileAppend(filter_file, work, skipped == 0);
+                    ++skipped;
+                    ++skipped_language_count;
+                    continue;
+                }
 
-        const std::string control_number(ConvertId(std::to_string(work.getId())));
-        if (ignore_unique_id_dups and unique_id_to_date_map.keyIsPresent(control_number)) {
-            work.setFilteredReason("Duplicate");
-            CORE::OutputFileAppend(filter_file, work, skipped == 0);
-            ++skipped;
-            ++skipped_dupe_count;
-            continue;
-        }
-        CORE::OutputFileAppend(output_file, work, first);
-        first = false;
+                // const std::string control_number(ConvertId(std::to_string(work.getId())));
+                // if (ignore_unique_id_dups and unique_id_to_date_map.keyIsPresent(control_number)) {
+                //     work.setFilteredReason("Duplicate");
+                //     CORE::OutputFileAppend(filter_file, work, skipped == 0);
+                //     ++skipped;
+                //     ++skipped_dupe_count;
+                //     continue;
+                // }
+                CORE::OutputFileAppend(output_file, work, first);
+                first = false;
+            }
+        } else if (filter_operator == "not_equal") {
+            if (!IsIn(std::to_string(work.getId()), filterKeys)) {
+                std::cout << work.getId() << std::endl;
+                if (work.getPublisher() == "Universität Tübingen") {
+                    work.setFilteredReason("Universität Tübingen");
+                    CORE::OutputFileAppend(filter_file, work, skipped == 0);
+                    ++skipped;
+                    ++skipped_uni_tue_count;
+                    continue;
+                }
+                if (work.getTitle() == "" or work.getAuthors().empty()) {
+                    work.setFilteredReason("Empty title or authors");
+                    CORE::OutputFileAppend(filter_file, work, skipped == 0);
+                    ++skipped;
+                    ++skipped_incomplete_count;
+                    continue;
+                }
+
+                static const std::unordered_set<std::string> allowed_languages({ "eng", "ger", "spa", "baq", "cat", "por", "ita", "dut" });
+                if (work.getLanguage().code_.empty()
+                    or not allowed_languages.contains(MARC::MapToMARCLanguageCode(work.getLanguage().code_))) {
+                    work.setFilteredReason("Language empty or not allowed");
+                    CORE::OutputFileAppend(filter_file, work, skipped == 0);
+                    ++skipped;
+                    ++skipped_language_count;
+                    continue;
+                }
+
+                // const std::string control_number(ConvertId(std::to_string(work.getId())));
+                // if (ignore_unique_id_dups and unique_id_to_date_map.keyIsPresent(control_number)) {
+                //     work.setFilteredReason("Duplicate");
+                //     CORE::OutputFileAppend(filter_file, work, skipped == 0);
+                //     ++skipped;
+                //     ++skipped_dupe_count;
+                //     continue;
+                // }
+                CORE::OutputFileAppend(output_file, work, first);
+                first = false;
+            }
+
+        } else
+            Usage();
     }
     CORE::OutputFileEnd(output_file);
     CORE::OutputFileEnd(filter_file);
