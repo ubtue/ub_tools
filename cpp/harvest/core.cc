@@ -60,7 +60,7 @@ namespace {
         "\t- input_file: A single JSON input file.\n"
         "\t- output_file: The target JSON file without filtered datasets.\n"
         "\t- filtered_file: File to store datasets that have been removed when filtering. The reason will be stored in each JSON entry.\n"
-        "\t- data_provider_filter_type: 'equal' or 'not_equal'"
+        "\t- data_provider_filter_type: 'is_in' or 'not_in'"
         "\t- data_provider_ids_file: File that store all keywords to be used as a filter.\n"
         "\n"
         "count input_file\n"
@@ -276,7 +276,6 @@ bool IsIn(const std::string key, const std::vector<std::string> &filterKeys) {
 }
 
 void Filter(int argc, char **argv) {
-    // if (argc != 5)
     if (argc != 5)
         if (argc != 7)
             Usage();
@@ -302,14 +301,14 @@ void Filter(int argc, char **argv) {
     bool first(true);
 
     unsigned skipped(0), skipped_uni_tue_count(0), skipped_dupe_count(0), skipped_incomplete_count(0), skipped_language_count(0),
-        filter_count(0);
+        skipped_filter_count(0);
 
     if (argc == 7) {
         filter_operator = argv[5];
-        if (filter_operator == "equal")
-            filter = true;
-        else if (filter_operator == "not_equal")
+        if (filter_operator == "is_in")
             filter = false;
+        else if (filter_operator == "not_in")
+            filter = true;
         else
             Usage();
 
@@ -327,7 +326,7 @@ void Filter(int argc, char **argv) {
                 work.setFilteredReason("Filtering");
                 CORE::OutputFileAppend(filter_file, work, skipped == 0);
                 ++skipped;
-                ++filter_count;
+                ++skipped_filter_count;
                 continue;
             }
         }
@@ -371,7 +370,7 @@ void Filter(int argc, char **argv) {
 
     LOG_INFO(
         "Filtered " + std::to_string(skipped) + " records, thereof:\n"
-        "- " + std::to_string(filter_count) + " filtered.\n"
+        "- " + std::to_string(skipped_filter_count) + " filtered.\n"
         "- " + std::to_string(skipped_uni_tue_count) + " Uni Tübingen\n"
         "- " + std::to_string(skipped_incomplete_count) + " incomplete\n"
         "- " + std::to_string(skipped_dupe_count) + " duplicate\n"
