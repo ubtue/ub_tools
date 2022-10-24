@@ -16,7 +16,7 @@ def IsResultPlausible(result_file):
     if os.path.getsize(result_file) == 0:
         return False
     with open(result_file) as rfile:
-        correct_line = re.compile('^[0-9\-X]+\s+-\s+.*')
+        correct_line = re.compile('^[0-9\-X]+\s+-\s+.*', re.IGNORECASE)
         first_lines = [next(rfile) for x in range(5)]
         for line in rfile:
             if not correct_line.match(line):
@@ -39,7 +39,7 @@ def Main():
     extract_process.join()
     sys.stdout.close()
     if not IsResultPlausible(result_file):
-        raise("Error - Implausible result file: " + result_file);
+        raise Exception("Error - Implausible result file: " + result_file);
     BSZ_DATEN_DIR = '/usr/local/ub_tools/bsz_daten/'
     shutil.move(result_file, BSZ_DATEN_DIR + RESULT_FILE_NAME)
     os.remove(kalliope_fifo)
