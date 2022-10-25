@@ -347,11 +347,11 @@ void SystemdEnableAndRunUnit(const std::string unit) {
     if (not SystemdUtil::IsUnitAvailable(unit))
         LOG_ERROR("Installer -> " + unit + " unit not found in systemd, installation problem?");
 
-    if (not SystemdUtil::IsUnitEnabled(unit)){
+    if (not SystemdUtil::IsUnitEnabled(unit)) {
         Echo("Installer -> Enabling system unit");
         SystemdUtil::EnableUnit(unit);
     }
-    if (not SystemdUtil::IsUnitRunning(unit)){
+    if (not SystemdUtil::IsUnitRunning(unit)) {
         Echo("Installer -> Starting the system unit");
         SystemdUtil::StartUnit(unit);
     }
@@ -364,15 +364,13 @@ void InstallSoftwareDependencies(const std::string vufind_system_type_string, co
     Echo("Installer -> Install software dependencies from: " + INSTALLER_SCRIPTS_DIRECTORY + "/install_ubuntu_packages.sh");
     std::string script(INSTALLER_SCRIPTS_DIRECTORY + "/install_ubuntu_packages.sh");
 
-    if (installation_type == UB_TOOLS_ONLY){
+    if (installation_type == UB_TOOLS_ONLY) {
         Echo("Installer -> running script for UBTools only");
         ExecUtil::ExecOrDie(script);
-    }
-    else if (installation_type == FULLTEXT_BACKEND){
+    } else if (installation_type == FULLTEXT_BACKEND) {
         Echo("Installer -> running script for fulltext backend");
         ExecUtil::ExecOrDie(script, { "fulltext_backend" });
-    }
-    else if (installation_type == VUFIND){
+    } else if (installation_type == VUFIND) {
         Echo("Installer -> running script with special param for vufind");
         ExecUtil::ExecOrDie(script, { vufind_system_type_string });
     }
@@ -415,12 +413,11 @@ static void GenerateAndInstallVuFindServiceTemplate(const VuFindSystemType syste
     const std::string vufind_service(Template::ExpandTemplate(
         FileUtil::ReadStringOrDie(INSTALLER_DATA_DIRECTORY + "/" + service_name + ".service.template"), names_to_values_map));
     const std::string service_file_path(temp_dir.getDirectoryPath() + "/" + service_name + ".service");
-    Echo("Installer ->");
-    Echo(INSTALLER_DATA_DIRECTORY + "/" + service_name + ".service.template");
-    Echo("Installer -> vufind service template: " + vufind_service);
-    Echo("Installer -> vufind service file path: " + service_file_path);
+    Echo("Installer -> writing vufind service file.");
     FileUtil::WriteStringOrDie(service_file_path, vufind_service);
+    Echo("Installer -> installing vufind servcie");
     SystemdUtil::InstallUnit(service_file_path);
+    Echo("Installer -> enabling vufind service.");
     SystemdUtil::EnableUnit(service_name);
 }
 
@@ -986,7 +983,7 @@ int Main(int argc, char **argv) {
     Echo("starting VUFIND installation");
     if (installation_type == VUFIND) {
         FileUtil::MakeDirectoryOrDie("/mnt/zram");
-       Echo("installer -> download vufind ...");
+        Echo("installer -> download vufind ...");
         DownloadVuFind();
 #ifndef __clang__
 #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"

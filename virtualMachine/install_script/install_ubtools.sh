@@ -29,7 +29,13 @@
 # 7.  
 #######################
 
-echo "steven-sh -> create and copy directory, and export java environment"
+function ColorEcho {
+    echo -e "\033[1;34m" $1 "\033[0m"
+}
+
+ColorEcho "*************** Starting installation of vufind/tuefind for ixtheo *******************"
+
+ColorEcho "installation -> create and copy directory, and export java environment"
 
 mkdir --parent /mnt/ZE020110/FID-Projekte
 
@@ -40,9 +46,7 @@ cp /media/sf_iiplo01/Documents/ub_tools/docker/ixtheo/.smbcredentials /root/.smb
 export JAVA_TOOL_OPTIONS="-Dfile.encoding=UTF8"
 
 
-function ColorEcho {
-    echo -e "\033[1;34m" $1 "\033[0m"
-}
+
 
 # make sure we are on ubuntu
 if [ -e /etc/debian_version ]; then
@@ -77,39 +81,39 @@ if [ -d /usr/local/ub_tools ]; then
 else
     # echo "cloning ub_tools --branch ${BRANCH}"
     # git clone --branch ${BRANCH} https://github.com/ubtue/ub_tools.git /usr/local/ub_tools
-    ColorEcho "steven-sh -> copy from local ..."
+    ColorEcho "installation -> copy from local ..."
     cp -rf /media/sf_iiplo01/ub_tools_ubuntu2204_slolong /usr/local/ub_tools_ubuntu2204_slolong
     mv /usr/local/ub_tools_ubuntu2204_slolong /usr/local/ub_tools
 fi
-ColorEcho "steven-sh -> copy solr-8.11.1.tgz"
+ColorEcho "installation -> copy solr-8.11.1.tgz"
 mkdir /usr/local/vufind/downloads
-cp /media/sf_iiplo01/ub_tools_ubuntu2204_slolong/docker/ixtheo/solr-8.11.1.tgz /usr/local/vufind/downloads/
+# cp /media/sf_iiplo01/ub_tools_ubuntu2204_slolong/docker/ixtheo/solr-8.11.1.tgz /usr/local/vufind/downloads/
 
-# echo "steven-sh -> change repository"
+# echo "installation -> change repository"
 # cd /usr/local/ub_tools/
 # git checkout ubuntu2204
 # git branch ubuntu2204_slolong ubuntu2204
 # git checkout ubuntu2204_slolong
 
-ColorEcho "steven-sh -> update mysql.cnf"
+ColorEcho "installation -> update mysql.cnf"
 echo authentication_policy=mysql_native_password >> /etc/mysql/mysql.conf.d/mysqld.cnf
 
-ColorEcho "steven-sh -> building prerequisites"
+ColorEcho "installation -> building prerequisites"
 cd /usr/local/ub_tools/cpp/lib/mkdep && CCC=clang++ make --jobs=4 install
 
-ColorEcho "steven-sh -> building cpp installer"
+ColorEcho "installation -> building cpp installer"
 cd /usr/local/ub_tools/cpp && CCC=clang++ make --jobs=4 installer
 
 ColorEcho "starting cpp installer"
 /usr/local/ub_tools/cpp/installer $*
 
-ColorEcho "steven-sh -> reload system configuration"
+ColorEcho "installation -> reload system configuration"
 systemctl stop apache2 
 
-ColorEcho "steven-sh -> copy local_override"
+ColorEcho "installation -> copy local_override"
 cp /media/sf_iiplo01/ub_tools_ubuntu2204_slolong/docker/ixtheo/local_overrides/* /usr/local/vufind/local/tuefind/local_overrides/
 
-ColorEcho "steven-sh -> updating ownership of config and cache"
+ColorEcho "installation -> updating ownership of config and cache"
 chown -R www-data:www-data /usr/local/vufind/local/tuefind/local_overrides/*.conf
 
 # chown -R www-data:www-data /usr/local/vufind/local/tuefind/instances/ixtheo/config
@@ -122,11 +126,13 @@ chmod -R 775 /usr/local/vufind/local/tuefind/instances/ixtheo/cache
 chown -R www-data:www-data /usr/local/vufind/local/cache
 #/usr/local/vufind/local/tuefind/instances/bibstudies/config/vufind/local_overrides/
 
-ColorEcho "steven-sh -> creating synonyms"
-/usr/local/vufind/solr/vufind/biblio/conf/synonyms/touch_synonyms.sh
-chown -R solr:solr /usr/local/vufind/solr/vufind/biblio/conf/synonyms/*
+ColorEcho "installation -> creating synonyms"
+/usr/local/vufind/solr/vufind/biblio/conf/touch_synonyms.sh $2
+chown -R solr:solr /usr/local/vufind/solr/vufind/biblio/conf/synonyms
 
-ColorEcho "steven-sh -> activating vufind user by login using mysql-client"
+ColorEcho "installation -> restarting mysql server"
+systemctl restart mysql
+ColorEcho "installation -> activating vufind user by login using mysql-client"
 cp /media/sf_iiplo01/ub_tools_ubuntu2204_slolong/docker/ixtheo/my_vu.cnf /root/
 cp /media/sf_iiplo01/ub_tools_ubuntu2204_slolong/docker/ixtheo/justquit.ans /root/
 mysql --defaults-extra-file=/root/my_vu.cnf < /root/justquit.ans
@@ -134,35 +140,35 @@ mysql --defaults-extra-file=/root/my_vu.cnf < /root/justquit.ans
 rm /root/my_vu.cnf 
 rm /root/justquit.ans
 
-ColorEcho "steven-sh -> copy *.mrc as example files"
+ColorEcho "installation -> copy *.mrc as example files"
 cp /media/sf_iiplo01/ub_tools_ubuntu2204_slolong/docker/ixtheo/*.mrc /usr/local/ub_tools/bsz_daten/
 
-ColorEcho "steven-sh -> restart vufind"
+ColorEcho "installation -> restart vufind"
 systemctl restart vufind 
 
-ColorEcho "steven-sh -> running exporting .mrc file"
+ColorEcho "installation -> running exporting .mrc file"
 . /etc/profile.d/vufind.sh \
     && /usr/local/vufind/import-marc.sh /usr/local/ub_tools/bsz_daten/biblio.mrc \
     && /usr/local/vufind/import-marc-auth.sh /usr/local/ub_tools/bsz_daten/auth.mrs
     # && sudo -u solr /usr/local/vufind/solr.sh stop\
     # && sudo -u solr /usr/local/vufind/solr.sh start \
 
-ColorEcho "steven-sh -> removing default apache website"
+ColorEcho "installation -> removing default apache website"
 rm /etc/apache2/sites-enabled/000-default.conf
 
-ColorEcho "steven-sh -> copying ixtheo apache conf to sites-available"
+ColorEcho "installation -> copying ixtheo apache conf to sites-available"
 cp /media/sf_iiplo01/ub_tools_ubuntu2204_slolong/docker/ixtheo/apache2/*.conf /etc/apache2/sites-available/
 chmod 644 /etc/apache2/sites-available/*.conf
 
-ColorEcho "steven-sh -> creating softlink of vufind-vhost.conf"
+ColorEcho "installation -> creating softlink of vufind-vhost.conf"
 # ln -s /etc/apache2/sites-available/vufind-vhosts.conf /etc/apache2/sites-enabled/vufind-vhosts.conf
 a2ensite vufind-vhosts
 
 cp /media/sf_iiplo01/ub_tools_ubuntu2204_slolong/docker/ixtheo/apache2/*.pem /etc/ssl/certs/
 
-ColorEcho "steven-sh -> reload apache and vufind service"
+ColorEcho "installation -> reload apache and vufind service"
 systemctl restart apache2
-service vufind restart
+systemctl restart vufind
 systemctl restart mysql
 
 # ColorEcho "start the service"
