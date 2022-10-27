@@ -60,7 +60,7 @@ namespace {
         "\t- input_file: A single JSON input file.\n"
         "\t- output_file: The target JSON file without filtered datasets.\n"
         "\t- filtered_file: File to store datasets that have been removed when filtering. The reason will be stored in each JSON entry.\n"
-        "\t- data_provider_filter_type: 'is_in' or 'not_in'"
+        "\t- data_provider_filter_type: 'is_in' or 'not_in'.\n"
         "\t- data_provider_ids_file: File that contains the data provider ids to be used as a filter (1 by line).\n"
         "\n"
         "count input_file\n"
