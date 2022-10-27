@@ -17,8 +17,10 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <fstream>
 #include <iostream>
 #include <map>
+#include <regex>
 #include <set>
 #include <unordered_map>
 #include "CORE.h"
@@ -54,10 +56,12 @@ namespace {
         "\t- input_dir: A dir with multiple JSON files to merge, typically from a search result.\n"
         "\t- output_file: The directory to store the merged JSON result file.\n"
         "\n"
-        "filter input_file output_file filtered_file\n"
+        "filter input_file output_file filtered_file keyword_file [data_provider_filter_type] [data_provider_ids_file]\n"
         "\t- input_file: A single JSON input file.\n"
         "\t- output_file: The target JSON file without filtered datasets.\n"
         "\t- filtered_file: File to store datasets that have been removed when filtering. The reason will be stored in each JSON entry.\n"
+        "\t- data_provider_filter_type: 'is_in' or 'not_in'"
+        "\t- data_provider_ids_file: File that store all keywords to be used as a filter.\n"
         "\n"
         "count input_file\n"
         "\t- input_file: The JSON file to count the results from. Result will be written to stdout.\n"
@@ -267,28 +271,65 @@ void Download(int argc, char **argv) {
     CORE::DownloadWork(id, output_file);
 }
 
+bool IsIn(const std::string key, const std::vector<std::string> &filterKeys) {
+    return std::find(filterKeys.begin(), filterKeys.end(), key) != filterKeys.end();
+}
 
 void Filter(int argc, char **argv) {
     if (argc != 5)
-        Usage();
+        if (argc != 7)
+            Usage();
 
-    bool ignore_unique_id_dups(false);
-    if (std::strcmp(argv[1], "--ignore-unique-id-dups") == 0) {
-        ignore_unique_id_dups = true;
-        --argc, ++argv;
-    }
+    // bool ignore_unique_id_dups(false);
 
     const std::string input_file(argv[2]);
     const std::string output_file(argv[3]);
     const std::string filter_file(argv[4]);
 
+
+    std::string filter_operator;
+    std::string keyword_file;
+
+    std::string filterKey;
+    std::vector<std::string> filterKeys;
+    std::ifstream fFilter;
+    bool filter;
+
     const auto works(CORE::GetWorksFromFile(input_file));
     CORE::OutputFileStart(output_file);
     CORE::OutputFileStart(filter_file);
     bool first(true);
-    unsigned skipped(0), skipped_uni_tue_count(0), skipped_dupe_count(0), skipped_incomplete_count(0), skipped_language_count(0);
-    KeyValueDB unique_id_to_date_map(UNIQUE_ID_TO_DATE_MAP_PATH);
+
+    unsigned skipped(0), skipped_uni_tue_count(0), skipped_dupe_count(0), skipped_incomplete_count(0), skipped_language_count(0),
+        skipped_filter_count(0);
+
+    if (argc == 7) {
+        filter_operator = argv[5];
+        if (filter_operator == "is_in")
+            filter = false;
+        else if (filter_operator == "not_in")
+            filter = true;
+        else
+            Usage();
+
+        fFilter.open(argv[6], std::ifstream::in);
+        // constructing vector of keyword
+        while (std::getline(fFilter, filterKey)) {
+            filterKeys.push_back(std::regex_replace(filterKey, std::regex("\\s+$"), std::string("")));
+        }
+    }
+
+
     for (auto work : works) {
+        if (argc == 7) {
+            if (IsIn(std::to_string(work.getId()), filterKeys) == filter) {
+                work.setFilteredReason("Filtering");
+                CORE::OutputFileAppend(filter_file, work, skipped == 0);
+                ++skipped;
+                ++skipped_filter_count;
+                continue;
+            }
+        }
         if (work.getPublisher() == "Universität Tübingen") {
             work.setFilteredReason("Universität Tübingen");
             CORE::OutputFileAppend(filter_file, work, skipped == 0);
@@ -313,14 +354,14 @@ void Filter(int argc, char **argv) {
             continue;
         }
 
-        const std::string control_number(ConvertId(std::to_string(work.getId())));
-        if (ignore_unique_id_dups and unique_id_to_date_map.keyIsPresent(control_number)) {
-            work.setFilteredReason("Duplicate");
-            CORE::OutputFileAppend(filter_file, work, skipped == 0);
-            ++skipped;
-            ++skipped_dupe_count;
-            continue;
-        }
+        // const std::string control_number(ConvertId(std::to_string(work.getId())));
+        // if (ignore_unique_id_dups and unique_id_to_date_map.keyIsPresent(control_number)) {
+        //     work.setFilteredReason("Duplicate");
+        //     CORE::OutputFileAppend(filter_file, work, skipped == 0);
+        //     ++skipped;
+        //     ++skipped_dupe_count;
+        //     continue;
+        // }
         CORE::OutputFileAppend(output_file, work, first);
         first = false;
     }
@@ -329,6 +370,7 @@ void Filter(int argc, char **argv) {
 
     LOG_INFO(
         "Filtered " + std::to_string(skipped) + " records, thereof:\n"
+        "- " + std::to_string(skipped_filter_count) + " filtered.\n"
         "- " + std::to_string(skipped_uni_tue_count) + " Uni Tübingen\n"
         "- " + std::to_string(skipped_incomplete_count) + " incomplete\n"
         "- " + std::to_string(skipped_dupe_count) + " duplicate\n"
