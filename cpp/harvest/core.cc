@@ -310,11 +310,13 @@ void Filter(int argc, char **argv) {
             filter_data_provider_ids.emplace_back(StringUtil::ToUnsignedLong(line));
         }
     }
-
+    std::sort(filter_data_provider_ids.begin(), filter_data_provider_ids.end());
 
     for (auto work : works) {
         if (not filter_data_provider_ids.empty()) {
-            const bool is_in(MiscUtil::Intersect(work.getDataProviderIds(), filter_data_provider_ids).size() > 0);
+            auto sortedDataProvider = work.getDataProviderIds();
+            std::sort(sortedDataProvider.begin(), sortedDataProvider.end());
+            const bool is_in(MiscUtil::Intersect(sortedDataProvider, filter_data_provider_ids).size() > 0);
             if (is_in == filter) {
                 work.setFilteredReason("Data Provider");
                 CORE::OutputFileAppend(filter_file, work, skipped == 0);
