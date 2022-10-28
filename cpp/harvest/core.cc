@@ -449,6 +449,7 @@ void Statistics(int argc, char **argv) {
     unsigned count_uni_tue(0);
     unsigned count_empty_title(0);
     unsigned count_empty_authors(0);
+    unsigned count_multiple_data_providers(0);
 
     std::map<unsigned long, unsigned> data_providers;
     std::map<std::string, unsigned> languages;
@@ -472,6 +473,9 @@ void Statistics(int argc, char **argv) {
             ++count_uni_tue;
 
         const auto data_provider_ids(work.getDataProviderIds());
+        if (data_provider_ids.size() > 1)
+            ++count_multiple_data_providers;
+
         for (const auto &data_provider_id : data_provider_ids) {
             const auto data_providers_iter(data_providers.find(data_provider_id));
             if (data_providers_iter == data_providers.end())
@@ -483,6 +487,7 @@ void Statistics(int argc, char **argv) {
 
     LOG_INFO("Statistics for " + core_file + ":");
     LOG_INFO(std::to_string(count_works) + " datasets (" + std::to_string(count_articles) + " articles)");
+    LOG_INFO(std::to_string(count_multiple_data_providers) + " datasets are associated with multiple data providers");
     LOG_INFO(std::to_string(count_uni_tue) + " datasets from Universität Tübingen");
     LOG_INFO(std::to_string(count_empty_title) + " datasets with empty titles");
     LOG_INFO(std::to_string(count_empty_authors) + " datasets without authors");
