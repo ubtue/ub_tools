@@ -56,11 +56,12 @@ namespace {
         "\t- input_dir: A dir with multiple JSON files to merge, typically from a search result.\n"
         "\t- output_file: The directory to store the merged JSON result file.\n"
         "\n"
-        "filter input_file output_file filtered_file [data_provider_filter_type] [data_provider_ids_file]\n"
+        "filter input_file output_file_keep output_file_skip [data_provider_filter_type] [data_provider_ids_file]\n"
         "\t- input_file: A single JSON input file.\n"
-        "\t- output_file: The target JSON file without filtered datasets.\n"
-        "\t- filtered_file: File to store datasets that have been removed when filtering. The reason will be stored in each JSON entry.\n"
-        "\t- data_provider_filter_type: 'is_in' or 'not_in'.\n"
+        "\t- output_file_keep: The target JSON file with dataset that should be kept.\n"
+        "\t- output_file_skip: File to store datasets that have been removed when filtering. The reason will be stored in each JSON "
+        "entry.\n"
+        "\t- data_provider_filter_type: 'keep' or 'skip'.\n"
         "\t- data_provider_ids_file: File that contains the data provider ids to be used as a filter (1 by line).\n"
         "\n"
         "count input_file\n"
@@ -278,8 +279,8 @@ void Filter(int argc, char **argv) {
             Usage();
 
     const std::string input_file(argv[2]);
-    const std::string output_file(argv[3]);
-    const std::string filter_file(argv[4]);
+    const std::string output_file_keep(argv[3]);
+    const std::string output_file_skip(argv[4]);
 
     std::string filter_operator;
     std::string keyword_file;
@@ -289,8 +290,8 @@ void Filter(int argc, char **argv) {
     bool filter;
 
     const auto works(CORE::GetWorksFromFile(input_file));
-    CORE::OutputFileStart(output_file);
-    CORE::OutputFileStart(filter_file);
+    CORE::OutputFileStart(output_file_keep);
+    CORE::OutputFileStart(output_file_skip);
     bool first(true);
 
     unsigned skipped(0), skipped_uni_tue_count(0), skipped_dupe_count(0), skipped_incomplete_count(0), skipped_language_count(0),
@@ -298,9 +299,9 @@ void Filter(int argc, char **argv) {
 
     if (argc == 7) {
         filter_operator = argv[5];
-        if (filter_operator == "is_in")
+        if (filter_operator == "keep")
             filter = false;
-        else if (filter_operator == "not_in")
+        else if (filter_operator == "skip")
             filter = true;
         else
             Usage();
@@ -317,7 +318,7 @@ void Filter(int argc, char **argv) {
             const bool is_in(MiscUtil::Intersect(work.getDataProviderIds(), filter_data_provider_ids).size() > 0);
             if (is_in == filter) {
                 work.setFilteredReason("Data Provider");
-                CORE::OutputFileAppend(filter_file, work, skipped == 0);
+                CORE::OutputFileAppend(output_file_skip, work, skipped == 0);
                 ++skipped;
                 ++skipped_data_provider_count;
                 continue;
@@ -325,14 +326,14 @@ void Filter(int argc, char **argv) {
         }
         if (work.getPublisher() == "Universität Tübingen") {
             work.setFilteredReason("Universität Tübingen");
-            CORE::OutputFileAppend(filter_file, work, skipped == 0);
+            CORE::OutputFileAppend(output_file_skip, work, skipped == 0);
             ++skipped;
             ++skipped_uni_tue_count;
             continue;
         }
         if (work.getTitle().empty() or work.getAuthors().empty()) {
             work.setFilteredReason("Empty title or authors");
-            CORE::OutputFileAppend(filter_file, work, skipped == 0);
+            CORE::OutputFileAppend(output_file_skip, work, skipped == 0);
             ++skipped;
             ++skipped_incomplete_count;
             continue;
@@ -341,17 +342,17 @@ void Filter(int argc, char **argv) {
         static const std::unordered_set<std::string> allowed_languages({ "eng", "ger", "spa", "baq", "cat", "por", "ita", "dut" });
         if (work.getLanguage().code_.empty() or not allowed_languages.contains(MARC::MapToMARCLanguageCode(work.getLanguage().code_))) {
             work.setFilteredReason("Language empty or not allowed");
-            CORE::OutputFileAppend(filter_file, work, skipped == 0);
+            CORE::OutputFileAppend(output_file_skip, work, skipped == 0);
             ++skipped;
             ++skipped_language_count;
             continue;
         }
 
-        CORE::OutputFileAppend(output_file, work, first);
+        CORE::OutputFileAppend(output_file_keep, work, first);
         first = false;
     }
-    CORE::OutputFileEnd(output_file);
-    CORE::OutputFileEnd(filter_file);
+    CORE::OutputFileEnd(output_file_keep);
+    CORE::OutputFileEnd(output_file_skip);
 
     LOG_INFO(
         "Filtered " + std::to_string(skipped) + " records, thereof:\n"
