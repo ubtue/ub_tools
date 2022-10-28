@@ -66,7 +66,8 @@ namespace {
         "count input_file\n"
         "\t- input_file: The JSON file to count the results from. Result will be written to stdout.\n"
         "\n"
-        "statistics input_file\n"
+        "statistics [--extended] input_file\n"
+        "\t- [--extended]: If given, print additional statistics (e.g. about data providers).\n"
         "\t- input_file: The JSON file to generate statistics from.\n"
         "\n"
         "convert [--create-unique-id-db|--ignore-unique-id-dups][--935-entry=entry] --sigil=project_sigil input_file output_file\n"
@@ -437,9 +438,15 @@ void Count(int argc, char **argv) {
 
 void Statistics(int argc, char **argv) {
     // Parse args
-    if (argc != 3)
+    if (argc != 3 && argc != 4)
         Usage();
-    const std::string core_file(argv[2]);
+    else if (argc == 4 && std::strcmp(argv[2], "--extended") != 0)
+        Usage();
+
+    std::string core_file(argv[2]);
+    if (argc == 4)
+        core_file = argv[3];
+    const bool extended = (argc == 4);
 
     // Load file
     const auto works(CORE::GetWorksFromFile(core_file));
@@ -449,6 +456,7 @@ void Statistics(int argc, char **argv) {
     unsigned count_uni_tue(0);
     unsigned count_empty_title(0);
     unsigned count_empty_authors(0);
+    unsigned count_multiple_data_providers(0);
 
     std::map<unsigned long, unsigned> data_providers;
     std::map<std::string, unsigned> languages;
@@ -472,6 +480,9 @@ void Statistics(int argc, char **argv) {
             ++count_uni_tue;
 
         const auto data_provider_ids(work.getDataProviderIds());
+        if (data_provider_ids.size() > 1)
+            ++count_multiple_data_providers;
+
         for (const auto &data_provider_id : data_provider_ids) {
             const auto data_providers_iter(data_providers.find(data_provider_id));
             if (data_providers_iter == data_providers.end())
@@ -483,7 +494,8 @@ void Statistics(int argc, char **argv) {
 
     LOG_INFO("Statistics for " + core_file + ":");
     LOG_INFO(std::to_string(count_works) + " datasets (" + std::to_string(count_articles) + " articles)");
-    LOG_INFO(std::to_string(count_uni_tue) + " datasets from Universität Tübingen");
+    LOG_INFO(std::to_string(count_multiple_data_providers) + " datasets are associated with multiple data providers");
+    LOG_INFO(std::to_string(count_uni_tue) + " datasets from publisher: \"Universität Tübingen\"");
     LOG_INFO(std::to_string(count_empty_title) + " datasets with empty titles");
     LOG_INFO(std::to_string(count_empty_authors) + " datasets without authors");
 
@@ -497,16 +509,18 @@ void Statistics(int argc, char **argv) {
     }
     LOG_INFO(languages_msg);
 
-    std::string data_providers_msg("data providers:\n");
-    std::vector<std::pair<long unsigned, unsigned>> data_providers_sort;
-    for (const auto &item : data_providers) {
-        data_providers_sort.emplace_back(item);
+    if (extended) {
+        std::string data_providers_msg("data providers:\n");
+        std::vector<std::pair<long unsigned, unsigned>> data_providers_sort;
+        for (const auto &item : data_providers) {
+            data_providers_sort.emplace_back(item);
+        }
+        std::sort(data_providers_sort.begin(), data_providers_sort.end(), [](const auto &x, const auto &y) { return x.second > y.second; });
+        for (const auto &[data_provider_id, count] : data_providers_sort) {
+            data_providers_msg += "ID: " + std::to_string(data_provider_id) + ", count: " + std::to_string(count) + "\n";
+        }
+        LOG_INFO(data_providers_msg);
     }
-    std::sort(data_providers_sort.begin(), data_providers_sort.end(), [](const auto &x, const auto &y) { return x.second > y.second; });
-    for (const auto &[data_provider_id, count] : data_providers_sort) {
-        data_providers_msg += "ID: " + std::to_string(data_provider_id) + ", count: " + std::to_string(count) + "\n";
-    }
-    LOG_INFO(data_providers_msg);
 }
 
 
