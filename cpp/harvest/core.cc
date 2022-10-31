@@ -553,6 +553,93 @@ void DataProviders(int argc, char **argv) {
 }
 
 
+void SplitDataProviderId(int argc, char **argv) {
+    if (argc != 4)
+        Usage();
+
+    // int justvoid = argc;
+    const auto works(CORE::GetWorksFromFile(argv[2]));
+    // const auto works(CORE::GetWorksFromFile("core.merged.2022-09-29.json"));
+    std::vector<unsigned> listOfDataProvId;
+    std::map<std::string, unsigned> fileListCounter;
+    unsigned totalRecordCounter(0), progress(0), step(0), displayNext(0), closeCounter(0);
+    std::string item, outputFile, outputDir(argv[3]);
+
+
+    std::cout << "Processing " << works.size() << " records ..." << std::endl;
+    for (auto work : works) {
+        if (!work.getDataProviderIds().empty()) {
+            for (auto dataProviderId : work.getDataProviderIds()) {
+                item = std::to_string(dataProviderId);
+                outputFile = outputDir + item + ".json";
+                if (std::find(listOfDataProvId.begin(), listOfDataProvId.end(), dataProviderId) != listOfDataProvId.end()) {
+                    // id is exist
+                    CORE::OutputFileAppend(outputFile, work, 0);
+                    ++fileListCounter[item];
+                } else {
+                    // id is not exist
+                    listOfDataProvId.emplace_back(dataProviderId);
+                    fileListCounter[item] = 1;
+                    CORE::OutputFileStart(outputFile);
+                    CORE::OutputFileAppend(outputFile, work, 1);
+                }
+                // std::cout << dataProviderId << std::endl;
+            }
+        }
+
+        ++totalRecordCounter;
+
+        // displaying progress
+        progress = (100 * (totalRecordCounter)) / works.size();
+        if (progress >= displayNext) {
+            std::cout << "\r"
+                      << "[" << std::string(progress / 5, (char)35u) << std::string(100 / 5 - progress / 5, ' ') << "]";
+            std::cout << progress << "%"
+                      << " [record " << totalRecordCounter << " of " << works.size() << "]";
+            std::cout.flush();
+            displayNext += step;
+        }
+    }
+
+    // add bracket as a closing annotation in each file
+    displayNext = 1;
+    std::cout << std::endl << "Found " << listOfDataProvId.size() << " unique Data Provider Id" << std::endl;
+    std::cout << "Updating Data Provider Id's file ..." << std::endl;
+    for (auto const &value : listOfDataProvId) {
+        outputFile = outputDir + std::to_string(value) + ".json";
+        CORE::OutputFileEnd(outputFile);
+
+        // displaying progress
+        ++closeCounter;
+        progress = (100 * (closeCounter)) / listOfDataProvId.size();
+        if (progress >= displayNext) {
+            std::cout << "\r"
+                      << "[" << std::string(progress / 5, (char)35u) << std::string(100 / 5 - progress / 5, ' ') << "]";
+            std::cout << progress << "%"
+                      << " [file " << closeCounter << " of " << listOfDataProvId.size() << "]";
+            std::cout.flush();
+            displayNext += step;
+        }
+    }
+
+    // writing a summary
+    std::string rptFile(outputDir + "aSummaryRpt.json");
+    std::cout << std::endl << "Writing report summary to file: " << rptFile << std::endl;
+
+    FileUtil::WriteStringOrDie(rptFile, "[\n");
+    FileUtil::AppendStringOrDie(rptFile, "{\"Total record\":" + std::to_string(totalRecordCounter) + "},\n");
+    FileUtil::AppendStringOrDie(rptFile, "{\"Total unique data provider id\":" + std::to_string(listOfDataProvId.size()) + "}");
+
+    std::sort(listOfDataProvId.begin(), listOfDataProvId.end());
+    for (auto dpId : listOfDataProvId) {
+        FileUtil::AppendStringOrDie(rptFile, ",\n");
+        FileUtil::AppendStringOrDie(rptFile,
+                                    "{\"" + std::to_string(dpId) + "\": " + std::to_string(fileListCounter[std::to_string(dpId)]) + "}");
+    }
+    FileUtil::AppendStringOrDie(rptFile, "\n]");
+    LOG_INFO("Generated " + std::to_string(listOfDataProvId.size()) + " Data Provider Id files and a report summary.");
+}
+
 } // unnamed namespace
 
 
@@ -577,6 +664,8 @@ int Main(int argc, char **argv) {
         Statistics(argc, argv);
     else if (mode == "data-providers")
         DataProviders(argc, argv);
+    else if (mode == "split-data-provider")
+        SplitDataProviderId(argc, argv);
     else
         Usage();
 
