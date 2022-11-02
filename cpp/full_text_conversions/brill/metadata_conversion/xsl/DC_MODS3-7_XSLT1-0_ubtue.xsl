@@ -44,12 +44,12 @@
     -->
     <xsl:output method="xml" indent="yes" encoding="UTF-8"/>
     <!-- ws 1.2 -->
-    <xsl:include href="http://www.loc.gov/standards/mods/inc/dcmiType.xsl"/>
-    <xsl:include href="http://www.loc.gov/standards/mods/inc/mimeType.xsl"/>
-    <xsl:include href="http://www.loc.gov/standards/mods/inc/csdgm.xsl"/>
-    <xsl:include href="http://www.loc.gov/standards/mods/inc/forms.xsl"/>
-    <xsl:include href="http://www.loc.gov/standards/mods/inc/iso3166-1.xsl"/>
-    <xsl:include href="http://www.loc.gov/standards/mods/inc/iso639-2.xsl"/>
+    <xsl:include href="dcmiType.xsl"/>
+    <xsl:include href="mimeType.xsl"/>
+    <xsl:include href="csdgm.xsl"/>
+    <xsl:include href="forms.xsl"/>
+    <xsl:include href="iso3166-1.xsl"/>
+    <xsl:include href="iso639-2.xsl"/>
     <!-- Do you have a Handle server?  If so, specify the base URI below including the trailing slash a la: http://hdl.loc.gov/ -->
     <xsl:variable name="handleServer">
 		<xsl:text>http://hdl.loc.gov/</xsl:text>
