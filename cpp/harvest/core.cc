@@ -84,6 +84,10 @@ namespace {
         "\n"
         "data-providers output_file\n"
         "\t- output_file: The CSV file to write to.\n"
+        "\n"
+        "split-data-provider input_file output_dir\n"
+        "\t- input_file: A single JSON file containing data-provider-id to split.\n"
+        "\t- output_dir: The directory to store the result files.\n"
         "\n");
 }
 
