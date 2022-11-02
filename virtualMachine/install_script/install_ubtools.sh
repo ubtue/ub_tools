@@ -79,20 +79,18 @@ cd /tmp
 if [ -d /usr/local/ub_tools ]; then
     ColorEcho "ub_tools already exists, skipping download"
 else
-    # echo "cloning ub_tools --branch ${BRANCH}"
-    # git clone --branch ${BRANCH} https://github.com/ubtue/ub_tools.git /usr/local/ub_tools
-    ColorEcho "installation -> copy from local ..."
-    cp -rf /media/sf_iiplo01/ub_tools_ubuntu2204_slolong /usr/local/ub_tools_ubuntu2204_slolong
+    ColorEcho "cloning ub_tools --branch ${BRANCH}"
+    git clone --branch ${BRANCH} https://github.com/ubtue/ub_tools.git /usr/local/ub_tools
+    # ColorEcho "installation -> copy from local ..."
+    # cp -rf /media/sf_iiplo01/ub_tools_ubuntu2204_slolong /usr/local/ub_tools_ubuntu2204_slolong
     mv /usr/local/ub_tools_ubuntu2204_slolong /usr/local/ub_tools
 fi
-ColorEcho "installation -> copy solr-8.11.1.tgz"
-mkdir /usr/local/vufind/downloads
+# ColorEcho "installation -> copy solr-8.11.1.tgz"
+# mkdir /usr/local/vufind/downloads
 # cp /media/sf_iiplo01/ub_tools_ubuntu2204_slolong/docker/ixtheo/solr-8.11.1.tgz /usr/local/vufind/downloads/
 
 # echo "installation -> change repository"
 # cd /usr/local/ub_tools/
-# git checkout ubuntu2204
-# git branch ubuntu2204_slolong ubuntu2204
 # git checkout ubuntu2204_slolong
 
 ColorEcho "installation -> update mysql.cnf"
@@ -117,9 +115,9 @@ ColorEcho "installation -> updating ownership of config and cache"
 chown -R www-data:www-data /usr/local/vufind/local/tuefind/local_overrides/*.conf
 
 # chown -R www-data:www-data /usr/local/vufind/local/tuefind/instances/ixtheo/config
-chown -R www-data:www-data /usr/local/vufind/local/tuefind/instances/ixtheo/cache
+chown -R www-data:www-data /usr/local/vufind/local/tuefind/instances/$2/cache
 # chmod 775 /usr/local/vufind/local/tuefind/instances/ixtheo/config
-chmod -R 775 /usr/local/vufind/local/tuefind/instances/ixtheo/cache
+chmod -R 775 /usr/local/vufind/local/tuefind/instances/$2/cache
 
 
 # chown -R www-data:www-data /usr/local/vufind/local/config
@@ -165,6 +163,13 @@ ColorEcho "installation -> creating softlink of vufind-vhost.conf"
 a2ensite vufind-vhosts
 
 cp /media/sf_iiplo01/ub_tools_ubuntu2204_slolong/docker/ixtheo/apache2/*.pem /etc/ssl/certs/
+
+
+ColorEcho "installation -> run npm in vufind's folder"
+cd /usr/local/vufind && sudo npm install
+
+ColorEcho "installation -> run grunt in vufind's folder"
+cd /usr/local/vufind && grunt less
 
 ColorEcho "installation -> reload apache and vufind service"
 systemctl restart apache2
