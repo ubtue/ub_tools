@@ -1357,6 +1357,7 @@
 			<xsl:choose>
 				<xsl:when test="@type='restrictionOnAccess'">506</xsl:when>
 				<xsl:when test="@type='useAndReproduction'">540</xsl:when>
+				<xsl:otherwise>540</xsl:otherwise>
 			</xsl:choose>
 			</xsl:with-param>
 			<xsl:with-param name="subfields">
