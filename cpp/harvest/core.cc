@@ -17,8 +17,10 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <fstream>
 #include <iostream>
 #include <map>
+#include <regex>
 #include <set>
 #include <unordered_map>
 #include "CORE.h"
@@ -54,15 +56,19 @@ namespace {
         "\t- input_dir: A dir with multiple JSON files to merge, typically from a search result.\n"
         "\t- output_file: The directory to store the merged JSON result file.\n"
         "\n"
-        "filter input_file output_file filtered_file\n"
+        "filter input_file output_file_keep output_file_skip [data_provider_filter_type] [data_provider_ids_file]\n"
         "\t- input_file: A single JSON input file.\n"
-        "\t- output_file: The target JSON file without filtered datasets.\n"
-        "\t- filtered_file: File to store datasets that have been removed when filtering. The reason will be stored in each JSON entry.\n"
+        "\t- output_file_keep: The target JSON file with dataset that should be kept.\n"
+        "\t- output_file_skip: File to store datasets that have been removed when filtering. The reason will be stored in each JSON "
+        "entry.\n"
+        "\t- data_provider_filter_type: 'keep' or 'skip'.\n"
+        "\t- data_provider_ids_file: File that contains the data provider ids to be used as a filter (1 by line).\n"
         "\n"
         "count input_file\n"
         "\t- input_file: The JSON file to count the results from. Result will be written to stdout.\n"
         "\n"
-        "statistics input_file\n"
+        "statistics [--extended] input_file\n"
+        "\t- [--extended]: If given, print additional statistics (e.g. about data providers).\n"
         "\t- input_file: The JSON file to generate statistics from.\n"
         "\n"
         "convert [--create-unique-id-db|--ignore-unique-id-dups][--935-entry=entry] --sigil=project_sigil input_file output_file\n"
@@ -267,38 +273,69 @@ void Download(int argc, char **argv) {
     CORE::DownloadWork(id, output_file);
 }
 
-
 void Filter(int argc, char **argv) {
     if (argc != 5)
-        Usage();
-
-    bool ignore_unique_id_dups(false);
-    if (std::strcmp(argv[1], "--ignore-unique-id-dups") == 0) {
-        ignore_unique_id_dups = true;
-        --argc, ++argv;
-    }
+        if (argc != 7)
+            Usage();
 
     const std::string input_file(argv[2]);
-    const std::string output_file(argv[3]);
-    const std::string filter_file(argv[4]);
+    const std::string output_file_keep(argv[3]);
+    const std::string output_file_skip(argv[4]);
+
+    std::string filter_operator;
+    std::string keyword_file;
+
+    std::string filter_key;
+    std::vector<unsigned long> filter_data_provider_ids;
+    bool filter;
 
     const auto works(CORE::GetWorksFromFile(input_file));
-    CORE::OutputFileStart(output_file);
-    CORE::OutputFileStart(filter_file);
+    CORE::OutputFileStart(output_file_keep);
+    CORE::OutputFileStart(output_file_skip);
     bool first(true);
-    unsigned skipped(0), skipped_uni_tue_count(0), skipped_dupe_count(0), skipped_incomplete_count(0), skipped_language_count(0);
-    KeyValueDB unique_id_to_date_map(UNIQUE_ID_TO_DATE_MAP_PATH);
+
+    unsigned skipped(0), skipped_uni_tue_count(0), skipped_dupe_count(0), skipped_incomplete_count(0), skipped_language_count(0),
+        skipped_data_provider_count(0);
+
+    if (argc == 7) {
+        filter_operator = argv[5];
+        if (filter_operator == "keep")
+            filter = false;
+        else if (filter_operator == "skip")
+            filter = true;
+        else
+            Usage();
+
+        std::vector<std::string> filter_data_provider_lines = FileUtil::ReadLines::ReadOrDie(argv[6]);
+        for (const auto &line : filter_data_provider_lines) {
+            filter_data_provider_ids.emplace_back(StringUtil::ToUnsignedLong(line));
+        }
+    }
+    std::sort(filter_data_provider_ids.begin(), filter_data_provider_ids.end());
+
     for (auto work : works) {
+        if (not filter_data_provider_ids.empty()) {
+            auto sortedDataProvider = work.getDataProviderIds();
+            std::sort(sortedDataProvider.begin(), sortedDataProvider.end());
+            const bool is_in(MiscUtil::Intersect(sortedDataProvider, filter_data_provider_ids).size() > 0);
+            if (is_in == filter) {
+                work.setFilteredReason("Data Provider");
+                CORE::OutputFileAppend(output_file_skip, work, skipped == 0);
+                ++skipped;
+                ++skipped_data_provider_count;
+                continue;
+            }
+        }
         if (work.getPublisher() == "Universität Tübingen") {
             work.setFilteredReason("Universität Tübingen");
-            CORE::OutputFileAppend(filter_file, work, skipped == 0);
+            CORE::OutputFileAppend(output_file_skip, work, skipped == 0);
             ++skipped;
             ++skipped_uni_tue_count;
             continue;
         }
-        if (work.getTitle() == "" or work.getAuthors().empty()) {
+        if (work.getTitle().empty() or work.getAuthors().empty()) {
             work.setFilteredReason("Empty title or authors");
-            CORE::OutputFileAppend(filter_file, work, skipped == 0);
+            CORE::OutputFileAppend(output_file_skip, work, skipped == 0);
             ++skipped;
             ++skipped_incomplete_count;
             continue;
@@ -307,28 +344,21 @@ void Filter(int argc, char **argv) {
         static const std::unordered_set<std::string> allowed_languages({ "eng", "ger", "spa", "baq", "cat", "por", "ita", "dut" });
         if (work.getLanguage().code_.empty() or not allowed_languages.contains(MARC::MapToMARCLanguageCode(work.getLanguage().code_))) {
             work.setFilteredReason("Language empty or not allowed");
-            CORE::OutputFileAppend(filter_file, work, skipped == 0);
+            CORE::OutputFileAppend(output_file_skip, work, skipped == 0);
             ++skipped;
             ++skipped_language_count;
             continue;
         }
 
-        const std::string control_number(ConvertId(std::to_string(work.getId())));
-        if (ignore_unique_id_dups and unique_id_to_date_map.keyIsPresent(control_number)) {
-            work.setFilteredReason("Duplicate");
-            CORE::OutputFileAppend(filter_file, work, skipped == 0);
-            ++skipped;
-            ++skipped_dupe_count;
-            continue;
-        }
-        CORE::OutputFileAppend(output_file, work, first);
+        CORE::OutputFileAppend(output_file_keep, work, first);
         first = false;
     }
-    CORE::OutputFileEnd(output_file);
-    CORE::OutputFileEnd(filter_file);
+    CORE::OutputFileEnd(output_file_keep);
+    CORE::OutputFileEnd(output_file_skip);
 
     LOG_INFO(
         "Filtered " + std::to_string(skipped) + " records, thereof:\n"
+        "- " + std::to_string(skipped_data_provider_count) + " Data Provider\n"
         "- " + std::to_string(skipped_uni_tue_count) + " Uni Tübingen\n"
         "- " + std::to_string(skipped_incomplete_count) + " incomplete\n"
         "- " + std::to_string(skipped_dupe_count) + " duplicate\n"
@@ -411,9 +441,15 @@ void Count(int argc, char **argv) {
 
 void Statistics(int argc, char **argv) {
     // Parse args
-    if (argc != 3)
+    if (argc != 3 && argc != 4)
         Usage();
-    const std::string core_file(argv[2]);
+    else if (argc == 4 && std::strcmp(argv[2], "--extended") != 0)
+        Usage();
+
+    std::string core_file(argv[2]);
+    if (argc == 4)
+        core_file = argv[3];
+    const bool extended = (argc == 4);
 
     // Load file
     const auto works(CORE::GetWorksFromFile(core_file));
@@ -423,6 +459,7 @@ void Statistics(int argc, char **argv) {
     unsigned count_uni_tue(0);
     unsigned count_empty_title(0);
     unsigned count_empty_authors(0);
+    unsigned count_multiple_data_providers(0);
 
     std::map<unsigned long, unsigned> data_providers;
     std::map<std::string, unsigned> languages;
@@ -446,6 +483,9 @@ void Statistics(int argc, char **argv) {
             ++count_uni_tue;
 
         const auto data_provider_ids(work.getDataProviderIds());
+        if (data_provider_ids.size() > 1)
+            ++count_multiple_data_providers;
+
         for (const auto &data_provider_id : data_provider_ids) {
             const auto data_providers_iter(data_providers.find(data_provider_id));
             if (data_providers_iter == data_providers.end())
@@ -457,7 +497,8 @@ void Statistics(int argc, char **argv) {
 
     LOG_INFO("Statistics for " + core_file + ":");
     LOG_INFO(std::to_string(count_works) + " datasets (" + std::to_string(count_articles) + " articles)");
-    LOG_INFO(std::to_string(count_uni_tue) + " datasets from Universität Tübingen");
+    LOG_INFO(std::to_string(count_multiple_data_providers) + " datasets are associated with multiple data providers");
+    LOG_INFO(std::to_string(count_uni_tue) + " datasets from publisher: \"Universität Tübingen\"");
     LOG_INFO(std::to_string(count_empty_title) + " datasets with empty titles");
     LOG_INFO(std::to_string(count_empty_authors) + " datasets without authors");
 
@@ -471,16 +512,18 @@ void Statistics(int argc, char **argv) {
     }
     LOG_INFO(languages_msg);
 
-    std::string data_providers_msg("data providers:\n");
-    std::vector<std::pair<long unsigned, unsigned>> data_providers_sort;
-    for (const auto &item : data_providers) {
-        data_providers_sort.emplace_back(item);
+    if (extended) {
+        std::string data_providers_msg("data providers:\n");
+        std::vector<std::pair<long unsigned, unsigned>> data_providers_sort;
+        for (const auto &item : data_providers) {
+            data_providers_sort.emplace_back(item);
+        }
+        std::sort(data_providers_sort.begin(), data_providers_sort.end(), [](const auto &x, const auto &y) { return x.second > y.second; });
+        for (const auto &[data_provider_id, count] : data_providers_sort) {
+            data_providers_msg += "ID: " + std::to_string(data_provider_id) + ", count: " + std::to_string(count) + "\n";
+        }
+        LOG_INFO(data_providers_msg);
     }
-    std::sort(data_providers_sort.begin(), data_providers_sort.end(), [](const auto &x, const auto &y) { return x.second > y.second; });
-    for (const auto &[data_provider_id, count] : data_providers_sort) {
-        data_providers_msg += "ID: " + std::to_string(data_provider_id) + ", count: " + std::to_string(count) + "\n";
-    }
-    LOG_INFO(data_providers_msg);
 }
 
 

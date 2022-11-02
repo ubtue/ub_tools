@@ -17,6 +17,7 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <algorithm>
 #include <iostream>
 #include <memory>
 #include <unordered_map>
@@ -289,10 +290,22 @@ bool HasGlobalFlag(const std::string &replacement_regex) {
 }
 
 
-std::vector<std::string> GetSplitReplacementRegexWithoutGlobalFlag(const std::string &replacement_regex) {
+std::string EscapeRegexBackreferences(const std::string &replacement_regex) {
+    std::string escaped_regex(replacement_regex);
+    for (auto it(escaped_regex.begin()); it != escaped_regex.end(); it += std::min<int>(escaped_regex.end() - it, 1)) {
+        if (*it == '\\' and (it + 1 != escaped_regex.end()) and StringUtil::IsDigit(*(it + 1)))
+            it = escaped_regex.insert(it, '\\') + 1;
+    }
+    return escaped_regex;
+}
+
+
+std::vector<std::string> GetSplitReplacementRegexWithoutGlobalFlagAndEscapedBackrefs(const std::string &replacement_regex) {
     const std::string replacement_regex_without_global_flag(
         HasGlobalFlag(replacement_regex) ? replacement_regex.substr(0, replacement_regex.length() - 2) : replacement_regex);
-    return StringUtil::Split(replacement_regex_without_global_flag, '/', '\\' /* escape_char */, true /* suppress_empty_components */);
+    const std::string replacement_regex_with_escaped_backreferences(EscapeRegexBackreferences(replacement_regex_without_global_flag));
+    return StringUtil::Split(replacement_regex_with_escaped_backreferences, '/', '\\' /* escape_char */,
+                             true /* suppress_empty_components */);
 }
 
 
@@ -311,7 +324,7 @@ bool InsertFieldRegex(MARC::Record * const record, const MARC::Tag &tag, const c
         return false;
 
     bool global(HasGlobalFlag(replacement_regex));
-    std::vector<std::string> pattern_and_replacement(GetSplitReplacementRegexWithoutGlobalFlag(replacement_regex));
+    std::vector<std::string> pattern_and_replacement(GetSplitReplacementRegexWithoutGlobalFlagAndEscapedBackrefs(replacement_regex));
     if (unlikely(pattern_and_replacement.size() != 2))
         LOG_ERROR("Invalid replacement pattern :\"" + replacement_regex + "\"\nMust follow /pattern/replacement/g? scheme");
 
@@ -379,7 +392,7 @@ bool ReplaceSubfieldRegex(MARC::Record * const record, const MARC::Tag &tag, con
 
 
         bool global(HasGlobalFlag(replacement_regex));
-        std::vector<std::string> pattern_and_replacement(GetSplitReplacementRegexWithoutGlobalFlag(replacement_regex));
+        std::vector<std::string> pattern_and_replacement(GetSplitReplacementRegexWithoutGlobalFlagAndEscapedBackrefs(replacement_regex));
         if (unlikely(pattern_and_replacement.size() != 2))
             LOG_ERROR("Invalid replacement pattern :\"" + replacement_regex + "\"\nMust follow /pattern/replacement/g? scheme");
 
@@ -451,7 +464,8 @@ bool AddSubfieldRegex(MARC::Record * const record, const MARC::Tag &tag, const c
                              [condition](const std::string &subfield_value) { return condition->getMatcher().matched(subfield_value); }))
                 continue;
             bool global(HasGlobalFlag(replacement_regex));
-            std::vector<std::string> pattern_and_replacement(GetSplitReplacementRegexWithoutGlobalFlag(replacement_regex));
+            std::vector<std::string> pattern_and_replacement(
+                GetSplitReplacementRegexWithoutGlobalFlagAndEscapedBackrefs(replacement_regex));
             if (pattern_and_replacement.size() != 2)
                 LOG_ERROR("Invalid replacement pattern :\"" + replacement_regex + "\"\nMust follow /pattern/replacement/g? scheme");
             ThreadSafeRegexMatcher replace_matcher(pattern_and_replacement[0]);

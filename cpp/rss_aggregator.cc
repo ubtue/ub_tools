@@ -248,7 +248,7 @@ public:
 size_t SelectItems(const std::string &subsystem_type, DbConnection * const db_connection,
                    std::vector<HarvestedRSSItem> * const harvested_items) {
     db_connection->queryOrDie("SELECT id,feed_name,feed_url FROM tuefind_rss_feeds WHERE FIND_IN_SET('" + subsystem_type
-                              + "', subsystem_types) > 0");
+                              + "', subsystem_types) > 0 AND active = '1'");
     DbResultSet feeds_result_set(db_connection->getLastResultSet());
     std::unordered_map<std::string, FeedNameAndURL> feed_ids_to_names_and_urls_map;
     while (const auto row = feeds_result_set.getNextRow())
@@ -278,7 +278,8 @@ constexpr unsigned SECONDS_TO_MILLISECONDS = 1000;
 int ProcessFeeds(const std::string &subsystem_type, const std::string &xml_output_filename, DbConnection * const db_connection,
                  Downloader * const downloader) {
     unsigned number_feeds_with_error = 0;
-    db_connection->queryOrDie("SELECT * FROM tuefind_rss_feeds WHERE FIND_IN_SET('" + subsystem_type + "', subsystem_types) > 0");
+    db_connection->queryOrDie("SELECT * FROM tuefind_rss_feeds WHERE FIND_IN_SET('" + subsystem_type
+                              + "', subsystem_types) > 0 AND active = '1'");
     auto result_set(db_connection->getLastResultSet());
     while (const auto row = result_set.getNextRow()) {
         LOG_INFO("Processing feed \"" + row["feed_name"] + "\".");

@@ -446,6 +446,7 @@ void SetupSysLog() {
 void SetupSudo() {
     Echo("Installer -> setup sudo");
     FileUtil::CopyOrDie(INSTALLER_DATA_DIRECTORY + "/sudo.zts-restart", "/etc/sudoers.d/99-zts_restart");
+    FileUtil::CopyOrDie(INSTALLER_DATA_DIRECTORY + "/sudo.alphabrowse_index_ramdisk", "/etc/sudoers.d/99-alphabrowse_index_ramdisk");
 }
 
 
