@@ -37,6 +37,22 @@ core merge "$DOWNLOAD_DIR" "$ARCHIVE_FILE_JSON_UNFILTERED"
 echo "Filtering unwanted records"
 core filter "$ARCHIVE_FILE_JSON_UNFILTERED" "$ARCHIVE_FILE_JSON" "$ARCHIVE_FILE_JSON_FILTERED"
 
+# Note: this is just the basic filter (invalid languages, empty titles, etc.).
+# After it, we should do additional filters based on data providers.
+# "core statistics --extended " can be used to generate a list of the data provider ids and their amout of records.
+# Due to data quality problems, it was agreed that we only import data from providers with at least 200 records.
+# A list can be generated manually & used as input for core filter (optional last 2 parameters at end).
+# Moreover, the following data providers should always be skipped (can also be achieved using the last 2 parameters with "skip" and a list containing these ids):
+# - 4786 (Crossref)
+# - 1926 (Publikationsserver der Universität Tübingen)
+# - 725 (Heidelberger Dokumentenserver)
+# - 1030 (SSOAR)
+# - 923 (DIALNET)
+#
+# Examples:
+# core filter "$ARCHIVE_FILE_JSON_UNFILTERED" "$ARCHIVE_FILE_JSON" "$ARCHIVE_FILE_JSON_FILTERED" keep data_providers_to_keep.csv
+# core filter "$ARCHIVE_FILE_JSON_UNFILTERED" "$ARCHIVE_FILE_JSON" "$ARCHIVE_FILE_JSON_FILTERED" skip data_providers_to_skip.csv
+
 # Convert to MARC & deliver:
 RESULT_COUNT=$(core count "$ARCHIVE_FILE_JSON")
 if [ "$RESULT_COUNT" -gt "0" ]; then
