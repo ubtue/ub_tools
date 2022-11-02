@@ -281,7 +281,6 @@ void CreateUbToolsDatabase(DbConnection * const db_connection_root) {
         db_connection_root->mySQLGrantGrantOption(sql_database, sql_username);
 
         Echo("Installer -> Trying to import database from sql file: " + INSTALLER_DATA_DIRECTORY + "/ub_tools.sql");
-        Echo("Installer -> db: " + sql_database + " , user: " + sql_username + " , pass: " + sql_password);
         DbConnection::MySQLImportFile(INSTALLER_DATA_DIRECTORY + "/ub_tools.sql", sql_database, sql_username, sql_password);
     }
 }

@@ -1,4 +1,15 @@
 #!/bin/bash
+
+##################
+# script for installation of based-machine
+# os: ubuntu 22.04
+# by Steven Lolong (steven.lolong@uni-tuebingen.de)
+# based on the script maintained by by Mario Trojan
+##################
+
+cd /
+export JAVA_TOOL_OPTIONS="-Dfile.encoding=UTF8"
+
 if [[ $# > 1 ]]; then
     echo "usage: $0 [system_type]"
     echo "          ixtheo|krimdok: Also install specific dependencies"
@@ -19,7 +30,8 @@ ColorEcho "installing/updating ub_tools dependencies..."
 
 apt-get --yes update
 
-# install additional libraries for docker environment
+# install additional 
+apt-get --yes install sudo curl
 apt-get --yes install sudo wget
 
 # install software-properties-common for apt-add-repository

@@ -73,7 +73,6 @@ fi
 ColorEcho "Branch is: ${BRANCH}"
 
 
-cd /tmp
 /tmp/install_dep_machine.sh
 
 if [ -d /usr/local/ub_tools ]; then
@@ -83,15 +82,9 @@ else
     git clone --branch ${BRANCH} https://github.com/ubtue/ub_tools.git /usr/local/ub_tools
     # ColorEcho "installation -> copy from local ..."
     # cp -rf /media/sf_iiplo01/ub_tools_ubuntu2204_slolong /usr/local/ub_tools_ubuntu2204_slolong
-    mv /usr/local/ub_tools_ubuntu2204_slolong /usr/local/ub_tools
+    # mv /usr/local/ub_tools_ubuntu2204_slolong /usr/local/ub_tools
 fi
-# ColorEcho "installation -> copy solr-8.11.1.tgz"
-# mkdir /usr/local/vufind/downloads
-# cp /media/sf_iiplo01/ub_tools_ubuntu2204_slolong/docker/ixtheo/solr-8.11.1.tgz /usr/local/vufind/downloads/
 
-# echo "installation -> change repository"
-# cd /usr/local/ub_tools/
-# git checkout ubuntu2204_slolong
 
 ColorEcho "installation -> update mysql.cnf"
 echo authentication_policy=mysql_native_password >> /etc/mysql/mysql.conf.d/mysqld.cnf
@@ -109,7 +102,8 @@ ColorEcho "installation -> reload system configuration"
 systemctl stop apache2 
 
 ColorEcho "installation -> copy local_override"
-cp /media/sf_iiplo01/ub_tools_ubuntu2204_slolong/docker/ixtheo/local_overrides/* /usr/local/vufind/local/tuefind/local_overrides/
+# cp /media/sf_iiplo01/ub_tools_ubuntu2204_slolong/docker/ixtheo/local_overrides/* /usr/local/vufind/local/tuefind/local_overrides/
+cp /usr/local/ub_tools/docker/ixtheo/local_overrides/* /usr/local/vufind/local/tuefind/local_overrides/
 
 ColorEcho "installation -> updating ownership of config and cache"
 chown -R www-data:www-data /usr/local/vufind/local/tuefind/local_overrides/*.conf
@@ -130,16 +124,17 @@ chown -R solr:solr /usr/local/vufind/solr/vufind/biblio/conf/synonyms
 
 ColorEcho "installation -> restarting mysql server"
 systemctl restart mysql
-ColorEcho "installation -> activating vufind user by login using mysql-client"
-cp /media/sf_iiplo01/ub_tools_ubuntu2204_slolong/docker/ixtheo/my_vu.cnf /root/
-cp /media/sf_iiplo01/ub_tools_ubuntu2204_slolong/docker/ixtheo/justquit.ans /root/
-mysql --defaults-extra-file=/root/my_vu.cnf < /root/justquit.ans
 
-rm /root/my_vu.cnf 
-rm /root/justquit.ans
+# ColorEcho "installation -> activating vufind user by login using mysql-client"
+# cp /usr/local/usb_tools/docker/ixtheo/my_vu.cnf /root/
+# cp /usr/local/usb_tools/docker/ixtheo/justquit.ans /root/
+# mysql --defaults-extra-file=/root/my_vu.cnf < /root/justquit.ans
+
+# rm /root/my_vu.cnf 
+# rm /root/justquit.ans
 
 ColorEcho "installation -> copy *.mrc as example files"
-cp /media/sf_iiplo01/ub_tools_ubuntu2204_slolong/docker/ixtheo/*.mrc /usr/local/ub_tools/bsz_daten/
+cp /usr/local/usb_tools/docker/ixtheo/*.mrc /usr/local/ub_tools/bsz_daten/
 
 ColorEcho "installation -> restart vufind"
 systemctl restart vufind 
@@ -175,11 +170,3 @@ ColorEcho "installation -> reload apache and vufind service"
 systemctl restart apache2
 systemctl restart vufind
 systemctl restart mysql
-
-# ColorEcho "start the service"
-# cp /media/sf_iiplo01/ub_tools_ubuntu2204_slolong/docker/ixtheo/startup.sh /startup.sh
-# chmod 700 /startup.sh
-# /startup.sh
-# sudo -u solr /usr/local/vufind/solr.sh start
-# apachectl start
-# mysqld_safe
