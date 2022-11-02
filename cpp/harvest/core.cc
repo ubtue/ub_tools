@@ -561,9 +561,7 @@ void SplitDataProviderId(int argc, char **argv) {
     if (argc != 4)
         Usage();
 
-    // int justvoid = argc;
     const auto works(CORE::GetWorksFromFile(argv[2]));
-    // const auto works(CORE::GetWorksFromFile("core.merged.2022-09-29.json"));
     std::vector<unsigned> listOfDataProvId;
     std::map<std::string, unsigned> fileListCounter;
     unsigned totalRecordCounter(0), progress(0), step(0), displayNext(0), closeCounter(0);
@@ -577,17 +575,16 @@ void SplitDataProviderId(int argc, char **argv) {
                 item = std::to_string(dataProviderId);
                 outputFile = outputDir + item + ".json";
                 if (std::find(listOfDataProvId.begin(), listOfDataProvId.end(), dataProviderId) != listOfDataProvId.end()) {
-                    // id is exist
+                    // id is exist in the list
                     CORE::OutputFileAppend(outputFile, work, 0);
                     ++fileListCounter[item];
                 } else {
-                    // id is not exist
+                    // a new unique id
                     listOfDataProvId.emplace_back(dataProviderId);
                     fileListCounter[item] = 1;
                     CORE::OutputFileStart(outputFile);
                     CORE::OutputFileAppend(outputFile, work, 1);
                 }
-                // std::cout << dataProviderId << std::endl;
             }
         }
 
@@ -641,6 +638,7 @@ void SplitDataProviderId(int argc, char **argv) {
                                     "{\"" + std::to_string(dpId) + "\": " + std::to_string(fileListCounter[std::to_string(dpId)]) + "}");
     }
     FileUtil::AppendStringOrDie(rptFile, "\n]");
+
     LOG_INFO("Generated " + std::to_string(listOfDataProvId.size()) + " Data Provider Id files and a report summary.");
 }
 
