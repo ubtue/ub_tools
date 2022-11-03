@@ -37,11 +37,12 @@ ColorEcho "*************** Starting installation of vufind/tuefind for ixtheo **
 
 ColorEcho "installation -> create and copy directory, and export java environment"
 
-mkdir --parent /mnt/ZE020110/FID-Projekte
+# mkdir --parent /mnt/ZE020110/FID-Projekte
 
-cp -rf /media/sf_iiplo01/Documents/ub_tools/docker/ixtheo/mnt/ZE020150 /mnt/
+# cp -rf /media/sf_iiplo01/Documents/ub_tools/docker/ixtheo/mnt/ZE020150 /mnt/
 
-cp /media/sf_iiplo01/Documents/ub_tools/docker/ixtheo/.smbcredentials /root/.smbcredentials
+# cp /media/sf_iiplo01/Documents/ub_tools/docker/ixtheo/mnt/.smbcredentials /root/.smbcredentials
+# cp /mnt/.smbcredentials /root/.smbcredentials
 
 export JAVA_TOOL_OPTIONS="-Dfile.encoding=UTF8"
 
@@ -102,7 +103,6 @@ ColorEcho "installation -> reload system configuration"
 systemctl stop apache2 
 
 ColorEcho "installation -> copy local_override"
-# cp /media/sf_iiplo01/ub_tools_ubuntu2204_slolong/docker/ixtheo/local_overrides/* /usr/local/vufind/local/tuefind/local_overrides/
 cp /usr/local/ub_tools/docker/ixtheo/local_overrides/* /usr/local/vufind/local/tuefind/local_overrides/
 
 ColorEcho "installation -> updating ownership of config and cache"
@@ -134,7 +134,7 @@ systemctl restart mysql
 # rm /root/justquit.ans
 
 ColorEcho "installation -> copy *.mrc as example files"
-cp /usr/local/usb_tools/docker/ixtheo/*.mrc /usr/local/ub_tools/bsz_daten/
+cp /mnt/*.mrc /usr/local/ub_tools/bsz_daten/
 
 ColorEcho "installation -> restart vufind"
 systemctl restart vufind 
