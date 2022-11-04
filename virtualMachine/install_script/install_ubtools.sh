@@ -46,7 +46,10 @@ ColorEcho "installation -> create and copy directory, and export java environmen
 
 export JAVA_TOOL_OPTIONS="-Dfile.encoding=UTF8"
 
+apt-get --yes update
 
+# install additional 
+apt-get --yes install sudo git
 
 
 # make sure we are on ubuntu

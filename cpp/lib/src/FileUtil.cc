@@ -1,8 +1,10 @@
 /** \file   FileUtil.cc
  *  \brief  Implementation of file related utility classes and functions.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
+ *  \author Steven Lolong (steven.lolong@uni-tuebingen.de)
  *
  *  \copyright 2015-2021 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2022 Universitätsbibliothek Tübingen.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -1140,6 +1142,40 @@ void CopyOrDie(const std::string &from_path, const std::string &to_path) {
         LOG_ERROR("failed to copy \"" + from_path + "\" to \"" + to_path + "\"!");
 }
 
+void CopyOrDieXFs(const std::string fromPath, const std::string toPath) {
+    int src;          /* file descriptor for source file */
+    int dest;         /* file descriptor for destination file */
+    struct stat stat; /* hold information about input file */
+    off_t offset = 0; /* byte offset used by sendfile */
+
+    src = open(fromPath.c_str(), O_RDONLY);
+    if (src == -1) {
+        LOG_ERROR("failed to open \"" + fromPath + "\"!");
+        exit(EXIT_FAILURE);
+    }
+
+    if (fstat(src, &stat) == -1) {
+        LOG_ERROR("failed to open \"" + fromPath + "\"!");
+        exit(EXIT_FAILURE);
+    }
+
+    dest = open(toPath.c_str(), O_CREAT | O_WRONLY | O_TRUNC, stat.st_mode);
+    if (dest == -1) {
+        LOG_ERROR("failed to create output file\"" + toPath + "\"!");
+        exit(EXIT_FAILURE);
+    }
+    if (sendfile(dest, src, &offset, stat.st_size) == -1) {
+        // clean up and exit
+        close(dest);
+        close(src);
+        LOG_ERROR("failed to copy \"" + fromPath + "\" to \"" + toPath + "\"!");
+        exit(EXIT_FAILURE);
+    }
+
+    // clean up and exit
+    close(dest);
+    close(src);
+}
 
 bool DeleteFile(const std::string &path) {
     return ::unlink(path.c_str()) == 0;

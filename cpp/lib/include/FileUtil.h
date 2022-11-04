@@ -3,12 +3,14 @@
  *  \author  Dr. Gordon W. Paynter
  *  \author  Dr. Johannes Ruscheinski
  *  \author  Artur Kedzierski
+ *  \author  Steven Lolong
  */
 
 /*
  *  Copyright 2002-2008 Project iVia.
  *  Copyright 2002-2008 The Regents of The University of California.
  *  Copyright 2015-2021 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  Copyright 2022 Universitätsbibliothek Tübingen.
  *
  *  This file is part of the libiViaCore package.
  *
@@ -503,6 +505,12 @@ bool Copy(const std::string &from_path, const std::string &to_path, const bool t
           const loff_t offset = 0, const int whence = SEEK_CUR);
 void CopyOrDie(const std::string &from_path, const std::string &to_path);
 
+/**
+ * \brief Copy file that support cross filesystem's type including mounted drive
+ * \param fromPath              Source file with absolute or relative path
+ * \param toPath                Target file with absolute or relative path
+ */
+void CopyOrDieXFs(const std::string fromPath, const std::string toPath);
 
 /** \brief   Delete a file.
  *  \param   path  The path of the file to delete.
