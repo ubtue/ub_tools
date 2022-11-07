@@ -563,31 +563,36 @@ void SplitDataProviderId(int argc, char **argv) {
     std::cout << "Preparing data..." << std::endl;
     const auto works(CORE::GetWorksFromFile(argv[2]));
 
-    std::vector<unsigned> list_of_data_provider_id;
-    std::map<std::string, unsigned> data_provider_id_counter;
-    unsigned total_record_counter(0), progress(0), step(0), display_next(0), closed_counter(0);
-    std::string item, outputFile, outputDir(argv[3]);
+    std::vector<unsigned long> list_of_data_provider_id;
+    std::map<unsigned long, unsigned> data_provider_id_counter;
+    const unsigned step(0);
+    const std::string output_dir(argv[3]);
+    std::vector<unsigned long> list_of_data_without_data_provider_id;
+    unsigned total_record_counter(0), progress(0), display_next(0), closed_counter(0), counter_data_with_empty_data_provider_id(0);
+    std::string output_file;
 
 
     std::cout << "Processing " << works.size() << " records ..." << std::endl;
-    for (auto work : works) {
+    for (const auto &work : works) {
         if (!work.getDataProviderIds().empty()) {
-            for (auto data_provider_id : work.getDataProviderIds()) {
-                item = std::to_string(data_provider_id);
-                outputFile = outputDir + item + ".json";
+            for (const auto &data_provider_id : work.getDataProviderIds()) {
+                output_file = output_dir + std::to_string(data_provider_id) + ".json";
                 if (std::find(list_of_data_provider_id.begin(), list_of_data_provider_id.end(), data_provider_id)
                     != list_of_data_provider_id.end()) {
                     // id is exist in the list
-                    CORE::OutputFileAppend(outputFile, work, 0);
-                    ++data_provider_id_counter[item];
+                    CORE::OutputFileAppend(output_file, work, 0);
+                    ++data_provider_id_counter[data_provider_id];
                 } else {
                     // a new unique id
                     list_of_data_provider_id.emplace_back(data_provider_id);
-                    data_provider_id_counter[item] = 1;
-                    CORE::OutputFileStart(outputFile);
-                    CORE::OutputFileAppend(outputFile, work, 1);
+                    data_provider_id_counter[data_provider_id] = 1;
+                    CORE::OutputFileStart(output_file);
+                    CORE::OutputFileAppend(output_file, work, 1);
                 }
             }
+        } else {
+            list_of_data_without_data_provider_id.emplace_back(work.getId());
+            ++counter_data_with_empty_data_provider_id;
         }
 
         ++total_record_counter;
@@ -604,13 +609,19 @@ void SplitDataProviderId(int argc, char **argv) {
         }
     }
 
-    // add bracket as a closing annotation in each file
-    display_next = 1;
     std::cout << std::endl << "Found " << list_of_data_provider_id.size() << " unique Data Provider Id" << std::endl;
+    if (counter_data_with_empty_data_provider_id > 0)
+        std::cout << "Found " << counter_data_with_empty_data_provider_id << " data without data provider id" << std::endl;
+    else
+        std::cout << "All data have data provider id \n" << std::endl;
+
+
+    // add bracket as a closing annotation in each file
+    display_next = 0;
     std::cout << "Updating Data Provider Id's file ..." << std::endl;
-    for (auto const &value : list_of_data_provider_id) {
-        outputFile = outputDir + std::to_string(value) + ".json";
-        CORE::OutputFileEnd(outputFile);
+    for (const auto &value : list_of_data_provider_id) {
+        output_file = output_dir + std::to_string(value) + ".json";
+        CORE::OutputFileEnd(output_file);
 
         // displaying progress
         ++closed_counter;
@@ -626,23 +637,35 @@ void SplitDataProviderId(int argc, char **argv) {
     }
 
     // writing a summary
-    std::string rptFile(outputDir + "aSummaryRpt.json");
-    std::cout << std::endl << "Writing report summary to file: " << rptFile << std::endl;
+    std::string report_file(output_dir + "a_summary_report.json");
+    std::cout << std::endl << "Writing report summary to file: " << report_file << std::endl;
 
-    FileUtil::WriteStringOrDie(rptFile, "[\n");
-    FileUtil::AppendStringOrDie(rptFile, "{\"Total record\":" + std::to_string(total_record_counter) + "},\n");
-    FileUtil::AppendStringOrDie(rptFile, "{\"Total unique data provider id\":" + std::to_string(list_of_data_provider_id.size()) + "}");
-
-    std::sort(list_of_data_provider_id.begin(), list_of_data_provider_id.end());
-    for (auto dpId : list_of_data_provider_id) {
-        FileUtil::AppendStringOrDie(rptFile, ",\n");
+    FileUtil::WriteStringOrDie(report_file, "[\n");
+    FileUtil::AppendStringOrDie(report_file, "{\"Total record\":" + std::to_string(total_record_counter) + "},\n");
+    FileUtil::AppendStringOrDie(report_file, "{\"Total unique data provider id\":" + std::to_string(list_of_data_provider_id.size()) + "}");
+    if (counter_data_with_empty_data_provider_id > 0) {
         FileUtil::AppendStringOrDie(
-            rptFile, "{\"" + std::to_string(dpId) + "\": " + std::to_string(data_provider_id_counter[std::to_string(dpId)]) + "}");
-    }
-    FileUtil::AppendStringOrDie(rptFile, "\n]");
+            report_file, "{\"Total data without data provider id\":" + std::to_string(counter_data_with_empty_data_provider_id) + "}");
 
-    LOG_INFO("Generated " + std::to_string(list_of_data_provider_id.size()) + " Data Provider Id files and a report summary in the folder '"
-             + outputDir + "'.");
+        unsigned end_data_indicator(1);
+        FileUtil::AppendStringOrDie(report_file, "{\"List of data without data provider id\":[");
+        for (const auto &data_without_data_provider_id : list_of_data_without_data_provider_id) {
+            if (end_data_indicator < list_of_data_without_data_provider_id.size())
+                FileUtil::AppendStringOrDie(report_file, ::std::to_string(data_without_data_provider_id) + ", \n");
+            else
+                FileUtil::AppendStringOrDie(report_file, ::std::to_string(data_without_data_provider_id) + "\n]");
+        }
+    }
+    std::sort(list_of_data_provider_id.begin(), list_of_data_provider_id.end());
+    for (const auto &data_provider_id : list_of_data_provider_id) {
+        FileUtil::AppendStringOrDie(report_file, ",\n");
+        FileUtil::AppendStringOrDie(report_file, "{\"" + std::to_string(data_provider_id)
+                                                     + "\": " + std::to_string(data_provider_id_counter[data_provider_id]) + "}");
+    }
+    FileUtil::AppendStringOrDie(report_file, "\n]");
+    std::cout << "\n\n";
+    LOG_INFO("\nGenerated: " + std::to_string(list_of_data_provider_id.size()) + " Data Provider Id files, and \na report summary in : '"
+             + report_file + "'.");
 }
 
 } // unnamed namespace
