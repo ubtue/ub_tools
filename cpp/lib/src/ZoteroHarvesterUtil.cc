@@ -408,7 +408,7 @@ bool UploadTracker::urlAlreadyInDatabase(const std::string &url, const std::set<
     // We use the content of 856 for tracking which is not necessarily the same url that has been used for downloading
     // Thus if detect a DOI scheme in the URL we relax the precise match to a DOI match
     if (MiscUtil::ContainsDOI(url))
-        query += "WHERE dmru.url LIKE '%" + MiscUtil::extractDOI(url) + "%'";
+        query += "WHERE dmru.url LIKE '%" + MiscUtil::extractDOI(url);
     else
         query += "WHERE dmru.url = '" + db_connection->escapeString(SqlUtil::TruncateToVarCharMaxIndexLength(url)) + "'";
 
