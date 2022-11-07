@@ -290,7 +290,7 @@ void Filter(int argc, char **argv) {
     std::string keyword_file;
 
     std::string filter_key;
-    std::vector<unsigned long> filter_data_provider_ids;
+    std::set<unsigned long> filter_data_provider_ids;
     bool filter;
 
     const auto works(CORE::GetWorksFromFile(input_file));
@@ -312,15 +312,14 @@ void Filter(int argc, char **argv) {
 
         std::vector<std::string> filter_data_provider_lines = FileUtil::ReadLines::ReadOrDie(argv[6]);
         for (const auto &line : filter_data_provider_lines) {
-            filter_data_provider_ids.emplace_back(StringUtil::ToUnsignedLong(line));
+            filter_data_provider_ids.emplace(StringUtil::ToUnsignedLong(line));
         }
     }
-    std::sort(filter_data_provider_ids.begin(), filter_data_provider_ids.end());
+    // std::sort(filter_data_provider_ids.begin(), filter_data_provider_ids.end());
 
     for (auto work : works) {
         if (not filter_data_provider_ids.empty()) {
             auto sortedDataProvider = work.getDataProviderIds();
-            std::sort(sortedDataProvider.begin(), sortedDataProvider.end());
             const bool is_in(MiscUtil::Intersect(sortedDataProvider, filter_data_provider_ids).size() > 0);
             if (is_in == filter) {
                 work.setFilteredReason("Data Provider");
@@ -561,65 +560,68 @@ void SplitDataProviderId(int argc, char **argv) {
     if (argc != 4)
         Usage();
 
+    std::cout << "Preparing data..." << std::endl;
     const auto works(CORE::GetWorksFromFile(argv[2]));
-    std::vector<unsigned> listOfDataProvId;
-    std::map<std::string, unsigned> fileListCounter;
-    unsigned totalRecordCounter(0), progress(0), step(0), displayNext(0), closeCounter(0);
+
+    std::vector<unsigned> list_of_data_provider_id;
+    std::map<std::string, unsigned> data_provider_id_counter;
+    unsigned total_record_counter(0), progress(0), step(0), display_next(0), closed_counter(0);
     std::string item, outputFile, outputDir(argv[3]);
 
 
     std::cout << "Processing " << works.size() << " records ..." << std::endl;
     for (auto work : works) {
         if (!work.getDataProviderIds().empty()) {
-            for (auto dataProviderId : work.getDataProviderIds()) {
-                item = std::to_string(dataProviderId);
+            for (auto data_provider_id : work.getDataProviderIds()) {
+                item = std::to_string(data_provider_id);
                 outputFile = outputDir + item + ".json";
-                if (std::find(listOfDataProvId.begin(), listOfDataProvId.end(), dataProviderId) != listOfDataProvId.end()) {
+                if (std::find(list_of_data_provider_id.begin(), list_of_data_provider_id.end(), data_provider_id)
+                    != list_of_data_provider_id.end()) {
                     // id is exist in the list
                     CORE::OutputFileAppend(outputFile, work, 0);
-                    ++fileListCounter[item];
+                    ++data_provider_id_counter[item];
                 } else {
                     // a new unique id
-                    listOfDataProvId.emplace_back(dataProviderId);
-                    fileListCounter[item] = 1;
+                    list_of_data_provider_id.emplace_back(data_provider_id);
+                    data_provider_id_counter[item] = 1;
                     CORE::OutputFileStart(outputFile);
                     CORE::OutputFileAppend(outputFile, work, 1);
                 }
             }
         }
 
-        ++totalRecordCounter;
+        ++total_record_counter;
 
         // displaying progress
-        progress = (100 * (totalRecordCounter)) / works.size();
-        if (progress >= displayNext) {
+        progress = (100 * (total_record_counter)) / works.size();
+        if (progress >= display_next) {
             std::cout << "\r"
                       << "[" << std::string(progress / 5, (char)35u) << std::string(100 / 5 - progress / 5, ' ') << "]";
             std::cout << progress << "%"
-                      << " [record " << totalRecordCounter << " of " << works.size() << "]";
+                      << " [record " << total_record_counter << " of " << works.size() << "]";
             std::cout.flush();
-            displayNext += step;
+            display_next += step;
         }
     }
 
     // add bracket as a closing annotation in each file
-    displayNext = 1;
-    std::cout << std::endl << "Found " << listOfDataProvId.size() << " unique Data Provider Id" << std::endl;
+    display_next = 1;
+    std::cout << std::endl << "Found " << list_of_data_provider_id.size() << " unique Data Provider Id" << std::endl;
     std::cout << "Updating Data Provider Id's file ..." << std::endl;
-    for (auto const &value : listOfDataProvId) {
+    for (auto const &value : list_of_data_provider_id) {
         outputFile = outputDir + std::to_string(value) + ".json";
         CORE::OutputFileEnd(outputFile);
 
         // displaying progress
-        ++closeCounter;
-        progress = (100 * (closeCounter)) / listOfDataProvId.size();
-        if (progress >= displayNext) {
+        ++closed_counter;
+        progress = (100 * (closed_counter)) / list_of_data_provider_id.size();
+        if (progress >= display_next) {
             std::cout << "\r"
                       << "[" << std::string(progress / 5, (char)35u) << std::string(100 / 5 - progress / 5, ' ') << "]";
             std::cout << progress << "%"
-                      << " [file " << closeCounter << " of " << listOfDataProvId.size() << "]";
+                      << " [file " << closed_counter << " of " << list_of_data_provider_id.size() << "]";
             std::cout.flush();
-            displayNext += step;
+            display_next += step;
         }
     }
 
@@ -628,18 +630,19 @@ void SplitDataProviderId(int argc, char **argv) {
     std::cout << std::endl << "Writing report summary to file: " << rptFile << std::endl;
 
     FileUtil::WriteStringOrDie(rptFile, "[\n");
-    FileUtil::AppendStringOrDie(rptFile, "{\"Total record\":" + std::to_string(totalRecordCounter) + "},\n");
-    FileUtil::AppendStringOrDie(rptFile, "{\"Total unique data provider id\":" + std::to_string(listOfDataProvId.size()) + "}");
+    FileUtil::AppendStringOrDie(rptFile, "{\"Total record\":" + std::to_string(total_record_counter) + "},\n");
+    FileUtil::AppendStringOrDie(rptFile, "{\"Total unique data provider id\":" + std::to_string(list_of_data_provider_id.size()) + "}");
 
-    std::sort(listOfDataProvId.begin(), listOfDataProvId.end());
-    for (auto dpId : listOfDataProvId) {
+    std::sort(list_of_data_provider_id.begin(), list_of_data_provider_id.end());
+    for (auto dpId : list_of_data_provider_id) {
         FileUtil::AppendStringOrDie(rptFile, ",\n");
-        FileUtil::AppendStringOrDie(rptFile,
-                                    "{\"" + std::to_string(dpId) + "\": " + std::to_string(fileListCounter[std::to_string(dpId)]) + "}");
+        FileUtil::AppendStringOrDie(
+            rptFile, "{\"" + std::to_string(dpId) + "\": " + std::to_string(data_provider_id_counter[std::to_string(dpId)]) + "}");
     }
     FileUtil::AppendStringOrDie(rptFile, "\n]");
 
-    LOG_INFO("Generated " + std::to_string(listOfDataProvId.size()) + " Data Provider Id files and a report summary.");
+    LOG_INFO("Generated " + std::to_string(list_of_data_provider_id.size()) + " Data Provider Id files and a report summary in the folder '"
+             + outputDir + "'.");
 }
 
 } // unnamed namespace
