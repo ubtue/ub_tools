@@ -1137,7 +1137,9 @@
 		</xsl:call-template>
 	</xsl:template>
 	<!-- v3 language -->
-	<xsl:template match="mods:language/mods:languageTerm[@authority='iso639-2b']">
+        <!-- for some reason the commented out line doe not yield a match, so use a workround (jr 221108)-->
+        <!--	<xsl:template match="mods:language/mods:languageTerm[@authority='iso639-2b']"> -->
+        <xsl:template match="mods:language[mods:languageTerm[@authority='iso639-2b']]">
 		<xsl:call-template name="datafield">
 			<xsl:with-param name="tag">041</xsl:with-param>
 			<xsl:with-param name="ind1">0</xsl:with-param>
