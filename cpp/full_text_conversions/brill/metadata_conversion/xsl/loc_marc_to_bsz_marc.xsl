@@ -31,7 +31,7 @@
         </xsl:copy>
     </xsl:template>
 
-    <!-- Move URL to 856 u -->
+    <!-- Move URL to 856u -->
     <xsl:template match="datafield[@tag='534']">
         <xsl:copy>
            <xsl:attribute name="tag">
@@ -48,7 +48,31 @@
            </subfield>
            <subfield code="z">ZZ</subfield>
         </xsl:copy>
-     </xsl:template>
+    </xsl:template>
+
+    <!-- Move date to 264c year -->
+    <xsl:template match="datafield[@tag='260' and subfield[@code='c']]">
+        <xsl:copy>
+           <xsl:attribute name="tag">
+                <xsl:value-of select="264"/>
+           </xsl:attribute>
+           <xsl:attribute name="ind1">
+              <xsl:text> </xsl:text>
+           </xsl:attribute>
+           <xsl:attribute name="ind2">
+              <xsl:text> </xsl:text>
+           </xsl:attribute>
+           <subfield code="c">
+               <xsl:copy-of select="substring(normalize-space(./subfield[@code='c']/text()),0,5)"/>
+           </subfield>
+       </xsl:copy>
+    </xsl:template>
+
+    <!-- Remove redundant 260 Brill content -->
+    <xsl:template match="datafield[@tag='260' and subfield[@code='b']]" priority="2"/>
+
+    <!-- Remove superflous 655 Brill content field -->
+    <xsl:template match="datafield[@tag='655' and subfield[@code='a'][.='text'] and subfield[@code='2'][.='dct']]"/>
 
 </xsl:stylesheet>
 
