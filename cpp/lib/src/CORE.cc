@@ -149,13 +149,13 @@ std::vector<Author> Work::getAuthors() const {
 }
 
 
-std::vector<unsigned long> Work::getDataProviderIds() const {
-    std::vector<unsigned long> ids;
+std::set<unsigned long> Work::getDataProviderIds() const {
+    std::set<unsigned long> ids;
 
     const auto data_providers(json_["dataProviders"]);
     if (data_providers.is_array()) {
         for (const auto &data_provider : data_providers) {
-            ids.emplace_back(data_provider["id"]);
+            ids.emplace(data_provider["id"]);
         }
     }
 
