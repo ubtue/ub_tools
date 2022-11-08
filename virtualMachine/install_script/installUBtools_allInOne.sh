@@ -8,7 +8,7 @@
 # based on the script maintained by by Mario Trojan
 # ******************
 # run this script on Virtual machine
-# /tmp/install_ubtools.sh vufind ixtheo --test --omit-cronjobs 2>&1 | tee ~/outputfile.txt
+# /tmp/install_ubtools.sh vufind < ixtheo | krimdok > < --test | --production >  [ --omit-cronjobs ] 2>&1 | tee ~/outputfile.txt
 # ***********************
 # run this script on docker "Dockerfile"
 # RUN /tmp/install_ubtools.sh vufind ixtheo --test --omit-cronjobs --omit-systemctl
@@ -44,20 +44,20 @@ ColorEcho "installation -> create and copy directory, and export java environmen
 # cp /media/sf_iiplo01/Documents/ub_tools/docker/ixtheo/mnt/.smbcredentials /root/.smbcredentials
 # cp /mnt/.smbcredentials /root/.smbcredentials
 
+cd /
 export JAVA_TOOL_OPTIONS="-Dfile.encoding=UTF8"
 
-apt-get --yes update
-
-# install additional 
-apt-get --yes install sudo git
-
+apt-get --yes update \
+    && apt-get --yes install sudo curl \
+    && apt-get --yes install sudo wget \
+    && apt-get --yes install sudo git
 
 # make sure we are on ubuntu
 if [ -e /etc/debian_version ]; then
     #print ubuntu version
     lsb_release -a
 else
-    ColorEcho "OS type could not be detected or is not supported! aborting"
+    ColorEcho "installation -> OS type could not be detected or is not supported! aborting"
     exit 1
 fi
 
@@ -67,7 +67,7 @@ if [ "$(id -u)" != "0" ]; then
     exit 1
 fi
 if [[ ! $PATH =~ "/usr/local/bin" ]]; then
-    ColorEcho "Please add /usr/local/bin to your PATH before starting the installation!"
+    ColorEcho "installation -> please add /usr/local/bin to your PATH before starting the installation!"
     exit 1
 fi
 
@@ -77,12 +77,82 @@ fi
 ColorEcho "Branch is: ${BRANCH}"
 
 
-/tmp/install_dep_machine.sh
+#--------------------------------- UB_TOOLS ---------------------------------#
+ColorEcho "installation -> installing/updating ub_tools dependencies..."
+
+
+# install software-properties-common for apt-add-repository
+apt-get --yes install software-properties-common
+wget -qO - https://artifacts.elastic.co/GPG-KEY-elasticsearch | sudo apt-key add -
+apt-add-repository --yes --update 'deb https://artifacts.elastic.co/packages/7.x/apt stable main'
+apt-add-repository --yes --update 'ppa:alex-p/tesseract-ocr5'
+
+
+
+# main installation
+apt-get --quiet --yes --allow-unauthenticated install \
+        ant apache2 apparmor-utils ca-certificates cifs-utils clang clang-format cron curl gcc git imagemagick incron jq libarchive-dev \
+        libcurl4-gnutls-dev libdb-dev liblept5 libleptonica-dev liblz4-tool libmagic-dev libmysqlclient-dev \
+        libpcre3-dev libpq-dev libsqlite3-dev libssl-dev libstemmer-dev libtesseract-dev libwebp7 libxerces-c-dev \
+        libxml2-dev libxml2-utils locales-all make mawk mutt nlohmann-json3-dev openjdk-11-jdk p7zip-full poppler-utils postgresql-client \
+        tesseract-ocr tesseract-ocr-all rsync sqlite3 tcl-expect-dev tidy unzip \
+        uuid-dev xsltproc libsystemd-dev
+
+# Explicitly enable mod_cgi. If we would use `a2enmod cgi`, it would enable mod_cgid, which would fail on apache startup.
+ln -s ../mods-available/cgi.load /etc/apache2/mods-enabled/cgi.load
+
+# Set java version 11 to be kept manually (to avoid automatic migrations)
+update-alternatives --set java /usr/lib/jvm/java-11-openjdk-amd64/bin/java
+update-alternatives --set javac /usr/lib/jvm/java-11-openjdk-amd64/bin/javac
+
+#Install custom certificates
+mkdir --parents /usr/share/ca-certificates/custom
+cp /usr/local/ub_tools/docker/zts/extra_certs/extra_certs.pem /usr/share/ca-certificates/custom/eguzkilore.crt
+grep --quiet --extended-regexp --line-regexp  '[!]?custom[/]eguzkilore.crt' /etc/ca-certificates.conf \
+        || echo 'custom/eguzkilore.crt' >> /etc/ca-certificates.conf
+dpkg-reconfigure --frontend=noninteractive ca-certificates
+
+
+#mysql installation
+## (use "quiet" and set frontend to noninteractive so mysql doesnt ask for a root password, geographic area and timezone)
+DEBIAN_FRONTEND_OLD=($DEBIAN_FRONTEND)
+export DEBIAN_FRONTEND="noninteractive"
+apt-get --quiet --yes --allow-unauthenticated install mysql-server
+export DEBIAN_FRONTEND=(DEBIAN_FRONTEND_OLD)
+## create /var/run/mysqld and change user (mysql installation right now has a bug not doing that itself)
+## (chown needs to be done after installation = after the user has been created)
+mkdir --parents /var/run/mysqld
+chown --recursive mysql:mysql /var/run/mysqld
+
+#----------------------------------ELASTICSEARCH-----------------------------#
+if [[ $1 == "krimdok" || $1 == "fulltext_backend" ]]; then
+    apt-get --quiet --yes install elasticsearch
+    if ! /usr/share/elasticsearch/bin/elasticsearch-plugin list | grep --quiet analysis-icu; then
+        /usr/share/elasticsearch/bin/elasticsearch-plugin install analysis-icu
+    fi
+    mkdir --parents /etc/elasticsearch/synonyms
+    for i in all de en fr it es pt ru el hans hant; do touch /etc/elasticsearch/synonyms/synonyms_$i.txt; done
+fi
+
+#---------------------------------- TUEFIND ---------------------------------#
+if [[ $1 == "ixtheo" || $1 == "krimdok" ]]; then
+    ColorEcho "installation -> installing/updating tuefind dependencies..."
+    apt-get --quiet --yes install \
+        composer npm node-grunt-cli \
+        php php-curl php-gd php-intl php-json php-ldap php-mbstring php-mysql php-pear php-soap php-xml \
+        libapache2-mod-php
+
+    a2enmod rewrite
+    a2enmod ssl
+    /etc/init.d/apache2 restart
+fi
+
+ColorEcho "finished installing/updating dependencies"
 
 if [ -d /usr/local/ub_tools ]; then
-    ColorEcho "ub_tools already exists, skipping download"
+    ColorEcho "installation -> ub_tools already exists, skipping download"
 else
-    ColorEcho "cloning ub_tools --branch ${BRANCH}"
+    ColorEcho "installation -> cloning ub_tools --branch ${BRANCH}"
     git clone --branch ${BRANCH} https://github.com/ubtue/ub_tools.git /usr/local/ub_tools
     # ColorEcho "installation -> copy from local ..."
     # cp -rf /media/sf_iiplo01/ub_tools_ubuntu2204_slolong /usr/local/ub_tools_ubuntu2204_slolong
@@ -99,7 +169,7 @@ cd /usr/local/ub_tools/cpp/lib/mkdep && CCC=clang++ make --jobs=4 install
 ColorEcho "installation -> building cpp installer"
 cd /usr/local/ub_tools/cpp && CCC=clang++ make --jobs=4 installer
 
-ColorEcho "starting cpp installer"
+ColorEcho "installation -> starting cpp installer"
 /usr/local/ub_tools/cpp/installer $*
 
 ColorEcho "installation -> reload system configuration"
@@ -111,15 +181,11 @@ cp /usr/local/ub_tools/docker/ixtheo/local_overrides/* /usr/local/vufind/local/t
 ColorEcho "installation -> updating ownership of config and cache"
 chown -R www-data:www-data /usr/local/vufind/local/tuefind/local_overrides/*.conf
 
-# chown -R www-data:www-data /usr/local/vufind/local/tuefind/instances/ixtheo/config
 chown -R www-data:www-data /usr/local/vufind/local/tuefind/instances/$2/cache
-# chmod 775 /usr/local/vufind/local/tuefind/instances/ixtheo/config
 chmod -R 775 /usr/local/vufind/local/tuefind/instances/$2/cache
 
 
-# chown -R www-data:www-data /usr/local/vufind/local/config
 chown -R www-data:www-data /usr/local/vufind/local/cache
-#/usr/local/vufind/local/tuefind/instances/bibstudies/config/vufind/local_overrides/
 
 ColorEcho "installation -> creating synonyms"
 /usr/local/vufind/solr/vufind/biblio/conf/touch_synonyms.sh $2

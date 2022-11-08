@@ -225,14 +225,20 @@ void MountDeptDriveAndInstallSSHKeysOrDie(const VuFindSystemType vufind_system_t
     const std::string GITHUB_ROBOT_PRIVATE_KEY_LOCAL(SSH_KEYS_DIR_LOCAL + "github-robot");
     const std::string GITHUB_ROBOT_PUBLIC_KEY_REMOTE(SSH_KEYS_DIR_REMOTE + "github-robot.pub");
     const std::string GITHUB_ROBOT_PUBLIC_KEY_LOCAL(SSH_KEYS_DIR_LOCAL + "github-robot.pub");
+    const std::string copy_file_syntax(ExecUtil::Which("cp"));
     if (not FileUtil::Exists(SSH_KEYS_DIR_LOCAL))
         FileUtil::MakeDirectoryOrDie(SSH_KEYS_DIR_LOCAL, false, 0700);
     if (not FileUtil::Exists(GITHUB_ROBOT_PRIVATE_KEY_LOCAL)) {
-        FileUtil::CopyOrDieXFs(GITHUB_ROBOT_PRIVATE_KEY_REMOTE, GITHUB_ROBOT_PRIVATE_KEY_LOCAL);
+        const std::vector<std::string> exec_param{ GITHUB_ROBOT_PRIVATE_KEY_REMOTE, GITHUB_ROBOT_PRIVATE_KEY_LOCAL };
+        // disable using this function for a while until the patch the error in 'copy_file_range()' in new linux kernel
+        // FileUtil::CopyOrDie(GITHUB_ROBOT_PRIVATE_KEY_REMOTE, GITHUB_ROBOT_PRIVATE_KEY_LOCAL);
+        ExecUtil::ExecOrDie(copy_file_syntax, exec_param);
         FileUtil::ChangeModeOrDie(GITHUB_ROBOT_PRIVATE_KEY_LOCAL, 0600);
     }
     if (not FileUtil::Exists(GITHUB_ROBOT_PUBLIC_KEY_LOCAL)) {
-        FileUtil::CopyOrDieXFs(GITHUB_ROBOT_PUBLIC_KEY_REMOTE, GITHUB_ROBOT_PUBLIC_KEY_LOCAL);
+        const std::vector<std::string> exec_param{ GITHUB_ROBOT_PUBLIC_KEY_REMOTE, GITHUB_ROBOT_PUBLIC_KEY_LOCAL };
+        ExecUtil::ExecOrDie(copy_file_syntax, exec_param);
+        // FileUtil::CopyOrDie(GITHUB_ROBOT_PUBLIC_KEY_REMOTE, GITHUB_ROBOT_PUBLIC_KEY_LOCAL);
         FileUtil::ChangeModeOrDie(GITHUB_ROBOT_PUBLIC_KEY_LOCAL, 0600);
     }
 }

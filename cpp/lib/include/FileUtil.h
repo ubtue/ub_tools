@@ -506,7 +506,7 @@ bool Copy(const std::string &from_path, const std::string &to_path, const bool t
 void CopyOrDie(const std::string &from_path, const std::string &to_path);
 
 /**
- * \brief Copy file that support cross filesystem's type including mounted drive
+ * \brief Copy file that support cross filesystem's type. The maximum size of copy file is 2GB only.
  * \param fromPath              Source file with absolute or relative path
  * \param toPath                Target file with absolute or relative path
  */
