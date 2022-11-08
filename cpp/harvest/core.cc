@@ -566,11 +566,13 @@ void SplitDataProviderId(int argc, char **argv) {
     std::vector<unsigned long> list_of_data_provider_id;
     std::map<unsigned long, unsigned> data_provider_id_counter;
     const unsigned step(0);
-    const std::string output_dir(argv[3]);
+    std::string output_dir(argv[3]);
     std::vector<unsigned long> list_of_data_without_data_provider_id;
     unsigned total_record_counter(0), progress(0), display_next(0), closed_counter(0), counter_data_with_empty_data_provider_id(0);
     std::string output_file;
 
+    if (output_dir.back() != '/')
+        output_dir += "/";
 
     std::cout << "Processing " << works.size() << " records ..." << std::endl;
     for (const auto &work : works) {
@@ -664,8 +666,8 @@ void SplitDataProviderId(int argc, char **argv) {
     }
     FileUtil::AppendStringOrDie(report_file, "\n]");
     std::cout << "\n\n";
-    LOG_INFO("\nGenerated: " + std::to_string(list_of_data_provider_id.size()) + " Data Provider Id files, and \na report summary in : '"
-             + report_file + "'.");
+    LOG_INFO("\nGenerate " + std::to_string(list_of_data_provider_id.size()) + " Data Provider Id files in folder: '" + output_dir
+             + "', and \na report summary in : '" + report_file + "'.");
 }
 
 } // unnamed namespace
