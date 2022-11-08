@@ -124,29 +124,6 @@ export DEBIAN_FRONTEND=(DEBIAN_FRONTEND_OLD)
 mkdir --parents /var/run/mysqld
 chown --recursive mysql:mysql /var/run/mysqld
 
-#----------------------------------ELASTICSEARCH-----------------------------#
-if [[ $1 == "krimdok" || $1 == "fulltext_backend" ]]; then
-    apt-get --quiet --yes install elasticsearch
-    if ! /usr/share/elasticsearch/bin/elasticsearch-plugin list | grep --quiet analysis-icu; then
-        /usr/share/elasticsearch/bin/elasticsearch-plugin install analysis-icu
-    fi
-    mkdir --parents /etc/elasticsearch/synonyms
-    for i in all de en fr it es pt ru el hans hant; do touch /etc/elasticsearch/synonyms/synonyms_$i.txt; done
-fi
-
-#---------------------------------- TUEFIND ---------------------------------#
-if [[ $1 == "ixtheo" || $1 == "krimdok" ]]; then
-    ColorEcho "installation -> installing/updating tuefind dependencies..."
-    apt-get --quiet --yes install \
-        composer npm node-grunt-cli \
-        php php-curl php-gd php-intl php-json php-ldap php-mbstring php-mysql php-pear php-soap php-xml \
-        libapache2-mod-php
-
-    a2enmod rewrite
-    a2enmod ssl
-    /etc/init.d/apache2 restart
-fi
-
 ColorEcho "finished installing/updating dependencies"
 
 if [ -d /usr/local/ub_tools ]; then
