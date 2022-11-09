@@ -13,6 +13,7 @@ archive_contents=$(7z l ${archive_file} | grep "${PPN_BASE}/metadata" | grep 'xm
 TOOL_BASE_PATH="/usr/local/ub_tools/cpp/full_text_conversions/brill/metadata_conversion"
 DC_TO_MODS_XSLT_FILE="xsl/DC_MODS3-7_XSLT1-0_ubtue.xsl"
 MODS_TO_MARC_XSLT_FILE="xsl/MODS3-7_MARC21slim_XSLT1-0_ubtue_brill.xsl"
+LOC_TO_BSZ_XSLT_FILE="xsl/loc_marc_to_bsz_marc.xsl"
 
 > ${output_file}
 echo '<?xml version="1.0" encoding="UTF-8"?>' >> ${output_file}
@@ -37,8 +38,9 @@ for content in ${archive_contents}; do
                     -i '$new_node' -t attr -n "ind2" -v ' ' \
                     -s '$new_node' -t elem -n 'marc:subfield'  -v "${ppn:0:4}" \
                     --var new_subnode '$prev' -i '$new_subnode' -t attr -n "code" -v 'a' | \
-
          sed -r -e 's/(<[/]?)marc:/\1/g' | \
-         sed -r -e 's/(<record).*>/\1>/g' >> ${output_file} 
+         sed -r -e 's/(<record).*>/\1>/g' | \
+         xmlstarlet tr ${TOOL_BASE_PATH}/${LOC_TO_BSZ_XSLT_FILE} \
+         >> ${output_file}
 done
 echo '</collection>' >> ${output_file}

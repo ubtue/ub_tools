@@ -506,6 +506,9 @@
                         <xsl:apply-templates/>
                     </languageTerm>
                 </xsl:when>
+                <xsl:when test="text() = 'English'">
+                    <languageTerm type="code" authority="iso639-2b">eng</languageTerm>
+                </xsl:when>
                 <xsl:otherwise>
                     <languageTerm type="text">
                         <xsl:apply-templates/>
