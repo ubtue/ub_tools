@@ -33,8 +33,11 @@ for content in ${archive_contents}; do
          `# Add a TYP field derived from the refwork abbreviation` \
          xmlstarlet ed -O -a '//marc:datafield[last()]' -t elem -n 'marc:datafield'  \
                     --var new_node '$prev' -i '$new_node' -t attr -n "tag" -v "TYP" \
+                    -i '$new_node' -t attr -n "ind1" -v ' ' \
+                    -i '$new_node' -t attr -n "ind2" -v ' ' \
                     -s '$new_node' -t elem -n 'marc:subfield'  -v "${ppn:0:4}" \
                     --var new_subnode '$prev' -i '$new_subnode' -t attr -n "code" -v 'a' | \
+
          sed -r -e 's/(<[/]?)marc:/\1/g' | \
          sed -r -e 's/(<record).*>/\1>/g' >> ${output_file} 
 done
