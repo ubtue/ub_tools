@@ -325,16 +325,9 @@ void Filter(int argc, char **argv) {
                 // this is 'keep' option
                 auto data_provider_ids = work.getDataProviderIds();
                 const bool is_in_the_list(MiscUtil::Intersect(data_provider_ids, filter_data_provider_ids).size() > 0);
+
                 if (!data_provider_ids.empty() && is_in_the_list) {
-                    std::vector<nlohmann::json> new_data_provider;
-                    const auto data_providers = work.getDataProvider();
-                    for (const auto &data_provider : data_providers) {
-                        if (std::find(filter_data_provider_ids.begin(), filter_data_provider_ids.end(), data_provider["id"])
-                            != filter_data_provider_ids.end()) {
-                            new_data_provider.emplace_back(data_provider);
-                        }
-                    }
-                    work.setDataProvider(new_data_provider);
+                    work.removeDataProviders(filter_data_provider_ids);
                     work.setFilteredReason("Data Provider");
                     CORE::OutputFileAppend(output_file_skip, work, skipped == 0);
                     ++skipped;
