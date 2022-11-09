@@ -161,6 +161,24 @@ std::set<unsigned long> Work::getDataProviderIds() const {
 
     return ids;
 }
+std::vector<nlohmann::json> Work::getDataProvider() {
+    std::vector<nlohmann::json> new_data_providers;
+    const auto data_providers(json_["dataProviders"]);
+    if (data_providers.is_array()) {
+        for (const auto &data_providers_item : data_providers) {
+            new_data_providers.emplace_back(data_providers_item);
+        }
+    }
+    return new_data_providers;
+}
+void Work::setDataProvider(std::vector<nlohmann::json> &new_dp_content) {
+    unsigned counter(0);
+    json_["dataProviders"].clear();
+
+    for (const auto &new_dp_content_item : new_dp_content) {
+        json_["dataProviders"][counter] = new_dp_content_item;
+    }
+}
 
 
 std::string Work::getDocumentType() const {

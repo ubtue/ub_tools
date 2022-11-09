@@ -105,6 +105,9 @@ public:
     std::string getTitle() const;
     unsigned getYearPublished() const;
 
+    std::vector<nlohmann::json> getDataProvider();
+    void setDataProvider(std::vector<nlohmann::json> &new_dp_content);
+
     bool isArticle() const { return getJournals().empty(); }
 
     using Entity::Entity;
