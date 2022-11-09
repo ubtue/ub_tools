@@ -22,7 +22,7 @@
               <xsl:value-of select="$author_tag"/>
            </xsl:attribute>
            <xsl:attribute name="ind1">
-              <xsl:text> </xsl:text>
+              <xsl:text>1</xsl:text>
            </xsl:attribute>
            <xsl:attribute name="ind2">
               <xsl:text> </xsl:text>
@@ -35,13 +35,13 @@
     <xsl:template match="datafield[@tag='534']">
         <xsl:copy>
            <xsl:attribute name="tag">
-                <xsl:value-of select="856"/>
+               <xsl:value-of select="856"/>
            </xsl:attribute>
            <xsl:attribute name="ind1">
-              <xsl:text> </xsl:text>
+               <xsl:text>4</xsl:text>
            </xsl:attribute>
            <xsl:attribute name="ind2">
-              <xsl:text> </xsl:text>
+               <xsl:text>0</xsl:text>
            </xsl:attribute>
            <subfield code="u">
                <xsl:copy-of select="./subfield[@code='t']/text()"/>
