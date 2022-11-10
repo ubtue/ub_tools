@@ -45,7 +45,7 @@ void AugmentMarc(MARC::Reader * const marc_reader, MARC::Writer * const marc_wri
                  const std::map<std::string, std::string> &associations) {
     while (MARC::Record record = marc_reader->read()) {
         for (const auto author_tag : { "100", "700" }) {
-            for (auto author_field : record.getTagRange(author_tag)) {
+            for (auto &author_field : record.getTagRange(author_tag)) {
                 auto author_subfields(author_field.getSubfields());
                 const std::string author(author_subfields.getFirstSubfieldWithCode('a'));
                 if (author.empty())
@@ -56,8 +56,8 @@ void AugmentMarc(MARC::Reader * const marc_reader, MARC::Writer * const marc_wri
                     continue;
                 std::string gnd(association->second);
                 author_subfields.appendSubfield('0', "(DE-588)" + gnd);
-                record.insertFieldAtEnd("887", { { 'a', "Autor [" + author + "] maschinell zugeordnet" } });
                 author_field.setSubfields(author_subfields);
+                record.insertFieldAtEnd("887", { { 'a', "Autor [" + author + "] maschinell zugeordnet" } });
             }
         }
         marc_writer->write(record);
