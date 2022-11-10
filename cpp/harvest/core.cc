@@ -324,10 +324,12 @@ void Filter(int argc, char **argv) {
                 // clean the member of data provider means delete the member that its id is not in the list
                 // this is 'keep' option
                 auto data_provider_ids = work.getDataProviderIds();
-                const bool is_in_the_list(MiscUtil::Intersect(data_provider_ids, filter_data_provider_ids).size() > 0);
+                std::set<unsigned long> intersection_of_data_provider_ids =
+                    MiscUtil::Intersect(data_provider_ids, filter_data_provider_ids);
+                const bool is_in_the_list(intersection_of_data_provider_ids.size() > 0);
 
                 if (!data_provider_ids.empty() && is_in_the_list) {
-                    work.removeDataProviders(filter_data_provider_ids);
+                    work.removeDataProviders(intersection_of_data_provider_ids);
                     work.setFilteredReason("Data Provider");
                     CORE::OutputFileAppend(output_file_skip, work, skipped == 0);
                     ++skipped;
