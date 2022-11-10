@@ -22,20 +22,39 @@
               <xsl:value-of select="$author_tag"/>
            </xsl:attribute>
            <xsl:attribute name="ind1">
-              <xsl:text> </xsl:text>
+              <xsl:text>1</xsl:text>
            </xsl:attribute>
            <xsl:attribute name="ind2">
               <xsl:text> </xsl:text>
            </xsl:attribute>
-           <xsl:copy-of select="node()"/>
+           <xsl:apply-templates select="node()"/>
         </xsl:copy>
     </xsl:template>
 
-    <!-- Move URL to 856 u -->
+    <!-- Move URL to 856u -->
     <xsl:template match="datafield[@tag='534']">
         <xsl:copy>
            <xsl:attribute name="tag">
-                <xsl:value-of select="856"/>
+               <xsl:value-of select="856"/>
+           </xsl:attribute>
+           <xsl:attribute name="ind1">
+               <xsl:text>4</xsl:text>
+           </xsl:attribute>
+           <xsl:attribute name="ind2">
+               <xsl:text>0</xsl:text>
+           </xsl:attribute>
+           <subfield code="u">
+               <xsl:copy-of select="./subfield[@code='t']/text()"/>
+           </subfield>
+           <subfield code="z">ZZ</subfield>
+        </xsl:copy>
+    </xsl:template>
+
+    <!-- Move date to 264c year -->
+    <xsl:template match="datafield[@tag='260' and subfield[@code='c']]">
+        <xsl:copy>
+           <xsl:attribute name="tag">
+                <xsl:value-of select="264"/>
            </xsl:attribute>
            <xsl:attribute name="ind1">
               <xsl:text> </xsl:text>
@@ -43,12 +62,22 @@
            <xsl:attribute name="ind2">
               <xsl:text> </xsl:text>
            </xsl:attribute>
-           <subfield code="u">
-               <xsl:copy-of select="./subfield[@code='t']/text()"/>
+           <subfield code="c">
+               <xsl:copy-of select="substring(normalize-space(./subfield[@code='c']/text()),0,5)"/>
            </subfield>
-           <subfield code="z">ZZ</subfield>
-        </xsl:copy>
-     </xsl:template>
+       </xsl:copy>
+    </xsl:template>
+
+    <!-- Remove redundant 260 Brill content -->
+    <xsl:template match="datafield[@tag='260' and subfield[@code='b']]" priority="2"/>
+
+    <!-- Remove superflous 655 Brill content field -->
+    <xsl:template match="datafield[@tag='655' and subfield[@code='a'][.='text'] and subfield[@code='2'][.='dct']]"/>
+
+    <!-- Remove superfluous whitespace -->
+    <xsl:template match="datafield[not(@tag='007' or @tag='008')]//text()">
+        <xsl:value-of select="normalize-space()"/>
+    </xsl:template>
 
 </xsl:stylesheet>
 
