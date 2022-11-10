@@ -74,5 +74,10 @@
     <!-- Remove superflous 655 Brill content field -->
     <xsl:template match="datafield[@tag='655' and subfield[@code='a'][.='text'] and subfield[@code='2'][.='dct']]"/>
 
+    <!-- Remove superfluous whitespace -->
+    <xsl:template match="datafield[not(@tag='007' or @tag='008')]//text()">
+        <xsl:value-of select="normalize-space()"/>
+    </xsl:template>
+
 </xsl:stylesheet>
 
