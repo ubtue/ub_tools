@@ -11,7 +11,7 @@ all: .deps $(PROGS)
 	@echo "Compiling $< $(OPTIMISATIONS_STATE)..."
 	@$(CCC) $(CCCFLAGS) $< -c
 
-$(PROGS): % : %.o ../lib/libubtue.a Makefile
+$(PROGS): % : %.o ../../../lib/libubtue.a Makefile
 	@echo "Linking $@..."
 	@$(CCC) -rdynamic $(LD_FLAGS) $< -o $@ $(LIBS)
 
@@ -19,8 +19,8 @@ $(PROGS): % : %.o ../lib/libubtue.a Makefile
 .deps: *.cc $(INC)/*.h
 	$(MAKE_DEPS) -I $(INC) *.cc
 
-../lib/libubtue.a: $(wildcard ../lib/src/*.cc) $(wildcard ../lib/include/*.h)
-	$(MAKE) -C ../lib
+../../../lib/libubtue.a: $(wildcard ../../../lib/src/*.cc) $(wildcard ../../../lib/include/*.h)
+	$(MAKE) -C ../../../lib
 
 install: $(PROGS)
 	@echo "Installing programs..."
