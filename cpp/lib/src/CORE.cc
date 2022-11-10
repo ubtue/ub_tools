@@ -172,7 +172,7 @@ std::vector<nlohmann::json> Work::getDataProviders() {
     return new_data_providers;
 }
 
-void Work::setDataProviders(std::vector<nlohmann::json> &new_dp_content) {
+void Work::setDataProviders(const std::vector<nlohmann::json> &new_dp_content) {
     unsigned counter(0);
     json_["dataProviders"].clear();
 
@@ -182,7 +182,7 @@ void Work::setDataProviders(std::vector<nlohmann::json> &new_dp_content) {
     }
 }
 
-void Work::removeDataProviders(std::set<unsigned long> &data_provider_ids) {
+void Work::removeDataProviders(const std::set<unsigned long> &data_provider_ids) {
     std::vector<nlohmann::json> new_data_provider;
     const auto data_providers = getDataProviders();
     for (const auto &data_provider : data_providers) {
