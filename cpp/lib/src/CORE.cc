@@ -182,15 +182,29 @@ void Work::setDataProviders(const std::vector<nlohmann::json> &new_dp_content) {
     }
 }
 
-void Work::removeDataProviders(const std::set<unsigned long> &data_provider_ids) {
-    std::vector<nlohmann::json> new_data_provider;
+void Work::purgeDataProviders(const std::set<unsigned long> &data_provider_ids_to_keep) {
+    std::vector<nlohmann::json> new_data_providers;
     const auto data_providers = getDataProviders();
     for (const auto &data_provider : data_providers) {
-        if (std::find(data_provider_ids.begin(), data_provider_ids.end(), data_provider["id"]) != data_provider_ids.end()) {
-            new_data_provider.emplace_back(data_provider);
+        if (std::find(data_provider_ids_to_keep.begin(), data_provider_ids_to_keep.end(), data_provider["id"])
+            != data_provider_ids_to_keep.end()) {
+            new_data_providers.emplace_back(data_provider);
         }
     }
-    setDataProviders(new_data_provider);
+    setDataProviders(new_data_providers);
+}
+
+void Work::removeDataProviders(const std::set<unsigned long> &data_provider_ids_to_remove) {
+    std::vector<nlohmann::json> new_data_providers;
+    const auto data_providers = getDataProviders();
+    for (const auto &data_provider : data_providers) {
+        if (std::find(data_provider_ids_to_remove.begin(), data_provider_ids_to_remove.end(), data_provider["id"])
+            == data_provider_ids_to_remove.end())
+        {
+            new_data_providers.emplace_back(data_provider);
+        }
+    }
+    setDataProviders(new_data_providers);
 }
 
 

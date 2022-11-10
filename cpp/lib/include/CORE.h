@@ -108,7 +108,8 @@ public:
     std::string getTitle() const;
     unsigned getYearPublished() const;
 
-    void removeDataProviders(const std::set<unsigned long> &data_provider_ids);
+    void purgeDataProviders(const std::set<unsigned long> &data_provider_ids_to_keep);
+    void removeDataProviders(const std::set<unsigned long> &data_provider_ids_to_remove);
 
     bool isArticle() const { return getJournals().empty(); }
 
