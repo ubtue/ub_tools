@@ -27,7 +27,7 @@
            <xsl:attribute name="ind2">
               <xsl:text> </xsl:text>
            </xsl:attribute>
-           <xsl:copy-of select="node()"/>
+           <xsl:apply-templates select="node()"/>
         </xsl:copy>
     </xsl:template>
 
