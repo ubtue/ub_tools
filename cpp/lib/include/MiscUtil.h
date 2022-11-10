@@ -213,14 +213,6 @@ std::set<ElementType> Intersect(const std::set<ElementType> &set1, const std::se
 
 
 template <typename ElementType>
-std::vector<ElementType> Intersect(const std::vector<ElementType> &set1, const std::vector<ElementType> &set2) {
-    std::vector<ElementType> result;
-    std::set_intersection(set1.cbegin(), set1.cend(), set2.cbegin(), set2.cend(), std::inserter(result, result.begin()));
-    return result;
-}
-
-
-template <typename ElementType>
 std::set<ElementType> Intersect(const std::set<ElementType> &set1, const std::unordered_set<ElementType> &set2) {
     std::vector<ElementType> sorted_set2;
     sorted_set2.reserve(set2.size());
