@@ -318,17 +318,41 @@ void Filter(int argc, char **argv) {
     // std::sort(filter_data_provider_ids.begin(), filter_data_provider_ids.end());
 
     for (auto work : works) {
-        if (not filter_data_provider_ids.empty()) {
-            auto sortedDataProvider = work.getDataProviderIds();
-            const bool is_in(MiscUtil::Intersect(sortedDataProvider, filter_data_provider_ids).size() > 0);
-            if (is_in == filter) {
-                work.setFilteredReason("Data Provider");
-                CORE::OutputFileAppend(output_file_skip, work, skipped == 0);
-                ++skipped;
-                ++skipped_data_provider_count;
-                continue;
+        if (argc == 7) {
+            if (!filter) {
+                // this means keep the record but clean the member of data provider
+                // clean the member of data provider means delete the member that its id is not in the list
+                // this is 'keep' option
+                auto data_provider_ids = work.getDataProviderIds();
+                std::set<unsigned long> intersection_of_data_provider_ids =
+                    MiscUtil::Intersect(data_provider_ids, filter_data_provider_ids);
+                const bool is_in_the_list(intersection_of_data_provider_ids.size() > 0);
+
+                if (!data_provider_ids.empty() && is_in_the_list) {
+                    work.removeDataProviders(intersection_of_data_provider_ids);
+                    work.setFilteredReason("Data Provider");
+                    CORE::OutputFileAppend(output_file_skip, work, skipped == 0);
+                    ++skipped;
+                    ++skipped_data_provider_count;
+                    continue;
+                }
+            } else {
+                // this means remove the record which the member id of data provider
+                // this is 'skip' option
+                if (not filter_data_provider_ids.empty()) {
+                    auto sortedDataProvider = work.getDataProviderIds();
+                    const bool is_in(MiscUtil::Intersect(sortedDataProvider, filter_data_provider_ids).size() > 0);
+                    if (is_in) {
+                        work.setFilteredReason("Data Provider");
+                        CORE::OutputFileAppend(output_file_skip, work, skipped == 0);
+                        ++skipped;
+                        ++skipped_data_provider_count;
+                        continue;
+                    }
+                }
             }
         }
+
         if (work.getPublisher() == "Universität Tübingen") {
             work.setFilteredReason("Universität Tübingen");
             CORE::OutputFileAppend(output_file_skip, work, skipped == 0);
@@ -562,7 +586,6 @@ void SplitDataProviderId(int argc, char **argv) {
 
     std::cout << "Preparing data..." << std::endl;
     const auto works(CORE::GetWorksFromFile(argv[2]));
-
     std::vector<unsigned long> list_of_data_provider_id;
     std::map<unsigned long, unsigned> data_provider_id_counter;
     const unsigned step(0);
