@@ -91,7 +91,7 @@ public:
 
 
 class Work : public Entity {
-    std::vector<nlohmann::json> getDataProviders();
+    std::vector<nlohmann::json> getDataProviders() const;
     void setDataProviders(const std::vector<nlohmann::json> &new_dp_content);
 
 public:

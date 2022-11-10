@@ -161,7 +161,7 @@ std::set<unsigned long> Work::getDataProviderIds() const {
 
     return ids;
 }
-std::vector<nlohmann::json> Work::getDataProviders() {
+std::vector<nlohmann::json> Work::getDataProviders() const {
     std::vector<nlohmann::json> new_data_providers;
     const auto data_providers(json_["dataProviders"]);
     if (data_providers.is_array()) {
