@@ -49,9 +49,10 @@ core filter "$ARCHIVE_FILE_JSON_UNFILTERED" "$ARCHIVE_FILE_JSON" "$ARCHIVE_FILE_
 # - 1030 (SSOAR)
 # - 923 (DIALNET)
 #
-# Examples:
-# core filter "$ARCHIVE_FILE_JSON_UNFILTERED" "$ARCHIVE_FILE_JSON" "$ARCHIVE_FILE_JSON_FILTERED" keep data_providers_to_keep.csv
+# Examples (make sure to skip first, because "keep" will throw away all data provider ids that are not on the list):
 # core filter "$ARCHIVE_FILE_JSON_UNFILTERED" "$ARCHIVE_FILE_JSON" "$ARCHIVE_FILE_JSON_FILTERED" skip data_providers_to_skip.csv
+# core filter "$ARCHIVE_FILE_JSON_UNFILTERED" "$ARCHIVE_FILE_JSON" "$ARCHIVE_FILE_JSON_FILTERED" keep data_providers_to_keep.csv
+
 
 # Convert to MARC & deliver:
 RESULT_COUNT=$(core count "$ARCHIVE_FILE_JSON")
