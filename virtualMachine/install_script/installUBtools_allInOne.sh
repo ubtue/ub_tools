@@ -131,9 +131,6 @@ if [ -d /usr/local/ub_tools ]; then
 else
     ColorEcho "installation -> cloning ub_tools --branch ${BRANCH}"
     git clone --branch ${BRANCH} https://github.com/ubtue/ub_tools.git /usr/local/ub_tools
-    # ColorEcho "installation -> copy from local ..."
-    # cp -rf /media/sf_iiplo01/ub_tools_ubuntu2204_slolong /usr/local/ub_tools_ubuntu2204_slolong
-    # mv /usr/local/ub_tools_ubuntu2204_slolong /usr/local/ub_tools
 fi
 
 
@@ -171,14 +168,6 @@ chown -R solr:solr /usr/local/vufind/solr/vufind/biblio/conf/synonyms
 ColorEcho "installation -> restarting mysql server"
 systemctl restart mysql
 
-# ColorEcho "installation -> activating vufind user by login using mysql-client"
-# cp /usr/local/usb_tools/docker/ixtheo/my_vu.cnf /root/
-# cp /usr/local/usb_tools/docker/ixtheo/justquit.ans /root/
-# mysql --defaults-extra-file=/root/my_vu.cnf < /root/justquit.ans
-
-# rm /root/my_vu.cnf 
-# rm /root/justquit.ans
-
 ColorEcho "installation -> copy *.mrc as example files"
 cp /tmp/*.mrc /usr/local/ub_tools/bsz_daten/
 
@@ -189,21 +178,20 @@ ColorEcho "installation -> running exporting .mrc file"
 . /etc/profile.d/vufind.sh \
     && /usr/local/vufind/import-marc.sh /usr/local/ub_tools/bsz_daten/biblio.mrc \
     && /usr/local/vufind/import-marc-auth.sh /usr/local/ub_tools/bsz_daten/auth.mrs
-    # && sudo -u solr /usr/local/vufind/solr.sh stop\
-    # && sudo -u solr /usr/local/vufind/solr.sh start \
+
 
 ColorEcho "installation -> removing default apache website"
 rm /etc/apache2/sites-enabled/000-default.conf
 
 ColorEcho "installation -> copying ixtheo apache conf to sites-available"
-cp /media/sf_iiplo01/ub_tools_ubuntu2204_slolong/docker/ixtheo/apache2/*.conf /etc/apache2/sites-available/
+cp /tmp/apache2/*.conf /etc/apache2/sites-available/
 chmod 644 /etc/apache2/sites-available/*.conf
 
 ColorEcho "installation -> creating softlink of vufind-vhost.conf"
-# ln -s /etc/apache2/sites-available/vufind-vhosts.conf /etc/apache2/sites-enabled/vufind-vhosts.conf
+ln -s /etc/apache2/sites-available/vufind-vhosts.conf /etc/apache2/sites-enabled/vufind-vhosts.conf
 a2ensite vufind-vhosts
 
-cp /media/sf_iiplo01/ub_tools_ubuntu2204_slolong/docker/ixtheo/apache2/*.pem /etc/ssl/certs/
+cp /tmp/apache2/*.pem /etc/ssl/certs/
 
 
 ColorEcho "installation -> run npm in vufind's folder"

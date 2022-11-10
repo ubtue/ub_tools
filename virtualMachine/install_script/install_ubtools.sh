@@ -153,14 +153,14 @@ ColorEcho "installation -> removing default apache website"
 rm /etc/apache2/sites-enabled/000-default.conf
 
 ColorEcho "installation -> copying ixtheo apache conf to sites-available"
-cp /media/sf_iiplo01/ub_tools_ubuntu2204_slolong/docker/ixtheo/apache2/*.conf /etc/apache2/sites-available/
+cp /tmp/apache2/*.conf /etc/apache2/sites-available/
 chmod 644 /etc/apache2/sites-available/*.conf
 
 ColorEcho "installation -> creating softlink of vufind-vhost.conf"
-# ln -s /etc/apache2/sites-available/vufind-vhosts.conf /etc/apache2/sites-enabled/vufind-vhosts.conf
+ln -s /etc/apache2/sites-available/vufind-vhosts.conf /etc/apache2/sites-enabled/vufind-vhosts.conf
 a2ensite vufind-vhosts
 
-cp /media/sf_iiplo01/ub_tools_ubuntu2204_slolong/docker/ixtheo/apache2/*.pem /etc/ssl/certs/
+cp /tmp/apache2/*.pem /etc/ssl/certs/
 
 
 ColorEcho "installation -> run npm in vufind's folder"
