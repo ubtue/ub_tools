@@ -304,7 +304,6 @@ void CreateVuFindDatabases(const VuFindSystemType vufind_system_type, DbConnecti
     db_connection_root->mySQLCreateUserIfNotExists(sql_username, sql_password);
     if (not db_connection_root->mySQLDatabaseExists(sql_database)) {
         Echo("Installer -> Creating " + sql_database + " database");
-        Echo("Installer -> db: " + sql_database + " , user: " + sql_username);
         db_connection_root->mySQLCreateDatabase(sql_database);
         Echo("Installer -> mysql grant privileges");
         db_connection_root->mySQLGrantAllPrivileges(sql_database, sql_username);
@@ -515,7 +514,7 @@ void InstallUBTools(const bool make_install, DbConnection * const db_connection_
         SystemdUtil::EnableUnit("boot_notification");
     }
 
-    Echo("Installer -> installed ub_tools.");
+    Echo("Installer -> ub_tools installed successfully");
 }
 
 
@@ -632,9 +631,9 @@ void UseCustomFileIfExists(std::string filename_custom, std::string filename_def
 
 void DownloadVuFind() {
     if (FileUtil::IsDirectory(VUFIND_DIRECTORY))
-        Echo("installer -> VuFind directory already exists, skipping download");
+        Echo("Installer -> VuFind directory already exists, skipping download");
     else {
-        Echo("installer -> downloading TueFind git repository");
+        Echo("Installer -> Downloading TueFind git repository");
         const std::string git_url("https://github.com/ubtue/tuefind.git");
         ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("git"), { "clone", git_url, VUFIND_DIRECTORY });
         GitActivateCustomHooks(VUFIND_DIRECTORY);
@@ -648,7 +647,7 @@ void DownloadVuFind() {
  * - Grant permissions on relevant directories
  */
 void ConfigureApacheUser() {
-    Echo("Installer -> Configure apache user");
+    Echo("Installer -> Configuring apache user");
     const std::string username("vufind");
     CreateUserIfNotExists(username);
 
@@ -677,7 +676,7 @@ void ConfigureApacheUser() {
  * - register solr service in systemd
  */
 void ConfigureSolrUserAndService(const VuFindSystemType system_type, const bool install_systemctl) {
-    Echo("Installer -> Configure Solr User and Service");
+    Echo("Installer -> Configuring Solr User and Service");
     // note: if you wanna change username, don't do it only here, also check vufind.service!
     const std::string USER_AND_GROUP_NAME("solr");
     const std::string VUFIND_SERVICE("vufind");
@@ -698,7 +697,7 @@ void ConfigureSolrUserAndService(const VuFindSystemType system_type, const bool 
     // systemctl: we do enable as well as daemon-reload and restart
     // to achieve an idempotent installation
     if (install_systemctl) {
-        Echo("Installer -> Activating " + VUFIND_SERVICE + " service...");
+        Echo("Installer -> Activating " + VUFIND_SERVICE + " service");
         GenerateAndInstallVuFindServiceTemplate(system_type, VUFIND_SERVICE);
         SystemdEnableAndRunUnit(VUFIND_SERVICE);
     }
@@ -747,7 +746,7 @@ void SetFulltextEnvironmentVariables() {
  */
 void ConfigureVuFind(const bool production, const VuFindSystemType vufind_system_type, const bool install_cronjobs,
                      const bool install_systemctl) {
-    Echo("Installer -> Configure vufind ...");
+    Echo("Installer -> Configuring vufind");
     // We need to increase default_socket_timeout for big downloads on slow mirrors, especially Solr (default 60 seconds) .
     TemporaryChDir tmp2(VUFIND_DIRECTORY);
     ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("php"), { "-d", "default_socket_timeout=600", ExecUtil::LocateOrDie("composer"), "install" });
@@ -780,16 +779,16 @@ void ConfigureVuFind(const bool production, const VuFindSystemType vufind_system
 
     SetVuFindEnvironmentVariables(vufind_system_type_string);
 
-    Echo("Installer -> alphabetical browse");
+    Echo("Installer -> Alphabetical browse");
     UseCustomFileIfExists(VUFIND_DIRECTORY + "/index-alphabetic-browse_" + vufind_system_type_string + ".sh",
                           VUFIND_DIRECTORY + "/index-alphabetic-browse.sh");
 
     if (install_cronjobs) {
-        Echo("Installer -> cronjobs");
+        Echo("Installer -> Setting cronjobs");
         InstallVuFindCronjobs(production, vufind_system_type);
     }
 
-    Echo("Installer -> creating log directory");
+    Echo("Installer -> Creating log directory");
     ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("mkdir"), { "-p", UBTools::GetTueFindLogPath() });
 
     ConfigureSolrUserAndService(vufind_system_type, install_systemctl);
@@ -797,16 +796,16 @@ void ConfigureVuFind(const bool production, const VuFindSystemType vufind_system
 
     const std::string NEWSLETTER_DIRECTORY_PATH(UBTools::GetTuelibPath() + "newsletters");
     if (not FileUtil::Exists(NEWSLETTER_DIRECTORY_PATH)) {
-        Echo("Installer -> creating " + NEWSLETTER_DIRECTORY_PATH);
+        Echo("Installer -> Creating " + NEWSLETTER_DIRECTORY_PATH);
         FileUtil::MakeDirectoryOrDie(NEWSLETTER_DIRECTORY_PATH, /*recursive=*/true);
 
-        Echo("Installer -> creating " + NEWSLETTER_DIRECTORY_PATH + "/sent");
+        Echo("Installer -> Creating " + NEWSLETTER_DIRECTORY_PATH + "/sent");
         FileUtil::MakeDirectoryOrDie(NEWSLETTER_DIRECTORY_PATH + "/sent");
 
         FileUtil::ChangeOwnerOrDie(NEWSLETTER_DIRECTORY_PATH, "vufind", "vufind", /*recursive=*/true);
     }
 
-    Echo("Installer -> generating HMAC hash");
+    Echo("Installer -> Generating HMAC hash");
     const std::string HMAC_FILE_PATH(VUFIND_LOCAL_OVERRIDES_DIRECTORY + "/hmac.conf");
     if (not FileUtil::Exists(HMAC_FILE_PATH))
         FileUtil::WriteStringOrDie(HMAC_FILE_PATH,
@@ -817,14 +816,14 @@ void ConfigureVuFind(const bool production, const VuFindSystemType vufind_system
 
 
 void InstallFullTextBackendCronjobs(const bool production) {
-    Echo("Installer -> install full text backend cronjobs");
+    Echo("Installer -> Installing full text backend cronjobs");
     Template::Map empty_map;
     InstallCronjobs(production, "fulltext.cronjobs", "# START AUTOGENERATED", "# END AUTOGENERATED", empty_map);
 }
 
 
 void WaitForElasticsearchReady() {
-    Echo("installer -> wait for elastic search ready");
+    Echo("installer -> Waiting for elastic search ready");
     const std::string host("127.0.0.1"); // avoid docker address assign problem
     const std::string base_url("http://" + host + ":9200/");
     const unsigned MAX_ITERATIONS(5);
@@ -855,7 +854,7 @@ void WaitForElasticsearchReady() {
 
 
 void ConfigureFullTextBackend(const bool production, const bool install_cronjobs = false) {
-    Echo("Installer -> Configure full text backend");
+    Echo("Installer -> Configuring full text backend");
     static const std::string elasticsearch_programs_dir("/usr/local/ub_tools/cpp/elasticsearch");
     bool es_was_already_running(false);
     pid_t es_install_pid(0);
@@ -895,7 +894,7 @@ int Main(int argc, char **argv) {
     if (argc < 2)
         Usage();
 
-    Echo("installer -> starting installer .....");
+    Echo("Installer -> Starting installation");
     std::string file_contents;
     if (not(FileUtil::ReadString("/etc/issue", &file_contents)
             and StringUtil::FindCaseInsensitive(file_contents, "ubuntu") != std::string::npos))
