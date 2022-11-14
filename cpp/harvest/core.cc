@@ -292,14 +292,14 @@ void Filter(int argc, char **argv) {
     std::string filter_key;
     std::set<unsigned long> filter_data_provider_ids;
     bool filter;
-
+    std::cout << "Loading file ..." << std::endl;
     const auto works(CORE::GetWorksFromFile(input_file));
     CORE::OutputFileStart(output_file_keep);
     CORE::OutputFileStart(output_file_skip);
     bool first(true);
-
+    const unsigned step(0);
     unsigned skipped(0), skipped_uni_tue_count(0), skipped_dupe_count(0), skipped_incomplete_count(0), skipped_language_count(0),
-        skipped_data_provider_count(0);
+        skipped_data_provider_count(0), progress(0), total_record_counter(0), display_next(0);
 
     if (argc == 7) {
         filter_operator = argv[5];
@@ -315,9 +315,20 @@ void Filter(int argc, char **argv) {
             filter_data_provider_ids.emplace(StringUtil::ToUnsignedLong(line));
         }
     }
-    // std::sort(filter_data_provider_ids.begin(), filter_data_provider_ids.end());
-
+    std::cout << "Processing data" << std::endl;
     for (auto work : works) {
+        // displaying progress
+        ++total_record_counter;
+        progress = (100 * (total_record_counter)) / works.size();
+        if (progress >= display_next) {
+            std::cout << "\r"
+                      << "[" << std::string(progress / 5, (char)35u) << std::string(100 / 5 - progress / 5, ' ') << "]";
+            std::cout << progress << "%"
+                      << " [record " << total_record_counter << " of " << works.size() << "]";
+            std::cout.flush();
+            display_next += step;
+        }
+
         if (argc == 7) {
             if (!filter) {
                 // this means keep the record but clean the member of data provider
