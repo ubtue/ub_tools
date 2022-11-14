@@ -52,8 +52,11 @@ void AugmentMarc(MARC::Reader * const marc_reader, MARC::Writer * const marc_wri
                     continue;
                 author_subfields.appendSubfield('4', "aut");
                 const auto association(associations.find(author));
-                if (association == associations.end())
+                if (association == associations.end()) {
+                    // Make sure $4aut is set
+                    author_field.setSubfields(author_subfields);
                     continue;
+                }
                 std::string gnd(association->second);
                 author_subfields.appendSubfield('0', "(DE-588)" + gnd);
                 author_field.setSubfields(author_subfields);
