@@ -18,7 +18,7 @@ for tag in "100" "700"; do
     sort | \
     uniq | \
     tr '\n' '\0' | \
-    xargs -0 -I'{}' sh -c 'echo "$@" "'"|"'" $(swb_author_lookup "$@") ' _ '{}' | \
+    xargs -0 -I'{}' sh -c 'echo "$@" "'"|"'" $(swb_author_lookup --sloppy-filter "$@") ' _ '{}' | \
     `# Filter empty results` \
     grep -v '[|]\s*$' \
     >> ${association_file}

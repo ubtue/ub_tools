@@ -25,20 +25,34 @@
 
 namespace {
 
-const std::string author_swb_lookup_url(
+const std::string author_swb_lookup_url_sloppy(
     "https://swb.bsz-bw.de/DB=2.104/SET=70/TTL=1/"
     "CMD?SGE=&ACT=SRCHM&MATCFILTER=Y&MATCSET=Y&NOSCAN=Y&PARSE_MNEMONICS=N&PARSE_OPWORDS=N&PARSE_OLDSETS=N&IMPLAND=Y&NOABS=Y&ACT0=SRCHA&"
-    "SHRTST=50&IKT0=3040&ACT1=*&IKT1=2057&TRM1=*&ACT2=*&IKT2=8991&TRM2=(theolog*|neutestament*|alttestament*|kirchenhist*|evangelisch*|"
-    "religions*|pädagog*)&"
+    "SHRTST=50&IKT0=3040&ACT1=*&IKT1=2057&TRM1=*&ACT2=*&IKT2=8991&"
     "ACT3=-&IKT3=8991&TRM3=1[0%2C1%2C2%2C3%2C4%2C5%2C6%2C7%2C8][0%2C1%2C2%2C3%2C4%2C5%2C6%2C7%2C8%2C9][0%2C1%2C2%2C3%2C4%2C5%2C6%2C7%2C8%"
     "2C9]&TRM0=");
 
 
+const std::string author_swb_lookup_url_bibwiss_ixtheo(
+    "https://swb.bsz-bw.de/DB=2.104/SET=70/TTL=1/"
+    "CMD?SGE=&ACT=SRCHM&MATCFILTER=Y&MATCSET=Y&NOSCAN=Y&PARSE_MNEMONICS=N&PARSE_OPWORDS=N&PARSE_OLDSETS=N&IMPLAND=Y&NOABS=Y&ACT0=SRCHA&"
+    "SHRTST=50&IKT0=3040&ACT1=*&IKT1=2057&TRM1=*&ACT2=*&IKT2=8991&"
+    "ACT3=-&IKT3=8991&"
+    "TRM2=(theolog*|neutestament*|alttestament*|kirchenhist*|evangelisch*|"
+    "religions*|pädagog*)&"
+    "TRM3=1[0%2C1%2C2%2C3%2C4%2C5%2C6%2C7%2C8][0%2C1%2C2%2C3%2C4%2C5%2C6%2C7%2C8%2C9][0%2C1%2C2%2C3%2C4%2C5%2C6%2C7%2C8%"
+    "2C9]&TRM0=");
+
+
 [[noreturn]] void Usage() {
-    ::Usage("author");
+    ::Usage("[--sloppy-filter] author");
 }
 
-std::string LookupAuthor(const std::string &author) {
+enum author_lookup_filter { SLOPPY, BIBWISS_IXTHEO };
+
+
+std::string LookupAuthor(const std::string &author, author_lookup_filter filter) {
+    const std::string author_swb_lookup_url(filter == SLOPPY ? author_swb_lookup_url_sloppy : author_swb_lookup_url_bibwiss_ixtheo);
     const std::string gnd_number(HtmlUtil::StripHtmlTags(BSZUtil::GetAuthorGNDNumber(author, author_swb_lookup_url)));
     return gnd_number;
 }
@@ -48,14 +62,22 @@ std::string LookupAuthor(const std::string &author) {
 
 
 int Main(int argc, char *argv[]) {
-    if (argc != 2)
+    if (argc < 2)
         Usage();
+
+    author_lookup_filter filter(BIBWISS_IXTHEO);
+    if (std::strcmp(argv[1], "--sloppy-filter") == 0) {
+        filter = SLOPPY;
+        ++argv;
+        --argc;
+    }
+
     std::string author(argv[1]);
     // Make sure, we have space after comma. Otherwise results do not match
     std::vector<std::string> author_parts;
     StringUtil::SplitThenTrimWhite(author, ',', &author_parts);
     author = StringUtil::Join(author_parts, ", ");
-    const std::string gnd_number(LookupAuthor('"' + author + '"'));
+    const std::string gnd_number(LookupAuthor('"' + author + '"', filter));
     if (gnd_number.empty()) {
         LOG_WARNING("Unable to determine GND for author \"" + author + "\"");
         return EXIT_FAILURE;
