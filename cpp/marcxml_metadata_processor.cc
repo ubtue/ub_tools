@@ -116,13 +116,17 @@ void ProcessDocument(const bool normalise_only, const bool force_ocr, MARC::Read
         LOG_ERROR("no article title found in file '" + marc_reader->getPath() + "'");
 
     if (full_text_metadata.authors_.empty())
-        LOG_ERROR("no article authors found in file '" + marc_reader->getPath() + "'");
+        LOG_WARNING("no article authors found in file '" + marc_reader->getPath() + "'");
 
     if (full_text_metadata.year_.empty())
-        LOG_ERROR("no publication year found in file '" + marc_reader->getPath() + "'");
+        LOG_WARNING("no publication year found in file '" + marc_reader->getPath() + "'");
 
     if (full_text_metadata.doi_.empty())
         LOG_WARNING("no doi found in file '" + marc_reader->getPath() + "'");
+
+    if (full_text_metadata.doi_.empty()
+        and (full_text_metadata.title_.empty() or full_text_metadata.authors_.empty() or full_text_metadata.year_.empty()))
+        LOG_ERROR("Under-determined metainformation - either no DOI or one of author, title and year missing");
 
     std::string full_text;
     if (not full_text_metadata.full_text_location_.empty())
