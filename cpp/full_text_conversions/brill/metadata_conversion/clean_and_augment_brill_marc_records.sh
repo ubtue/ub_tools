@@ -63,6 +63,41 @@ EGPO_superior=$(printf "%s" '773i:Enthalten in\037tBrill'"'"'s encyclopedia of g
                             '\037hOnline-Ressource' \
                             '\037w(DE-627)1809055768')
 
+EJIO_superior=$(printf "%s" '773i:Enthalten in\037tEncyclopedia of Jews in the Islamic World' \ 
+                            '\037dLeiden : Brill, 2010' \
+                            '\037g2010' \
+                            '\037hOnline-Ressource' \
+                            '\037w(DE-627)635135574\037w(DE-600)2572530-0\037w(DE-576)392864002')
+
+
+ELRO_superior=$(printf "%s" '773i:Enthalten in\037tEncyclopedia of Law and Religion Online' \
+                            '\037dLeiden : Brill, 2015' \
+                            '\037g2015' \
+                            '\037hOnline-Ressource' \
+                            '\037w(DE-627)840011121')
+
+#ENBO_superior=$(printf "%s" '773i:Enthalten in\037tBrill'"'"'s encyclopedia of global pentecostalism online' \
+#                            '\037dLeiden : Brill, XXXX' \
+#                            '\037gXXXX' \
+#                            '\037hOnline-Ressource' \
+#                            '\037w(DE-627)XXXXXXX')
+
+
+LKRO_superior=$(printf "%s" '773i:Enthalten in\037tLexikon für Kirchen- und Religionsrecht' \
+                            '\037dLeiden : Brill, 2019' \
+                            '\037g2019' \
+                            '\037hOnline-Ressource' \
+                            '\037w(DE-627)1780808704')
+
+RGG4_superior=$(printf "%s" '773i:Enthalten in\037tReligion in Geschichte und Gegenwart 4 Online' \
+                            '\037dLeiden : Brill, 2015' \
+                            '\037g2015' \
+                            '\037hOnline-Ressource' \
+                            '\037w(DE-627)')
+
+
+
+
 
 # Remove superfluous fields and fix deceased author information
 marc_filter ${input_file} ${tmpfile1} \
