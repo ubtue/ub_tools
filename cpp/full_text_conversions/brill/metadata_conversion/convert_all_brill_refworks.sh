@@ -26,7 +26,7 @@ augment_authors="./add_author_associations"
 get_author_associations="./associate_authors.sh"
 
 
-for archive_file in $(find ${archive_dir} -regex '.*\(BDRO\|BEJO\|BEHO\|EECO\)\.\(zip\|ZIP\)$' -print); do
+for archive_file in $(find ${archive_dir} -regex '.*\(BDRO\|BEJO\|BEHO\|BERO\|BESO\|ECO\|EECO\)\.\(zip\|ZIP\)$' -print); do
     archive_name=$(basename ${archive_file%.*})
     archive_tmp_file1=$(mktemp -t marc_convert_${archive_name}_XXXXX.xml)
     tmpfiles+=(${archive_tmp_file1})
