@@ -63,12 +63,11 @@ EGPO_superior=$(printf "%s" '773i:Enthalten in\037tBrill'"'"'s encyclopedia of g
                             '\037hOnline-Ressource' \
                             '\037w(DE-627)1809055768')
 
-EJIO_superior=$(printf "%s" '773i:Enthalten in\037tEncyclopedia of Jews in the Islamic World' \ 
+EJIO_superior=$(printf "%s" '773i:Enthalten in\037tEncyclopedia of Jews in the Islamic World' \
                             '\037dLeiden : Brill, 2010' \
                             '\037g2010' \
                             '\037hOnline-Ressource' \
-                            '\037w(DE-627)635135574\037w(DE-600)2572530-0\037w(DE-576)392864002')
-
+                            '\037w(DE-627)635135574')
 
 ELRO_superior=$(printf "%s" '773i:Enthalten in\037tEncyclopedia of Law and Religion Online' \
                             '\037dLeiden : Brill, 2015' \
@@ -76,12 +75,11 @@ ELRO_superior=$(printf "%s" '773i:Enthalten in\037tEncyclopedia of Law and Relig
                             '\037hOnline-Ressource' \
                             '\037w(DE-627)840011121')
 
-#ENBO_superior=$(printf "%s" '773i:Enthalten in\037tBrill'"'"'s encyclopedia of global pentecostalism online' \
-#                            '\037dLeiden : Brill, XXXX' \
-#                            '\037gXXXX' \
-#                            '\037hOnline-Ressource' \
-#                            '\037w(DE-627)XXXXXXX')
-
+ENBO_superior=$(printf "%s" '773i:Enthalten in\037tBrill'"'"'s Encyclopedia of Buddhism Online' \
+                            '\037dLeiden : Brill, XXXX' \
+                            '\037gXXXX' \
+                            '\037hOnline-Ressource' \
+                            '\037w(DE-627)XXXXXXX')
 
 LKRO_superior=$(printf "%s" '773i:Enthalten in\037tLexikon für Kirchen- und Religionsrecht' \
                             '\037dLeiden : Brill, 2019' \
@@ -90,13 +88,28 @@ LKRO_superior=$(printf "%s" '773i:Enthalten in\037tLexikon für Kirchen- und Rel
                             '\037w(DE-627)1780808704')
 
 RGG4_superior=$(printf "%s" '773i:Enthalten in\037tReligion in Geschichte und Gegenwart 4 Online' \
+                            '\037dXXXXXX' \
+                            '\037gXXXXXX' \
+                            '\037hOnline-Ressource' \
+                            '\037w(DE-627)XXXXXXXX')
+
+RPPO_superior=$(printf "%s" '773i:Enthalten in\037tReligion Past and Present online' \
                             '\037dLeiden : Brill, 2015' \
                             '\037g2015' \
                             '\037hOnline-Ressource' \
-                            '\037w(DE-627)')
+                            '\037w(DE-627)832783099\037w(DE-600)2829692-8\037w(DE-576)442691327')
 
+VSRO_superior=$(printf "%s" '773i:Enthalten in\037tVocabulary for the Study of Religion Online' \
+                            '\037dLeiden : Brill, 2015' \
+                            '\037g2015' \
+                            '\037hOnline-Ressource' \
+                            '\037w(DE-627)837395917\037w(DE-600)2836071-0\037w(DE-576)445958901')
 
-
+WCEO_superior=$(printf "%s" '773i:Enthalten in\037tWorld Christian encyclopedia online' \
+                            '\037dLeiden : Brill, 2022' \
+                            '\037g2022' \
+                            '\037hOnline-Ressource' \
+                            '\037w(DE-627)1809051452')
 
 
 # Remove superfluous fields and fix deceased author information
@@ -104,9 +117,10 @@ marc_filter ${input_file} ${tmpfile1} \
     --remove-fields '500a:Converted from MODS 3.7 to MARCXML.*' \
     --remove-fields '540a:.*' --remove-fields '787t:' \
     --remove-fields '500a:^...\s*$' \
-    --remove-fields '500a:^Author passed away: insert behind name  [(]†[)]...$' \
+    --remove-fields '500a:^Author passed away: insert behind name  [(][†✝][)]...$' \
     --remove-fields '008:.*' \
-    --replace '100a:700a' '(.*)\s*[(]?†[)]?\s*' '\1'
+    --replace '100a:700a' '(.*)\s*[(]?†[)]?\s*' '\1' \
+    --replace '100a:700a' '^([^,]+)\s+([^,]+)$' '\2, \1'
 
 # Insert additionally needed fields
 marc_augmentor ${tmpfile1} ${tmpfile2} \
@@ -118,12 +132,20 @@ marc_augmentor ${tmpfile1} ${tmpfile2} \
     --insert-field-if "${BESO_superior}" '001:BESO.*' \
     --insert-field-if "${ECO_superior}" '001:ECO.*' \
     --insert-field-if "${EGPO_superior}" '001:EGPO.*' \
+    --insert-field-if "${EJIO_superior}" '001:EJIO.*' \
+    --insert-field-if "${ELRO_superior}" '001:ELRO.*' \
+    --insert-field-if "${ENBO_superior}" '001:ENBO.*' \
+    --insert-field-if "${LKRO_superior}" '001:LKRO.*' \
+    --insert-field-if "${RGG4_superior}" '001:RGG4.*' \
+    --insert-field-if "${RPPO_superior}" '001:RPPO.*' \
+    --insert-field-if "${VSRO_superior}" '001:VSRO.*' \
+    --insert-field-if "${WCEO_superior}" '001:WCEO.*' \
     --insert-field '003:DE-Tue135' \
     --insert-field '005:'$(date +'%Y%m%d%H%M%S')'.0' \
     --insert-field '007:cr|||||' \
     --insert-field '084a:1\0372ssgn' \
     `# tag relbib appropriately` \
-    --add-subfield-if '084a:0' '001:BEHO.*|BEJO.*|BERO.*|BESO.*' \
+    --add-subfield-if '084a:0' '001:BEHO.*|BEJO.*|BERO.*|BESO.*|RPPO.*|VSRO.*' \
     --insert-field '338a:Online-Resource\037bcr\0372rdacarrier' \
     --insert-field '852a:DE-Tue135' \
     --insert-field '935c:uwlx' \

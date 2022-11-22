@@ -26,8 +26,15 @@ augment_authors="./add_author_associations"
 get_author_associations="./associate_authors.sh"
 
 
-for archive_file in $(find ${archive_dir} -regex '.*\(BDRO\|BEJO\|BEHO\|BERO\|BESO\|ECO\|EECO\)\.\(zip\|ZIP\)$' -print); do
+REFWORKS=$(printf "%s" '.*\(BDRO\|BEJO\|BEHO\|BERO\|BESO\|ECO\|EECO\|' \
+                       'EGPO\|EJIO\|ELRO\|ENBO\|LKRO\|RGG4\|RPPO\|VSRO\|WCEO' \
+                       '\)\.\(zip\|ZIP\)$')
+
+
+echo "All REFWORKS: " ${REFWORKS}
+for archive_file in $(find ${archive_dir} -regex $(printf "%s" ${REFWORKS}) -print); do
     archive_name=$(basename ${archive_file%.*})
+    echo "ARCHIVE_NAME: " ${archive_name}
     archive_tmp_file1=$(mktemp -t marc_convert_${archive_name}_XXXXX.xml)
     tmpfiles+=(${archive_tmp_file1})
     echo ${conversion_script} ${archive_file} ${archive_tmp_file1}
