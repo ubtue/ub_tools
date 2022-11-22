@@ -66,6 +66,13 @@ void CreateDoiToUrlMap(const std::string &map_filename, std::unordered_map<std::
         const std::string url(LookupString("/best_oa_location/url", entry));
         const std::string evidence(LookupString("/best_oa_location/evidence", entry));
         const std::string host_type(LookupString("/best_oa_location/host_type", entry));
+
+        // Workaround for erroneous SWBplus entries that are no full texts
+        static const auto swbplus_matcher(ThreadSafeRegexMatcher("^https?://swbplus.bsz-bw.de/.*"));
+        if (swbplus_matcher.match(url))
+            continue;
+
+
         if (not(doi.empty() or url.empty()))
             doi_to_oainfo->emplace(doi, oadoi_info(url, evidence, host_type));
         else
