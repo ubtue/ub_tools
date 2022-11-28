@@ -149,17 +149,62 @@ std::vector<Author> Work::getAuthors() const {
 }
 
 
-std::vector<unsigned long> Work::getDataProviderIds() const {
-    std::vector<unsigned long> ids;
+std::set<unsigned long> Work::getDataProviderIds() const {
+    std::set<unsigned long> ids;
 
     const auto data_providers(json_["dataProviders"]);
     if (data_providers.is_array()) {
         for (const auto &data_provider : data_providers) {
-            ids.emplace_back(data_provider["id"]);
+            ids.emplace(data_provider["id"]);
         }
     }
 
     return ids;
+}
+std::vector<nlohmann::json> Work::getDataProviders() const {
+    std::vector<nlohmann::json> new_data_providers;
+    const auto data_providers(json_["dataProviders"]);
+    if (data_providers.is_array()) {
+        for (const auto &data_providers_item : data_providers) {
+            new_data_providers.emplace_back(data_providers_item);
+        }
+    }
+    return new_data_providers;
+}
+
+void Work::setDataProviders(const std::vector<nlohmann::json> &new_dp_content) {
+    unsigned counter(0);
+    json_["dataProviders"].clear();
+
+    for (const auto &new_dp_content_item : new_dp_content) {
+        json_["dataProviders"][counter] = new_dp_content_item;
+        ++counter;
+    }
+}
+
+void Work::purgeDataProviders(const std::set<unsigned long> &data_provider_ids_to_keep) {
+    std::vector<nlohmann::json> new_data_providers;
+    const auto data_providers = getDataProviders();
+    for (const auto &data_provider : data_providers) {
+        if (std::find(data_provider_ids_to_keep.begin(), data_provider_ids_to_keep.end(), data_provider["id"])
+            != data_provider_ids_to_keep.end()) {
+            new_data_providers.emplace_back(data_provider);
+        }
+    }
+    setDataProviders(new_data_providers);
+}
+
+void Work::removeDataProviders(const std::set<unsigned long> &data_provider_ids_to_remove) {
+    std::vector<nlohmann::json> new_data_providers;
+    const auto data_providers = getDataProviders();
+    for (const auto &data_provider : data_providers) {
+        if (std::find(data_provider_ids_to_remove.begin(), data_provider_ids_to_remove.end(), data_provider["id"])
+            == data_provider_ids_to_remove.end())
+        {
+            new_data_providers.emplace_back(data_provider);
+        }
+    }
+    setDataProviders(new_data_providers);
 }
 
 

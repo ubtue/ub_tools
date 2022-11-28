@@ -26,3 +26,18 @@ cronjobs/README
 /.metadata/
 ub_tools.code-workspace
 java/.project
+
+Backups
+Cache
+CachedData
+CachedExtensions
+Code\ Cache
+Crashpad
+Dictionaries
+GPUCache
+Local\ Storage
+Service\ Worker
+Session\ Storage
+User
+WebStorage
+databases
