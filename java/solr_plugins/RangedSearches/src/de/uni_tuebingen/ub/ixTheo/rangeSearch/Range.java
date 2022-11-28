@@ -17,16 +17,9 @@ public class Range {
         int best_distance_count = 0;
         for (final Range range : ranges) {
             float distance = range.getBestMatchingScore(queryRanges);
-            if (distance > best_individual_distance) {
+            if (distance > best_individual_distance)
                 best_individual_distance = distance;
-                best_distance_count = 1;
-            } else if (distance == best_individual_distance)
-                ++best_distance_count;
         }
-
-        while (best_distance_count-- > 1)
-            best_individual_distance = Math.ulp(best_distance_count);
-
         return best_individual_distance;
     }
 
