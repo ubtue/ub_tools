@@ -91,34 +91,6 @@ public class Range {
         this.upper = Math.max(lower, upper);
     }
 
-    public Range(String date_range) {
-        if (!date_range.startsWith("[") || !date_range.endsWith("]")) {
-            System.err.println(date_range + " is a malformed date range! (1)");
-            System.exit(-1);
-        }
-        date_range = date_range.substring(1, date_range.length() - 1);
-
-        final String[] dates = date_range.split(" TO ");
-        if (dates.length != 2) {
-            System.err.println(date_range + " is a malformed date range! (2)");
-            System.exit(-1);
-        }
-
-        try {
-            this.lower = Instant.parse(dates[0]).getEpochSecond();
-        } catch (final DateTimeException x) {
-            System.err.println(dates[0] + " is a malformed date! (1)");
-            System.exit(-1);
-        }
-
-        try {
-            this.upper = Instant.parse(dates[1]).getEpochSecond();
-        } catch (final DateTimeException x) {
-            System.err.println(dates[1] + " is a malformed date! (1)");
-            System.exit(-1);
-        }
-    }
-
     public final long getLower() {
         return lower;
     }
