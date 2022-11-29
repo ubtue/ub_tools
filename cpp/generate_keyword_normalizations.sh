@@ -1,5 +1,5 @@
 #!/bin/bash
-set -o errexit -o nounset -o histexpand
+set -o errexit -o nounset 
 
 
 no_problems_found=1
