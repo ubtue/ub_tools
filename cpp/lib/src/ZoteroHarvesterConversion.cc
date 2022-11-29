@@ -875,7 +875,8 @@ void InsertCustomMarcFieldsForParams(const MetadataRecord &metadata_record, MARC
             if ((tag.isTagOfControlField() and field_to_add.length() < MARC::Record::TAG_LENGTH + MIN_CONTROL_FIELD_LENGTH)
                 or (not tag.isTagOfControlField() and field_to_add.length() < MARC::Record::TAG_LENGTH + MIN_DATA_FIELD_LENGTH))
             {
-                LOG_ERROR("custom field '" + field_to_add + "' is too short");
+                LOG_WARNING("custom field '" + field_to_add + "' is too short - skipping it");
+                continue;
             }
             marc_record->insertField(tag, field_to_add.substr(MARC::Record::TAG_LENGTH));
             LOG_DEBUG("inserted custom field '" + field_to_add + "'");
