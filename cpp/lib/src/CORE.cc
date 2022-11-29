@@ -18,6 +18,7 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <chrono>
+#include <iostream>
 #include <thread>
 #include "CORE.h"
 #include "Downloader.h"
@@ -571,10 +572,18 @@ std::vector<Entity> GetEntitiesFromFile(const std::string &file) {
 std::vector<Work> GetWorksFromFile(const std::string &file) {
     const auto entities(GetEntitiesFromFile(file));
     std::vector<Work> works;
+    unsigned total_processed_records(0);
     for (const auto &entity : entities) {
         const Work work(entity.getJson());
         works.emplace_back(work);
+
+        // displaying progress
+        ++total_processed_records;
+        std::cout << "\r"
+                  << "Reading data: " << total_processed_records << " record(s)";
+        std::cout.flush();
     }
+    std::cout << std::endl;
     return works;
 }
 
