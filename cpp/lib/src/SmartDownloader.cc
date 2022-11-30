@@ -24,6 +24,7 @@
 #include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "UrlUtil.h"
+#include "WebUtil.h"
 #include "util.h"
 
 
@@ -343,6 +344,40 @@ bool UCPSmartDownloader::downloadDocImpl(const std::string &url, const TimeLimit
 }
 
 
+bool BibelwissenschaftDotDeSmartDownloader::downloadDocImpl(const std::string &url, const TimeLimit &time_limit,
+                                                            std::string * const document, std::string * const http_header_charset,
+                                                            std::string * const error_message) {
+    static RegexMatcher * const bibwissde_matcher(RegexMatcher::RegexMatcherFactoryOrDie("bibelwissenschaft.de/"));
+    if (bibwissde_matcher->matched(url)) {
+        Downloader::Params params;
+        params.use_cookies_txt_ = true;
+        params.follow_redirects_ = false;
+        std::string redirected_url;
+        if (not GetRedirectUrlWithCustomParams(url, time_limit, &redirected_url, params)) {
+            LOG_WARNING("Could not get Redirect URL for \"" + url + "\" using original url");
+            redirected_url = url;
+        }
+        if (not DownloadHelper(redirected_url, time_limit, document, http_header_charset, error_message))
+            return false;
+
+        std::vector<WebUtil::UrlAndAnchorTexts> url_and_anchor_tags;
+        WebUtil::ExtractURLs(*document, "www.bibelwissenschaft.de", WebUtil::ExtractedUrlForm::ABSOLUTE_URLS, &url_and_anchor_tags);
+        for (const auto &url_and_anchor_tag : url_and_anchor_tags) {
+            const auto pdf_url_and_anchor(url_and_anchor_tag.getAnchorTexts().find("Artikel als PDF"));
+            if (pdf_url_and_anchor != url_and_anchor_tag.end()) {
+                if (not DownloadHelper(url_and_anchor_tag.getUrl(), time_limit, document, http_header_charset, error_message)) {
+                    LOG_WARNING("Could not download document: " + url_and_anchor_tag.getUrl());
+                    return false;
+                }
+                return true;
+            }
+        }
+        return true;
+    }
+    return false;
+}
+
+
 bool DefaultDownloader::downloadDocImpl(const std::string &url, const TimeLimit &time_limit, std::string * const document,
                                         std::string * const http_header_charset, std::string * const error_message) {
     return DownloadHelper(url, time_limit, document, http_header_charset, error_message);
@@ -382,6 +417,7 @@ bool SmartDownload(const std::string &url, const TimeLimit &time_limit, std::str
                                                              new PublicationsTueSmartDownloader(trace),
                                                              new OJSSmartDownloader(trace),
                                                              new UCPSmartDownloader(trace),
+                                                             new BibelwissenschaftDotDeSmartDownloader(trace),
                                                              new DefaultDownloader(trace) };
 
     for (auto &smart_downloader : smart_downloaders) {

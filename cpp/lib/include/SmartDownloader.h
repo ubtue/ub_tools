@@ -221,6 +221,18 @@ protected:
 };
 
 
+class BibelwissenschaftDotDeSmartDownloader : public SmartDownloader {
+public:
+    explicit BibelwissenschaftDotDeSmartDownloader(const bool trace = false): SmartDownloader("", trace) { }
+    virtual std::string getName() const { return "BibelwissenschaftDotDeSmartDownloader"; }
+
+protected:
+    virtual bool downloadDocImpl(const std::string &url, const TimeLimit &time_limit, std::string * const document,
+                                 std::string * const http_header_charset, std::string * const error_message);
+    virtual bool canHandleThis(const std::string &url) const { return RegexMatcher::Matched("bibelwissenschaft.de/", url); }
+};
+
+
 class DefaultDownloader : public SmartDownloader {
 public:
     explicit DefaultDownloader(const bool trace = false): SmartDownloader(".*", trace) { }

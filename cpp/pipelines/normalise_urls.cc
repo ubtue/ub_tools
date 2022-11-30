@@ -107,7 +107,7 @@ bool CreateUrlsFrom024(MARC::Record * const record) {
     }
 
     for (const auto &_024_doi : _024_dois)
-        record->insertFieldAtEnd("856", { { 'u', "https://doi.org/" + _024_doi }, { 'x', "doi" } });
+        record->insertFieldAtEnd("856", { { 'u', "https://doi.org/" + _024_doi }, { 'x', "doi" }, { '3', "Volltext" } });
 
     return not _024_dois.empty();
 }

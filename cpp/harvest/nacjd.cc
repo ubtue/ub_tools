@@ -371,11 +371,12 @@ void ParseJSONAndWriteMARC(const std::string &json_path, MARC::Writer * const ti
             if (complete) {
                 MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::MONOGRAPH_OR_ITEM,
                                         "[ICPSR]" + id);
+                new_record.insertControlField("007", "cr||||");
                 new_record.insertField("024", { { 'a', doi }, { '2', "doi" } }, '7');
                 new_record.insertField("041", { { 'a', "eng" } });
                 new_record.insertField("084", { { 'a', "2,1" }, { '2', "ssgn" } });
                 new_record.insertField("245", { { 'a', title_node->getValue() } }, /* indicator 1 = */ '1', /* indicator 2 = */ '0');
-                new_record.insertField("264", { { 'c', std::to_string(year) } });
+                new_record.insertField("264", { { 'c', std::to_string(year) } }, /*indicator1=*/' ', /*indicator2=*/'1');
                 new_record.insertField("520", { { 'a', description } });
                 new_record.insertField("540", { { 'a', license } });
                 new_record.insertField("655", { { 'a', "Forschungsdaten" } }, ' ', '4');

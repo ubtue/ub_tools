@@ -280,6 +280,7 @@ struct JournalParams {
         CRAWL_URL_REGEX,
         PERSONALIZED_AUTHORS,
         EMAILCRAWL_SUBJECT_REGEX,
+        ADDITIONAL_SELECTORS,
     };
 
     unsigned zeder_id_;
@@ -315,6 +316,7 @@ struct JournalParams {
     bool zeder_newly_synced_entry_;
     bool selective_evaluation_;
     std::shared_ptr<ThreadSafeRegexMatcher> emailcrawl_subject_regex_;
+    std::string additional_selectors_;
 
 public:
     JournalParams(const GlobalParams &global_params);
