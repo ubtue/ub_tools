@@ -1,4 +1,5 @@
 #!/bin/bash
+#Delete corresponding fulltext entries in the ES full text indices for all articles of WiBILex and WiReLex
 set -o errexit -o nounset
 
 
@@ -6,15 +7,14 @@ IDS_PER_BUNCH=50
 WIBILEX_PPN="896670716"
 WIRELEX_PPN="896670740"
 IXTHEO_SERVER="ptah"
-FT_SERVER="nu"
+FT_SERVER="localhost"
 
 all=""
 
 function QueryBunch {
 ored_bunch=$(printf "%s\\n" $* | paste -sd '|')
     bunch_query=$(cat <<EOF
-    {"_source": [ "id" ],
-      "query": {
+    {"query": {
         "regexp": {
           "id": {
             "value": "$ored_bunch"
@@ -25,7 +25,10 @@ ored_bunch=$(printf "%s\\n" $* | paste -sd '|')
 EOF
    )
 
-curl --silent -XGET "http://${FT_SERVER}:9200/full_text_cache_urls/_search?size=${IDS_PER_BUNCH}" -H "kbn-xsrf: reporting" -H "Content-Type: application/json" -d $(printf "%s" $bunch_query)
+for index in "full_text_cache" "full_text_cache_urls" "full_text_cache_html"
+do
+   curl --silent -XPOST "http://${FT_SERVER}:9200/${index}/_delete_by_query" -H "Content-Type: application/json" -d $(printf "%s" $bunch_query)
+done
 }
 
 
