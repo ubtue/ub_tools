@@ -674,19 +674,19 @@ void PermanentlySetEnvironmentVariables(const std::vector<std::pair<std::string,
 
 
 void SetVuFindEnvironmentVariables(const std::string &vufind_system_type_string) {
-    std::string system_type_name_case_sensitive("TueFindSearch,TueFind");
+    std::string vufind_local_modules_content("TueFindSearch,TueFind");
 
     if (vufind_system_type_string == "ixtheo")
-        system_type_name_case_sensitive += ",IxTheo";
+        vufind_local_modules_content += ",IxTheo";
 
     if (vufind_system_type_string == "krimdok")
-        system_type_name_case_sensitive += ",KrimDok";
+        vufind_local_modules_content += ",KrimDok";
 
     std::vector<std::pair<std::string, std::string>> keys_and_values{
         { "VUFIND_HOME", VUFIND_DIRECTORY },
         { "VUFIND_LOCAL_DIR", VUFIND_DIRECTORY + "/local/tuefind/instances/" + vufind_system_type_string },
+        { "VUFIND_LOCAL_MODULES", vufind_local_modules_content },
         { "TUEFIND_FLAVOUR", vufind_system_type_string },
-        { "VUFIND_LOCAL_MODULES", system_type_name_case_sensitive },
     };
     PermanentlySetEnvironmentVariables(keys_and_values, "/etc/profile.d/vufind.sh");
 }
