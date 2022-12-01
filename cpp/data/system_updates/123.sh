@@ -1,10 +1,14 @@
 #!/bin/bash
 
 set -o errexit
+vuscript=/etc/profile.d/vufind.sh
 
-if [ $TUEFIND_FLAVOUR=="ixtheo" ] 
+if !(grep --quiet "VUFIND_LOCAL_MODULES" "$vuscript") && [ $TUEFIND_FLAVOUR=="ixtheo" ] 
 then
-  echo "export VUFIND_LOCAL_MODULES=TueFindSearch,TueFind,IxTheo" >> /etc/profile.d/vufind.sh
-else
-  echo "export VUFIND_LOCAL_MODULES=TueFindSearch,TueFind,KrimDok" >> /etc/profile.d/vufind.sh
+  sed --in-place 's/TUEFIND_FLAVOUR=ixtheo/&\nexport\ VUFIND_LOCAL_MODULES=TueFindSearch,TueFind,IxTheo/' "$vuscript"
+fi
+
+if !(grep --quiet "VUFIND_LOCAL_MODULES" "$vuscript") && [ $TUEFIND_FLAVOUR=="krimdok" ] 
+then
+  sed --in-place 's/TUEFIND_FLAVOUR=ixtheo/&\nexport\ VUFIND_LOCAL_MODULES=TueFindSearch,TueFind,KrimDok/' "$vuscript"
 fi
