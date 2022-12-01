@@ -208,7 +208,7 @@ std::vector<FullTextCache::EntryGroup> FullTextCache::getEntryGroupsByDomainAndE
         const auto error_message_pair(map.find("error_message"));
         if (url_pair == map.cend() or domain_pair == map.cend() or error_message_pair == map.cend()
             or error_message_pair->second == FullTextCache::DUMMY_ERROR)
-                continue;
+            continue;
 
         const auto id_pair(map.find("id"));
         const auto key(domain_pair->second + US + error_message_pair->second);
@@ -287,7 +287,7 @@ FullTextCache::TextType FullTextCache::MapTextDescriptionToTextType(const std::s
 }
 
 
-void FullTextCache::extractAndImportHTMLPages(const std::string &id, const std::string &full_text_location, const TextType &text_type) {
+void FullTextCache::extractPDFAndImportHTMLPages(const std::string &id, const std::string &full_text_location, const TextType &text_type) {
     const FileUtil::AutoTempDirectory auto_temp_dir("/tmp/ADT");
     const std::string html_export_directory(auto_temp_dir.getDirectoryPath());
     PdfUtil::ExtractHTMLAsPages(full_text_location, html_export_directory);

@@ -61,7 +61,7 @@ bool ImportDocument(const ControlNumberGuesser &control_number_guesser, FullText
 
     full_text_cache->insertEntry(ppn, full_text_data.full_text_, /* entry_urls = */ {}, FullTextCache::FULLTEXT, is_publisher_provided);
     if (not full_text_data.full_text_location_.empty())
-        full_text_cache->extractAndImportHTMLPages(ppn, full_text_data.full_text_location_);
+        full_text_cache->extractPDFAndImportHTMLPages(ppn, full_text_data.full_text_location_);
     LOG_INFO("Inserted text from \"" + filename + "\" as entry for PPN \"" + ppn + "\"");
 
     return true;
