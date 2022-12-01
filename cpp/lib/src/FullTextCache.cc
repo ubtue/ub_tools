@@ -309,6 +309,17 @@ void FullTextCache::extractPDFAndImportHTMLPages(const std::string &id, const st
 }
 
 
+void FullTextCache::importHTMLFile(const std::string &id, const std::string &html_file_location, const TextType &text_type) {
+    std::ifstream html_file(html_file_location);
+    std::stringstream full_text_stream;
+    full_text_stream << html_file.rdbuf();
+    std::string full_text(full_text_stream.str());
+    if (not StringUtil::FindCaseInsensitive(full_text, "<html"))
+        LOG_ERROR("\"" + html_file_location + "\" does not seem to be a valid html file");
+    full_text_cache_html_.simpleInsert({ { "id", id }, { "full_text", full_text }, { "text_type", std::to_string(text_type) } });
+}
+
+
 void FullTextCache::insertEntry(const std::string &id, const std::string &full_text, const std::vector<EntryUrl> &entry_urls,
                                 const TextType &text_type, const bool is_publisher_provided) {
     const time_t now(std::time(nullptr));

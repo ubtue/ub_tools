@@ -59,12 +59,24 @@ bool ImportDocument(const ControlNumberGuesser &control_number_guesser, FullText
     if (entry_present)
         full_text_cache->deleteEntry(ppn);
 
+    // Extract formatted full text from PDF or HTML
     full_text_cache->insertEntry(ppn, full_text_data.full_text_, /* entry_urls = */ {}, FullTextCache::FULLTEXT, is_publisher_provided);
-    if (not full_text_data.full_text_location_.empty())
-        full_text_cache->extractPDFAndImportHTMLPages(ppn, full_text_data.full_text_location_);
-    LOG_INFO("Inserted text from \"" + filename + "\" as entry for PPN \"" + ppn + "\"");
+    if (full_text_data.full_text_location_.empty())
+        return true;
 
-    return true;
+    if (StringUtil::EndsWith(full_text_data.full_text_location_, ".pdf", true /*ignore case*/)) {
+        full_text_cache->extractPDFAndImportHTMLPages(ppn, full_text_data.full_text_location_);
+        LOG_INFO("Inserted text from PDF \"" + filename + "\" as entry for PPN \"" + ppn + "\"");
+        return true;
+    }
+
+    if (StringUtil::EndsWith(full_text_data.full_text_location_, ".html", true /*ignore case*/)) {
+        full_text_cache->importHTMLFile(ppn, full_text_data.full_text_location_);
+        LOG_INFO("Inserted text from PDF \"" + filename + "\" as entry for PPN \"" + ppn + "\"");
+        return true;
+    }
+
+    LOG_ERROR("Don't know how to handle file \"" + full_text_data.full_text_location_ + "\"");
 }
 
 
