@@ -133,6 +133,7 @@ else
 fi
 
 if [[ $1 == "fulltext-backend" ]]; then
+    ColorEcho "installation -> copy elasticsearch files"
     cp /usr/local/ub_tools/docker/fulltext/elasticsearch.yml /etc/elasticsearch/elasticsearch.yml
     cp /usr/local/ub_tools/docker/fulltext/Elasticsearch.conf /usr/local/var/lib/tuelib/Elasticsearch.conf
 fi
@@ -190,7 +191,7 @@ if [[ $2 == "ixtheo" || $2 == "krimdok" ]]; then
     /usr/local/vufind/solr/vufind/biblio/conf/touch_synonyms.sh $2
     chown -R solr:solr /usr/local/vufind/solr/vufind/biblio/conf/synonyms
 
-    ColorEcho "installation -> restarting mysql server"
+    ColorEcho "installation -> restart mysql"
     systemctl restart mysql
 
     ColorEcho "installation -> copy *.mrc as example files"
@@ -224,13 +225,16 @@ if [[ $2 == "ixtheo" || $2 == "krimdok" ]]; then
     ColorEcho "installation -> run grunt in vufind's folder"
     cd /usr/local/vufind && grunt less
 
-    ColorEcho "installation -> reload apache and vufind service"
+    ColorEcho "installation -> restart apache"
     systemctl restart apache2
+    ColorEcho "installation -> restart vufind"
     systemctl restart vufind
+    ColorEcho "installation -> restart mysql"
     systemctl restart mysql
 fi
 
 if [[ $1 == "fulltext-backend" ]]; then
+    ColorEcho "installation -> starting the elasticsearch service"
     su  -c /usr/share/elasticsearch/bin/elasticsearch -s /bin/bash elasticsearch
 fi
 
@@ -253,7 +257,8 @@ if [[ $1 == "ub-tools-only" ]]; then
 
     ColorEcho "installation -> add ssl module to apache"
     a2enmod ssl
-    ColorEcho "installation -> reload apache server"
+    ColorEcho "installation -> restart apache"
     systemctl restart apache2
+    ColorEcho "installation -> restart mysql"
     systemctl restart mysql
 fi
