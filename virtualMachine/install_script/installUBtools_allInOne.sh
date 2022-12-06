@@ -134,7 +134,7 @@ fi
 
 if [[ $1 == "fulltext-backend" ]]; then
     cp /usr/local/ub_tools/docker/fulltext/elasticsearch.yml /etc/elasticsearch/elasticsearch.yml
-    cp /usr/local/ub_tools/docker/Elasticsearch.conf /usr/local/var/lib/tuelib/Elasticsearch.conf
+    cp /usr/local/ub_tools/docker/fulltext/Elasticsearch.conf /usr/local/var/lib/tuelib/Elasticsearch.conf
 fi
 
 ColorEcho "installation -> building prerequisites"
