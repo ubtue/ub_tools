@@ -15,7 +15,11 @@
 # 1. copy "installUBtools_allInOne.sh" into /tmp/
 # 2. change the file "installUBtools_allInOne.sh" mode to 700
 # 3. parameter option:
-#   < fulltext-backend | ub-tools-only | vufind < ixtheo | krimdok > > <--test | --production> [--omit-cronjobs] [--omit-systemctl]
+#   < 
+#     fulltext-backend  <--test | --production> [--omit-cronjobs] [--omit-systemctl] [--omit-systemctl]
+#   | ub-tools-only
+#   | vufind < ixtheo | krimdok >  <--test | --production> [--omit-cronjobs] [--omit-systemctl] [--omit-systemctl] 
+#   >
 #   - example:
 #     /tmp/installUBtools_allInOne.sh vufind ixtheo --test --omit-cronjobs | tee ~/output.log
 
@@ -128,7 +132,10 @@ else
     git clone --branch ${BRANCH} https://github.com/ubtue/ub_tools.git /usr/local/ub_tools
 fi
 
-
+if [[ $1 == "fulltext-backend" ]]; then
+    cp /usr/local/ub_tools/docker/fulltext/elasticsearch.yml /etc/elasticsearch/elasticsearch.yml
+    cp /usr/local/ub_tools/docker/Elasticsearch.conf /usr/local/var/lib/tuelib/Elasticsearch.conf
+fi
 
 ColorEcho "installation -> building prerequisites"
 cd /usr/local/ub_tools/cpp/lib/mkdep && CCC=clang++ make --jobs=4 install
