@@ -455,32 +455,32 @@ void SetupSudo() {
 
 
 void InstallUBTools(const bool make_install, DbConnection * const db_connection_root) {
-    Echo("Installer -> install UBTools");
+    Echo("Installer -> Install UBTools");
     // First install iViaCore-mkdep...
     ChangeDirectoryOrDie(UB_TOOLS_DIRECTORY + "/cpp/lib/mkdep");
     ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("make"), { "--jobs=4", "install" });
 
     // ...then create /usr/local/var/lib/tuelib
     if (not FileUtil::Exists(UBTools::GetTuelibPath())) {
-        Echo("Installer -> creating " + UBTools::GetTuelibPath());
+        Echo("Installer -> Creating " + UBTools::GetTuelibPath());
         FileUtil::MakeDirectoryOrDie(UBTools::GetTuelibPath(), /* recursive = */ true);
     }
 
     // ..and /usr/local/var/log/tuefind
     if (not FileUtil::Exists(UBTools::GetTueFindLogPath())) {
-        Echo("Installer -> creating " + UBTools::GetTueFindLogPath());
+        Echo("Installer -> Creating " + UBTools::GetTueFindLogPath());
         FileUtil::MakeDirectoryOrDie(UBTools::GetTueFindLogPath(), /* recursive = */ true);
     }
 
     // ..and /usr/local/var/tmp
     if (not FileUtil::Exists(UBTools::GetTueLocalTmpPath())) {
-        Echo("Installer -> creating " + UBTools::GetTueLocalTmpPath());
+        Echo("Installer -> Creating " + UBTools::GetTueLocalTmpPath());
         FileUtil::MakeDirectoryOrDie(UBTools::GetTueLocalTmpPath(), /* recursive = */ true);
     }
 
     const std::string ZOTERO_ENHANCEMENT_MAPS_DIRECTORY(UBTools::GetTuelibPath() + "zotero-enhancement-maps");
     if (not FileUtil::Exists(ZOTERO_ENHANCEMENT_MAPS_DIRECTORY)) {
-        Echo("Installer -> cloning Zetero");
+        Echo("Installer -> Cloning Zetero");
         const std::string git_url("https://github.com/ubtue/zotero-enhancement-maps.git");
         ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("git"), { "clone", git_url, ZOTERO_ENHANCEMENT_MAPS_DIRECTORY });
     }
@@ -490,26 +490,40 @@ void InstallUBTools(const bool make_install, DbConnection * const db_connection_
     SetupSudo();
 
     if (AppArmorUtil::IsEnabled()) {
-        Echo("Installer -> setup AppArmor for apache2");
+        Echo("Installer -> Setup AppArmor for apache2");
         const std::string profile_id("apache2");
+        Echo("Installer -> Install local profile");
         AppArmorUtil::InstallLocalProfile(INSTALLER_DATA_DIRECTORY + "/apparmor/" + profile_id);
+        Echo("Installer -> Set local profile");
         AppArmorUtil::SetLocalProfileMode(profile_id, AppArmorUtil::ENFORCE);
     }
 
     // ...and then install the rest of ub_tools:
+    Echo("Installer -> Change directory to " + UB_TOOLS_DIRECTORY);
     ChangeDirectoryOrDie(UB_TOOLS_DIRECTORY);
-    if (make_install)
+    if (make_install) {
+        Echo("Installer -> Make install");
         ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("make"), { "--jobs=4", "install" });
-    else
+    } else {
+        Echo("Installer -> Make");
         ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("make"), { "--jobs=4" });
+    }
 
+    Echo("Installer -> creating database");
     CreateUbToolsDatabase(db_connection_root);
+
+    Echo("Installer -> git activate custom hooks");
     GitActivateCustomHooks(UB_TOOLS_DIRECTORY);
+
+    Echo("Installer -> make directory");
     FileUtil::MakeDirectoryOrDie("/usr/local/run");
+
+    Echo("Installer -> register system update version");
     RegisterSystemUpdateVersion();
 
     // Install boot notification service:
     if (SystemdUtil::IsAvailable()) {
+        Echo("Installer -> install boot notification");
         SystemdUtil::InstallUnit(UB_TOOLS_DIRECTORY + "/cpp/data/installer/boot_notification.service");
         SystemdUtil::EnableUnit("boot_notification");
     }

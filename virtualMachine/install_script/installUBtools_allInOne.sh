@@ -5,28 +5,23 @@
 # script for installation of ub-tools
 # os: ubuntu 22.04
 # by Steven Lolong (steven.lolong@uni-tuebingen.de)
-# based on the script maintained by by Mario Trojan
+# based on the script for Dockter maintained by by Mario Trojan
 # ******************
-# run this script on Virtual machine
-# /tmp/install_ubtools.sh vufind < ixtheo | krimdok > < --test | --production >  [ --omit-cronjobs ] 2>&1 | tee ~/outputfile.txt
-# ***********************
-# run this script on docker "Dockerfile"
-# RUN /tmp/install_ubtools.sh vufind ixtheo --test --omit-cronjobs --omit-systemctl
 ##################
 
 
 #######################
 #prerequisites:
-# 1. copy "install_dep_machine.sh" into /tmp/
-# 2. change the file "install_dep_machine.sh" mode to 700
-# ************************** 
-# 1. create requirement folder
-# 2. copy all existing data into the folder created at step-1
-# 3. copy smb credentials into /root folder 
-# 4. export java environment
-# 5. update existing machine 
-# 6. run script "install_dep_machine.sh"
-# 7.  
+# 1. copy "installUBtools_allInOne.sh" into /tmp/
+# 2. change the file "installUBtools_allInOne.sh" mode to 700
+# 3. parameter option:
+#   < fulltext-backend | ub-tools-only | vufind < ixtheo | krimdok > > <--test | --production> [--omit-cronjobs] [--omit-systemctl]
+#   - example:
+#     /tmp/installUBtools_allInOne.sh vufind ixtheo --test --omit-cronjobs | tee ~/output.log
+
+# note:
+# - for ixtheo minimum RAM=8GB and krimdok=4GB
+# - for ixtheo | krimdok, don't forget to copy example auth.mrc and biblio.mrc to folder /tmp
 #######################
 
 function ColorEcho {
@@ -134,8 +129,6 @@ else
 fi
 
 
-ColorEcho "installation -> update mysql.cnf"
-echo authentication_policy=mysql_native_password >> /etc/mysql/mysql.conf.d/mysqld.cnf
 
 ColorEcho "installation -> building prerequisites"
 cd /usr/local/ub_tools/cpp/lib/mkdep && CCC=clang++ make --jobs=4 install
@@ -149,58 +142,109 @@ ColorEcho "installation -> starting cpp installer"
 ColorEcho "installation -> reload system configuration"
 systemctl stop apache2 
 
-ColorEcho "installation -> copy local_override"
-cp /usr/local/ub_tools/docker/ixtheo/local_overrides/* /usr/local/vufind/local/tuefind/local_overrides/
+if [[ $2 == "ixtheo" ]]; then
+    ColorEcho "installation -> copy local_override"
+    cp /usr/local/ub_tools/docker/ixtheo/local_overrides/* /usr/local/vufind/local/tuefind/local_overrides/
 
-ColorEcho "installation -> updating ownership of config and cache"
-chown -R www-data:www-data /usr/local/vufind/local/tuefind/local_overrides/*.conf
+    ColorEcho "installation -> copying apache conf to sites-available"
+    cp /usr/local/ub_tools/docker/ixtheo/apache2/*.conf /etc/apache2/sites-available/
 
-chown -R www-data:www-data /usr/local/vufind/local/tuefind/instances/$2/cache
-chmod -R 775 /usr/local/vufind/local/tuefind/instances/$2/cache
+    ColorEcho "installation -> copying ssl certificate"
+    cp /usr/local/ub_tools/docker/ixtheo/apache2/*.pem /etc/ssl/certs/
+fi
 
+if [[ $2 == "krimdok" ]]; then
+    ColorEcho "installation -> copy local_override"
+    cp /usr/local/ub_tools/docker/krimdok/local_overrides/* /usr/local/vufind/local/tuefind/local_overrides/
 
-chown -R www-data:www-data /usr/local/vufind/local/cache
+    ColorEcho "installation -> copying apache conf to sites-available"
+    cp /usr/local/ub_tools/docker/krimdok/apache2/*.conf /etc/apache2/sites-available/
 
-ColorEcho "installation -> creating synonyms"
-/usr/local/vufind/solr/vufind/biblio/conf/touch_synonyms.sh $2
-chown -R solr:solr /usr/local/vufind/solr/vufind/biblio/conf/synonyms
+    ColorEcho "installation -> copying ssl certificate"
+    cp /usr/local/ub_tools/docker/krimdok/apache2/*.pem /etc/ssl/certs/
 
-ColorEcho "installation -> restarting mysql server"
-systemctl restart mysql
+fi
 
-ColorEcho "installation -> copy *.mrc as example files"
-cp /tmp/*.mrc /usr/local/ub_tools/bsz_daten/
+if [[ $2 == "ixtheo" || $2 == "krimdok" ]]; then
 
-ColorEcho "installation -> restart vufind"
-systemctl restart vufind 
+    ColorEcho "installation -> update mysql.cnf"
+    echo authentication_policy=mysql_native_password >> /etc/mysql/mysql.conf.d/mysqld.cnf
 
-ColorEcho "installation -> running exporting .mrc file"
-. /etc/profile.d/vufind.sh \
-    && /usr/local/vufind/import-marc.sh /usr/local/ub_tools/bsz_daten/biblio.mrc \
-    && /usr/local/vufind/import-marc-auth.sh /usr/local/ub_tools/bsz_daten/auth.mrs
+    ColorEcho "installation -> updating ownership of config and cache"
+    chown -R www-data:www-data /usr/local/vufind/local/tuefind/local_overrides/*.conf
 
-
-ColorEcho "installation -> removing default apache website"
-rm /etc/apache2/sites-enabled/000-default.conf
-
-ColorEcho "installation -> copying ixtheo apache conf to sites-available"
-cp /tmp/apache2/*.conf /etc/apache2/sites-available/
-chmod 644 /etc/apache2/sites-available/*.conf
-
-ColorEcho "installation -> creating softlink of vufind-vhost.conf"
-ln -s /etc/apache2/sites-available/vufind-vhosts.conf /etc/apache2/sites-enabled/vufind-vhosts.conf
-a2ensite vufind-vhosts
-
-cp /tmp/apache2/*.pem /etc/ssl/certs/
+    chown -R www-data:www-data /usr/local/vufind/local/tuefind/instances/$2/cache
+    chmod -R 775 /usr/local/vufind/local/tuefind/instances/$2/cache
 
 
-ColorEcho "installation -> run npm in vufind's folder"
-cd /usr/local/vufind && sudo npm install
+    chown -R www-data:www-data /usr/local/vufind/local/cache
 
-ColorEcho "installation -> run grunt in vufind's folder"
-cd /usr/local/vufind && grunt less
+    ColorEcho "installation -> creating synonyms"
+    /usr/local/vufind/solr/vufind/biblio/conf/touch_synonyms.sh $2
+    chown -R solr:solr /usr/local/vufind/solr/vufind/biblio/conf/synonyms
 
-ColorEcho "installation -> reload apache and vufind service"
-systemctl restart apache2
-systemctl restart vufind
-systemctl restart mysql
+    ColorEcho "installation -> restarting mysql server"
+    systemctl restart mysql
+
+    ColorEcho "installation -> copy *.mrc as example files"
+    cp /mnt/ZE020150/FID-Entwicklung/IxTheo/mrc/*.mrc /usr/local/ub_tools/bsz_daten/
+
+    ColorEcho "installation -> restart vufind"
+    systemctl restart vufind 
+
+    ColorEcho "installation -> running exporting .mrc file"
+    . /etc/profile.d/vufind.sh \
+        && /usr/local/vufind/import-marc.sh /usr/local/ub_tools/bsz_daten/biblio.mrc \
+        && /usr/local/vufind/import-marc-auth.sh /usr/local/ub_tools/bsz_daten/auth.mrs
+
+
+    ColorEcho "installation -> removing default apache website"
+    rm /etc/apache2/sites-enabled/000-default.conf
+
+    ColorEcho "installation -> updating site available"
+    chmod 644 /etc/apache2/sites-available/*.conf
+
+    # ColorEcho "installation -> creating softlink of vufind-vhost.conf"
+    # ln -s /etc/apache2/sites-available/vufind-vhosts.conf /etc/apache2/sites-enabled/vufind-vhosts.conf
+
+    ColorEcho "installation -> upadating site enable"
+    a2ensite vufind-vhosts
+
+
+    ColorEcho "installation -> run npm in vufind's folder"
+    cd /usr/local/vufind && sudo npm install
+
+    ColorEcho "installation -> run grunt in vufind's folder"
+    cd /usr/local/vufind && grunt less
+
+    ColorEcho "installation -> reload apache and vufind service"
+    systemctl restart apache2
+    systemctl restart vufind
+    systemctl restart mysql
+fi
+
+if [[ $1 == "fulltext-backend" ]]; then
+    su  -c /usr/share/elasticsearch/bin/elasticsearch -s /bin/bash elasticsearch
+fi
+
+if [[ $1 == "ub-tools-only" ]]; then
+
+    ColorEcho "installation -> update mysql.cnf"
+    echo authentication_policy=mysql_native_password >> /etc/mysql/mysql.conf.d/mysqld.cnf
+
+    ColorEcho "installation -> copying apache conf to sites-available"
+    cp /usr/local/ub_tools/docker/ub_tools/apache2/*.conf /etc/apache2/sites-available/
+
+    ColorEcho "installation -> copying ssl certificate"
+    cp /usr/local/ub_tools/docker/ub_tools/apache2/*.pem /etc/ssl/certs/
+
+    ColorEcho "installation -> updating site available"
+    chmod 644 /etc/apache2/sites-available/*.conf
+
+    ColorEcho "installation -> upadating site enable"
+    a2ensite ub_tools-vhosts
+
+    ColorEcho "installation -> reload apache and vufind service"
+    systemctl restart apache2
+    systemctl restart mysql
+fi
