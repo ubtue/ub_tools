@@ -244,7 +244,9 @@ if [[ $1 == "ub-tools-only" ]]; then
     ColorEcho "installation -> upadating site enable"
     a2ensite ub_tools-vhosts
 
-    ColorEcho "installation -> reload apache and vufind service"
+    ColorEcho "installation -> add ssl module to apache"
+    a2enmod ssl
+    ColorEcho "installation -> reload apache server"
     systemctl restart apache2
     systemctl restart mysql
 fi
