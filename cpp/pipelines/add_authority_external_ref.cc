@@ -29,8 +29,8 @@
 // Scenario 1:
 // use --create_mapping_file parameter <filepath> to generate the mapping file
 //  of the downloaded dnb authoriy dump (must bei unzipped first)
-//  Download from:  https://data.dnb.de/opendata/authorities-person_lds.jsonld.gz
-//  and unzip to e.g. authorities-person_lds_20210613.jsonld
+//  Download from: https://data.dnb.de/opendata/authorities-gnd-person_lds.jsonld.gz
+//  and unzip to e.g. authorities-gnd-person_lds_20210613.jsonld
 //  output is stdout
 // Scenario 2:
 // use converted file from scenario 1 from cpp/data to create a map during
