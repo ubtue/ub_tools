@@ -72,7 +72,6 @@ bool DownloadAndUpdate(DbConnection * const db_writer, const std::string externa
         const std::string DOILink(JSON::LookupString("/value", item_iter, ""));
         if (DOIKey == one_key) {
             std::cout << "Processing: " << DOILink << '\n';
-            std::cout << "Publication Title : " << PublicationTitle << '\n';
             UpdateItem(db_writer, DOILink, publicationID);
             SendNotificationsForDOI("DOI link notification",
                                     "DOI link: " + DOILink + " successfully generated for publication " + PublicationTitle);
