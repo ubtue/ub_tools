@@ -7,7 +7,9 @@ function Usage {
 }
 
 
-NUM_OF_TMPFILES=4
+trap CleanUpTmpFiles EXIT
+
+NUM_OF_TMPFILES=5
 function GenerateTmpFiles {
     for i in $(seq 1 ${NUM_OF_TMPFILES}); do
         tmpfiles+=($(mktemp --tmpdir $(basename -- ${marc_out%.*}).XXXX.${marc_out##*.}));
@@ -42,7 +44,7 @@ EBR_superior=$(printf "%s" '773i:Enthalten in\037tEncyclopedia of the Bible and 
                             '\037w(DE-627)1647336511')
 
 if [ $# != 2 ]; then
-    Usage
+    Usage/tmp/test9.tY9S.xml
 fi
 
 marc_in="$1"
@@ -79,23 +81,35 @@ GenerateTmpFiles
         --remove-fields '655:.*' \
         --remove-fields '773:.*' \
         --remove-fields '776:.*' \
-        --remove-fields '912:.*' 
-       
+        --remove-fields '912:.*' \
+        --remove-subfields '100e:author\.' \
+        --remove-subfields '700e:author\.' \
+
         NormalizePPN ${journal_prefix} ${tmpfiles[0]} ${tmpfiles[1]} > ${tmpfiles[2]}
 
+    # Further cleaning - remove superfluous LOC-reference and fix some garbage from the original files
+    cat ${tmpfiles[2]} | xmlstarlet ed -d "//_:datafield[@tag='100' or @tag='700']/_:subfield[@code='4' and starts-with(text(), 'http')]" | \
+        saxonb-xslt -xsl:xsl/clean_fields_2.0.xsl - \
+        > ${tmpfiles[3]}
+
     # Augment with our necessary fields
-    marc_augmentor ${tmpfiles[2]} ${marc_out} \
+    marc_augmentor ${tmpfiles[3]} ${tmpfiles[4]} \
+        --insert-field '003:DE-Tue135' \
+        --insert-field '005:'$(date +'%Y%m%d%H%M%S')'.0' \
+        --insert-field '007:cr|||||' \
+        --insert-field '084a:0\0372ssgn' \
+        --insert-field '084a:1\0372ssgn' \
         --insert-field '338a:Online-Resource\037bcr\0372rdacarrier' \
         --insert-field '852a:DE-Tue135' \
         --insert-field '935c:uwlx' \
         --insert-field '935a:mteo' \
         --insert-field '936j:XXX' \
         --insert-field 'ELCa:1' \
-        --insert-field-if "${EBR_superior}" '001:EBR.*' \
+        --insert-field-if "${EBR_superior}" '001:EBR.*'
 
-# Einfügen: DE-Tue
+    cat ${tmpfiles[4]} | xmlstarlet tr xsl/adjust_year.xsl > ${marc_out}
 
-CleanUpTmpFiles
+echo "Finished conversion"
 
 
 
