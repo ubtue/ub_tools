@@ -326,6 +326,22 @@ void CreateVuFindDatabases(const VuFindSystemType vufind_system_type, DbConnecti
             db_connection_root->mySQLGrantGrantOption(ixtheo_database, ub_tools_username);
             DbConnection::MySQLImportFile(INSTALLER_DATA_DIRECTORY + "/ixtheo.sql", ixtheo_database, ixtheo_username, ixtheo_password);
         }
+    } else if (vufind_system_type == KRIMDOK) {
+        IniFile translations_ini_file(UBTools::GetTuelibPath() + "translations.conf");
+        const auto translations_ini_section(translations_ini_file.getSection("Database"));
+        const std::string krim_translations_database(translations_ini_section->getString("sql_database"));
+        const std::string krim_translations_username(translations_ini_section->getString("sql_username"));
+        const std::string krim_translations_password(translations_ini_section->getString("sql_password"));
+        if (not db_connection_root->mySQLDatabaseExists(krim_translations_database)) {
+            Echo("creating " + krim_translations_database + " database");
+            db_connection_root->mySQLCreateDatabase(krim_translations_database);
+            db_connection_root->mySQLGrantAllPrivileges(krim_translations_database, krim_translations_username);
+            db_connection_root->mySQLGrantAllPrivileges(krim_translations_database, sql_username);
+            db_connection_root->mySQLGrantAllPrivileges(krim_translations_database, ub_tools_username);
+            db_connection_root->mySQLGrantGrantOption(krim_translations_database, ub_tools_username);
+            DbConnection::MySQLImportFile(INSTALLER_DATA_DIRECTORY + "/krim_translations.sql", krim_translations_database,
+                                          krim_translations_username, krim_translations_password);
+        }
     }
 }
 
