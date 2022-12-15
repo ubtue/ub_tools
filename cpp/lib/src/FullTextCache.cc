@@ -308,7 +308,8 @@ void FullTextCache::extractPDFAndImportHTMLPages(const std::string &id, const st
                                              { "page", page_number },
                                              { "full_text", page_text },
                                              { "text_type", std::to_string(text_type) },
-                                             { "is_publisher_provided", is_publisher_provided ? "true" : "false" } });
+                                             { "is_publisher_provided", is_publisher_provided ? "true" : "false" },
+                                             { "is_converted_pdf", "true" } });
     }
 }
 
