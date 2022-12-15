@@ -157,6 +157,9 @@
            "page": {
               "type": "integer"
            },
+            "is_publisher_provided" : {
+                "type" : "boolean"
+           },
            "full_text" : {
               "type" : "text",
               "index_options" : "offsets",
