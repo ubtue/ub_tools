@@ -23,5 +23,5 @@ cat ${authors_file} | sort | uniq | sponge ${authors_file}
 
 
 export AUTHOR_LOOKUP_PATH="/usr/local/ub_tools/cpp/reference_works/bibelwissenschaft"
-cat ${authors_file} | \
-    xargs -I'{}'  /bin/bash -c 'echo -e "$@":\\t$(${AUTHOR_LOOKUP_PATH}/swb_author_lookup --sloppy-filter "$@")' _ '{}' | sponge ${authors_file}
+cat ${authors_file} |  tr '\n' '\0' | \
+    xargs -0 -I'{}'  /bin/bash -c 'echo -e "$@":\\t$(${AUTHOR_LOOKUP_PATH}/swb_author_lookup --sloppy-filter "$@")' _ '{}' | sponge ${authors_file}

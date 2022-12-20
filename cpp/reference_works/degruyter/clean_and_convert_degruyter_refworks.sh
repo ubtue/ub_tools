@@ -71,6 +71,7 @@ GenerateTmpFiles
         --remove-fields '337:.*' \
         --remove-fields '338:.*' \
         --remove-fields '347:.*' \
+        --remove-fields '490:.*' \
         --remove-fields '500:.*' \
         --remove-fields '506:.*' \
         --remove-fields '530:.*' \
