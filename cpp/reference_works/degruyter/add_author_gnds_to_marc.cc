@@ -39,9 +39,14 @@ void AddAuthorsToRecord(MARC::Record * const record, const std::unordered_map<st
             if (entry == names_and_gnds.end())
                 continue;
             field.insertOrReplaceSubfield('0', "(DE-588)" + entry->second);
+            char _887_indicator1 = ' ';
+            if (++_887_indicator2 > 0x39) {
+                _887_indicator1 = '1';
+                _887_indicator2 = 0x30;
+            }
             record->insertField(
-                "887", MARC::Subfields({ MARC::Subfield('a', "Autor in der Vorlage [" + entry->first + "] maschinell zugeordnet") }), ' ',
-                ++_887_indicator2);
+                "887", MARC::Subfields({ MARC::Subfield('a', "Autor in der Vorlage [" + entry->first + "] maschinell zugeordnet") }),
+                _887_indicator1, _887_indicator2);
         }
     }
 }
