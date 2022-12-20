@@ -47,10 +47,23 @@ void AddAuthorsToRecord(MARC::Record * const record, const std::unordered_map<st
 }
 
 
+void FixAuthorNameAbbrevs(MARC::Record * const record) {
+    static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactoryOrDie("\\s+[A-Z]$"));
+    for (const auto tag : { "100", "700" }) {
+        for (auto &field : record->getTagRange(tag)) {
+            const std::string author_orig(field.getSubfields().getFirstSubfieldWithCode('a'));
+            if (matcher->matched(author_orig))
+                field.insertOrReplaceSubfield('a', author_orig + '.');
+        }
+    }
+}
+
+
 void AugmentMarc(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
                  const std::unordered_map<std::string, std::string> &names_and_gnds) {
     while (MARC::Record record = marc_reader->read()) {
         AddAuthorsToRecord(&record, names_and_gnds);
+        FixAuthorNameAbbrevs(&record);
         marc_writer->write(record);
     }
 }
@@ -66,7 +79,6 @@ void CreateNamesAndGNDsMap(const std::string &authors_and_gnds_path,
                 LOG_ERROR("Invalid number of elements in line \"" + name_and_gnd_line + "\"");
             if (name_and_gnd.size() == 1)
                 continue;
-            LOG_WARNING("INSERTING: " + name_and_gnd[0] + " and " + name_and_gnd[1]);
             names_and_gnds_map->emplace(name_and_gnd[0], name_and_gnd[1]);
         }
     }
