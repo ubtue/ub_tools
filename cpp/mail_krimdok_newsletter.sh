@@ -9,7 +9,7 @@ SENDER_AND_REPLY_TO=krimdok-team@ub.uni-tuebingen.de
 declare -i count=0
 for regular_file in $(ls -p "$NEWSLETTER_DIR" | grep -v /); do
     bulk_mailer "$regular_file" \
-                "SELECT email FROM vufind.user WHERE tuefind_subscribed_to_newsletter = TRUE" \
+                "SELECT email FROM vufind.user WHERE krimdok_subscribed_to_newsletter = TRUE" \
                 /usr/local/var/lib/tuelib/krimdok_auxiliary_newsletter_email_addresses \
                 $SENDER_AND_REPLY_TO
     let "count=count+1"
