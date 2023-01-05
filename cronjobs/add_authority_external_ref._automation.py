@@ -165,7 +165,7 @@ def Main():
 
                 #  e. Update the latest version date on the config file (the second line)
                 print(
-                    "Process 7/7 -- Upadating the config file and remove temporary files")
+                    "Process 7/7 -- Updating the config file and remove temporary files")
                 UpdateConfigFile(
                     config_file, current_file_date_integer, current_file_date_integer)
                 util.ExecOrDie(util.Which("rm"), [
