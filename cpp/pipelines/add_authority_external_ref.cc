@@ -3,7 +3,7 @@
  *  \author andreas-ub
  *  \author Steven Lolong (steven.lolong@uni-tuebingen.de)
  *
- *  \copyright 2021-22 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2021-2022 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -32,52 +32,22 @@
 #include "TextUtil.h"
 #include "util.h"
 
-
+/**
+ * Generating input file must use the jq program. Since the .jsonld file is large enough than it is a must to parse it as a stream and pipe
+ * it using grep. The complete command for this task is: jq -c --stream '.' < authorities-gnd-person_lds.jsonld |grep -E
+ * 'https\\:/\\/d-nb\\.info\\/gnd\\/|wikidata|wikipedia'
+ */
 [[noreturn]] void Usage() {
-    ::Usage(
-        "\t:\n"
-        "\tinvocation modes:\n"
-        "\t1.)  norm_data_marc_input norm_data_marc_output mapping_txt_file\n"
-        "\t2.)  --create_mapping_file input_txt_file output_csv_file"
-        "\n\n"
-        "--create_mapping_file input_txt_file output_csv_file\n"
-        "\t- input_txt_file: the file that generated with command: \n"
-        "\t\tjq -c --stream '.' < authorities-gnd-person_lds.jsonld |grep -E 'https\\:/\\/d-nb\\.info\\/gnd\\/|wikidata|wikipedia'\n"
-        "\t- output_csv_file: the gnd_to_wiki file to write to, it is a csv with ';' as delimiter.\n"
-        "\t\tThe format: \n"
-        "\t\t\tGND-ID;Wikidata-Entity-Id;Wikipedia-Address\n");
+    std::cerr << "Usage: " << progname
+              << "  --create_mapping_file  input_txt_file  output_csv_file"
+                 "\n\n"
+                 "\t- input_txt_file: The essential information from authorities-gnd-person_lds.jsonld.\n"
+                 "\tGenerate the input file using the 'jq' program. \n"
+                 "\t- output_csv_file: the gnd_to_wiki file to write to, it is a csv with ';' as delimiter.\n";
+
+    std::exit(EXIT_FAILURE);
 }
 
-
-void ParseGndWikidataMappingFile(std::string filename,
-                                 std::unordered_map<std::string, std::vector<std::string>> * const gnd_to_wikidataid_and_wikipedia_link) {
-    std::ifstream file(filename);
-    if (file.is_open()) {
-        std::string line;
-        std::string act_gnd;
-        std::string act_wikidata;
-        std::string act_wikipedia;
-        while (std::getline(file, line)) {
-            const std::string NAME = "Name:";
-            const std::string GND = "GND:";
-            const std::string WIKIDATA = "Wikidata:";
-            const std::string WIKIPEDIA = "Wikipedia:";
-            if (StringUtil::StartsWith(line, NAME) and StringUtil::Contains(line, GND) and StringUtil::Contains(line, WIKIDATA)
-                and StringUtil::Contains(line, WIKIPEDIA))
-            {
-                act_gnd = line.substr(line.find(GND) + GND.length());
-                act_gnd = act_gnd.substr(0, act_gnd.find(WIKIDATA));
-                act_wikidata = line.substr(line.find(WIKIDATA) + WIKIDATA.length());
-                act_wikidata = act_wikidata.substr(0, act_wikidata.find(WIKIPEDIA));
-                act_wikipedia = line.substr(line.find(WIKIPEDIA) + WIKIPEDIA.length());
-                std::vector<std::string> wiki_elements = { StringUtil::TrimWhite(act_wikidata), StringUtil::TrimWhite(act_wikipedia) };
-                gnd_to_wikidataid_and_wikipedia_link->emplace(StringUtil::TrimWhite(act_gnd), wiki_elements);
-            }
-        }
-        file.close();
-    } else
-        LOG_ERROR("input or output files could not be opened");
-}
 
 struct GNDStructure {
     std::string gnd_id, wikidata_personal_entity_id, wikipedia_personal_address;
@@ -92,9 +62,9 @@ bool IsThisCloseBracketForId(const std::string &url) {
     return false;
 }
 
-bool DoesItMatch(const std::string &url_based, const std::string &url_comp) {
-    const int base_string_lenght = url_based.length();
-    const std::string sub_string_url_comp = url_comp.substr(0, base_string_lenght);
+bool DoesTheUrlAddressMatch(const std::string &url_based, const std::string &url_comp) {
+    const int base_string_length = url_based.length();
+    const std::string sub_string_url_comp = url_comp.substr(0, base_string_length);
     if (url_based.compare(sub_string_url_comp) == 0)
         return true;
 
@@ -122,7 +92,7 @@ bool GenerateGNDAuthorityExternalRef(char *argv[]) {
     int top_level_number(-1), second_level_number(-1), total_numbers_of_gnd_id_generated(0), total_line_parsed(0),
         total_number_of_wikidata(0), total_number_of_wikipedia(0);
 
-    const int dnb_add_str_lenght(dnb_address.length()), wikidata_address_str_lenght(wikidata_address.length());
+    const int dnb_add_str_length(dnb_address.length()), wikidata_address_str_length(wikidata_address.length());
 
     std::string line, id_annotaton(""), second_element_of_array;
     nlohmann::json line_parsed;
@@ -149,7 +119,7 @@ bool GenerateGNDAuthorityExternalRef(char *argv[]) {
                             is_start_group = true;
                             gnd_id_temp_string = line_parsed[1].get<std::string>();
                             gnd_data.gnd_id =
-                                gnd_id_temp_string.substr(dnb_add_str_lenght, (gnd_id_temp_string.length() - dnb_add_str_lenght));
+                                gnd_id_temp_string.substr(dnb_add_str_length, (gnd_id_temp_string.length() - dnb_add_str_length));
 
                             ++total_numbers_of_gnd_id_generated;
                         }
@@ -174,17 +144,17 @@ bool GenerateGNDAuthorityExternalRef(char *argv[]) {
                 if (line_parsed[0][0].get<int>() == top_level_number && line_parsed[0][1].get<int>() == second_level_number) {
                     if (!line_parsed[1].is_structured()) {
                         if (line_parsed[1].is_string()) {
-                            if (DoesItMatch(wikipedia_address, line_parsed[1].get<std::string>())) {
+                            if (DoesTheUrlAddressMatch(wikipedia_address, line_parsed[1].get<std::string>())) {
                                 gnd_data.wikipedia_personal_address = line_parsed[1].get<std::string>();
 
                                 ++total_number_of_wikipedia;
                             }
 
                             // if wikidata
-                            if (DoesItMatch(wikidata_address, line_parsed[1].get<std::string>())) {
+                            if (DoesTheUrlAddressMatch(wikidata_address, line_parsed[1].get<std::string>())) {
                                 wikidata_temp_string = nlohmann::to_string(line_parsed[1]);
                                 gnd_data.wikidata_personal_entity_id = wikidata_temp_string.substr(
-                                    wikidata_address_str_lenght + 1, (wikidata_temp_string.length() - (wikidata_address_str_lenght + 2)));
+                                    wikidata_address_str_length + 1, (wikidata_temp_string.length() - (wikidata_address_str_length + 2)));
 
                                 ++total_number_of_wikidata;
                             }
@@ -229,51 +199,6 @@ int Main(int argc, char *argv[]) {
 
         if (GenerateGNDAuthorityExternalRef(argv))
             return EXIT_SUCCESS;
-
-        return EXIT_FAILURE;
     }
-
-    std::unordered_map<std::string, std::vector<std::string>> gnd_to_wikielements;
-    ParseGndWikidataMappingFile(mapping_txt_filename, &gnd_to_wikielements);
-
-    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(marc_input_filename_or_create_flag));
-    std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_filename_or_dnb_input));
-
-    if (unlikely(marc_input_filename_or_create_flag == marc_output_filename_or_dnb_input))
-        LOG_ERROR("Norm data input file name equals output file name!");
-
-    while (MARC::Record record = marc_reader.get()->read()) {
-        // 035|a (DE-588)118562215
-        std::string record_gnd;
-        std::string wikidata_id;
-        std::string wikidata_id_orig;
-        std::string wikipedia_link;
-        std::string wikipedia_link_orig;
-        std::vector<std::string> wiki_elements;
-
-        MARC::GetGNDCode(record, &record_gnd);
-        MARC::GetWikidataId(record, &wikidata_id_orig);
-        MARC::GetWikipediaLink(record, &wikipedia_link_orig);
-
-        // record lookup
-        if (not record_gnd.empty()) {
-            auto gnd_to_wikielements_iter = gnd_to_wikielements.find(record_gnd);
-            if (gnd_to_wikielements_iter != gnd_to_wikielements.end()) {
-                wiki_elements = gnd_to_wikielements_iter->second;
-                if (wiki_elements.size() > 0)
-                    wikidata_id = wiki_elements[0];
-                if (wiki_elements.size() > 1)
-                    wikipedia_link = wiki_elements[1];
-            }
-        }
-
-        if (not wikidata_id.empty() and wikidata_id_orig != wikidata_id)
-            record.insertField("024", { { 'a', wikidata_id }, { '2', "wikidata" }, { '9', "PipeLineGenerated" } }, /*indicator 1*/ '7');
-        if (not wikipedia_link.empty() and wikipedia_link != wikipedia_link_orig)
-            record.insertField("670", { { 'a', "Wikipedia" }, { 'u', wikipedia_link }, { '9', "PipeLineGenerated" } });
-
-        marc_writer.get()->write(record);
-    }
-
-    return EXIT_SUCCESS;
+    return EXIT_FAILURE;
 }

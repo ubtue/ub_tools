@@ -88,10 +88,10 @@ def DownloadTheFile(file_name):
     return True
 
 
-def UpdateConfigFile(config_file, successful_generate_date, current_file_date_integer):
+def UpdateConfigFile(config_file, successful_generate_date):
     add_auth_ext_ref_config_file = open(config_file, "w+")
     add_auth_ext_ref_config_file.writelines(
-        [str(successful_generate_date), "\n",  str(current_file_date_integer)])
+        [str(successful_generate_date), "\n"])
 
 
 def IsThereANewlyReleasedFile():
@@ -127,7 +127,7 @@ def IsThereANewlyReleasedFile():
 
         else:
             # The config file is not exist, assume it needs to create gnd_wiki file
-            UpdateConfigFile(config_file, "0", current_file_date_integer)
+            UpdateConfigFile(config_file, "0")
             return True
 
     print("The file on the web is the same or older")
@@ -167,7 +167,7 @@ def Main():
                 print(
                     "Process 7/7 -- Updating the config file and remove temporary files")
                 UpdateConfigFile(
-                    config_file, current_file_date_integer, current_file_date_integer)
+                    config_file, current_file_date_integer)
                 util.ExecOrDie(util.Which("rm"), [
                                "-f", f"/tmp/{newer_file_name}"])
                 util.ExecOrDie(util.Which("rm"), [
