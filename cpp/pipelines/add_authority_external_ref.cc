@@ -186,7 +186,7 @@ bool GenerateGNDAuthorityExternalRef(char *argv[]) {
 }
 
 int Main(int argc, char *argv[]) {
-    if (argc < 4)
+    if (argc != 4)
         Usage();
 
     const std::string marc_input_filename_or_create_flag(argv[1]);
