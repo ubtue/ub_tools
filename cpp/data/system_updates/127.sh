@@ -1,5 +1,5 @@
-# Insert is_publisher provided also to the HTML cache
 #!/bin/bash
+# Insert is_publisher provided also to the HTML cache
 set -o errexit -o nounset -o pipefail
 
 echo "Trying to extend full_text_cache_html"
