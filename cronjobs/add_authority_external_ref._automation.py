@@ -38,6 +38,7 @@ Process logic:
 """
 
 import os
+import sys
 import re
 import requests
 import util
@@ -53,15 +54,13 @@ import shutil
 
 # Start global variable
 
-url = "https://data.dnb.de/opendata/"
+base_url = "https://data.dnb.de/opendata/"
 config_file = "/mnt/ZE020150/FID-Entwicklung/ub_tools/config_file_add_authority_ext_ref.cnf"
 share_folder = "/mnt/ZE020150/FID-Entwicklung/ub_tools/"
 # config_file = "/tmp/config_file_add_authority_ext_ref.cnf"
 # share_folder = "/tmp/"
-newer_file_name = ""
 gnd_wiki_file = "gnd_to_wiki.csv"
-current_file_date_integer = 0
-last_file_update_date_int = 0
+current_file_date_int = 0
 input_file_name_for_add_auth = "input_file_for_add_authority_external_ref.txt"
 
 
@@ -69,7 +68,8 @@ input_file_name_for_add_auth = "input_file_for_add_authority_external_ref.txt"
 
 
 def DownloadTheFile(file_name):
-    url_path = f'{url}{file_name}'
+    global base_url
+    url_path = f'{base_url}{file_name}'
     target_file = f'/tmp/{file_name}'
     dw = requests.get(url_path, stream=True)
     if dw.status_code != 200:
@@ -96,20 +96,20 @@ def UpdateConfigFile(config_file, successful_generate_date):
 
 def IsThereANewlyReleasedFile():
     file_name = ""
+    last_file_update_date_int = 0
     global config_file
-    global current_file_date_integer
-    global last_file_update_date_int
-    global newer_file_name
+    global current_file_date_int
+    global base_url
 
     base_name = "authorities-gnd-person_lds_"
-    webpage_object = urlopen(url)
+    webpage_object = urlopen(base_url)
     html_bytes = webpage_object.read()
     html = html_bytes.decode("utf-8")
 
     if re.search('authorities-gnd-person_lds_.*\.jsonld\.gz', html):
         file_name = re.search(
             'authorities-gnd-person_lds_.*\.jsonld\.gz', html).group(0)
-        current_file_date_integer = int(
+        current_file_date_int = int(
             file_name[len(base_name):len(base_name) + 8])
         if (os.path.exists(config_file)):
             add_auth_ext_ref_config_file = open(config_file, "r")
@@ -119,10 +119,7 @@ def IsThereANewlyReleasedFile():
             if (read_line_1.strip()):
                 last_file_update_date_int = int(read_line_1)
 
-            if (last_file_update_date_int < current_file_date_integer):
-                print(f"Last update date: {last_file_update_date_int}")
-                print(
-                    f"current version on the web: {current_file_date_integer}")
+            if (last_file_update_date_int < current_file_date_int):
                 return True
 
         else:
@@ -130,19 +127,24 @@ def IsThereANewlyReleasedFile():
             UpdateConfigFile(config_file, "0")
             return True
 
-    print("The file on the web is the same or older")
     return False
 
 
 def Main():
+    if len(sys.argv) != 2:
+        util.SendEmail(os.path.basename(sys.argv[0]),
+                       "This script needs to be called with an email address and the system type!\n", priority=1)
+        sys.exit(-1)
+    util.default_email_recipient = sys.argv[1]
+
     # 1. Check whether the date of file on the web is newer compare to the last date successful update
     print("Process 1/7 -- Check whether the file on the web is newer")
     if IsThereANewlyReleasedFile():
         # a. Download the newer file
         newer_gz_file_name = "authorities-gnd-person_lds_" + \
-            str(current_file_date_integer) + ".jsonld.gz"
+            str(current_file_date_int) + ".jsonld.gz"
         newer_file_name = "authorities-gnd-person_lds_" + \
-            str(current_file_date_integer) + ".jsonld"
+            str(current_file_date_int) + ".jsonld"
         print("Process 2/7 -- Downloading file")
         if DownloadTheFile(newer_gz_file_name):
             # b. The download file is a zip file, it needs to be extracted first
@@ -167,7 +169,7 @@ def Main():
                 print(
                     "Process 7/7 -- Updating the config file and remove temporary files")
                 UpdateConfigFile(
-                    config_file, current_file_date_integer)
+                    config_file, current_file_date_int)
                 util.ExecOrDie(util.Which("rm"), [
                                "-f", f"/tmp/{newer_file_name}"])
                 util.ExecOrDie(util.Which("rm"), [
@@ -175,9 +177,22 @@ def Main():
                 util.ExecOrDie(util.Which("rm"), [
                                "-f", f"/tmp/{gnd_wiki_file}"])
 
+                util.SendEmail("gnd_wiki_file generator",
+                               "Successfully generated gnd_wiki_file.", priority=5)
+
+            else:
+                util.SendEmail("gnd_wiki_file generator",
+                               "Error while running: " + jq_prog_with_pipe, priority=1)
+        else:
+            util.SendEmail("gnd_wiki_file generator",
+                           "Successfully generated gnd_wiki_file.", priority=1)
+    else:
+        util.SendEmail("gnd_wiki_file generator",
+                       "The file version on the web is the same or older.", priority=5)
+
 
 try:
     Main()
 except Exception as e:
-    print("Checking last update of file is error: " +
-          "\n\n" + traceback.format_exc(20))
+    util.SendEmail("gnd_wiki_file generator", "An unexpected error occurred: "
+                   + str(e) + "\n\n" + traceback.format_exc(20), priority=1)
