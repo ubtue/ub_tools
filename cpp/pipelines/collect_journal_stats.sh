@@ -51,7 +51,7 @@ OVERALL_START=$(date +%s.%N)
 
 # Note: It is necessary to run this phase after articles have had their journal's PPN's inserted!
 StartPhase "Populate the Zeder Journal Timeliness Database Table"
-(collect_journal_stats ${system_type} ${title_file} /dev/null >> "${log}" 2>&1 && \
+(collect_journal_stats ${system_type} ${title_file} /tmp/null >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
 
