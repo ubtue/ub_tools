@@ -287,7 +287,8 @@ FullTextCache::TextType FullTextCache::MapTextDescriptionToTextType(const std::s
 }
 
 
-void FullTextCache::extractPDFAndImportHTMLPages(const std::string &id, const std::string &full_text_location, const TextType &text_type) {
+void FullTextCache::extractPDFAndImportHTMLPages(const std::string &id, const std::string &full_text_location, const TextType &text_type,
+                                                 const bool is_publisher_provided) {
     const FileUtil::AutoTempDirectory auto_temp_dir("/tmp/ADT");
     const std::string html_export_directory(auto_temp_dir.getDirectoryPath());
     PdfUtil::ExtractHTMLAsPages(full_text_location, html_export_directory);
@@ -303,20 +304,28 @@ void FullTextCache::extractPDFAndImportHTMLPages(const std::string &id, const st
         std::stringstream full_text_stream;
         full_text_stream << page_file.rdbuf();
         std::string page_text(full_text_stream.str());
-        full_text_cache_html_.simpleInsert(
-            { { "id", id }, { "page", page_number }, { "full_text", page_text }, { "text_type", std::to_string(text_type) } });
+        full_text_cache_html_.simpleInsert({ { "id", id },
+                                             { "page", page_number },
+                                             { "full_text", page_text },
+                                             { "text_type", std::to_string(text_type) },
+                                             { "is_publisher_provided", is_publisher_provided ? "true" : "false" },
+                                             { "is_converted_pdf", "true" } });
     }
 }
 
 
-void FullTextCache::importHTMLFile(const std::string &id, const std::string &html_file_location, const TextType &text_type) {
+void FullTextCache::importHTMLFile(const std::string &id, const std::string &html_file_location, const TextType &text_type,
+                                   const bool is_publisher_provided) {
     std::ifstream html_file(html_file_location);
     std::stringstream full_text_stream;
     full_text_stream << html_file.rdbuf();
     std::string full_text(full_text_stream.str());
     if (not StringUtil::FindCaseInsensitive(full_text, "<html"))
         LOG_ERROR("\"" + html_file_location + "\" does not seem to be a valid html file");
-    full_text_cache_html_.simpleInsert({ { "id", id }, { "full_text", full_text }, { "text_type", std::to_string(text_type) } });
+    full_text_cache_html_.simpleInsert({ { "id", id },
+                                         { "full_text", full_text },
+                                         { "text_type", std::to_string(text_type) },
+                                         { "is_publisher_provided", is_publisher_provided ? "true" : "false" } });
 }
 
 

@@ -112,10 +112,12 @@ public:
     unsigned getSize() const;
 
     /** \brief Extract and Import Page oriented Full Text as HTML*/
-    void extractPDFAndImportHTMLPages(const std::string &id, const std::string &full_text_location, const TextType &text_type = FULLTEXT);
+    void extractPDFAndImportHTMLPages(const std::string &id, const std::string &full_text_location, const TextType &text_type = FULLTEXT,
+                                      const bool is_publisher_provided = false);
 
     /** \brief Import HTML Full Text */
-    void importHTMLFile(const std::string &id, const std::string &html_file_location, const TextType &text_type = FULLTEXT);
+    void importHTMLFile(const std::string &id, const std::string &html_file_location, const TextType &text_type = FULLTEXT,
+                        const bool is_publisher_provided = false);
 
     /* \note If "data" is empty only an entry will be made in the SQL database but not in the key/value store.  Also
      *       either "data" must be non-empty or "error_message" must be non-empty.

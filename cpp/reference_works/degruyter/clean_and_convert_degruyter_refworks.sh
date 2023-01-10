@@ -44,7 +44,7 @@ EBR_superior=$(printf "%s" '773i:Enthalten in\037tEncyclopedia of the Bible and 
                             '\037w(DE-627)1647336511')
 
 if [ $# != 2 ]; then
-    Usage/tmp/test9.tY9S.xml
+    Usage
 fi
 
 marc_in="$1"
@@ -71,6 +71,7 @@ GenerateTmpFiles
         --remove-fields '337:.*' \
         --remove-fields '338:.*' \
         --remove-fields '347:.*' \
+        --remove-fields '490:.*' \
         --remove-fields '500:.*' \
         --remove-fields '506:.*' \
         --remove-fields '530:.*' \

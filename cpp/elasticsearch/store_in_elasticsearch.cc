@@ -65,13 +65,14 @@ bool ImportDocument(const ControlNumberGuesser &control_number_guesser, FullText
         return true;
 
     if (StringUtil::EndsWith(full_text_data.full_text_location_, ".pdf", true /*ignore case*/)) {
-        full_text_cache->extractPDFAndImportHTMLPages(ppn, full_text_data.full_text_location_);
+        full_text_cache->extractPDFAndImportHTMLPages(ppn, full_text_data.full_text_location_, FullTextCache::FULLTEXT,
+                                                      is_publisher_provided);
         LOG_INFO("Inserted text from PDF \"" + filename + "\" as entry for PPN \"" + ppn + "\"");
         return true;
     }
 
     if (StringUtil::EndsWith(full_text_data.full_text_location_, ".html", true /*ignore case*/)) {
-        full_text_cache->importHTMLFile(ppn, full_text_data.full_text_location_);
+        full_text_cache->importHTMLFile(ppn, full_text_data.full_text_location_, FullTextCache::FULLTEXT, is_publisher_provided);
         LOG_INFO("Inserted text from PDF \"" + filename + "\" as entry for PPN \"" + ppn + "\"");
         return true;
     }
