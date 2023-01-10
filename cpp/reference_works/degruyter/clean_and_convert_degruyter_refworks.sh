@@ -44,7 +44,7 @@ EBR_superior=$(printf "%s" '773i:Enthalten in\037tEncyclopedia of the Bible and 
                             '\037w(DE-627)1647336511')
 
 if [ $# != 2 ]; then
-    Usage/tmp/test9.tY9S.xml
+    Usage
 fi
 
 marc_in="$1"
