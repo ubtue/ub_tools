@@ -28,7 +28,7 @@ LOG_DIR=/usr/local/var/log/tuefind
 0 17 * * * "$BIN/export_vufind_redirects" "/mnt/ZE020110/FID-Projekte/Statistik/redirects_$(hostname -s).csv" > "$LOG_DIR/export_vufind_redirects.log" 2>&1
 0 18 * * 6 "$VUFIND_HOME/util/tuefind_generate_sitemap.sh" "relbib"
 0 19 * * 6 "$VUFIND_HOME/util/tuefind_generate_sitemap.sh" "ixtheo"
-30 19 * * * "$BIN/collect_journal_stats.sh $TUFIND_FLAVOUR" > "$LOG_DIR/collect_journal_stats.log" 2>&1
+30 19 * * * "$BIN/collect_journal_stats.sh" "$TUFIND_FLAVOUR" > "$LOG_DIR/collect_journal_stats.log" 2>&1
 0 20 * * * cd "$BSZ_DATEN" && "$BIN/generate_beacon_file.py" "$EMAIL" "/usr/local/ub_tools/cpp/data/ixtheo-beacon.header" "$VUFIND_HOME/public/docs/ixtheo-beacon.txt" > "$LOG_DIR/generate_beacon_file_ixtheo.log" 2>&1
 15 20 * * * cd "$BSZ_DATEN" && "$BIN/generate_beacon_file.py" "--filter-field=REL" "$EMAIL" "/usr/local/ub_tools/cpp/data/relbib-beacon.header" "$VUFIND_HOME/public/relbib_docs/relbib-beacon.txt" > "$LOG_DIR/generate_beacon_file_relbib.log" 2>&1
 30 20 * * * cd "$BSZ_DATEN" && "$BIN/generate_beacon_file.py" "--filter-field=BIB" "$EMAIL" "/usr/local/ub_tools/cpp/data/bibstudies-beacon.header" "$VUFIND_HOME/public/docs/bibstudies-beacon.txt" > "$LOG_DIR/generate_beacon_file_bibstudies.log" 2>&1
