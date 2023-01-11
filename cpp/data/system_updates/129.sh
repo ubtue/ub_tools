@@ -1,6 +1,11 @@
 #!/bin/bash
 set -o errexit
 
+if [ -z ${TUEFIND_FLAVOUR} ]; then
+    echo "TUEFIND_FLAVOUR unset - Skipping"
+    exit 0
+fi
+
 root_crontab=/var/spool/cron/crontabs/root
 cronjobs_template=/usr/local/ub_tools/cpp/data/installer/${TUEFIND_FLAVOUR}.cronjobs
 
