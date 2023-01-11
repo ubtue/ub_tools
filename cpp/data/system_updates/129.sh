@@ -6,6 +6,17 @@ cronjobs_template=/usr/local/ub_tools/cpp/data/installer/${TUEFIND_FLAVOUR}.cron
 
 collect_journal_stats_line=$(grep collect_journal_stats ${cronjobs_template})
 
+if [ ! -f ${root_crontab} ]; then
+    echo "${root_crontab} does not seem to exist - Skipping"
+    exit 0
+fi
+
+if [ ! -r ${root_crontab} ]; then
+    echo "${root_crontab} not readable - Aborting"
+    exit 1
+fi
+
+
 if [ $(echo ${collect_journal_stats_line} | wc --lines) -ne 1 ]; then
     echo "Invalid number of candidate lines in ${cronjobs_template}"
     exit 1

@@ -4,6 +4,16 @@ set -o errexit
 root_crontab=/var/spool/cron/crontabs/root
 cronjobs_template=/usr/local/ub_tools/cpp/data/installer/${TUEFIND_FLAVOUR}.cronjobs
 
+if [ ! -f ${root_crontab} ]; then
+    echo "${root_crontab} does not seem to exist - Skipping"
+    exit 0
+fi
+
+if [ ! -r ${root_crontab} ]; then
+    echo "${root_crontab} not readable - Aborting"
+    exit 1
+fi
+
 clean_file_sessions_line=$(grep clean_file_sessions ${cronjobs_template})
 
 if [ $(echo ${clean_file_sessions_line} | wc --lines) -ne 1 ]; then
