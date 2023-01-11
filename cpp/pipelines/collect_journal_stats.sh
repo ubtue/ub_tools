@@ -4,7 +4,7 @@ source pipeline_functions.sh
 declare -r -i FIFO_BUFFER_SIZE=1000000 # in bytes
 
 
-TMP_NULL="/tmp/null"
+TMP_NULL="/tmp/null.mrc"
 function CreateTemporaryNullDevice {
     if [ ! -c ${TMP_NULL} ]; then
         mknod ${TMP_NULL} c 1 3
