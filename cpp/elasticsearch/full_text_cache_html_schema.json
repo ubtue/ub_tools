@@ -157,6 +157,13 @@
            "page": {
               "type": "integer"
            },
+           "is_publisher_provided" : {
+                "type" : "boolean"
+           },
+           "is_converted_pdf" : {
+                "type" : "boolean"
+           },
+
            "full_text" : {
               "type" : "text",
               "index_options" : "offsets",

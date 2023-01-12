@@ -5,6 +5,23 @@ HTML_DIR="html"
 TEXT_DIR="txt"
 XSLT_FILE="/tmp/Encyclopedia.xsl"
 
+
+function ExtractMetadataInformation {
+    # Generate header analogous to e.g.
+    dir=$(dirname $1)
+    xml_file=$(basename $1)
+    echo $(xmlstarlet sel -t -v '//mainentry' "${xml_file}")
+    echo $(xmlstarlet sel -t -v '//contributorgroup/name/@normal' "${xml_file}" | tr '\n' ';')
+    echo
+    echo $(xmlstarlet sel -t -v '//*[self::complexarticle or self::simplearticle]/@idno.doi' "${xml_file}" | \
+           sed --regexp-extended --expression 's#https?://dx.doi.org/##')
+    echo
+    echo
+    echo
+    echo "${dir}/${HTML_DIR}/${file%.xml}.html"
+}
+
+
 function ConvertSubdir {
     dir="$1"
     cd "${dir}"
@@ -18,7 +35,8 @@ function ConvertSubdir {
         xmlstarlet tr ${XSLT_FILE} ${file} > ${html_file}
         tidy --quiet true --show-warnings false -modify -wrap 0 -i ${html_file} || if [[ $? == 2 ]]; then echo "Error in tidy"; exit 1; fi
         echo "${html_file} => ${text_file}"
-        html2text -utf8 -style pretty "${html_file}" > "${text_file}"
+        cat <(ExtractMetadataInformation $(pwd)/${file}) > "${text_file}"
+        html2text -utf8 -style pretty "${html_file}" >> "${text_file}"
     done
     cd -
 }
@@ -33,7 +51,7 @@ function UnpackAndConvertArchives {
             continue
         fi
         unzip -o ${archive}
-        echo "Converting ${dir}/fulltextxml" 
+        echo "Converting ${dir}/fulltextxml"
         ConvertSubdir "${dir}/fulltextxml"
     done
     cd -

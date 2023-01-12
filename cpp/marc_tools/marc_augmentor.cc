@@ -111,8 +111,11 @@ bool CompiledPattern::matched(const MARC::Record &record, std::string * const va
     for (const auto &field : record.getTagRange(tag_)) {
         std::string err_msg;
         if (subfield_code_ == NO_SUBFIELD_CODE) { // Match a field.
-            if (matcher_.matched(field.getContents(), &err_msg))
+            if (matcher_.matched(field.getContents(), &err_msg, start_pos, end_pos)) {
+                if (value != nullptr)
+                    *value = field.getContents();
                 return true;
+            }
             if (unlikely(not err_msg.empty()))
                 LOG_ERROR("Unexpected error while trying to match \"" + matcher_.getPattern() + "\" against a field: " + err_msg);
         } else { // Match a subfield.
