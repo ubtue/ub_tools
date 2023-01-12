@@ -37,11 +37,8 @@
  *
  * Scenario 1:
  * use --create_mapping_file <input_txt_file> <output_csv_file> to generate the mapping file.
- * All processes from downloading data to generating output file is managed by the script 'add_authority_external_ref.automation.py'
- *
- * Generating the input file for scenario 1 must use the jq program. Since the .jsonld file is large enough than it is a must to parse it as
- * a stream and pipe it using grep. The complete command for this task is: jq -c --stream '.' < authorities-gnd-person_lds.jsonld |grep -E
- * 'https\\:/\\/d-nb\\.info\\/gnd\\/|wikidata|wikipedia'
+ * All processes from downloading data to generating output file is managed by the script 'add_authority_external_ref.automation.py'.
+ * The output_csv_file is 'gnd_to_wiki.csv', this file will be used in scenario 2.
  *
  * Scenario 2:
  * Use the converted file from the Scenario 1 to creata a map during pipeline processing.
@@ -92,25 +89,20 @@ bool GenerateGNDAuthorityExternalRef(char *argv[]) {
     }
 
     const auto csv_file(FileUtil::OpenOutputFileOrDie(argv[3]));
-
-
     const std::string dnb_address("https://d-nb.info/gnd/");
     const std::string wikidata_address("http://www.wikidata.org/entity/");
     const std::string wikipedia_address("https://de.wikipedia.org/wiki/");
     std::string gnd_id;
-    bool is_start_group = false;
+    bool is_start_group(false);
     GNDStructure gnd_data;
     int top_level_number(-1), second_level_number(-1), total_numbers_of_gnd_id_generated(0), total_line_parsed(0),
         total_number_of_wikidata(0), total_number_of_wikipedia(0);
-
     const int dnb_add_str_length(dnb_address.length()), wikidata_address_str_length(wikidata_address.length());
-
     std::string line, id_annotaton(""), second_element_of_array;
     nlohmann::json line_parsed;
     std::string gnd_id_temp_string;
     std::string wikidata_temp_string;
     std::string tmp_id;
-
 
     while (std::getline(input_file, line)) {
         line_parsed = nlohmann::json::parse(line);
@@ -195,6 +187,7 @@ bool GenerateGNDAuthorityExternalRef(char *argv[]) {
     input_file.close();
     return true;
 }
+
 void ParseGndWikidataMappingFile(std::string filename,
                                  std::unordered_map<std::string, std::vector<std::string>> * const gnd_to_wikidataid_and_wikipedia_link) {
     try {
@@ -208,7 +201,7 @@ void ParseGndWikidataMappingFile(std::string filename,
         }
 
     } catch (const std::exception &except) {
-        LOG_ERROR("CSV to MRC has error with exception: " + std::string(except.what()));
+        LOG_ERROR("Unable to parse CSV file: " + std::string(except.what()));
     }
 }
 

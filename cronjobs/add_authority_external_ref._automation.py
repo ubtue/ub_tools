@@ -40,28 +40,14 @@ Process logic:
 import os
 import sys
 import re
-import requests
 import util
 from urllib.request import urlopen
 import traceback
-from tqdm import tqdm
-import functools
-import shutil
-
-# this script needs:
-# 1. requests
-# 2. tqdm
 
 # Start global variable
 
 base_url = "https://data.dnb.de/opendata/"
-config_file = "/mnt/ZE020150/FID-Entwicklung/ub_tools/config_file_add_authority_ext_ref.cnf"
-share_folder = "/mnt/ZE020150/FID-Entwicklung/ub_tools/"
-# config_file = "/tmp/config_file_add_authority_ext_ref.cnf"
-# share_folder = "/tmp/"
-gnd_wiki_file = "gnd_to_wiki.csv"
-current_file_date_int = 0
-input_file_name_for_add_auth = "input_file_for_add_authority_external_ref.txt"
+config_file = "/mnt/ZE020150/FID-Entwicklung/ub_tools/add_authority_external_ref.state"
 
 
 # End global variable
@@ -71,21 +57,10 @@ def DownloadTheFile(file_name):
     global base_url
     url_path = f'{base_url}{file_name}'
     target_file = f'/tmp/{file_name}'
-    dw = requests.get(url_path, stream=True)
-    if dw.status_code != 200:
-        dw.raise_for_status()  # Will only raise for 4xx codes, so...
-        raise RuntimeError(
-            f"Request to {url_path} returned status code {dw.status_code}")
-
-    file_size = int(dw.headers.get('Content-Length', 0))
-
-    desc = "(Unknown total file size)" if file_size == 0 else ""
-    dw.raw.read = functools.partial(
-        dw.raw.read, decode_content=True)  # Decompress if needed
-    with tqdm.wrapattr(dw.raw, "read", total=file_size, desc=desc) as r_raw:
-        f = open(target_file, "wb")
-        shutil.copyfileobj(r_raw, f)
-    return True
+    if util.WgetFetch(url_path, target_file):
+        return True
+    else:
+        return False
 
 
 def UpdateConfigFile(config_file, successful_generate_date):
@@ -94,11 +69,11 @@ def UpdateConfigFile(config_file, successful_generate_date):
         [str(successful_generate_date), "\n"])
 
 
-def IsThereANewlyReleasedFile():
+def GetTheNewFileDate():
     file_name = ""
     last_file_update_date_int = 0
+    current_file_date_int = 0
     global config_file
-    global current_file_date_int
     global base_url
 
     base_name = "authorities-gnd-person_lds_"
@@ -120,17 +95,21 @@ def IsThereANewlyReleasedFile():
                 last_file_update_date_int = int(read_line_1)
 
             if (last_file_update_date_int < current_file_date_int):
-                return True
+                return current_file_date_int
 
         else:
             # The config file is not exist, assume it needs to create gnd_wiki file
             UpdateConfigFile(config_file, "0")
-            return True
-
-    return False
+            return current_file_date_int
+    # 0 means cannot find the file on the web or there is no new file compare to last update
+    return 0
 
 
 def Main():
+    share_folder = "/mnt/ZE020150/FID-Entwicklung/ub_tools/"
+    input_file_name_for_add_auth = "input_file_for_add_authority_external_ref.txt"
+    gnd_wiki_file = "gnd_to_wiki.csv"
+
     if len(sys.argv) != 2:
         util.SendEmail(os.path.basename(sys.argv[0]),
                        "This script needs to be called with an email address and the system type!\n", priority=1)
@@ -139,7 +118,8 @@ def Main():
 
     # 1. Check whether the date of file on the web is newer compare to the last date successful update
     print("Process 1/7 -- Check whether the file on the web is newer")
-    if IsThereANewlyReleasedFile():
+    current_file_date_int = GetTheNewFileDate()
+    if current_file_date_int != 0:
         # a. Download the newer file
         newer_gz_file_name = "authorities-gnd-person_lds_" + \
             str(current_file_date_int) + ".jsonld.gz"

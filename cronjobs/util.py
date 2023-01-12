@@ -25,8 +25,12 @@ import time
 import urllib.request
 
 
-def WgetFetch(url: str) -> bool:
-    return True if process_util.Exec("/usr/bin/wget", [ "--quiet", url ]) == 0 else False
+def WgetFetch(url: str, output: str = "None") -> bool:
+    if output == "None":
+        return True if process_util.Exec(Which("wget"), [ "--quiet", url ]) == 0 else False
+    else:
+        return True if process_util.Exec(Which("wget"), [ "--quiet", f"--output-document={output}", url ]) == 0 else False
+
 
 
 def HTTPDateToSecondsRelativetoUnixEpoch(http_date: str) -> int:
@@ -85,7 +89,8 @@ def RetrieveFileByURL(url: str, timeout: int, accepted_content_types: List[str] 
     return RetrieveFileByURLReturnCode.TIMEOUT
 
 
-default_email_recipient = "johannes.riedl@uni-tuebingen.de"
+# default_email_recipient = "johannes.riedl@uni-tuebingen.de"
+default_email_recipient = "steven.lolong@uni-tuebingen.de"
 default_config_file_dir = "/usr/local/var/lib/tuelib/cronjobs/"
 
 
