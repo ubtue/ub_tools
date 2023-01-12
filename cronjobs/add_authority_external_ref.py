@@ -112,7 +112,7 @@ def Main():
 
     if len(sys.argv) != 2:
         util.SendEmail(os.path.basename(sys.argv[0]),
-                       "This script needs to be called with an email address and the system type!\n", priority=1)
+                       "This script needs to be called with an email address!\n", priority=1)
         sys.exit(-1)
     util.default_email_recipient = sys.argv[1]
 

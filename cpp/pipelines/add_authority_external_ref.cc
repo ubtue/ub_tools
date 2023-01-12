@@ -49,10 +49,9 @@
 [[noreturn]] void Usage() {
     ::Usage(
         "\n\n"
-        "1) norm_data_marc_input <norm_data_marc_output> <mapping_txt_file>\n"
+        "1) <norm_data_marc_input> <norm_data_marc_output> <mapping_txt_file>\n"
         "2) --create_mapping_file <input_txt_file> <output_csv_file>\n"
         "\tinput_txt_file: The essential information from authorities-gnd-person_lds.jsonld.\n"
-        "\t\tGenerate the input file using the 'jq' program. \n"
         "\toutput_csv_file: the gnd_to_wiki file to write to, it is a csv with ';' as delimiter.\n");
 }
 
