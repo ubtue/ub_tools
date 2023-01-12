@@ -138,6 +138,7 @@ StartPhase "Parent-to-Child Linking and Flagging of Subscribable Items"
                                           GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" \
     >> "${log}" 2>&1 && \
 EndPhase || Abort) &
+wait
 
 
 StartPhase "Add Additional Open Access URL's"
