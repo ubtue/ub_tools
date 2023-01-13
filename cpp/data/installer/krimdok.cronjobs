@@ -28,3 +28,5 @@ LOG_DIR=/usr/local/var/log/tuefind
 {IF DEFINED(production)}0 0 1 * * "$BIN/download_krimdok_core.sh"{ENDIF}
 45 22 * * 4 "$BIN/generate_kalliope_originators.py" > "${LOG_DIR}/generate_kalliope_originators.py" 2>&1
 0 22 * * 4 "$BIN/update_beacon_files.sh" > "$LOG_DIR/update_beacon_files.log" 2>&1
+30 22 * * Fri cd "$BSZ_DATEN" && "$BIN/collect_journal_stats.sh" "$TUEFIND_FLAVOUR" > "$LOG_DIR/collect_journal_stats.log" 2>&1; "$BIN/send_status_email.sh" $? "$EMAIL" collect_journal_stats "$LOG_DIR"
+0 23 * * * "$BIN/clean_file_sessions.sh" "$EMAIL"

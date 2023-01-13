@@ -377,10 +377,10 @@ bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extractio
             const std::string temp_pdf_path(auto_temp_file.getFilePath());
             FileUtil::WriteStringOrDie(temp_pdf_path, document);
             if (not PdfUtil::PdfFileContainsNoText(temp_pdf_path))
-                cache.extractAndImportHTMLPages(ppn, temp_pdf_path,
-                                                use_only_open_access_links
-                                                    ? FullTextCache::MapTextDescriptionToTextType(url_and_text_type.text_type_)
-                                                    : FullTextCache::UNKNOWN);
+                cache.extractPDFAndImportHTMLPages(ppn, temp_pdf_path,
+                                                   use_only_open_access_links
+                                                       ? FullTextCache::MapTextDescriptionToTextType(url_and_text_type.text_type_)
+                                                       : FullTextCache::UNKNOWN);
         }
 
         entry_urls.push_back(entry_url);
