@@ -182,7 +182,7 @@ wait
 
 StartPhase "Appending Literary Remains Records"
 (create_literary_remains_records --no-subsystems \
-                                 GesamtTiteldaten-post-phase"$((PHASE-2))"-"${date}".mrc \
+                                 GesamtTiteldaten-post-phase"$((PHASE-3))"-"${date}".mrc \
                                  GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
                                  Normdaten-partially-augmented3-"${date}".mrc \
                                  Normdaten-fully-augmented-"${date}".mrc >> "${log}" 2>&1 && \
