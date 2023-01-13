@@ -203,7 +203,7 @@ if [[ $2 == "ixtheo" || $2 == "krimdok" ]]; then
     ColorEcho "installation -> running exporting .mrc file"
     . /etc/profile.d/vufind.sh \
         && /usr/local/vufind/import-marc.sh /usr/local/ub_tools/bsz_daten/biblio.mrc \
-        && /usr/local/vufind/import-marc-auth.sh /usr/local/ub_tools/bsz_daten/auth.mrs
+        && /usr/local/vufind/import-marc-auth.sh /usr/local/ub_tools/bsz_daten/auth.mrc
 
 
     ColorEcho "installation -> removing default apache website"
