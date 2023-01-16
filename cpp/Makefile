@@ -18,7 +18,6 @@ all: .deps $(PROGS)
 	$(MAKE) -C tests
 	$(MAKE) -C throwaways
 	$(MAKE) -C zotaut
-	$(MAKE) -C bibelwissenschaft
 
 %.o: %.cc Makefile
 	@echo "Compiling $< $(OPTIMISATIONS_STATE)..."
