@@ -187,6 +187,8 @@ std::string CreateNonEditableUpdateHintEntry(const std::string &value, const std
 
 void GetSynonymsForGNDCode(DbConnection &db_connection, const std::string &gnd_code, std::vector<std::string> * const synonyms) {
     synonyms->clear();
+    if (gnd_code == "0")
+        return;
     const std::string synonym_query("SELECT translation FROM keyword_translations WHERE gnd_code='" + gnd_code
                                     + "' AND status='reliable_synonym' AND language_code='ger'");
     DbResultSet result_set(ExecSqlAndReturnResultsOrDie(synonym_query, &db_connection));
@@ -201,6 +203,8 @@ void GetSynonymsForGNDCode(DbConnection &db_connection, const std::string &gnd_c
 void GetMACSTranslationsForGNDCode(DbConnection &db_connection, const std::string &gnd_code,
                                    std::vector<std::string> * const translations) {
     translations->clear();
+    if (gnd_code == "0")
+        return;
     const std::string macs_query("SELECT translation FROM keyword_translations WHERE gnd_code='" + gnd_code + "' "
                                  "AND origin=750 AND status='unreliable'");
     DbResultSet result_set(ExecSqlAndReturnResultsOrDie(macs_query, &db_connection));
