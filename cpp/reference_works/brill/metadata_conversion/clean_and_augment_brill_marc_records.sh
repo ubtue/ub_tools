@@ -13,7 +13,7 @@ function RemoveTempFiles {
     rm ${tmpfile1} ${tmpfile2}
 }
 
-TOOL_BASE_PATH="/usr/local/ub_tools/cpp/full_text_conversions/brill/metadata_conversion"
+TOOL_BASE_PATH="/usr/local/ub_tools/cpp/reference_works/brill/metadata_conversion"
 ADJUST_YEAR_XSLT="xsl/adjust_year.xsl"
 input_file="$1"
 output_file="$2"
@@ -146,12 +146,11 @@ marc_augmentor ${tmpfile1} ${tmpfile2} \
     --insert-field '084a:1\0372ssgn' \
     `# tag relbib appropriately` \
     --add-subfield-if '084a:0' '001:BEHO.*|BEJO.*|BERO.*|BESO.*|RPPO.*|VSRO.*' \
-    --insert-field '338a:Online-Resource\037bcr\0372rdacarrier' \
     --insert-field '852a:DE-Tue135' \
     --insert-field '935c:uwlx' \
+    --insert-field '935a:lxbr\0372LOK' \
     --insert-field '935a:mteo' \
     --insert-field '936j:XXX' \
-    --insert-field 'ELCa:1'
 
 # Fix indicators and year information
 cat ${tmpfile2} | \
