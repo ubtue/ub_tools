@@ -223,6 +223,11 @@ bool HasPseudoGNDCode(const MARC::Record &record, const IniFile &ini_file, std::
 }
 
 
+std::string IsPriorityEntry(const MARC::Record &record) {
+    return record.hasTag("PRI") ? "true" : "false";
+}
+
+
 bool ExtractTranslationsForASingleRecord(const MARC::Record * const record, const IniFile &ini_file) {
     // Skip records that are not GND records:
     std::string gnd_code;
@@ -261,7 +266,7 @@ bool ExtractTranslationsForASingleRecord(const MARC::Record * const record, cons
     std::string gnd_system(StringUtil::Join(gnd_systems, ","));
     const std::string INSERT_STATEMENT_START(
         "INSERT IGNORE INTO keyword_translations (ppn,gnd_code,language_code,"
-        "translation,status,origin,gnd_system,german_updated) VALUES ");
+        "translation,status,origin,gnd_system,german_updated, highlight_term) VALUES ");
     std::string insert_statement(INSERT_STATEMENT_START);
 
     size_t row_counter(0);
@@ -287,7 +292,8 @@ bool ExtractTranslationsForASingleRecord(const MARC::Record * const record, cons
         }
 
         insert_statement += "('" + ppn + "', '" + gnd_code + "', '" + language_code + "', '" + translation + "', '" + status + "', '"
-                            + origin + "', '" + gnd_system + "', " + (updated_german ? "true" : "false") + "), ";
+                            + origin + "', '" + gnd_system + "', " + (updated_german ? "true" : "false") + ", " + IsPriorityEntry(*record)
+                            + "), ";
         if (++row_counter > MAX_ROW_COUNT) {
             FlushToDatabase(insert_statement);
             insert_statement = INSERT_STATEMENT_START;

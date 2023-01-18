@@ -28,6 +28,7 @@ CREATE TABLE keyword_translations (
   gnd_system VARCHAR(30),
   translator VARCHAR(50),
   german_updated TINYINT(1),
+  priority_entry TINYINT(1),
   create_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
   prev_version_id INT DEFAULT NULL,
   next_version_id INT DEFAULT NULL,

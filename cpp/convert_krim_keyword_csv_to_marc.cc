@@ -98,6 +98,13 @@ std::string GetPPN(const std::string &csv_ppn) {
     return pseudo_ppn.str();
 }
 
+bool IsPriorityEntry(const std::vector<std::string> &line) {
+    if (line[HÄUFIGKEIT].empty())
+        return false;
+    unsigned freq(std::atoi(line[HÄUFIGKEIT].c_str()));
+    return freq >= 10; /* criterion defined by the criminologians*/
+}
+
 } // end unnamed namespace
 
 
@@ -136,6 +143,8 @@ int Main(int argc, char **argv) {
                 continue;
             new_record->insertField("450", 'a', *alternative);
         }
+        if (IsPriorityEntry(line))
+            new_record->insertField("PRI", 'a', "1");
 
         authority_marc_writer->write(*new_record);
         ++generated_records;
