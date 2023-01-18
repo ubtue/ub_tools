@@ -266,7 +266,7 @@ bool ExtractTranslationsForASingleRecord(const MARC::Record * const record, cons
     std::string gnd_system(StringUtil::Join(gnd_systems, ","));
     const std::string INSERT_STATEMENT_START(
         "INSERT IGNORE INTO keyword_translations (ppn,gnd_code,language_code,"
-        "translation,status,origin,gnd_system,german_updated, highlight_term) VALUES ");
+        "translation,status,origin,gnd_system,german_updated, priority_entry) VALUES ");
     std::string insert_statement(INSERT_STATEMENT_START);
 
     size_t row_counter(0);
