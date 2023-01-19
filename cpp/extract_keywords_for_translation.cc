@@ -203,8 +203,6 @@ static unsigned no_gnd_code_count;
 std::string GetPseudoGNDSigil(const IniFile &ini_file) {
     static std::string pseudo_gnd_sigil(ini_file.getString("Configuration", "pseudo_gnd_sigil"));
     return pseudo_gnd_sigil;
-    //(void) ini_file;
-    // return "(KRIM)";
 }
 
 
