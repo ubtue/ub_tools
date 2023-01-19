@@ -233,6 +233,20 @@ if [[ $2 == "ixtheo" || $2 == "krimdok" ]]; then
     systemctl restart mysql
 fi
 
+if [[ $2 == "krimdok" ]]; then
+    ColorEcho "installation -> create file for elasticsearch"
+    touch /etc/elasticsearch/charfilters.txt
+    touch /etc/elasticsearch/protwords.txt
+
+    ColorEcho "installation -> enabling elasticsearch"
+    systemctl enable elasticsearch
+
+    ColorEcho "installation -> start elasticsearch"
+    systemctl start elasticsearch
+
+
+fi
+
 if [[ $1 == "fulltext-backend" ]]; then
     ColorEcho "installation -> starting the elasticsearch service"
     su  -c /usr/share/elasticsearch/bin/elasticsearch -s /bin/bash elasticsearch
