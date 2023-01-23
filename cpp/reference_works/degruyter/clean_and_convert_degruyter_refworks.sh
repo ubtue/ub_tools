@@ -108,7 +108,7 @@ GenerateTmpFiles
         --insert-field 'ELCa:1' \
         --insert-field-if "${EBR_superior}" '001:EBR.*'
 
-    cat ${tmpfiles[4]} | xmlstarlet tr xsl/adjust_year.xsl > ${marc_out}
+    cat ${tmpfiles[4]} | xmlstarlet tr xsl/adjust_year.xsl | xmlstarlet tr xsl/fix_indicators.xsl > ${marc_out}
 
 echo "Finished conversion"
 

@@ -97,6 +97,7 @@ StartPhase "Filter out Self-referential 856 Fields" \
     --remove-fields 'LOK:086630(.*)\x{1F}x' `# Remove internal bibliographic comments` \
     --filter-chars 130a:240a:245a '@' \
     --remove-subfields '6002:blmsh' '6102:blmsh' '6302:blmsh' '6892:blmsh' '6502:blmsh' '6512:blmsh' '6552:blmsh' \
+                       '655k:.*' '655v:.*' \
     --replace 600a:610a:630a:648a:650a:650x:651a:653a:655a "(.*)\\.$" "\\1" `# Remove trailing periods for the following keyword normalisation.` \
     --replace-strings 600a:610a:630a:648a:650a:650x:651a:655a /usr/local/var/lib/tuelib/keyword_normalisation.map \
     --replace 100a:700a /usr/local/var/lib/tuelib/author_normalisation.map \
