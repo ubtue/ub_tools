@@ -170,7 +170,7 @@ std::string ReplaceAngleBracketsByOrdinaryBrackets(const std::string &value) {
 }
 
 std::string GetSearchBaseLink(const bool use_subject_link) {
-    return use_subject_link ? "Search/Results?lookfor=" : "/Keywordchainsearch/Results?lookfor=";
+    return use_subject_link ? "/Search/Results?type=Subject&lookfor=" : "/Keywordchainsearch/Results?lookfor=";
 }
 
 std::string GetGNDLink(const std::string &gnd_code) {
@@ -184,8 +184,8 @@ std::string GetGNDLink(const std::string &gnd_code) {
 std::string CreateNonEditableHintEntry(const std::string &value, const std::string gnd_code, const bool use_subject_link = false,
                                        const std::string background_color = "lightgrey") {
     return "<td style=\"background-color:" + background_color + "\"><a href = \"" + GetSearchBaseLink(use_subject_link)
-           + HtmlUtil::HtmlEscape(ReplaceAngleBracketsByOrdinaryBrackets(value)) + "\" target=\"_blank\">" + HtmlUtil::HtmlEscape(value)
-           + "</a>" + GetGNDLink(gnd_code) + "</td>";
+           + UrlUtil::UrlEncode(HtmlUtil::HtmlEscape(ReplaceAngleBracketsByOrdinaryBrackets(value))) + "\" target=\"_blank\">"
+           + HtmlUtil::HtmlEscape(value) + "</a>" + GetGNDLink(gnd_code) + "</td>";
 }
 
 
