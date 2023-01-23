@@ -252,7 +252,7 @@ bool IsMacsColumnVisible(const IniFile &ini_file) {
 
 
 bool IsUseSubjectSearchLink(const IniFile &ini_file) {
-    return ini_file.getBool(CONFIGURATION_SECTION, "use_subject_search_link");
+    return ini_file.getBool(CONFIGURATION_SECTION, "use_subject_search_link", false);
 }
 
 

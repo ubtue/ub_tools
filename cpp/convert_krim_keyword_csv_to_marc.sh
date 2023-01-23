@@ -23,3 +23,5 @@ libreoffice --headless --convert-to 'csv:Text - txt - csv (StarCalc):44,34,0' --
 
 cat ${krim_csv_full} | sed -r -e 's/,+$//' | sponge ${krim_csv_full}
 convert_krim_keyword_csv_to_marc ${krim_csv_full} ${marc_out}
+#Some cleanup
+marc_grep ${marc_out} 'if "150a"!="(#REF!)|^0$" extract *' marc_binary | sponge ${marc_out}
