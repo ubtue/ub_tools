@@ -31,8 +31,7 @@
 #include <vector>
 #include <cstdlib>
 #include "Compiler.h"
-#include "DbConnection.h"
-#include "IniFile.h"
+#include "ExecUtil.h"
 #include "MARC.h"
 #include "StringUtil.h"
 #include "TextUtil.h"
@@ -97,10 +96,18 @@ void InsertCreationDates(MARC::Record * const record, const std::string &year) {
 }
 
 
-void InsertAuthor(MARC::Record * const record, const std::string &data) {
-    if (data.length())
-        record->insertField("100", { { 'a', data }, { '4', "aut" }, { 'e', "VerfasserIn" } });
-    else
+void InsertAuthor(MARC::Record * const record, const std::string &author) {
+    if (author.length()) {
+        MARC::Subfields author_subfields({ { 'a', author }, { '4', "aut" }, { 'e', "VerfasserIn" } });
+        std::string author_gnd_candidate;
+        ExecUtil::ExecSubcommandAndCaptureStdout("swb_author_lookup \"" + author + "\"", &author_gnd_candidate);
+        if (not author_gnd_candidate.empty()) {
+            author_subfields.appendSubfield('0', "(DE-588)" + StringUtil::Trim(author_gnd_candidate, " \n"));
+            record->insertFieldAtEnd("887", { { 'a', "Autor [" + author + "] maschinell zugeordnet" } });
+        }
+        record->insertField("100", author_subfields);
+
+    } else
         LOG_WARNING("No author for " + record->getControlNumber());
 }
 
