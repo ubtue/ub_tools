@@ -114,10 +114,8 @@ WCEO_superior=$(printf "%s" '773i:Enthalten in\037tWorld Christian encyclopedia 
 
 # Remove superfluous fields and fix deceased author information
 marc_filter ${input_file} ${tmpfile1} \
-    --remove-fields '500a:Converted from MODS 3.7 to MARCXML.*' \
+    --remove-fields '500a:.*' \
     --remove-fields '540a:.*' --remove-fields '787t:' \
-    --remove-fields '500a:^...\s*$' \
-    --remove-fields '500a:^Author passed away: insert behind name  [(][†✝][)]...$' \
     --remove-fields '008:.*' \
     --replace '100a:700a' '(.*)\s*[(]?†[)]?\s*' '\1' \
     --replace '100a:700a' '^([^,]+)\s+([^,]+)$' '\2, \1'
