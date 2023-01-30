@@ -100,15 +100,18 @@ GenerateTmpFiles
         --insert-field '007:cr|||||' \
         --insert-field '084a:0\0372ssgn' \
         --insert-field '084a:1\0372ssgn' \
-        --insert-field '338a:Online-Resource\037bcr\0372rdacarrier' \
         --insert-field '852a:DE-Tue135' \
         --insert-field '935c:uwlx' \
         --insert-field '935a:mteo' \
         --insert-field '936j:XXX' \
+        --insert-field '935a:lxgr\0372LOK' \
         --insert-field 'ELCa:1' \
-        --insert-field-if "${EBR_superior}" '001:EBR.*'
+        --insert-field-if "${EBR_superior}" '001:EBR.*' \
+        --insert-field-if "935a:BIIN" '001:EBR.*'
 
-    cat ${tmpfiles[4]} | xmlstarlet tr xsl/adjust_year.xsl | xmlstarlet tr xsl/fix_indicators.xsl > ${marc_out}
+    cat ${tmpfiles[4]} | xmlstarlet tr xsl/adjust_year.xsl | xmlstarlet tr xsl/fix_indicators.xsl \
+        |  xmlstarlet tr xsl/fix_leader.xsl \
+        > ${marc_out}
 
 echo "Finished conversion"
 
