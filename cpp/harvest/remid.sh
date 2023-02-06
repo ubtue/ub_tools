@@ -3,6 +3,8 @@
 
 FILE_ORI="remid.xml"
 FILE_TEMP="remid_tmp.xml"
+FILE_TEMP_DEL_852="remid_tmp_del_852.xml"
+FILE_TEMP_ADD_852="remid_tmp_add_852.xml"
 FILE_TEMP_DEL_084="remid_tmp_del_084.xml"
 FILE_TEMP_ADD_084="remid_tmp_add_084.xml"
 FILE_TEMP_DEL_935="remid_tmp_del_935.xml"
@@ -27,15 +29,19 @@ sed -i '/^[[:space:]]*$/d' $FILE_TEMP
 # currently waiting for @relhei to specify which metadata needs to be changed before Uploading to BSZ.
 
 # remove tag(s) to avoid duplication of field with the same sub-field content and value
-marc_filter $FILE_TEMP $FILE_TEMP_DEL_084 --remove-fields '084:  \x1Fa0\x1F2ssgn'  
+marc_filter $FILE_TEMP $FILE_TEMP_DEL_852 --remove-fields '852:  \x1FaDE-Tue135'  
+marc_filter $FILE_TEMP_DEL_852 $FILE_TEMP_DEL_084 --remove-fields '084:  \x1Fa0\x1F2ssgn'  
 marc_filter $FILE_TEMP_DEL_084 $FILE_TEMP_DEL_935 --remove-fields '935:  \x1Faremi\x1F2LOK'   
 
 # add new tag(s) to remid
-marc_augmentor $FILE_TEMP_DEL_935 $FILE_TEMP_ADD_084 --insert-field '084:  \x1Fa0\x1F2ssgn' 
+marc_augmentor $FILE_TEMP_DEL_935 $FILE_TEMP_ADD_852 --insert-field '852:  \x1FaDE-Tue135' 
+marc_augmentor $FILE_TEMP_ADD_852 $FILE_TEMP_ADD_084 --insert-field '084:  \x1Fa0\x1F2ssgn' 
 marc_augmentor $FILE_TEMP_ADD_084 $FILE_NEW --insert-field '935:  \x1Faremi\x1F2LOK' 
 
 # remove unnecessary file
 rm -f $FILE_TEMP
+rm -f $FILE_TEMP_DEL_852
+rm -f $FILE_TEMP_ADD_852
 rm -f $FILE_TEMP_DEL_084
 rm -f $FILE_TEMP_ADD_084
 rm -f $FILE_TEMP_DEL_935
