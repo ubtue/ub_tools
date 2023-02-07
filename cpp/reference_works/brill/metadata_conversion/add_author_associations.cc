@@ -60,7 +60,7 @@ void AugmentMarc(MARC::Reader * const marc_reader, MARC::Writer * const marc_wri
                 std::string gnd(association->second);
                 author_subfields.appendSubfield('0', "(DE-588)" + gnd);
                 author_field.setSubfields(author_subfields);
-                record.insertFieldAtEnd("887", { { 'a', "Autor [" + author + "] maschinell zugeordnet" } });
+                record.insertFieldAtEnd("887", { { 'a', "Autor [" + author + "] maschinell zugeordnet" }, { '2', "ixzom" } });
             }
         }
         marc_writer->write(record);
