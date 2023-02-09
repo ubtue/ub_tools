@@ -398,13 +398,11 @@ bool ReplaceFieldRegex(MARC::Record * const record, const MARC::Tag &tag, const 
         if (field.getTag() != tag)
             continue;
 
-        std::string text_to_replace;
-        std::string field_value(field.getContents());
         MARC::Subfields subfields(field.getContents());
-
         if (subfields.hasSubfield(subfield_code))
             LOG_ERROR("Regex Replacement with subfield not supported! Please use '--replace-subfield-if-regex' instead.");
 
+        std::string field_value(field.getContents());
         bool global(HasGlobalFlag(replacement_regex));
         std::vector<std::string> pattern_and_replacement(GetSplitReplacementRegexWithoutGlobalFlagAndEscapedBackrefs(replacement_regex));
 
