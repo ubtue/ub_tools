@@ -9,7 +9,11 @@ fi
 
 #cf. https://serverfault.com/questions/786211/access-files-in-system-tmp-directory-when-using-privatetmp
 apache_pid=$(systemctl show --property=MainPID --value apache2.service)
-nsenter -t $apache_pid -m find /tmp/vufind_sessions/ -mindepth 1 -maxdepth 1 -mtime +3 -size -1000 -delete
+if  nsenter -t $apache_pid -m find /tmp/vufind_sessions/ >/dev/null 2>&1; then
+    nsenter -t $apache_pid -m find /tmp/vufind_sessions/ -mindepth 1 -maxdepth 1 -mtime +3 -size -1000 -delete
+else
+    exit 0
+fi
 
 if [ $? -ne 0 ]; then
      mutt -H - <<END_OF_EMAIL
