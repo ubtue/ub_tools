@@ -74,7 +74,7 @@ fi
 newest_full_dump_date=$(GetDateFromFilename "SA-MARC-*.tar.gz")
 newest_pseudo_dump_date=$(GetDateFromFilename "Complete-MARC-*.tar.gz")
 if [[ ${newest_full_dump_date} = ${newest_pseudo_dump_date} ]]; then
-    echo "Newest full dump and newest pseudo dump may not have the same date" >> ${log_file}
+    echo "Newest full dump and newest pseudo dump may not have the same date"
     exit 1
 fi
 
