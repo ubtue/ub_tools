@@ -44,9 +44,10 @@ void AddAuthorsToRecord(MARC::Record * const record, const std::unordered_map<st
                 _887_indicator1 = '1';
                 _887_indicator2 = 0x30;
             }
-            record->insertField(
-                "887", MARC::Subfields({ MARC::Subfield('a', "Autor in der Vorlage [" + entry->first + "] maschinell zugeordnet") }),
-                _887_indicator1, _887_indicator2);
+            record->insertField("887",
+                                MARC::Subfields({ MARC::Subfield('a', "Autor in der Vorlage [" + entry->first + "] maschinell zugeordnet"),
+                                                  MARC::Subfield('2', "ixtheom") }),
+                                _887_indicator1, _887_indicator2);
         }
     }
 }
