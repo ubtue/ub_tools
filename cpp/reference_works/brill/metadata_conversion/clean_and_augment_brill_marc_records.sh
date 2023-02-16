@@ -15,6 +15,7 @@ function RemoveTempFiles {
 
 TOOL_BASE_PATH="/usr/local/ub_tools/cpp/reference_works/brill/metadata_conversion"
 ADJUST_YEAR_XSLT="xsl/adjust_year.xsl"
+FIX_LEADER_XSLT="xsl/fix_leader.xsl"
 input_file="$1"
 output_file="$2"
 tmpfile1=$(mktemp -t marc_clean1XXXXX.xml)
@@ -143,7 +144,7 @@ marc_augmentor ${tmpfile1} ${tmpfile2} \
     --insert-field '007:cr|||||' \
     --insert-field '084a:1\0372ssgn' \
     `# tag relbib appropriately` \
-    --add-subfield-if '084a:0' '001:BEHO.*|BEJO.*|BERO.*|BESO.*|RPPO.*|VSRO.*' \
+    --add-subfield-if '084a:0' '001:.*' \
     --insert-field '852a:DE-Tue135' \
     --insert-field '935c:uwlx' \
     --insert-field '935a:lxbr\0372LOK' \
@@ -156,5 +157,6 @@ cat ${tmpfile2} | \
        -u '//_:datafield[@tag="773"]/@ind2' -v "8" \
        -u '//_:datafield[@tag="936"]/@ind1' -v "u" \
        -u '//_:datafield[@tag="936"]/@ind2' -v "w" |
-    xmlstarlet tr ${TOOL_BASE_PATH}/${ADJUST_YEAR_XSLT} \
+    xmlstarlet tr ${TOOL_BASE_PATH}/${ADJUST_YEAR_XSLT} | \
+    xmlstarlet tr ${TOOL_BASE_PATH}/${FIX_LEADER_XSLT} \
        > ${output_file}
