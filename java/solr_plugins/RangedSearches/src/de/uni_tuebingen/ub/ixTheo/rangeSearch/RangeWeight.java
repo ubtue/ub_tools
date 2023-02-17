@@ -1,6 +1,7 @@
 package de.uni_tuebingen.ub.ixTheo.rangeSearch;
 
 
+import java.beans.Expression;
 import java.io.IOException;
 import java.util.Set;
 import org.apache.lucene.document.Document;
@@ -51,16 +52,16 @@ public abstract class RangeWeight extends Weight {
         }
     }
 
-    @Override
-    public Explanation explain(LeafReaderContext context, int documentId) throws IOException {
-        return explain(context.reader().document(documentId));
-    }
+//    @Override
+//    public Explanation explain(LeafReaderContext context, int documentId) throws IOException {
+//        return explain(context.reader().document(documentId));
+//    }
 
-    @Override
-    @Deprecated
-    public void extractTerms(Set<Term> terms) {
-        // This is just a dummy, the function is deprecated (but mandatory) in Solr 8.
-    }
+//    @Override
+//    @Deprecated
+//    public void extractTerms(Set<Term> terms) {
+//        // This is just a dummy, the function is deprecated (but mandatory) in Solr 8.
+//    }
 
     @Override
     public final RangeScorer scorer(LeafReaderContext context) throws IOException {
@@ -78,4 +79,13 @@ public abstract class RangeWeight extends Weight {
     public final boolean isCacheable(LeafReaderContext context) {
         return false;
     }
+
+   // for now it is just use for compatibility
+    @Override
+    public Explanation explain(LeafReaderContext context, int doc) throws IOException {
+        // try to find another solution, this is just an example but it will go to infinite loop in some cases. 
+        // return new Explanation(context, doc);
+        return explain(context, doc);
+    }
+
 }
