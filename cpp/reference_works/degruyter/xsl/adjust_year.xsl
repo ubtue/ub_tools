@@ -14,5 +14,16 @@
         <xsl:variable name="year" select="ancestor::marc:datafield/preceding-sibling::marc:datafield[@tag='264']/marc:subfield[@code='c']"/>
         <xsl:value-of select="$year"/>
     </xsl:template>
-
+    <xsl:template match="marc:datafield[@tag='773']">
+        <xsl:copy-of select="."/>
+        <xsl:element name="datafield" namespace="http://www.loc.gov/MARC21/slim">
+            <xsl:attribute name="tag">773</xsl:attribute>
+            <xsl:attribute name="ind1">1</xsl:attribute>
+            <xsl:attribute name="ind2">8</xsl:attribute>
+            <xsl:element name="subfield" namespace="http://www.loc.gov/MARC21/slim">
+                 <xsl:attribute name="code">g</xsl:attribute>
+                 <xsl:text>year:</xsl:text><xsl:value-of select="./marc:subfield[@code='g']/text()"/>
+            </xsl:element>
+    </xsl:element>
+    </xsl:template>
 </xsl:stylesheet>

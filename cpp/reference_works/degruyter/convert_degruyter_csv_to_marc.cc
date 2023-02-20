@@ -158,6 +158,11 @@ void InsertLanguage(MARC::Record * const record, const std::string &data) {
     record->insertField("041", { { 'a', language_code } });
 }
 
+void InsertVolume(MARC::Record * const record, const std::string &data) {
+    if (not data.empty())
+        record->insertField("VOL", { { 'a', data } });
+}
+
 
 } // end unnamed namespace
 
@@ -183,6 +188,7 @@ int Main(int argc, char **argv) {
         InsertURL(new_record, line[URL]);
         InsertReferenceHint(new_record, line[ZIELSTICHWORT]);
         new_record->insertField("TYP", { { 'a', PSEUDO_PPN_PREFIX } });
+        InsertVolume(new_record, line[VOL]);
         marc_writer->write(*new_record);
         ++generated_records;
     }

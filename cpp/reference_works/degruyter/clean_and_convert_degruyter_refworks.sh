@@ -72,7 +72,6 @@ GenerateTmpFiles
         --remove-fields '338:.*' \
         --remove-fields '347:.*' \
         --remove-fields '490:.*' \
-        --remove-fields '500:.*' \
         --remove-fields '506:.*' \
         --remove-fields '530:.*' \
         --remove-fields '538:.*' \
@@ -109,8 +108,10 @@ GenerateTmpFiles
         --insert-field-if "${EBR_superior}" '001:EBR.*' \
         --insert-field-if "935a:BIIN" '001:EBR.*'
 
-    cat ${tmpfiles[4]} | xmlstarlet tr xsl/adjust_year.xsl | xmlstarlet tr xsl/fix_indicators.xsl \
+    cat ${tmpfiles[4]} | xmlstarlet tr xsl/adjust_year.xsl  \
         |  xmlstarlet tr xsl/fix_leader.xsl \
+        | saxonb-xslt -xsl:xsl/fix_indicators.xsl - \
+        | saxonb-xslt  -xsl:xsl/add_volume.xsl  - \
         > ${marc_out}
 
 echo "Finished conversion"

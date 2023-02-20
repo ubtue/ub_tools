@@ -81,7 +81,7 @@
         <xsl:attribute name="ind2">0</xsl:attribute>
             <xsl:element name="subfield" namespace="http://www.loc.gov/MARC21/slim">
               <xsl:attribute name="code">u</xsl:attribute>
-              <xsl:text>https://doi.org</xsl:text><xsl:value-of select="./subfield[@code='a']/text()"/>
+              <xsl:text>https://doi.org/</xsl:text><xsl:value-of select="./subfield[@code='a']/text()"/>
             </xsl:element>
             <xsl:element name="subfield" namespace="http://www.loc.gov/MARC21/slim">
               <xsl:attribute name="code">z</xsl:attribute>
