@@ -38,10 +38,10 @@ function NormalizePPN {
 
 
 EBR_superior=$(printf "%s" '773i:Enthalten in\037tEncyclopedia of the Bible and its reception' \
-                            '\037dBerlin : De Gruyter, 2009' \
-                            '\037g2009' \
+                            '\037dBerlin : De Gruyter, 2002' \
+                            '\037g2002' \
                             '\037hOnline-Ressource' \
-                            '\037w(DE-627)1647336511')
+                            '\037w(DE-627)612654680')
 
 if [ $# != 2 ]; then
     Usage
