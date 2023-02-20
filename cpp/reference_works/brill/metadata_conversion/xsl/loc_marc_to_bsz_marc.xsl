@@ -60,7 +60,7 @@
               <xsl:text> </xsl:text>
            </xsl:attribute>
            <xsl:attribute name="ind2">
-              <xsl:text> </xsl:text>
+              <xsl:text>1</xsl:text>
            </xsl:attribute>
            <subfield code="c">
                <xsl:copy-of select="substring(normalize-space(./subfield[@code='c']/text()),0,5)"/>
@@ -73,6 +73,23 @@
 
     <!-- Remove superflous 655 Brill content field -->
     <xsl:template match="datafield[@tag='655' and subfield[@code='a'][.='text'] and subfield[@code='2'][.='dct']]"/>
+    <xsl:template match="datafield[@tag='024']">
+        <xsl:copy-of select="."/>
+        <xsl:element name="datafield" namespace="http://www.loc.gov/MARC21/slim">
+        <xsl:attribute name="tag">856</xsl:attribute>
+        <xsl:attribute name="ind1">4</xsl:attribute>
+        <xsl:attribute name="ind2">0</xsl:attribute>
+            <xsl:element name="subfield" namespace="http://www.loc.gov/MARC21/slim">
+              <xsl:attribute name="code">u</xsl:attribute>
+              <xsl:text>https://doi.org</xsl:text><xsl:value-of select="./subfield[@code='a']/text()"/>
+            </xsl:element>
+            <xsl:element name="subfield" namespace="http://www.loc.gov/MARC21/slim">
+              <xsl:attribute name="code">z</xsl:attribute>
+              <xsl:text>ZZ</xsl:text>
+            </xsl:element>
+        </xsl:element>
+    </xsl:template>
+
 
     <!-- Remove superfluous whitespace -->
     <xsl:template match="datafield[not(@tag='007' or @tag='008')]//text()">
