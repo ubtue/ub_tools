@@ -386,6 +386,33 @@ bool ReplaceField(MARC::Record * const record, const MARC::Tag &tag, const char 
 }
 
 
+bool ReplaceFieldOrSubFieldRegex(MARC::Record::Field &field, const std::string &replacement_regex, const char subfield_code,
+                                 const bool is_field) {
+    bool global(HasGlobalFlag(replacement_regex));
+    std::vector<std::string> pattern_and_replacement(GetSplitReplacementRegexWithoutGlobalFlagAndEscapedBackrefs(replacement_regex));
+
+    if (unlikely(pattern_and_replacement.size() != 2))
+        LOG_ERROR("Invalid replacement pattern :\"" + replacement_regex + "\"\nMust follow /pattern/replacement/g? scheme");
+
+    ThreadSafeRegexMatcher replace_matcher(pattern_and_replacement[0]);
+
+    if (is_field) {
+        std::string field_value(field.getContents());
+        const std::string replacement_text(replace_matcher.replaceWithBackreferences(field_value, pattern_and_replacement[1], global));
+        field.setContents(replacement_text);
+        return true;
+    } else {
+        MARC::Subfields subfields(field.getContents());
+        const std::string subfield_value(subfields.getFirstSubfieldWithCode(subfield_code));
+        const std::string replacement_text(replace_matcher.replaceWithBackreferences(subfield_value, pattern_and_replacement[1], global));
+
+        if (subfields.replaceFirstSubfield(subfield_code, replacement_text)) {
+            field.setSubfields(subfields);
+            return true;
+        }
+    }
+    return false;
+}
 bool ReplaceFieldRegex(MARC::Record * const record, const MARC::Tag &tag, const char subfield_code, const std::string &replacement_regex,
                        CompiledPattern * const condition = nullptr) {
     if (condition != nullptr) {
@@ -402,18 +429,7 @@ bool ReplaceFieldRegex(MARC::Record * const record, const MARC::Tag &tag, const 
         if (subfields.hasSubfield(subfield_code))
             LOG_ERROR("Regex Replacement with subfield not supported! Please use '--replace-subfield-if-regex' instead.");
 
-        std::string field_value(field.getContents());
-        bool global(HasGlobalFlag(replacement_regex));
-        std::vector<std::string> pattern_and_replacement(GetSplitReplacementRegexWithoutGlobalFlagAndEscapedBackrefs(replacement_regex));
-
-        if (unlikely(pattern_and_replacement.size() != 2))
-            LOG_ERROR("Invalid replacement pattern :\"" + replacement_regex + "\"\nMust follow /pattern/replacement/g? scheme");
-
-        ThreadSafeRegexMatcher replace_matcher(pattern_and_replacement[0]);
-        const std::string replacement_text(replace_matcher.replaceWithBackreferences(field_value, pattern_and_replacement[1], global));
-
-        field.setContents(replacement_text);
-        replaced_at_least_one = true;
+        replaced_at_least_one = ReplaceFieldOrSubFieldRegex(field, replacement_regex, subfield_code, true);
     }
 
     return replaced_at_least_one;
@@ -434,26 +450,11 @@ bool ReplaceSubfieldRegex(MARC::Record * const record, const MARC::Tag &tag, con
         if (subfield_code == CompiledPattern::NO_SUBFIELD_CODE)
             LOG_ERROR("Regex Replacement without subfield not supported! Please use '--replace-field-if-regex' instead.");
 
-        std::string text_to_replace;
         MARC::Subfields subfields(field.getContents());
         if (not subfields.hasSubfield(subfield_code))
             continue;
 
-
-        bool global(HasGlobalFlag(replacement_regex));
-        std::vector<std::string> pattern_and_replacement(GetSplitReplacementRegexWithoutGlobalFlagAndEscapedBackrefs(replacement_regex));
-        if (unlikely(pattern_and_replacement.size() != 2))
-            LOG_ERROR("Invalid replacement pattern :\"" + replacement_regex + "\"\nMust follow /pattern/replacement/g? scheme");
-
-        const std::string subfield_value(subfields.getFirstSubfieldWithCode(subfield_code));
-        ThreadSafeRegexMatcher replace_matcher(pattern_and_replacement[0]);
-
-        const std::string replacement_text(replace_matcher.replaceWithBackreferences(subfield_value, pattern_and_replacement[1], global));
-
-        if (subfields.replaceFirstSubfield(subfield_code, replacement_text)) {
-            field.setSubfields(subfields);
-            replaced_at_least_one = true;
-        }
+        replaced_at_least_one = ReplaceFieldOrSubFieldRegex(field, replacement_regex, subfield_code, false);
     }
 
     return replaced_at_least_one;
