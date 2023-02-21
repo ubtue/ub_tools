@@ -11,6 +11,7 @@
 from requests import get
 import concurrent.futures
 import csv
+import json
 import sys
 
 if (len(sys.argv) != 3):
@@ -24,14 +25,14 @@ API_KEY = API_KEY_FILE.read().strip()
 DOI_FILE = open(sys.argv[1], "r")
 OUT_FILE = open(sys.argv[2], "w")
 HTTP_HEADERS = {"authorization": API_KEY}
-WORKER_THREAD_COUNT = 5
+WORKER_THREAD_COUNT = 10
 
 API_ENDPOINTS = {
     "Indexes": "http://opencitations.net/index/api/v1",
     "COCI": "http://opencitations.net/index/coci/api/v1",
     "DOCI": "http://opencitations.net/index/doci/api/v1",
-    "POCI": "http://opencitations.net/index/poci/api/v1",
-    "CROCI": "http://opencitations.net/index/croci/api/v1",
+    # "POCI": "http://opencitations.net/index/poci/api/v1",
+    # "CROCI": "http://opencitations.net/index/croci/api/v1",
 }
 
 
@@ -41,7 +42,12 @@ def process_doi(doi):
     for api_endpoint_name in API_ENDPOINTS:
         api_endpoint_url = API_ENDPOINTS[api_endpoint_name] + "/references/" + doi
         result = get(api_endpoint_url, HTTP_HEADERS)
-        row.append(result.status_code)
+
+        if (result.status_code == 200):
+            result_json = json.loads(result.text)
+            row.append("References: " + str(len(result_json)))
+        else:
+            row.append("Status: " + str(result.status_code))
 
     print(row)
     return row
