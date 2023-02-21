@@ -50,6 +50,7 @@ BERO_superior=$(printf "%s" '773i:Enthalten in\037tBrill'"'"'s Encyclopedia of t
 BESO_superior=$(printf "%s" '773i:Enthalten in\037tBrill'"'"'s encyclopedia of Sikhism' \
                             '\037dLeiden [u.a.] : Brill, 2017' \
                             '\037g2017' \
+                            '\037hOnline-Ressource' \
                             '\037w(DE-627)1561270474')
 
 ECO_superior=$(printf "%s" '773i:Enthalten in\037tEncyclopedia of Christianity online' \
@@ -77,10 +78,10 @@ ELRO_superior=$(printf "%s" '773i:Enthalten in\037tEncyclopedia of Law and Relig
                             '\037w(DE-627)840011121')
 
 ENBO_superior=$(printf "%s" '773i:Enthalten in\037tBrill'"'"'s Encyclopedia of Buddhism Online' \
-                            '\037dLeiden [u.a.] : Brill, XXXX' \
-                            '\037gXXXX' \
+                            '\037dLeiden [u.a.] : Brill, 2021' \
+                            '\037g2021' \
                             '\037hOnline-Ressource' \
-                            '\037w(DE-627)XXXXXXX')
+                            '\037w(DE-627)1772328642')
 
 LKRO_superior=$(printf "%s" '773i:Enthalten in\037tLexikon für Kirchen- und Religionsrecht' \
                             '\037dLeiden [u.a.] : Brill, 2019' \
