@@ -398,7 +398,7 @@ bool ReplaceFieldRegex(MARC::Record * const record, const MARC::Tag &tag, const 
         if (field.getTag() != tag)
             continue;
 
-        if (subfield_code != ' ')
+        if (subfield_code != CompiledPattern::NO_SUBFIELD_CODE)
             LOG_ERROR("Regex Replacement with subfield not supported! Please use '--replace-subfield-if-regex' instead.");
 
 
@@ -623,9 +623,8 @@ void ExtractCommandArgs(char ***argvp, MARC::Tag * const tag, char * const subfi
     if (first_colon_pos != MARC::Record::TAG_LENGTH and first_colon_pos != MARC::Record::TAG_LENGTH + 1)
         LOG_ERROR("invalid tag and optional subfield code after \"" + command + "\"!");
     *tag = MARC::Tag(tag_and_optional_subfield_code.substr(0, MARC::Record::TAG_LENGTH));
-    *subfield_code = (tag_and_optional_subfield_code.length() > MARC::Record::TAG_LENGTH)
-                         ? tag_and_optional_subfield_code[MARC::Record::TAG_LENGTH]
-                         : CompiledPattern::NO_SUBFIELD_CODE;
+    *subfield_code = (first_colon_pos > MARC::Record::TAG_LENGTH) ? tag_and_optional_subfield_code[MARC::Record::TAG_LENGTH]
+                                                                  : CompiledPattern::NO_SUBFIELD_CODE;
 
     *field_or_subfield_contents = tag_and_optional_subfield_code.substr(first_colon_pos + 1);
     if (field_or_subfield_contents->empty())
