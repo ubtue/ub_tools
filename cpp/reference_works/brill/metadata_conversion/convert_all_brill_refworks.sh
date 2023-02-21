@@ -53,5 +53,7 @@ for archive_file in $(find ${archive_dir} -regex $(printf "%s" ${REFWORKS}) -pri
     outfile=${output_dir}/ixtheo_brill_${archive_name}_$(date +'%y%m%d')_001.xml
     echo ${augment_authors} ${archive_tmp_file2} ${outfile} ${author_associations} 
     ${augment_authors} ${archive_tmp_file2} ${outfile} ${author_associations}
+    marc_format_outfile=${outfile%.xml}.txt
+    marc_grep ${outfile} 'if "001"==".*" extract *' traditional > ${marc_format_outfile}
 done
 
