@@ -15,74 +15,75 @@ function RemoveTempFiles {
 
 TOOL_BASE_PATH="/usr/local/ub_tools/cpp/reference_works/brill/metadata_conversion"
 ADJUST_YEAR_XSLT="xsl/adjust_year.xsl"
+FIX_LEADER_XSLT="xsl/fix_leader.xsl"
 input_file="$1"
 output_file="$2"
 tmpfile1=$(mktemp -t marc_clean1XXXXX.xml)
 tmpfile2=$(mktemp -t marc_clean2XXXXX.xml)
 
-EECO_superior=$(printf "%s" '773i:Enthalten in\037tBrill Encyclopedia of Early Christianity Online\037dLeiden : Brill, 2018' \
+EECO_superior=$(printf "%s" '773i:Enthalten in\037tBrill Encyclopedia of Early Christianity Online\037dLeiden [u.a.] : Brill, 2018' \
                             '\037g2018' \
                             '\037hOnline-Ressource' \
-                            '\037w(DE-627)1042525064\037w(DE-600)2952192-0\037w(DE-576)514794658')
+                            '\037w(DE-627)1042525064\037w(DE-600)2952192-0')
 
-BDRO_superior=$(printf "%s" '773i:Enthalten in\037tThe Brill dictionary of religion\037dLeiden : Brill, 2006' \
+BDRO_superior=$(printf "%s" '773i:Enthalten in\037tThe Brill dictionary of religion\037dLeiden [u.a.] : Brill, 2006' \
                             '\037g2006' \
                             '\037hOnline-Ressource' \
-                            '\037w(DE-627)1653634359\037w(DE-576)422642290')
+                            '\037w(DE-627)1653634359')
 
-BEHO_superior=$(printf "%s" '773i:Enthalten in\037tBrill'"'"'s Encyclopedia of Hinduism\037dLeiden : Brill, 2012' \
+BEHO_superior=$(printf "%s" '773i:Enthalten in\037tBrill'"'"'s Encyclopedia of Hinduism\037dLeiden [u.a.] : Brill, 2012' \
                             '\037g2012' \
                             '\037hOnline-Ressource' \
-                            '\037w(DE-627)734740913\037w(DE-600)2698886-0\037w(DE-576)377732672')
+                            '\037w(DE-627)734740913\037w(DE-600)2698886-0')
 
-BEJO_superior=$(printf "%s" '773i:Enthalten in\037tBrill'"'"'s Encyclopedia of Jainism Online\037dLeiden : Brill,2020' \
+BEJO_superior=$(printf "%s" '773i:Enthalten in\037tBrill'"'"'s Encyclopedia of Jainism Online\037dLeiden [u.a.] : Brill,2020' \
                             '\037g2020' \
                             '\037hOnline-Ressource' \
                             '\037w(DE-627)1693246007')
 
 BERO_superior=$(printf "%s" '773i:Enthalten in\037tBrill'"'"'s Encyclopedia of the religions of the indigenous people of South Asia online' \
-                            '\037dLeiden : Brill, 2021' \
+                            '\037dLeiden [u.a.] : Brill, 2021' \
                             '\037g2021' \
                             '\037hOnline-Ressource' \
                             '\037w(DE-627)1777997526')
 
 BESO_superior=$(printf "%s" '773i:Enthalten in\037tBrill'"'"'s encyclopedia of Sikhism' \
-                            '\037dLeiden : Brill, 2017' \
+                            '\037dLeiden [u.a.] : Brill, 2017' \
                             '\037g2017' \
                             '\037w(DE-627)1561270474')
 
 ECO_superior=$(printf "%s" '773i:Enthalten in\037tEncyclopedia of Christianity online' \
-                            '\037dLeiden : Brill, 2011' \
+                            '\037dLeiden [u.a.] : Brill, 2011' \
                             '\037g2011' \
                             '\037hOnline-Ressource' \
                             '\037w(DE-627)1809053870')
 
 EGPO_superior=$(printf "%s" '773i:Enthalten in\037tBrill'"'"'s encyclopedia of global pentecostalism online' \
-                            '\037dLeiden : Brill, 2020' \
+                            '\037dLeiden [u.a.] : Brill, 2020' \
                             '\037g2020' \
                             '\037hOnline-Ressource' \
                             '\037w(DE-627)1809055768')
 
 EJIO_superior=$(printf "%s" '773i:Enthalten in\037tEncyclopedia of Jews in the Islamic World' \
-                            '\037dLeiden : Brill, 2010' \
+                            '\037dLeiden [u.a.] : Brill, 2010' \
                             '\037g2010' \
                             '\037hOnline-Ressource' \
                             '\037w(DE-627)635135574')
 
 ELRO_superior=$(printf "%s" '773i:Enthalten in\037tEncyclopedia of Law and Religion Online' \
-                            '\037dLeiden : Brill, 2015' \
+                            '\037dLeiden [u.a.] : Brill, 2015' \
                             '\037g2015' \
                             '\037hOnline-Ressource' \
                             '\037w(DE-627)840011121')
 
 ENBO_superior=$(printf "%s" '773i:Enthalten in\037tBrill'"'"'s Encyclopedia of Buddhism Online' \
-                            '\037dLeiden : Brill, XXXX' \
+                            '\037dLeiden [u.a.] : Brill, XXXX' \
                             '\037gXXXX' \
                             '\037hOnline-Ressource' \
                             '\037w(DE-627)XXXXXXX')
 
 LKRO_superior=$(printf "%s" '773i:Enthalten in\037tLexikon für Kirchen- und Religionsrecht' \
-                            '\037dLeiden : Brill, 2019' \
+                            '\037dLeiden [u.a.] : Brill, 2019' \
                             '\037g2019' \
                             '\037hOnline-Ressource' \
                             '\037w(DE-627)1780808704')
@@ -94,19 +95,19 @@ RGG4_superior=$(printf "%s" '773i:Enthalten in\037tReligion in Geschichte und Ge
                             '\037w(DE-627)XXXXXXXX')
 
 RPPO_superior=$(printf "%s" '773i:Enthalten in\037tReligion Past and Present online' \
-                            '\037dLeiden : Brill, 2015' \
+                            '\037dLeiden [u.a.] : Brill, 2015' \
                             '\037g2015' \
                             '\037hOnline-Ressource' \
-                            '\037w(DE-627)832783099\037w(DE-600)2829692-8\037w(DE-576)442691327')
+                            '\037w(DE-627)832783099\037w(DE-600)2829692-8')
 
 VSRO_superior=$(printf "%s" '773i:Enthalten in\037tVocabulary for the Study of Religion Online' \
-                            '\037dLeiden : Brill, 2015' \
+                            '\037dLeiden [u.a.] : Brill, 2015' \
                             '\037g2015' \
                             '\037hOnline-Ressource' \
-                            '\037w(DE-627)837395917\037w(DE-600)2836071-0\037w(DE-576)445958901')
+                            '\037w(DE-627)837395917\037w(DE-600)2836071-0')
 
 WCEO_superior=$(printf "%s" '773i:Enthalten in\037tWorld Christian encyclopedia online' \
-                            '\037dLeiden : Brill, 2022' \
+                            '\037dLeiden [u.a.] : Brill, 2022' \
                             '\037g2022' \
                             '\037hOnline-Ressource' \
                             '\037w(DE-627)1809051452')
@@ -143,7 +144,7 @@ marc_augmentor ${tmpfile1} ${tmpfile2} \
     --insert-field '007:cr|||||' \
     --insert-field '084a:1\0372ssgn' \
     `# tag relbib appropriately` \
-    --add-subfield-if '084a:0' '001:BEHO.*|BEJO.*|BERO.*|BESO.*|RPPO.*|VSRO.*' \
+    --add-subfield-if '084a:0' '001:.*' \
     --insert-field '852a:DE-Tue135' \
     --insert-field '935c:uwlx' \
     --insert-field '935a:lxbr\0372LOK' \
@@ -156,5 +157,6 @@ cat ${tmpfile2} | \
        -u '//_:datafield[@tag="773"]/@ind2' -v "8" \
        -u '//_:datafield[@tag="936"]/@ind1' -v "u" \
        -u '//_:datafield[@tag="936"]/@ind2' -v "w" |
-    xmlstarlet tr ${TOOL_BASE_PATH}/${ADJUST_YEAR_XSLT} \
+    xmlstarlet tr ${TOOL_BASE_PATH}/${ADJUST_YEAR_XSLT} | \
+    xmlstarlet tr ${TOOL_BASE_PATH}/${FIX_LEADER_XSLT} \
        > ${output_file}

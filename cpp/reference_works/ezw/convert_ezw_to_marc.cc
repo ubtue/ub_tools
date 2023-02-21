@@ -92,7 +92,7 @@ MARC::Subfields GetSuperiorWorkDescription(const std::string &publication_year) 
 void InsertCreationDates(MARC::Record * const record, const std::string &year) {
     if (not year.empty())
         record->insertField("936", { { 'j', year } }, 'u', 'w');
-    record->insertField("264", { { 'c', year } });
+    record->insertField("264", { { 'c', year } }, '1');
 }
 
 
