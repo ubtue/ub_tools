@@ -133,6 +133,7 @@ void InsertDOI(MARC::Record * const record, const std::string &doi) {
     if (doi.empty())
         return;
     record->insertField("024", { { 'a', doi }, { '2', "doi" } }, '7');
+    record->insertField("856", { { 'u', "https://doi.org/" + doi }, { 'z', "ZZ" } }, '4', '0');
 }
 
 
@@ -146,7 +147,7 @@ void InsertURL(MARC::Record * const record, const std::string &data) {
 
 void InsertReferenceHint(MARC::Record * const record, const std::string &data) {
     if (data.length())
-        record->insertField("500", { { 'a', data } });
+        record->insertField("500", { { 'a', "Verweis auf \"" + data + "\"" } });
 }
 
 
