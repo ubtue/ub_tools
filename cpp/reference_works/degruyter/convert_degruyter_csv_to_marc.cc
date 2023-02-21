@@ -117,7 +117,7 @@ void InsertAuthors(MARC::Record * const record, const std::string &author1, cons
 
 void InsertTitle(MARC::Record * const record, const std::string &data) {
     if (data.length())
-        record->insertField("245", { { 'a', data } }, '0', '0');
+        record->insertField("245", { { 'a', data } }, '1', '0');
     else
         LOG_WARNING("No title for " + record->getControlNumber());
 }
@@ -125,7 +125,7 @@ void InsertTitle(MARC::Record * const record, const std::string &data) {
 
 void InsertCreationDates(MARC::Record * const record, const std::string &year) {
     if (not year.empty())
-        record->insertField("264", { { 'c', year } });
+        record->insertField("264", { { 'c', year } }, ' ', '1');
 }
 
 
