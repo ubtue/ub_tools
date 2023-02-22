@@ -124,22 +124,22 @@ marc_filter ${input_file} ${tmpfile1} \
 
 # Insert additionally needed fields
 marc_augmentor ${tmpfile1} ${tmpfile2} \
-    --insert-field-if "${EECO_superior}" '001:EECO.*' \
-    --insert-field-if "${BDRO_superior}" '001:BDRO.*' \
-    --insert-field-if "${BEHO_superior}" '001:BEHO.*' \
-    --insert-field-if "${BEJO_superior}" '001:BEJO.*' \
-    --insert-field-if "${BERO_superior}" '001:BERO.*' \
-    --insert-field-if "${BESO_superior}" '001:BESO.*' \
-    --insert-field-if "${ECO_superior}" '001:ECO.*' \
-    --insert-field-if "${EGPO_superior}" '001:EGPO.*' \
-    --insert-field-if "${EJIO_superior}" '001:EJIO.*' \
-    --insert-field-if "${ELRO_superior}" '001:ELRO.*' \
-    --insert-field-if "${ENBO_superior}" '001:ENBO.*' \
-    --insert-field-if "${LKRO_superior}" '001:LKRO.*' \
-    --insert-field-if "${RGG4_superior}" '001:RGG4.*' \
-    --insert-field-if "${RPPO_superior}" '001:RPPO.*' \
-    --insert-field-if "${VSRO_superior}" '001:VSRO.*' \
-    --insert-field-if "${WCEO_superior}" '001:WCEO.*' \
+    --insert-field-if "${EECO_superior}" '001:^EECO.*' \
+    --insert-field-if "${BDRO_superior}" '001:^BDRO.*' \
+    --insert-field-if "${BEHO_superior}" '001:^BEHO.*' \
+    --insert-field-if "${BEJO_superior}" '001:^BEJO.*' \
+    --insert-field-if "${BERO_superior}" '001:^BERO.*' \
+    --insert-field-if "${BESO_superior}" '001:^BESO.*' \
+    --insert-field-if "${ECO_superior}" '001:^ECO.*' \
+    --insert-field-if "${EGPO_superior}" '001:^EGPO.*' \
+    --insert-field-if "${EJIO_superior}" '001:^EJIO.*' \
+    --insert-field-if "${ELRO_superior}" '001:^ELRO.*' \
+    --insert-field-if "${ENBO_superior}" '001:^ENBO.*' \
+    --insert-field-if "${LKRO_superior}" '001:^LKRO.*' \
+    --insert-field-if "${RGG4_superior}" '001:^RGG4.*' \
+    --insert-field-if "${RPPO_superior}" '001:^RPPO.*' \
+    --insert-field-if "${VSRO_superior}" '001:^VSRO.*' \
+    --insert-field-if "${WCEO_superior}" '001:^WCEO.*' \
     --insert-field '003:DE-Tue135' \
     --insert-field '005:'$(date +'%Y%m%d%H%M%S')'.0' \
     --insert-field '007:cr|||||' \
@@ -157,7 +157,8 @@ cat ${tmpfile2} | \
     xmlstarlet ed -O -u '//_:datafield[@tag="773"]/@ind1' -v "0" \
        -u '//_:datafield[@tag="773"]/@ind2' -v "8" \
        -u '//_:datafield[@tag="936"]/@ind1' -v "u" \
-       -u '//_:datafield[@tag="936"]/@ind2' -v "w" |
+       -u '//_:datafield[@tag="936"]/@ind2' -v "w" \
+       -u '//_:datafield[@tag="041"]/@ind1' -v ' ' | \
     xmlstarlet tr ${TOOL_BASE_PATH}/${ADJUST_YEAR_XSLT} | \
     xmlstarlet tr ${TOOL_BASE_PATH}/${FIX_LEADER_XSLT} \
        > ${output_file}
