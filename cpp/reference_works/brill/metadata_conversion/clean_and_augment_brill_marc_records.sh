@@ -51,7 +51,7 @@ BESO_superior=$(printf "%s" '773i:Enthalten in\037tBrill'"'"'s encyclopedia of S
                             '\037dLeiden [u.a.] : Brill, 2017' \
                             '\037g2017' \
                             '\037hOnline-Ressource' \
-                            '\037w(DE-627)1561270474')
+                            '\037w(DE-627)1771618876')
 
 ECO_superior=$(printf "%s" '773i:Enthalten in\037tEncyclopedia of Christianity online' \
                             '\037dLeiden [u.a.] : Brill, 2011' \
