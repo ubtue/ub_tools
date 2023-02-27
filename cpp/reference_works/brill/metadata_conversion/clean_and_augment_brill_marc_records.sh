@@ -10,7 +10,7 @@ fi
 
 
 function RemoveTempFiles {
-    rm ${tmpfile1} ${tmpfile2} ${tmpfile3} ${tmpfile4}
+    rm ${tmpfile1} ${tmpfile2} ${tmpfile3} ${tmpfile4} ${tmpfile5}
 }
 
 TOOL_BASE_PATH="/usr/local/ub_tools/cpp/reference_works/brill/metadata_conversion"
@@ -22,6 +22,9 @@ tmpfile1=$(mktemp -t marc_clean1XXXXX.xml)
 tmpfile2=$(mktemp -t marc_clean2XXXXX.xml)
 tmpfile3=$(mktemp -t marc_clean3XXXXX.xml)
 tmpfile4=$(mktemp -t marc_clean4XXXXX.xml)
+tmpfile5=$(mktemp -t marc_clean5XXXXX.xml)
+#tmppipe=$(mktemp --dry-run -t marc_clean_pipe_XXXXX.xml)
+#mkfifo -m 600 ${tmppipe}
 
 EECO_superior=$(printf "%s" '773i:Enthalten in\037tBrill Encyclopedia of Early Christianity Online\037dLeiden [u.a.] : Brill, 2018' \
                             '\037g2018' \
@@ -154,12 +157,18 @@ marc_augmentor ${tmpfile1} ${tmpfile2} \
     --insert-field '935a:mteo' \
     --insert-field '936j:XXX' \
 
-# Special fix for ENBO - set fixed year
-    marc_filter ${tmpfile2} ${tmpfile3} --remove-fields '264c:.*'
-    marc_augmentor ${tmpfile3} ${tmpfile4} --insert-field-if "264: 1\037c2020" '001:^ENBO.*'
+# Special fixes for specific works (fixed year for ENBO and add KALD additions)
+    marc_augmentor ${tmpfile2} ${tmpfile3} \
+        --add-subfield-if-regex '264c:/.*/XXXX/' '001:^ENBO.*'
+    marc_filter ${tmpfile3} ${tmpfile4} \
+        --remove-fields '264c:XXXX'
+    marc_augmentor ${tmpfile4} ${tmpfile5} \
+        --insert-field-if "264: 1\037c2020" '001:^ENBO.*' \
+        --insert-field-if "935a:KALD"  '001:^ELRO.*' \
+        --insert-field-if "935a:KALD"  '001:^LKRO.*'
 
 # Fix indicators and year information
-cat ${tmpfile4} | \
+cat ${tmpfile5} | \
     xmlstarlet ed -O -u '//_:datafield[@tag="773"]/@ind1' -v "0" \
        -u '//_:datafield[@tag="773"]/@ind2' -v "8" \
        -u '//_:datafield[@tag="936"]/@ind1' -v "u" \
