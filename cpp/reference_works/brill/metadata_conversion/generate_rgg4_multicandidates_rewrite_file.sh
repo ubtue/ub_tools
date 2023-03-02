@@ -17,11 +17,12 @@ function RemoveTempFiles {
 trap RemoveTempFiles EXIT
 tmpfile1=$(mktemp -t generate_rgg4_multicandidates_rewriteXXXXX.txt)
 
-# Do a general |-separated rewriting
-cat ${input} | sed -e '/^[^\t]/ d' | tr -d '\t'  | sed -re 's/(\b(\w+)\s+\2\b(.*))/\1 | \2\3/' \
+# Do a general |-separated rewriting and replace simple terms like of
+cat ${input} | sed -e '/^[^\t]/ d' | tr -d '\t'  | sed -re 's/(\b(\w+)\s+\2\b(.*))/\1 | \2\3/' | \
+    awk -F'[|]' -vOFS='|' '{gsub(/ of /, " von ", $2); gsub(/Pope/, "Papst", $2);  print}' \
     > ${tmpfile1}
 
-# Write rewrite file
+# Write escaped rewrite file
 cat ${tmpfile1} | \
     grep ' [|] ' | \
     `#Escape ->` \
@@ -37,5 +38,7 @@ cat ${tmpfile1} | \
 cat ${tmpfile1} | \
     grep -v ' [|] ' | \
     `#Remove one word tokens => they don't need replacements` \
-    grep -Ev '^\w+$' \
+    grep -Ev '^\w+$' | \
+    sort | \
+    uniq \
     > ${manual_candidates}
