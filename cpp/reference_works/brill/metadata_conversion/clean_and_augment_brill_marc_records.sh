@@ -168,7 +168,8 @@ marc_augmentor ${tmpfile1} ${tmpfile2} \
         --remove-fields '264c:XXXX' \
         --remove-fields '100a:not-specified' \
         --replace "100a" "QC, Mark Hill" "Hill, Mark"  \
-        --replace "100a" "Others, Charles Ladbrooke and" "Ladbrooke, Charles"
+        --replace "100a" "Others, Charles Ladbrooke and" "Ladbrooke, Charles" \
+        --replace "245a" "(.*) / (.*)" "\1/\2"
     marc_augmentor ${tmpfile4} ${tmpfile5} \
         --insert-field-if "264: 1\037c2020" '001:^ENBO.*' \
         --insert-field-if "935a:KALD"  '001:^ELRO.*' \
