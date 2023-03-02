@@ -28,8 +28,9 @@ cat <(cat ${tmpfile1} | grep -v '|||' | sed -rn '/\w+:$/q;p') | \
     sed -re 's/ [|] /->/' \
     > ${tmpfile2}
 
-# Get multicandidates
-cat <(cat ${tmpfile1} | sed -rn '/\w+:$/,$ p' | grep -v '||||') > ${output%.txt}_multicandidates.txt
+# Get ambigous entries
+output_multicandidates=${output%.txt}_multicandidates.txt
+cat <(cat ${tmpfile1} | sed -rn '/\w+:$/,$ p' | grep -v '||||') > ${output_multicandidates}
 # Get unassociated
 cat  <(cat ${tmpfile1} | grep '||||') | \
     `#Replace double expressions, but replace strange space character before` \
