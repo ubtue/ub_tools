@@ -157,11 +157,19 @@ marc_augmentor ${tmpfile1} ${tmpfile2} \
     --insert-field '935a:mteo' \
     --insert-field '936j:XXX' \
 
-# Special fixes for specific works (fixed year for ENBO and add KALD additions)
+# Special fixes for specific works:
+#  - fixed year for ENBO
+#  - add KALD for ELRO and LKRO
+#  - remove unspecified authors for ELRO
+#  - fix specifically wrong authors for ELRO
     marc_augmentor ${tmpfile2} ${tmpfile3} \
         --add-subfield-if-regex '264c:/.*/XXXX/' '001:^ENBO.*'
     marc_filter ${tmpfile3} ${tmpfile4} \
-        --remove-fields '264c:XXXX'
+        --remove-fields '264c:XXXX' \
+        --remove-fields '100a:not-specified' \
+        --replace "100a" "QC, Mark Hill" "Hill, Mark"  \
+        --replace "100a" "Others, Charles Ladbrooke and" "Ladbrooke, Charles" \
+        --replace "245a" "(.*) / (.*)" "\1/\2"
     marc_augmentor ${tmpfile4} ${tmpfile5} \
         --insert-field-if "264: 1\037c2020" '001:^ENBO.*' \
         --insert-field-if "935a:KALD"  '001:^ELRO.*' \
