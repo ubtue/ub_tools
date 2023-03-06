@@ -26,7 +26,8 @@ augment_authors="./add_author_associations"
 get_author_associations="./associate_authors.sh"
 associate_rgg4_titles_script="./associate_rgg4_titles.sh"
 rgg4_multicandidates_rewrite_file="rgg4_daten/rgg4_multicandidates_rewrite.txt"
-rgg4_manual_rewrite_file="rgg4_daten/manual_rewrites.txt"
+rgg4_unassociated_rewrite_file="rgg4_daten/rgg4_multicandidates_manual_rewrite.txt"
+rgg4_multicandidates_manual_rewrite_file="rgg4_daten/rgg4_unassociated_rewrite.txt"
 
 
 REFWORKS=$(printf "%s" '.*\(BDRO\|BEJO\|BEHO\|BERO\|BESO\|ECO\|EECO\|' \
@@ -68,7 +69,8 @@ for archive_file in $(find ${archive_dir} -regex $(printf "%s" ${REFWORKS}) -pri
         ln --symbolic /dev/stdout ${tmp_stdout}
         tmpfiles+=(${tmp_stdout})
         marc_filter ${outfile} ${tmp_stdout} --replace 245a \
-                     <(cat ${rgg4_rewrite_file} ${rgg4_multicandidates_rewrite_file} ${rgg4_manual_rewrite_file}) \
+                     <(cat ${rgg4_rewrite_file} ${rgg4_multicandidates_rewrite_file} \
+                       ${rgg4_unassociated_rewrite_file} ${rgg4_multicandidates_manual_rewrite_file}) \
                      | sponge ${outfile}
     fi
     #Generate more easily readable text representation

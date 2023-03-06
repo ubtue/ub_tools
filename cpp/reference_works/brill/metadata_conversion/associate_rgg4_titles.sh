@@ -22,7 +22,7 @@ tmpfile3=$(mktemp -t associate_rgg4XXXXX.txt)
 ./associate_rgg4_titles ${orig_titles} ${web_titles} ${tmpfile1}
 cat <(cat ${tmpfile1} | grep -v '|||' | sed -rn '/\w+:$/q;p') | \
     `#Replace double expressions to save names etc` \
-    sed -re 's/(\b(\w+)\s+\2\b(.*))\s[|].*/\1 | \2\3/' | \
+    `#sed -re 's/(\b(\w+)\s+\2\b(.*))\s[|].*/\1 | \2\3/' |` \
     `#Escape ->` \
     sed -re 's/->/\\-\\>/g' | \
     sed -re 's/ [|] /->/' \

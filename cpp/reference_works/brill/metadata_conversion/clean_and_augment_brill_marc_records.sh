@@ -92,13 +92,13 @@ LKRO_superior=$(printf "%s" '773i:Enthalten in\037tLexikon für Kirchen- und Rel
                             '\037dLeiden [u.a.] : Brill, 2019' \
                             '\037g2019' \
                             '\037hOnline-Ressource' \
-                            '\037w(DE-627)1780808704')
+                            '\037w(DE-627)1655071696')
 
 RGG4_superior=$(printf "%s" '773i:Enthalten in\037tReligion in Geschichte und Gegenwart 4 Online' \
-                            '\037dXXXXXX' \
-                            '\037gXXXXXX' \
+                            '\037dLeiden [u.a.] : Brill, 2015' \
+                            '\037g2015' \
                             '\037hOnline-Ressource' \
-                            '\037w(DE-627)XXXXXXXX')
+                            '\037w(DE-627)832783072')
 
 RPPO_superior=$(printf "%s" '773i:Enthalten in\037tReligion Past and Present online' \
                             '\037dLeiden [u.a.] : Brill, 2015' \
@@ -162,6 +162,7 @@ marc_augmentor ${tmpfile1} ${tmpfile2} \
 #  - add KALD for ELRO and LKRO
 #  - remove unspecified authors for ELRO
 #  - fix specifically wrong authors for ELRO
+#  - fixed year for RGG4
     marc_augmentor ${tmpfile2} ${tmpfile3} \
         --add-subfield-if-regex '264c:/.*/XXXX/' '001:^ENBO.*'
     marc_filter ${tmpfile3} ${tmpfile4} \
@@ -172,8 +173,10 @@ marc_augmentor ${tmpfile1} ${tmpfile2} \
         --replace "245a" "(.*) / (.*)" "\1/\2"
     marc_augmentor ${tmpfile4} ${tmpfile5} \
         --insert-field-if "264: 1\037c2020" '001:^ENBO.*' \
+        --insert-field-if "264: 1\037c2015" '001:^RGG4.*' \
         --insert-field-if "935a:KALD"  '001:^ELRO.*' \
-        --insert-field-if "935a:KALD"  '001:^LKRO.*'
+        --insert-field-if "935a:KALD"  '001:^LKRO.*' \
+        --replace-field-if "041a:ger"  '001:^(LKRO|RGG4).*'
 
 # Fix indicators and year information
 cat ${tmpfile5} | \
