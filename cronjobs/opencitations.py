@@ -41,13 +41,16 @@ def process_doi(doi):
     row = [doi]
     for api_endpoint_name in API_ENDPOINTS:
         api_endpoint_url = API_ENDPOINTS[api_endpoint_name] + "/references/" + doi
-        result = get(api_endpoint_url, HTTP_HEADERS)
 
-        if (result.status_code == 200):
-            result_json = json.loads(result.text)
-            row.append("References: " + str(len(result_json)))
-        else:
-            row.append("Status: " + str(result.status_code))
+        try:
+            result = get(api_endpoint_url, HTTP_HEADERS)
+            if (result.status_code == 200):
+                result_json = json.loads(result.text)
+                row.append("References: " + str(len(result_json)))
+            else:
+                row.append("Status: " + str(result.status_code))
+        except:
+            row.append("Error")
 
     print(row)
     return row
