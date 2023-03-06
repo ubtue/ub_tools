@@ -3,6 +3,7 @@
 
 FILE_ORI="remid.xml"
 FILE_TEMP="remid_tmp.xml"
+FILE_TEMP1="remid_tmp1.xml"
 FILE_TEMP_CLEAN="remid_tmp_clean.xml"
 FILE_NEW="ixtheo_remid_`date +'%y%m%d'`_001.xml"
 
@@ -30,9 +31,12 @@ marc_filter $FILE_TEMP $FILE_TEMP_CLEAN --remove-fields '852:  \x1FaDE-Tue135' \
     --remove-fields '935:  \x1Faremi\x1F2LOK'  
 
 # add new tag(s) to remid
-marc_augmentor $FILE_TEMP_CLEAN $FILE_NEW  --insert-field '852:  \x1FaDE-Tue135' \
+marc_augmentor $FILE_TEMP_CLEAN $FILE_TEMP1  --insert-field '852:  \x1FaDE-Tue135' \
     --insert-field '084:  \x1Fa0\x1F2ssgn' \
     --insert-field '935:  \x1Faremi\x1F2LOK'
+
+# copy field
+marc_field_copy_for_remit_purposes $FILE_TEMP1 $FILE_NEW
 
 # remove unnecessary file
 rm -f $FILE_TEMP
