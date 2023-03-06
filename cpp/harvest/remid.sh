@@ -36,7 +36,7 @@ marc_augmentor $FILE_TEMP_CLEAN $FILE_TEMP1  --insert-field '852:  \x1FaDE-Tue13
     --insert-field '935:  \x1Faremi\x1F2LOK'
 
 # copy field
-marc_field_copy_for_remit_purposes $FILE_TEMP1 $FILE_NEW
+remid_augment $FILE_TEMP1 $FILE_NEW
 
 # remove unnecessary file
 rm -f $FILE_TEMP
