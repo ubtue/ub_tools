@@ -95,10 +95,10 @@ LKRO_superior=$(printf "%s" '773i:Enthalten in\037tLexikon für Kirchen- und Rel
                             '\037w(DE-627)1655071696')
 
 RGG4_superior=$(printf "%s" '773i:Enthalten in\037tReligion in Geschichte und Gegenwart 4 Online' \
-                            '\037dXXXXXX' \
-                            '\037gXXXXXX' \
+                            '\037dLeiden [u.a.] : Brill, 2015' \
+                            '\037g2015' \
                             '\037hOnline-Ressource' \
-                            '\037w(DE-627)XXXXXXXX')
+                            '\037w(DE-627)832783072')
 
 RPPO_superior=$(printf "%s" '773i:Enthalten in\037tReligion Past and Present online' \
                             '\037dLeiden [u.a.] : Brill, 2015' \
@@ -174,7 +174,7 @@ marc_augmentor ${tmpfile1} ${tmpfile2} \
         --insert-field-if "264: 1\037c2020" '001:^ENBO.*' \
         --insert-field-if "935a:KALD"  '001:^ELRO.*' \
         --insert-field-if "935a:KALD"  '001:^LKRO.*' \
-        --replace-field-if "041a:ger"  '001:^LKRO.*'
+        --replace-field-if "041a:ger"  '001:^(LKRO|RGG4).*'
 
 # Fix indicators and year information
 cat ${tmpfile5} | \
