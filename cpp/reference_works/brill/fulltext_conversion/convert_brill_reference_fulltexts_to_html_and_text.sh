@@ -49,9 +49,18 @@ function MoveToOutDir {
 }
 
 
+function AdjustFulltextFileReferences {
+    local outdir="$1"
+    local path_prefix="$2"
+    find "${outdir}" -maxdepth 1 -iname '*.txt' \
+        | xargs -n 1 -I'{}' sed -i -re 's#.*/fulltextxml/('"${HTML_DIR}"'.*)#'"${path_prefix}"'/\1#' '{}'
+}
+
+
 function UnpackAndConvertArchives {
     local dir="$1"
     local outdir="$2"
+    local path_prefix="$3"
     cd ${dir}
     for archive in $(find . -iname '*.zip'); do
         dir=${archive%.*}
@@ -63,15 +72,15 @@ function UnpackAndConvertArchives {
         echo "Converting ${dir}/fulltextxml"
         ConvertSubdir "${dir}/fulltextxml"
         MoveToOutDir "${dir}" "${outdir}/${archive%.*}"
+        AdjustFulltextFileReferences "${outdir}/${archive%.*}" "${path_prefix}/${archive%.*}/"
     done
     cd -
 }
 
 
-
 if [ $# != 3 ]; then
-    echo "Usage $0 brill_refterm_archives_root_dir outdir initial_path"
+    echo "Usage $0 brill_refterm_archives_root_dir outdir path_prefix"
     exit 1
 fi
 
-UnpackAndConvertArchives "$1" "$2"
+UnpackAndConvertArchives "$1" "$2" "$3"
