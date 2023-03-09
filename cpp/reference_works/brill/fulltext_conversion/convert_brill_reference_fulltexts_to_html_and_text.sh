@@ -8,8 +8,8 @@ XSLT_FILE="/tmp/Encyclopedia.xsl"
 
 function ExtractMetadataInformation {
     # Generate header analogous to e.g.
-    dir=$(dirname $1)
-    xml_file=$(basename $1)
+    local dir=$(dirname $1)
+    local xml_file=$(basename $1)
     echo $(xmlstarlet sel -t -v '//mainentry' "${xml_file}")
     echo $(xmlstarlet sel -t -v '//contributorgroup/name/@normal' "${xml_file}" | tr '\n' ';')
     echo
@@ -23,9 +23,9 @@ function ExtractMetadataInformation {
 
 
 function ConvertSubdir {
-    dir="$1"
+    local dir="$1"
     cd "${dir}"
-    files_to_convert=$(ls -1 *.xml)
+    local files_to_convert=$(ls -1 *.xml)
     mkdir -p ${HTML_DIR}
     mkdir -p ${TEXT_DIR}
     for file in ${files_to_convert}; do
@@ -41,8 +41,17 @@ function ConvertSubdir {
     cd -
 }
 
+function MoveToOutDir {
+    local dir="$1"
+    local outdir="$2"
+    mv "${dir}/fulltextxml/${TEXT_DIR}" "${outdir}"
+    mv "${dir}/fulltextxml/${HTML_DIR}" "${outdir}"
+}
+
+
 function UnpackAndConvertArchives {
-    dir="$1"
+    local dir="$1"
+    local outdir="$2"
     cd ${dir}
     for archive in $(find . -iname '*.zip'); do
         dir=${archive%.*}
@@ -53,13 +62,16 @@ function UnpackAndConvertArchives {
         unzip -o ${archive}
         echo "Converting ${dir}/fulltextxml"
         ConvertSubdir "${dir}/fulltextxml"
+        MoveToOutDir "${dir}" "${outdir}/${archive%.*}"
     done
     cd -
 }
 
-if [ $# != 1 ]; then
-    echo "Usage $0 brill_refterm_archives_root_dir"
+
+
+if [ $# != 3 ]; then
+    echo "Usage $0 brill_refterm_archives_root_dir outdir initial_path"
     exit 1
 fi
 
-UnpackAndConvertArchives "$1"
+UnpackAndConvertArchives "$1" "$2"
