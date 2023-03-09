@@ -1,11 +1,20 @@
 #!/bin/bash
 set -o errexit -o nounset
 
+all_oclc_param="--get-all-oclc-numbers"
 
-if [[ $# != 2 ]]; then
-   echo "Usage: $0 oclc_credentials_file isbn|isbn_file"
+if [[ $# < 2 ]]; then
+   echo "Usage: $0 [${all_oclc_param}] oclc_credentials_file isbn|isbn_file"
    exit 1
 fi
+
+get_all_oclc_numbers=false
+
+if [ "$1" = ${all_oclc_param} ]; then
+    get_all_oclc_numbers=true
+    shift
+fi
+
 
 credentials_file="$1"
 
@@ -28,7 +37,11 @@ function GetFirstOCLCNumber {
        access_token=$(GetAccessToken)
        result=$(QueryISBN ${isbn})
    fi
-   echo ${result} | jq --raw-output '.bibRecords | .[0].identifier.oclcNumber' 
+   if ${get_all_oclc_numbers}; then
+      echo ${result} | jq --raw-output '.bibRecords | .[].identifier.oclcNumber'
+   else
+      echo ${result} | jq --raw-output '.bibRecords | .[0].identifier.oclcNumber'
+   fi
 }
 
 
