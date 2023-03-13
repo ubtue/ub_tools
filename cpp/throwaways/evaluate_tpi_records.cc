@@ -34,7 +34,6 @@ namespace {
 
 bool HasInformationIn548_550_551_667_687(const MARC::Record &record) {
     for (const std::string &tag : { "548", "550", "551", "667", "687" }) {
-        // std::cout << "TAG: " << tag << '\n';
         if (record.hasFieldWithTag(tag))
             return true;
     }
