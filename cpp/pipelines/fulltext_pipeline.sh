@@ -111,7 +111,7 @@ EndPhase || Abort) &
 
 
 StartPhase "Import Brill Data"
-(find /usr/local/publisher_fulltexts/brill/ -maxdepth 1 -name '*.txt' | xargs -n 50 store_in_elasticsearch --set-publisher-provided \
+(find /usr/local/publisher_fulltexts/brill/ -maxdepth 2 -name '*.txt' | xargs -n 50 store_in_elasticsearch --set-publisher-provided \
     >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 
