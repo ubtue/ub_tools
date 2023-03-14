@@ -13,7 +13,7 @@ function ExtractMetadataInformation {
     echo $(xmlstarlet sel -t -v '//mainentry' "${xml_file}")
     echo $(xmlstarlet sel -t -v '//contributorgroup/name/@normal' "${xml_file}" | tr '\n' ';')
     echo
-    echo $(xmlstarlet sel -t -v '//*[self::complexarticle or self::simplearticle]/@idno.doi' "${xml_file}" | \
+    echo $(xmlstarlet sel -t -v '//*[self::complexarticle or self::simplearticle or self::dummyarticle]/@idno.doi' "${xml_file}" | \
            sed --regexp-extended --expression 's#https?://dx.doi.org/##')
     echo
     echo
@@ -33,10 +33,10 @@ function ConvertSubdir {
         text_file="${TEXT_DIR}/${file%.xml}.txt"
         echo "${file} => ${html_file}"
         xmlstarlet tr ${XSLT_FILE} ${file} > ${html_file}
-        tidy --quiet true --show-warnings false -modify -wrap 0 -i ${html_file} || if [[ $? == 2 ]]; then echo "Error in tidy"; exit 1; fi
+        tidy --quiet true --show-warnings false -modify -utf8 -wrap 0 -i ${html_file} || if [[ $? == 2 ]]; then echo "Error in tidy"; exit 1; fi
         echo "${html_file} => ${text_file}"
         cat <(ExtractMetadataInformation $(pwd)/${file}) > "${text_file}"
-        html2text -utf8 -style pretty "${html_file}" >> "${text_file}"
+        html2text -utf8 -style pretty "${html_file}" | iconv --from-code=utf8 --to-code utf8 -c >> "${text_file}"
     done
     cd -
 }
