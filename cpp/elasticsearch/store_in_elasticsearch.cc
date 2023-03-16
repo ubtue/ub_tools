@@ -73,7 +73,7 @@ bool ImportDocument(const ControlNumberGuesser &control_number_guesser, FullText
 
     if (StringUtil::EndsWith(full_text_data.full_text_location_, ".html", true /*ignore case*/)) {
         full_text_cache->importHTMLFile(ppn, full_text_data.full_text_location_, FullTextCache::FULLTEXT, is_publisher_provided);
-        LOG_INFO("Inserted text from PDF \"" + filename + "\" as entry for PPN \"" + ppn + "\"");
+        LOG_INFO("Inserted text from HTML \"" + filename + "\" as entry for PPN \"" + ppn + "\"");
         return true;
     }
 
