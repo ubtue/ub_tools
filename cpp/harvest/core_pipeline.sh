@@ -15,6 +15,7 @@ declare -r ARCHIVE_FILE_JSON_UNFILTERED=${ARCHIVE_DIR}/${DATETIME}_unfiltered.js
 declare -r ARCHIVE_FILE_JSON_FILTERED=${ARCHIVE_DIR}/${DATETIME}_filtered.json
 declare -r ARCHIVE_FILE_JSON=${ARCHIVE_DIR}/${DATETIME}.json
 declare -r ARCHIVE_FILE_MARC=${ARCHIVE_DIR}/${DATETIME}.xml
+declare -r LOG_FILE=${ARCHIVE_FILE_MARC}.log
 declare -r TIMESTAMP_FILE=/usr/local/var/lib/tuelib/CORE-KrimDok.timestamp
 if [ -r "$TIMESTAMP_FILE" ]; then
     TIMESTAMP=$(date --date="$(< "$TIMESTAMP_FILE") -1 day" +%Y-%m-%d)
@@ -58,7 +59,9 @@ core filter "$ARCHIVE_FILE_JSON_UNFILTERED" "$ARCHIVE_FILE_JSON" "$ARCHIVE_FILE_
 RESULT_COUNT=$(core count "$ARCHIVE_FILE_JSON")
 if [ "$RESULT_COUNT" -gt "0" ]; then
     echo "Converting to MARC"
-    core convert --create-unique-id-db --935-entry=TIT:mkri --935-entry=LOK:core --sigil=DE-2619 "$ARCHIVE_FILE_JSON" "$ARCHIVE_FILE_MARC"
+    # Note: The LOG_FILE should be sent to the librarians so they know which CORE IDs could be problematic
+    #       and should be checked manually after import (e.g. datasets with more than 20 authors.)
+    core convert --create-unique-id-db --935-entry=TIT:mkri --935-entry=LOK:core --sigil=DE-2619 "$ARCHIVE_FILE_JSON" "$ARCHIVE_FILE_MARC" "$LOG_FILE"
 
     # upload to BSZ
     # TODO: Generate BSZ compatible filename

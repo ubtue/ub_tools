@@ -98,6 +98,7 @@ public:
     std::string getAbstract() const;
     std::vector<Author> getAuthors() const;
     std::set<unsigned long> getDataProviderIds() const; // JSON also contains name field, but that always seems to be empty
+    std::string getDOI() const;
     std::string getDocumentType() const;
     std::string getDownloadUrl() const;
     std::string getFieldOfStudy() const;
@@ -205,6 +206,13 @@ std::vector<Work> GetWorksFromFile(const std::string &file);
 void OutputFileStart(const std::string &path);
 void OutputFileAppend(const std::string &path, const Entity &entity, const bool first);
 void OutputFileEnd(const std::string &path);
+
+
+/** \brief Unescape special kind of entites typical for CORE,
+ *         which occur across multiple data providers.
+ *         e.g. "\u27" => "'"
+ */
+std::string ReplaceFaultyEntities(const std::string &s);
 
 
 } // namespace CORE
