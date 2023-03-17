@@ -162,6 +162,8 @@ std::set<unsigned long> Work::getDataProviderIds() const {
 
     return ids;
 }
+
+
 std::vector<nlohmann::json> Work::getDataProviders() const {
     std::vector<nlohmann::json> new_data_providers;
     const auto data_providers(json_["dataProviders"]);
@@ -206,6 +208,11 @@ void Work::removeDataProviders(const std::set<unsigned long> &data_provider_ids_
         }
     }
     setDataProviders(new_data_providers);
+}
+
+
+std::string Work::getDOI() const {
+    return getStringOrDefault("doi");
 }
 
 
@@ -603,6 +610,35 @@ void OutputFileAppend(const std::string &path, const Entity &entity, const bool 
 
 void OutputFileEnd(const std::string &path) {
     FileUtil::AppendStringOrDie(path, "\n]");
+}
+
+
+char DecodeFaultyEntityByNumber(const std::string &sequence) {
+    // example: "\u27" => "'"
+
+    unsigned byte;
+    if (unlikely(not StringUtil::ToNumber(sequence, &byte, 16)))
+        throw std::runtime_error("in CORE::DecodeFaultyEntityByNumber: bad escape \"\\u" + sequence + "\"!");
+
+    return static_cast<char>(byte);
+}
+
+
+std::string ReplaceFaultyEntities(const std::string &s) {
+    std::string unescaped_string;
+    for (auto ch(s.cbegin()); ch != s.cend(); ++ch) {
+        // Example: "\u23"
+        if (*ch == '\\' and ((ch + 3) < s.cend()) and *(ch + 1) == 'u') {
+            std::string sequence;
+            sequence += *(ch + 2);
+            sequence += *(ch + 3);
+            unescaped_string += DecodeFaultyEntityByNumber(sequence);
+            ch += 3;
+        } else
+            unescaped_string += *ch;
+    }
+
+    return unescaped_string;
 }
 
 
