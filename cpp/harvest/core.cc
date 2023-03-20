@@ -116,7 +116,7 @@ void ConvertAuthors(const CORE::Work &work, MARC::Record * const record, const s
         LOG_INFO(message);
         FileUtil::AppendStringOrDie(log_file_path, message);
     } else {
-        bool first_author(true);
+        bool is_first_author(true);
         for (const auto &author : authors) {
             std::string author_name(author.name_);
             author_name = CORE::ReplaceFaultyEntities(author_name);
@@ -127,11 +127,25 @@ void ConvertAuthors(const CORE::Work &work, MARC::Record * const record, const s
 
             author_names.emplace(author_name);
 
-            record->insertField(first_author ? "100" : "700", { { 'a', author_name }, { '4', "aut" } },
+            const bool is_corporate_author(MiscUtil::IsCorporateAuthor(author_name));
+            std::string author_tag;
+            if (is_first_author) {
+                if (is_corporate_author)
+                    author_tag = "110";
+                else
+                    author_tag = "100";
+            } else {
+                if (is_corporate_author)
+                    author_tag = "710";
+                else
+                    author_tag = "700";
+            }
+
+            record->insertField(author_tag, { { 'a', author_name }, { '4', "aut" } },
                                 /*indicator1=*/'1');
 
-            if (first_author)
-                first_author = false;
+            if (is_first_author)
+                is_first_author = false;
         }
     }
 }
