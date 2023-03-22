@@ -408,6 +408,10 @@ void ParseJSONAndWriteMARC(const std::string &json_path, MARC::Writer * const ti
                 new_record.insertField("852", { { 'a', "DE-2619" } });
                 new_record.insertField("856", { { 'u', "https://doi.org/" + doi }, { 'x', "R" }, { 'z', "LF" } }, /*indicator1 = */ '4',
                                        /*indicator2 = */ '0');
+
+                // Disable Match & Merge
+                new_record.insertField("912", { { 'a', "NOMM" } });
+
                 new_record.insertField("935", { { 'a', "mkri" } });
                 new_record.insertField("935", { { 'a', "nacj" }, { '2', "LOK" } });
                 new_record.insertField("935", { { 'a', "foda" }, { '2', "LOK" } });
