@@ -65,6 +65,8 @@ if [ "$RESULT_COUNT" -gt "0" ]; then
 
     # upload to BSZ
     # TODO: Generate BSZ compatible filename
+    # Also: Please note that CORE data can be huge. The BSZ wants us to deliver at most 5.000 datasets per day
+    #       and split the data over multiple deliveries, if necessary.
     #echo "Uploading to BSZ"
     #upload_to_bsz_ftp_server.py "$ARCHIVE_FILE_MARC" /pub/UBTuebingen_Default/
 
