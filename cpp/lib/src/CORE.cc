@@ -613,14 +613,16 @@ void OutputFileEnd(const std::string &path) {
 }
 
 
-char DecodeFaultyEntityByNumber(const std::string &sequence) {
+std::string DecodeFaultyEntityByNumber(const std::string &sequence) {
     // example: "\u27" => "'"
 
     unsigned byte;
-    if (unlikely(not StringUtil::ToNumber(sequence, &byte, 16)))
-        throw std::runtime_error("in CORE::DecodeFaultyEntityByNumber: bad escape \"\\u" + sequence + "\"!");
+    if (unlikely(not StringUtil::ToNumber(sequence, &byte, 16))) {
+        LOG_WARNING("bad escape \"\\u" + sequence + "\"!");
+        return sequence;
+    }
 
-    return static_cast<char>(byte);
+    return std::to_string(static_cast<char>(byte));
 }
 
 
