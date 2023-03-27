@@ -613,14 +613,18 @@ void OutputFileEnd(const std::string &path) {
 }
 
 
-char DecodeFaultyEntityByNumber(const std::string &sequence) {
+std::string DecodeFaultyEntityByNumber(const std::string &sequence) {
     // example: "\u27" => "'"
 
     unsigned byte;
-    if (unlikely(not StringUtil::ToNumber(sequence, &byte, 16)))
-        throw std::runtime_error("in CORE::DecodeFaultyEntityByNumber: bad escape \"\\u" + sequence + "\"!");
+    if (unlikely(not StringUtil::ToNumber(sequence, &byte, 16))) {
+        LOG_WARNING("bad escape \"\\u" + sequence + "\"!");
+        return "";
+    }
 
-    return static_cast<char>(byte);
+    const char decoded(static_cast<char>(byte));
+    std::string result;
+    return result + decoded;
 }
 
 
@@ -632,7 +636,15 @@ std::string ReplaceFaultyEntities(const std::string &s) {
             std::string sequence;
             sequence += *(ch + 2);
             sequence += *(ch + 3);
-            unescaped_string += DecodeFaultyEntityByNumber(sequence);
+
+            const std::string unescaped_sequence(DecodeFaultyEntityByNumber(sequence));
+
+            if (not unescaped_sequence.empty()) {
+                LOG_INFO(sequence + " => " + unescaped_sequence);
+                unescaped_string += unescaped_sequence;
+            } else
+                unescaped_string += "\\u" + sequence;
+
             ch += 3;
         } else
             unescaped_string += *ch;

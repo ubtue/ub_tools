@@ -114,7 +114,7 @@ void ConvertAuthors(const CORE::Work &work, MARC::Record * const record, const s
                                   + ": Too many authors found, please check manually after delivery (" + std::to_string(authors.size())
                                   + ").");
         LOG_INFO(message);
-        FileUtil::AppendStringOrDie(log_file_path, message);
+        FileUtil::AppendStringOrDie(log_file_path, message + "\n");
     } else {
         bool is_first_author(true);
         for (const auto &author : authors) {
