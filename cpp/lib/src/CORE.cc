@@ -614,13 +614,27 @@ void OutputFileEnd(const std::string &path) {
 
 
 std::string DecodeFaultyEntityByNumber(const std::string &sequence) {
-    // example: "\u27" => "'"
+    // see also: https://www.fileformat.info/info/unicode/char/27/index.htm
+    // - example: "\u27" => "'"
+    // - example: "\u3c" => "<"
+    // - example: "\u3e" => ">"
+    // these are the most frequent occurrences.
+    // we cannot simply replace all, because we might have counter-examples
+    // for specific data providers like e.g.
+    // "sub\\urban" which must not be replaced.
+    // Also there is not safe way for detecting the length of longer sequences
+    // e.g. with 4 characters instead of 2.
+    const static std::unordered_set<std::string> decodable_entities({ "27", "3c", "3e" });
+
+    const std::string full_sequence("\\u" + sequence);
+    if (decodable_entities.find(sequence) == decodable_entities.end()) {
+        LOG_WARNING("skipping decoding of entity \"" + full_sequence + "\"!");
+        return full_sequence;
+    }
 
     unsigned byte;
-    if (unlikely(not StringUtil::ToNumber(sequence, &byte, 16))) {
-        LOG_WARNING("bad escape \"\\u" + sequence + "\"!");
-        return "";
-    }
+    if (not StringUtil::ToNumber(sequence, &byte, 16))
+        LOG_ERROR("error decoding entity \"" + full_sequence + "\"!");
 
     const char decoded(static_cast<char>(byte));
     std::string result;
@@ -631,19 +645,13 @@ std::string DecodeFaultyEntityByNumber(const std::string &sequence) {
 std::string ReplaceFaultyEntities(const std::string &s) {
     std::string unescaped_string;
     for (auto ch(s.cbegin()); ch != s.cend(); ++ch) {
-        // Example: "\u23"
+        // Example: "\u23", "u3c", "u3e"
         if (*ch == '\\' and ((ch + 3) < s.cend()) and *(ch + 1) == 'u') {
             std::string sequence;
             sequence += *(ch + 2);
             sequence += *(ch + 3);
 
-            const std::string unescaped_sequence(DecodeFaultyEntityByNumber(sequence));
-
-            if (not unescaped_sequence.empty()) {
-                LOG_INFO(sequence + " => " + unescaped_sequence);
-                unescaped_string += unescaped_sequence;
-            } else
-                unescaped_string += "\\u" + sequence;
+            unescaped_string += DecodeFaultyEntityByNumber(sequence);
 
             ch += 3;
         } else
