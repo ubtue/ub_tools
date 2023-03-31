@@ -41,9 +41,9 @@ def ConnectToYAZServer():
 
 def Main():
     if len(sys.argv) != 3:
-        print("[usage]\n\tpython issn_lookup.py input_file output_file" +
-              "\n\t\t- input_file should be a text file with one ISSN per line." +
-              "\n\t\t- output_file will be a mrc file with all journals found for theses ISSNs.")
+        print("[usage]\nissn_lookup.py input_file output_file" +
+              "\n\t- input_file should be a text file with one ISSN per line." +
+              "\n\t- output_file will be a mrc file with all journals found for theses ISSNs.")
         sys.exit(-1)
 
     output_file = sys.argv[2]
@@ -76,7 +76,7 @@ def Main():
     yaz_client.sendline("exit")
 
     input_file.close()
-
+    print() # print linefeed so that progress output doesn't mess up the console
 
 try:
     Main()
