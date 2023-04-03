@@ -115,9 +115,11 @@ MARC::Subfields UpdateSubfield(MARC::Subfields &subfields, const SubFieldInfo &s
     //     subfields.addSubfield('x', sub_field_info.x);
     if (!subfields.replaceFirstSubfield('w', sub_field_info.w + "-" + ppn))
         subfields.addSubfield('w', sub_field_info.w + "-" + ppn);
-    if (!subfields.replaceFirstSubfield('t', sub_field_info.t))
-        subfields.addSubfield('t', sub_field_info.t);
 
+    if (sub_field_info.t != "") {
+        if (!subfields.replaceFirstSubfield('t', sub_field_info.t))
+            subfields.addSubfield('t', sub_field_info.t);
+    }
     return subfields;
 }
 
