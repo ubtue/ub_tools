@@ -84,22 +84,23 @@ SubFieldInfo LookupISSNInDataSouce(const std::string ds_filename, const std::str
     auto data_source(MARC::Reader::Factory(ds_filename));
     SubFieldInfo sub_field_info = SubFieldInfo(false);
 
-
     while (MARC::Record record = data_source->read()) {
         for (auto &field : record) {
             if (field.getTag() == "022") {
                 const std::string sub_field_a(field.getFirstSubfieldWithCode('a'));
                 if ((sub_field_a != "") && (sub_field_a == issn)) {
                     sub_field_info.Builder(record);
-                    if (IsOnlineISSN(record)) {
-                        // the issn is online version, no need to check further
+                    // the issn is online version, no need to check further
+                    if (IsOnlineISSN(record))
                         return sub_field_info;
-                    }
                 } else {
                     // maybe the issn is in subfield l
                     const std::string sub_field_l(field.getFirstSubfieldWithCode('l'));
                     if ((sub_field_l != "") && (sub_field_l == issn)) {
                         sub_field_info.Builder(record);
+                        // the issn is online version, no need to check further
+                        if (IsOnlineISSN(record))
+                            return sub_field_info;
                     }
                 }
             }
