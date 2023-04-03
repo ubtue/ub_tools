@@ -28,47 +28,78 @@
 namespace {
 [[noreturn]] void Usage() {
     ::Usage(
-        "- source_data is the \n"
-        "- input_file is the \n"
-        "- output_file is the \n");
+        " issn_source input output"
+        "\n"
+        "- issn_source is the file contain ... \n"
+        "- inpu is the file ... \n"
+        "- output is the file ... \n");
+
+    std::exit(EXIT_FAILURE);
 }
 struct SubFieldInfo {
     std::string i;
     std::string t;
     std::string w;
-    std::string x;
+    // std::string x;
     bool is_found;
+
     SubFieldInfo(bool b) { this->is_found = b; }
-    void Builder(MARC::Record::Field &field, const char code) {
+
+    void Builder(MARC::Record &record) {
+        for (auto &field : record) {
+            if (field.getTag() == "245") {
+                MARC::Subfields subfields(field.getSubfields());
+                std::string subfield_a(subfields.getFirstSubfieldWithCode('a'));
+                std::string subfield_b(subfields.getFirstSubfieldWithCode('b'));
+                if (subfield_a != "" && subfield_b != "")
+                    this->t = subfield_a + " " + subfield_b;
+                else if (subfield_a != "" && subfield_b == "")
+                    this->t = subfield_a;
+                else if (subfield_a == "" && subfield_b != "")
+                    this->t = subfield_b;
+                else
+                    this->t = "";
+            }
+        }
         this->i = "In:";
         this->w = "DE-627";
-        this->x = field.getFirstSubfieldWithCode(code);
         this->is_found = true;
     }
 };
 
-bool IsOnlineISSN(const MARC::Record::Field &field) {
+bool IsOnlineISSN(const MARC::Record &record) {
+    for (auto &field : record) {
+        if (field.getTag() == "300") {
+            const std::string sub_field_a(field.getFirstSubfieldWithCode('a'));
+            if (sub_field_a == "Online-Ressource")
+                return true;
+            else
+                return false;
+        }
+    }
+    return false;
 }
 
 SubFieldInfo LookupISSNInDataSouce(const std::string ds_filename, const std::string issn) {
     auto data_source(MARC::Reader::Factory(ds_filename));
     SubFieldInfo sub_field_info = SubFieldInfo(false);
 
+
     while (MARC::Record record = data_source->read()) {
         for (auto &field : record) {
             if (field.getTag() == "022") {
                 const std::string sub_field_a(field.getFirstSubfieldWithCode('a'));
                 if ((sub_field_a != "") && (sub_field_a == issn)) {
-                    sub_field_info.Builder(field, 'a');
-                    if (IsOnlineISSN(field)) {
+                    sub_field_info.Builder(record);
+                    if (IsOnlineISSN(record)) {
                         // the issn is online version, no need to check further
                         return sub_field_info;
                     }
                 } else {
                     // maybe the issn is in subfield l
                     const std::string sub_field_l(field.getFirstSubfieldWithCode('l'));
-                    if ((sub_field_l != "") && (sub_field_a == issn)) {
-                        sub_field_info.Builder(field, 'l');
+                    if ((sub_field_l != "") && (sub_field_l == issn)) {
+                        sub_field_info.Builder(record);
                     }
                 }
             }
@@ -77,32 +108,56 @@ SubFieldInfo LookupISSNInDataSouce(const std::string ds_filename, const std::str
     return sub_field_info;
 }
 
-void UpdateField(MARC::Record::Field const &field, const SubFieldInfo &sub_field_info) {
+MARC::Subfields UpdateSubfield(MARC::Subfields &subfields, const SubFieldInfo &sub_field_info, const std::string &ppn) {
+    if (!subfields.replaceFirstSubfield('i', sub_field_info.i))
+        subfields.addSubfield('i', sub_field_info.i);
+    // if (!subfields.replaceFirstSubfield('x', sub_field_info.x))
+    //     subfields.addSubfield('x', sub_field_info.x);
+    if (!subfields.replaceFirstSubfield('w', sub_field_info.w + "-" + ppn))
+        subfields.addSubfield('w', sub_field_info.w + "-" + ppn);
+    if (!subfields.replaceFirstSubfield('t', sub_field_info.t))
+        subfields.addSubfield('t', sub_field_info.t);
+
+    return subfields;
 }
 
 void ISSNLookup(char **argv) {
     auto input_file(MARC::Reader::Factory(argv[2]));
-    // auto output_file(MARC::Writer::Factory(argv[3]));
-    while (MARC::Record recd = input_file->read()) {
-        for (auto &field : recd) {
+    auto output_file(MARC::Writer::Factory(argv[3]));
+    int onprogress_counter(1);
+    std::string ppn("");
+
+    std::cout << "Updating in progress...\n";
+    while (MARC::Record record = input_file->read()) {
+        std::cout << "Record - " << onprogress_counter << "\r";
+        ppn = "";
+
+        for (auto &field : record) {
+            if (field.getTag() == "001")
+                ppn = field.getContents();
+
             if (field.getTag() == "773") {
                 const std::string issn(field.getFirstSubfieldWithCode('x'));
                 if (issn != "") {
-                    SubFieldInfo sub_field_info = LookupISSNInDataSouce(argv[1], issn);
+                    SubFieldInfo sub_field_info(LookupISSNInDataSouce(argv[1], issn));
                     if (sub_field_info.is_found) {
-                        // update record
+                        MARC::Subfields subfields(field.getSubfields());
+
+                        // update subfield
+                        UpdateSubfield(subfields, sub_field_info, ppn);
+                        field.setSubfields(subfields);
                     }
                 }
             }
         }
-        // output_file->write(record);
+        ++onprogress_counter;
+        output_file->write(record);
     }
-    std::cout << "\n souce data\n" << std::endl;
 }
-} // namespace
+} // end of namespace
 
 int Main(int argc, char **argv) {
-    if (argc < 2)
+    if (argc < 4)
         Usage();
 
 
