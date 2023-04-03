@@ -83,6 +83,13 @@ public:
     static bool IsValidIniEntry(const IniFile::Entry &entry);
 };
 
+struct MarcMetadataFieldIfParams {
+    std::string test_field_name_;
+    std::shared_ptr<ThreadSafeRegexMatcher> if_matcher_;
+    std::string replace_term_;
+    // MarcMetadataFieldIfParams(MarcMetadataFieldIfParams &&source) { std::move(source); }
+};
+
 
 // Metadata parameters related to MARC that will be re-used in global as well as journal params later
 struct MarcMetadataParams {
@@ -91,6 +98,11 @@ struct MarcMetadataParams {
     std::map<std::string, std::shared_ptr<ThreadSafeRegexMatcher>> subfields_to_remove_;
     std::map<std::string, std::shared_ptr<ThreadSafeRegexMatcher>> exclusion_filters_;
     std::map<std::string, std::pair<std::shared_ptr<ThreadSafeRegexMatcher>, std::string>> rewrite_filters_;
+    // std::map<std::string, std::pair<std::string, std::pair<std::string, std::pair<std::shared_ptr<ThreadSafeRegexMatcher, std::string>>>
+    // fields_to_add_if_; std::map<std::string, std::pair<std::string, std::pair<std::string,
+    // std::pair<std::shared_ptr<ThreadSafeRegexMatcher, std::string>>> fields_to_rewrite_if_;
+    std::map<std::string, MarcMetadataFieldIfParams> fields_to_add_if_;
+    std::map<std::string, MarcMetadataFieldIfParams> fields_to_rewrite_if_;
 
 public:
     MarcMetadataParams() = default;

@@ -958,6 +958,44 @@ void RemoveCustomMarcSubfields(MARC::Record * const marc_record, const Conversio
 }
 
 
+void AddMarcFieldsIfForParams(MARC::Record * const marc_record, const Config::MarcMetadataParams &marc_metadata_params) {
+    for (const auto &filter : marc_metadata_params.fields_to_add_if_) {
+        const auto tag_and_subfield_code(filter.first);
+        const auto test_tag_and_subfield_code(filter.second.test_field_name_);
+        auto &if_matcher(*filter.second.if_matcher_.get());
+        std::vector<MARC::Record::iterator> test_matched_fields;
+        GetMatchedMARCFields(marc_record, test_tag_and_subfield_code, if_matcher, &test_matched_fields);
+        for (const auto test_matched_field : test_matched_fields) {
+            if (test_tag_and_subfield_code.length() > MARC::Record::TAG_LENGTH) {
+                char subfield_code(tag_and_subfield_code[3]);
+                if (test_matched_field->hasSubfield(subfield_code)) {
+                    const std::string test_subfield_value(test_matched_field->getFirstSubfieldWithCode(subfield_code));
+                    const std::string replacement(filter.second.replace_term_);
+                    const std::string subfield_value(if_matcher.replaceWithBackreferences(test_subfield_value, replacement));
+                    marc_record->insertField(tag_and_subfield_code.substr(0, MARC::Record::TAG_LENGTH), subfield_code, subfield_value);
+                    // matched_field->insertOrReplaceSubfield(subfield_code, new_subfield_value);
+                    LOG_DEBUG("Added new '" + tag_and_subfield_code + "' with content '" + subfield_value + "'  due to filter '"
+                              + if_matcher.getPattern() + "' and replacement string '" + replacement + "'");
+                } else {
+                    const std::string test_field_value(test_matched_field->getContents());
+                    const std::string replacement(filter.second.replace_term_);
+                    const std::string field_value(if_matcher.replaceWithBackreferences(test_field_value, replacement));
+                    marc_record->insertField(tag_and_subfield_code.substr(0, MARC::Record::TAG_LENGTH), field_value);
+                    LOG_DEBUG("Added new '" + tag_and_subfield_code.substr(0, MARC::Record::TAG_LENGTH) + "' with content '" + field_value
+                              + "'  due to filter '" + if_matcher.getPattern() + "' and replacement string '" + replacement + "'");
+                }
+            }
+        }
+    }
+}
+
+
+void AddMarcFieldsIf(MARC::Record * const marc_record, const ConversionParams &parameters) {
+    AddMarcFieldsIfForParams(marc_record, parameters.global_params_.marc_metadata_params_);
+    AddMarcFieldsIfForParams(marc_record, parameters.download_item_.journal_.marc_metadata_params_);
+}
+
+
 void RewriteMarcFieldsForParams(MARC::Record * const marc_record, const Config::MarcMetadataParams &marc_metadata_params) {
     std::vector<MARC::Record::iterator> matched_fields;
     for (const auto &filter : marc_metadata_params.rewrite_filters_) {
@@ -983,6 +1021,18 @@ void RewriteMarcFieldsForParams(MARC::Record * const marc_record, const Config::
 void RewriteMarcFields(MARC::Record * const marc_record, const ConversionParams &parameters) {
     RewriteMarcFieldsForParams(marc_record, parameters.global_params_.marc_metadata_params_);
     RewriteMarcFieldsForParams(marc_record, parameters.download_item_.journal_.marc_metadata_params_);
+}
+
+
+void RewriteMarcFieldsIfForParams(MARC::Record * const marc_record, const Config::MarcMetadataParams &marc_metadata_params) {
+    (void)marc_record;
+    (void)&marc_metadata_params;
+}
+
+
+void RewriteMarcFieldsIf(MARC::Record * const marc_record, const ConversionParams &parameters) {
+    RewriteMarcFieldsIfForParams(marc_record, parameters.global_params_.marc_metadata_params_);
+    RewriteMarcFieldsIfForParams(marc_record, parameters.download_item_.journal_.marc_metadata_params_);
 }
 
 
@@ -1307,6 +1357,13 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
 
     // Rewrite fields
     RewriteMarcFields(marc_record, parameters);
+
+    // Add fields if
+    AddMarcFieldsIf(marc_record, parameters);
+
+    // Rewrite fields if
+    RewriteMarcFieldsIf(marc_record, parameters);
+
 
     // Has to be generated in the very end as it contains the hash of the record
     *marc_record_hash = CalculateMarcRecordHash(*marc_record);
