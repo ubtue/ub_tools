@@ -980,7 +980,8 @@ void AddMarcFieldsIfForParams(MARC::Record * const marc_record, const Config::Ma
             } else {
                 const std::string test_field_value(test_matched_field->getContents());
                 const std::string replacement(filter.second.replace_term_);
-                const std::string field_value(if_matcher.replaceWithBackreferences(test_field_value, replacement));
+                std::string field_value(if_matcher.replaceWithBackreferences(test_field_value, replacement));
+                field_value = StringUtil::ReplaceString("\\037", std::string(1, 0x1F), field_value);
                 marc_record->insertField(tag_and_subfield_code.substr(0, MARC::Record::TAG_LENGTH), MARC::Subfields(field_value));
                 LOG_DEBUG("Added new '" + tag_and_subfield_code.substr(0, MARC::Record::TAG_LENGTH) + "' with content '" + field_value
                           + "'  due to filter '" + if_matcher.getPattern() + "' and replacement string '" + replacement + "'");
@@ -1053,7 +1054,8 @@ void RewriteMarcFieldsIfForParams(MARC::Record * const marc_record, const Config
             } else {
                 std::string test_field_value(test_matched_field->getContents());
                 const std::string replacement(filter.second.replace_term_);
-                const std::string new_field_value(if_matcher.replaceWithBackreferences(test_field_value, replacement));
+                std::string new_field_value(if_matcher.replaceWithBackreferences(test_field_value, replacement));
+                new_field_value = StringUtil::ReplaceString("\\037", std::string(1, 0x1F), new_field_value);
                 marc_record->replaceField(tag_and_subfield_code.substr(0, MARC::Record::TAG_LENGTH), MARC::Subfields(new_field_value));
                 LOG_DEBUG("Rewrote '" + tag_and_subfield_code.substr(0, MARC::Record::TAG_LENGTH) + "' with content '" + new_field_value
                           + "'  due to filter '" + if_matcher.getPattern() + "' and replacement string '" + replacement + "'");

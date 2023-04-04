@@ -206,7 +206,7 @@ MarcMetadataParams::MarcMetadataParams(const IniFile::Section &config_section) {
         } else if (StringUtil::StartsWith(entry.name_, PREFIX_REWRITE_MARC_FIELD_IF)) {
             const std::string field_name(entry.name_.substr(__builtin_strlen(PREFIX_REWRITE_MARC_FIELD_IF)));
             if (field_name.length() != MARC::Record::TAG_LENGTH and field_name.length() != MARC::Record::TAG_LENGTH + 1)
-                LOG_ERROR("invalid rewrite field name '" + field_name + "'! expected format: <tag> or <tag><subfield_code>");
+                LOG_ERROR("invalid rewrite if field name '" + field_name + "'! expected format: <tag> or <tag><subfield_code>");
             MarcMetadataFieldIfParams marc_metadata_field_if_params;
             ExtractMarcFieldIfParams(entry.value_, &marc_metadata_field_if_params);
             fields_to_rewrite_if_.emplace(field_name, marc_metadata_field_if_params);
