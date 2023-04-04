@@ -185,7 +185,7 @@ int Main(int argc, char **argv) {
         Usage();
 
 
-    std::map<std::string, SubFieldInfo> journal_cache = JournalCacheBuilder(argv[2]);
+    std::map<std::string, SubFieldInfo> journal_cache(JournalCacheBuilder(argv[2]));
     ISSNLookup(argv, journal_cache);
 
     return EXIT_SUCCESS;
