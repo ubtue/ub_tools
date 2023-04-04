@@ -87,7 +87,6 @@ struct MarcMetadataFieldIfParams {
     std::string test_field_name_;
     std::shared_ptr<ThreadSafeRegexMatcher> if_matcher_;
     std::string replace_term_;
-    // MarcMetadataFieldIfParams(MarcMetadataFieldIfParams &&source) { std::move(source); }
 };
 
 
