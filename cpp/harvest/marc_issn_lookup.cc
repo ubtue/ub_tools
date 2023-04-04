@@ -109,7 +109,7 @@ SubFieldInfo LookupISSNInDataSouce(const std::string ds_filename, const std::str
     return sub_field_info;
 }
 
-MARC::Subfields UpdateSubfield(MARC::Subfields &subfields, const SubFieldInfo &sub_field_info, const std::string &ppn) {
+void UpdateSubfield(MARC::Subfields &subfields, const SubFieldInfo &sub_field_info, const std::string &ppn) {
     if (!subfields.replaceFirstSubfield('i', sub_field_info.i))
         subfields.addSubfield('i', sub_field_info.i);
     // if (!subfields.replaceFirstSubfield('x', sub_field_info.x))
@@ -121,7 +121,6 @@ MARC::Subfields UpdateSubfield(MARC::Subfields &subfields, const SubFieldInfo &s
         if (!subfields.replaceFirstSubfield('t', sub_field_info.t))
             subfields.addSubfield('t', sub_field_info.t);
     }
-    return subfields;
 }
 
 void ISSNLookup(char **argv) {
