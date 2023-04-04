@@ -967,7 +967,7 @@ void AddMarcFieldsIfForParams(MARC::Record * const marc_record, const Config::Ma
         GetMatchedMARCFields(marc_record, test_tag_and_subfield_code, if_matcher, &test_matched_fields);
         for (const auto test_matched_field : test_matched_fields) {
             if (test_tag_and_subfield_code.length() > MARC::Record::TAG_LENGTH) {
-                char subfield_code(tag_and_subfield_code[3]);
+                char subfield_code(test_tag_and_subfield_code[3]);
                 if (test_matched_field->hasSubfield(subfield_code)) {
                     const std::string test_subfield_value(test_matched_field->getFirstSubfieldWithCode(subfield_code));
                     const std::string replacement(filter.second.replace_term_);
@@ -1037,7 +1037,7 @@ void RewriteMarcFieldsIfForParams(MARC::Record * const marc_record, const Config
             LOG_ERROR("Rewrite if: Cannot mix up test and target specifications with and without subfield codes");
         for (const auto test_matched_field : test_matched_fields) {
             if (test_tag_and_subfield_code.length() > MARC::Record::TAG_LENGTH) {
-                char test_subfield_code(tag_and_subfield_code[3]);
+                char test_subfield_code(test_tag_and_subfield_code[3]);
                 if (test_matched_field->hasSubfield(test_subfield_code)) {
                     const std::string test_subfield_value(test_matched_field->getFirstSubfieldWithCode(test_subfield_code));
                     const std::string replacement(filter.second.replace_term_);
