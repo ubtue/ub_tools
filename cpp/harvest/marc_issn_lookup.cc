@@ -127,6 +127,7 @@ std::map<std::string, SubFieldInfo> JournalCacheBuilder(const std::string &input
                     ++journal_cache[sub_field_info_of_record.x_].printed_version_counter_;
             } else {
                 if (sub_field_info_of_record.is_online_) {
+                    sub_field_info_of_record.printed_version_counter_ = journal_cache[sub_field_info_of_record.x_].printed_version_counter_;
                     journal_cache[sub_field_info_of_record.x_] = sub_field_info_of_record;
                     ++journal_cache[sub_field_info_of_record.x_].online_version_counter_;
                 } else
