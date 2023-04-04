@@ -37,7 +37,6 @@ namespace {
     std::exit(EXIT_FAILURE);
 }
 struct SubFieldInfo {
-    std::string i_;
     std::string t_;
     std::string w_;
     std::string x_;
@@ -47,7 +46,7 @@ struct SubFieldInfo {
     bool is_valid_;
 
 
-    void Builder(MARC::Record &record) {
+    void Constructor(MARC::Record &record) {
         for (auto &field : record) {
             if (field.getTag() == "001")
                 w_ = "(DE-627)" + field.getContents();
@@ -56,32 +55,29 @@ struct SubFieldInfo {
                 MARC::Subfields subfields(field.getSubfields());
                 std::string subfield_a(subfields.getFirstSubfieldWithCode('a'));
                 std::string subfield_b(subfields.getFirstSubfieldWithCode('b'));
-                if (subfield_a != "" && subfield_b != "")
+                if ((not subfield_a.empty()) && (not subfield_b.empty()))
                     t_ = subfield_a + " " + subfield_b;
-                else if (subfield_a != "" && subfield_b == "")
+                else if ((not subfield_a.empty()) && subfield_b.empty())
                     t_ = subfield_a;
-                else if (subfield_a == "" && subfield_b != "")
+                else if (subfield_a.empty() && (not subfield_b.empty()))
                     t_ = subfield_b;
                 else
                     t_ = "";
             }
 
             if (field.getTag() == "300")
-                ((field.getFirstSubfieldWithCode('a') == "Online-Ressource") ? is_online_ = true : is_online_ = false);
-
+                is_online_ = (field.getFirstSubfieldWithCode('a') == "Online-Ressource");
 
             if (field.getTag() == "773")
                 x_ = field.getFirstSubfieldWithCode('x');
         }
-
-        i_ = "In:";
     }
 };
 
 
 void UpdateSubfield(MARC::Subfields &subfields, const SubFieldInfo &sub_field_info) {
-    if (!subfields.replaceFirstSubfield('i', sub_field_info.i_))
-        subfields.addSubfield('i', sub_field_info.i_);
+    if (!subfields.replaceFirstSubfield('i', "In:"))
+        subfields.addSubfield('i', "In:");
     if (!subfields.replaceFirstSubfield('x', sub_field_info.x_))
         subfields.addSubfield('x', sub_field_info.x_);
     if (!subfields.replaceFirstSubfield('w', sub_field_info.w_))
@@ -108,7 +104,7 @@ void UpdateJournalValidity(std::map<std::string, SubFieldInfo> &journal_cache) {
     }
 }
 
-std::map<std::string, SubFieldInfo> JournalCacheBuilder(const std::string &input_journal_filename) {
+std::map<std::string, SubFieldInfo> BuildJournalCache(const std::string &input_journal_filename) {
     std::map<std::string, SubFieldInfo> journal_cache;
     auto input_journal_file(MARC::Reader::Factory(input_journal_filename));
     int record_counter(0);
@@ -116,10 +112,10 @@ std::map<std::string, SubFieldInfo> JournalCacheBuilder(const std::string &input
     std::cout << "Build a cache for journal \n";
     while (MARC::Record record = input_journal_file->read()) {
         SubFieldInfo sub_field_info_of_record;
-        sub_field_info_of_record.Builder(record);
+        sub_field_info_of_record.Constructor(record);
 
         // if sub_info is exist in the cache
-        if (auto sub_info_search = journal_cache.find(sub_field_info_of_record.x_); sub_info_search != journal_cache.end()) {
+        if (journal_cache.find(sub_field_info_of_record.x_) != journal_cache.end()) {
             if (journal_cache[sub_field_info_of_record.x_].is_online_) {
                 if (sub_field_info_of_record.is_online_)
                     ++journal_cache[sub_field_info_of_record.x_].online_version_counter_;
@@ -152,7 +148,7 @@ std::map<std::string, SubFieldInfo> JournalCacheBuilder(const std::string &input
 void ISSNLookup(char **argv, std::map<std::string, SubFieldInfo> &journal_cache) {
     auto input_file(MARC::Reader::Factory(argv[1]));
     auto output_file(MARC::Writer::Factory(argv[3]));
-    int onprogress_counter(1);
+    int onprogress_counter(0);
 
     std::cout << "Updating in progress...\n\n";
     while (MARC::Record record = input_file->read()) {
@@ -161,9 +157,8 @@ void ISSNLookup(char **argv, std::map<std::string, SubFieldInfo> &journal_cache)
                 const std::string issn(field.getFirstSubfieldWithCode('x'));
                 if (not issn.empty()) {
                     // data is found
-                    if (auto ji_search = journal_cache.find(issn); ji_search != journal_cache.end()) {
+                    if (journal_cache.find(issn) != journal_cache.end()) {
                         if (journal_cache[issn].is_valid_) {
-                            std::cout << "Record updated - " << onprogress_counter << "\r";
                             MARC::Subfields subfields(field.getSubfields());
                             UpdateSubfield(subfields, journal_cache[issn]);
                             field.setSubfields(subfields);
@@ -173,6 +168,7 @@ void ISSNLookup(char **argv, std::map<std::string, SubFieldInfo> &journal_cache)
                 }
             }
         }
+        std::cout << "Record updated - " << onprogress_counter << "\r";
         output_file->write(record);
     }
 }
@@ -183,7 +179,7 @@ int Main(int argc, char **argv) {
         Usage();
 
 
-    std::map<std::string, SubFieldInfo> journal_cache(JournalCacheBuilder(argv[2]));
+    std::map<std::string, SubFieldInfo> journal_cache(BuildJournalCache(argv[2]));
     ISSNLookup(argv, journal_cache);
 
     return EXIT_SUCCESS;
