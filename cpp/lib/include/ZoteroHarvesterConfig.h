@@ -98,9 +98,6 @@ struct MarcMetadataParams {
     std::map<std::string, std::shared_ptr<ThreadSafeRegexMatcher>> subfields_to_remove_;
     std::map<std::string, std::shared_ptr<ThreadSafeRegexMatcher>> exclusion_filters_;
     std::map<std::string, std::pair<std::shared_ptr<ThreadSafeRegexMatcher>, std::string>> rewrite_filters_;
-    // std::map<std::string, std::pair<std::string, std::pair<std::string, std::pair<std::shared_ptr<ThreadSafeRegexMatcher, std::string>>>
-    // fields_to_add_if_; std::map<std::string, std::pair<std::string, std::pair<std::string,
-    // std::pair<std::shared_ptr<ThreadSafeRegexMatcher, std::string>>> fields_to_rewrite_if_;
     std::map<std::string, MarcMetadataFieldIfParams> fields_to_add_if_;
     std::map<std::string, MarcMetadataFieldIfParams> fields_to_rewrite_if_;
 
