@@ -152,29 +152,26 @@ void ISSNLookup(char **argv, std::map<std::string, SubFieldInfo> &journal_cache)
     auto input_file(MARC::Reader::Factory(argv[1]));
     auto output_file(MARC::Writer::Factory(argv[3]));
     int onprogress_counter(1);
-    for (auto sfi : journal_cache) {
-        std::cout << sfi.first << std::endl;
-    }
+
     std::cout << "Updating in progress...\n\n";
     while (MARC::Record record = input_file->read()) {
-        std::cout << "Record - " << onprogress_counter << "\r";
         for (auto &field : record) {
             if (field.getTag() == "773") {
                 const std::string issn(field.getFirstSubfieldWithCode('x'));
                 if (not issn.empty()) {
                     // data is found
                     if (auto ji_search = journal_cache.find(issn); ji_search != journal_cache.end()) {
-                        std::cout << issn << std::endl;
                         if (journal_cache[issn].is_valid_) {
+                            std::cout << "Record updated - " << onprogress_counter << "\r";
                             MARC::Subfields subfields(field.getSubfields());
                             UpdateSubfield(subfields, journal_cache[issn]);
                             field.setSubfields(subfields);
+                            ++onprogress_counter;
                         }
                     }
                 }
             }
         }
-        ++onprogress_counter;
         output_file->write(record);
     }
 }
