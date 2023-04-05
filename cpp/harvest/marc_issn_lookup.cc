@@ -36,6 +36,7 @@ namespace {
 
     std::exit(EXIT_FAILURE);
 }
+
 struct SubFieldInfo {
     std::string t_;
     std::string w_;
@@ -45,7 +46,16 @@ struct SubFieldInfo {
     bool is_online_;
     bool is_valid_;
 
-    SubFieldInfo() { }
+    SubFieldInfo() {
+        online_version_counter_ = 0;
+        printed_version_counter_ = 0;
+        is_valid_ = false;
+        is_online_ = false;
+        t_ = "";
+        w_ = "";
+        x_ = "";
+    }
+
     SubFieldInfo(MARC::Record &record) {
         online_version_counter_ = 0;
         printed_version_counter_ = 0;
@@ -77,7 +87,6 @@ struct SubFieldInfo {
         }
     }
 };
-
 
 void UpdateSubfield(MARC::Subfields &subfields, const SubFieldInfo &sub_field_info) {
     if (!subfields.replaceFirstSubfield('i', "In:"))
@@ -180,7 +189,6 @@ void ISSNLookup(char **argv, std::map<std::string, SubFieldInfo> &journal_cache)
 int Main(int argc, char **argv) {
     if (argc != 4)
         Usage();
-
 
     std::map<std::string, SubFieldInfo> journal_cache(BuildJournalCache(argv[2]));
     ISSNLookup(argv, journal_cache);
