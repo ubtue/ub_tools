@@ -18,15 +18,15 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <fstream>
 #include <iostream>
-#include <sstream>
 #include "CORE.h"
 #include "FileUtil.h"
 #include "MARC.h"
 #include "util.h"
 
 namespace {
+
+
 [[noreturn]] void Usage() {
     ::Usage(
         "marc_input_articles marc_input_journals marc_output_articles"
@@ -37,6 +37,7 @@ namespace {
 
     std::exit(EXIT_FAILURE);
 }
+
 
 struct SubFieldInfo {
     std::string t_;
@@ -89,11 +90,6 @@ struct SubFieldInfo {
     }
 };
 
-std::string join(std::vector<std::string> const &strings, std::string delim) {
-    std::stringstream ss;
-    std::copy(strings.begin(), strings.end(), std::ostream_iterator<std::string>(ss, delim.c_str()));
-    return ss.str();
-}
 
 void UpdateSubfield(MARC::Subfields &subfields, const SubFieldInfo &sub_field_info) {
     if (!subfields.replaceFirstSubfield('i', "In:"))
@@ -109,37 +105,36 @@ void UpdateSubfield(MARC::Subfields &subfields, const SubFieldInfo &sub_field_in
     }
 }
 
-void UpdateJournalValidity(std::map<std::string, SubFieldInfo> &journal_cache) {
-    std::vector<std::string> valid_online, invalid_online, valid_printed, invalid_printed;
-    std::ofstream f_valid_online("issn_valid_online.log"), f_invalid_online("issn_invalid_online.log"),
-        f_valid_printed("issn_valid_printed.log"), f_invalid_printed("issn_invalid_printed.log");
 
+void UpdateJournalValidity(std::map<std::string, SubFieldInfo> &journal_cache) {
     // check whether the issn is occur more than once
+    unsigned online_valid(0), online_invalid(0), print_valid(0), print_invalid(0);
+
+    LOG_INFO("Cache contents:");
     for (auto sfi : journal_cache) {
         if (sfi.second.online_version_counter_ == 1) {
             journal_cache[sfi.first].is_valid_ = true;
-            valid_online.emplace_back(sfi.first);
+            LOG_INFO(sfi.first + ": Online (valid)");
+            ++online_valid;
         } else if (sfi.second.online_version_counter_ > 1) {
             journal_cache[sfi.first].is_valid_ = false;
-            invalid_online.emplace_back(sfi.first);
+            LOG_INFO(sfi.first + ": Online (invalid)");
+            ++online_invalid;
         } else if (sfi.second.online_version_counter_ == 0)
             if (sfi.second.printed_version_counter_ == 1) {
                 journal_cache[sfi.first].is_valid_ = true;
-                valid_printed.emplace_back(sfi.first);
+                LOG_INFO(sfi.first + ": Print (valid)");
+                ++print_valid;
             } else {
                 journal_cache[sfi.first].is_valid_ = false;
-                invalid_printed.emplace_back(sfi.first);
+                LOG_INFO(sfi.first + ": Print (invalid)");
+                ++print_invalid;
             }
     }
-    if (f_valid_online.is_open())
-        f_valid_online << join(valid_online, "\n");
-    if (f_invalid_online.is_open())
-        f_invalid_online << join(invalid_online, "\n");
-    if (f_valid_printed.is_open())
-        f_valid_printed << join(valid_printed, "\n");
-    if (f_invalid_printed.is_open())
-        f_invalid_printed << join(invalid_printed, "\n");
+    LOG_INFO("Online (valid): " + std::to_string(online_valid) + ", " + "Online (invalid): " + std::to_string(online_invalid) + ", "
+             + "Print (valid): " + std::to_string(print_valid) + ", " + "Print (invalid): " + std::to_string(print_invalid));
 }
+
 
 std::map<std::string, SubFieldInfo> BuildJournalCache(const std::string &input_journal_filename) {
     std::map<std::string, SubFieldInfo> journal_cache;
@@ -179,16 +174,15 @@ std::map<std::string, SubFieldInfo> BuildJournalCache(const std::string &input_j
     return journal_cache;
 }
 
+
 void ISSNLookup(char **argv, std::map<std::string, SubFieldInfo> &journal_cache) {
     auto input_file(MARC::Reader::Factory(argv[1]));
     auto output_file(MARC::Writer::Factory(argv[3]));
-    int updated_counter(0);
+    unsigned updated_counter(0), invalid_counter(0), failed_counter(0);
     std::vector<std::string> updated_ppn, ignored_ppn;
-    std::ofstream f_updated("issn_updated.log"), f_ignored("issn_ignored.log");
 
     while (MARC::Record record = input_file->read()) {
         std::string ppn("");
-        bool is_updated(false);
         for (auto &field : record) {
             if (field.getTag() == "001")
                 ppn = field.getContents();
@@ -202,24 +196,28 @@ void ISSNLookup(char **argv, std::map<std::string, SubFieldInfo> &journal_cache)
                             MARC::Subfields subfields(field.getSubfields());
                             UpdateSubfield(subfields, journal_cache[issn]);
                             field.setSubfields(subfields);
+                            LOG_INFO(ppn + "/" + issn + ": Updated to " + field.getFirstSubfieldWithCode('x'));
                             ++updated_counter;
+                        } else {
+                            LOG_INFO(ppn + "/" + issn + ": ISSN lookup is invalid");
+                            ++invalid_counter;
                         }
+                    } else {
+                        LOG_INFO(ppn + "/" + issn + ": ISSN lookup failed");
+                        ++failed_counter;
                     }
                 }
             }
         }
         output_file->write(record);
-        if (is_updated)
-            updated_ppn.emplace_back(ppn);
-        else
-            ignored_ppn.emplace_back(ppn);
     }
-    if (f_updated.is_open())
-        f_updated << join(updated_ppn, "\n");
-    if (f_ignored.is_open())
-        f_ignored << join(ignored_ppn, "\n");
+    LOG_INFO("Lookup result: Updated (" + std::to_string(updated_counter) + "), invalid (" + std::to_string(invalid_counter) + "), failed ("
+             + std::to_string(failed_counter) + ")");
 }
+
+
 } // end of namespace
+
 
 int Main(int argc, char **argv) {
     if (argc != 4)
