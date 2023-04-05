@@ -45,8 +45,12 @@ struct SubFieldInfo {
     bool is_online_;
     bool is_valid_;
 
-
-    void Constructor(MARC::Record &record) {
+    SubFieldInfo() { }
+    SubFieldInfo(MARC::Record &record) {
+        online_version_counter_ = 0;
+        printed_version_counter_ = 0;
+        is_valid_ = false;
+        is_online_ = false;
         for (auto &field : record) {
             if (field.getTag() == "001")
                 w_ = "(DE-627)" + field.getContents();
@@ -83,7 +87,7 @@ void UpdateSubfield(MARC::Subfields &subfields, const SubFieldInfo &sub_field_in
     if (!subfields.replaceFirstSubfield('w', sub_field_info.w_))
         subfields.addSubfield('w', sub_field_info.w_);
 
-    if (sub_field_info.t_ != "") {
+    if (not sub_field_info.t_.empty()) {
         if (!subfields.replaceFirstSubfield('t', sub_field_info.t_))
             subfields.addSubfield('t', sub_field_info.t_);
     }
@@ -111,8 +115,7 @@ std::map<std::string, SubFieldInfo> BuildJournalCache(const std::string &input_j
 
     std::cout << "Build a cache for journal \n";
     while (MARC::Record record = input_journal_file->read()) {
-        SubFieldInfo sub_field_info_of_record;
-        sub_field_info_of_record.Constructor(record);
+        SubFieldInfo sub_field_info_of_record(record);
 
         // if sub_info is exist in the cache
         if (journal_cache.find(sub_field_info_of_record.x_) != journal_cache.end()) {
