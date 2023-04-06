@@ -68,7 +68,7 @@ def Main():
             str(found) + " record(s), total found: " + \
             str(total_found) + " record(s)"
 
-        print(msg, end="\r")
+        print(msg)
         found = 0
         yaz_client.sendline("show all")
         yaz_client.expect("\r\n")
