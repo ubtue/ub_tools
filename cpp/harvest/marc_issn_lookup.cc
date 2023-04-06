@@ -142,34 +142,6 @@ std::vector<SubFieldInfo> BuildJournalCache(const std::string &input_journal_fil
         bool is_exist_in_journal_cache(false);
 
         for (auto &elemt : journal_cache) {
-            if (elemt.x_ == sub_field_info_of_record.x_) {
-                if (elemt.is_online_) {
-                    if (sub_field_info_of_record.is_online_) {
-                        // data is in cache already
-                        is_exist_in_journal_cache = true;
-                        ++elemt.online_version_counter_;
-                        elemt.is_valid_ = false;
-                        continue;
-                    } else {
-                        elemt.issns.insert(elemt.issns.end(), sub_field_info_of_record.issns.begin(), sub_field_info_of_record.issns.end());
-                        ++elemt.printed_version_counter_;
-                        is_exist_in_journal_cache = true;
-                        continue;
-                    }
-                } else {
-                    if (sub_field_info_of_record.is_online_) {
-                        UpdateSubFieldInfo(elemt, sub_field_info_of_record, true);
-                        elemt.is_valid_ = true;
-                        is_exist_in_journal_cache = true;
-                        continue;
-                    } else {
-                        elemt.is_valid_ = false;
-                        ++elemt.printed_version_counter_;
-                        is_exist_in_journal_cache = true;
-                        continue;
-                    }
-                }
-            }
             if (IsInISSNs(sub_field_info_of_record.issns, elemt.x_)) {
                 if (elemt.is_online_) {
                     if (sub_field_info_of_record.is_online_) {
