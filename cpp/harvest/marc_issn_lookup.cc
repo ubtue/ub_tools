@@ -133,13 +133,13 @@ void UpdateJournalValidity(std::map<std::string, SubFieldInfo> &journal_cache, s
                 auto curr_print_issn = print_issn++;
                 if (not curr_print_issn->second.l_.empty() && (curr_print_issn->second.l_ == curr_online_sfi->second.x_)) {
                     // erase the printed version refers to this online issn
-                    print_issn_cache.erase(print_issn);
+                    print_issn_cache.erase(curr_print_issn);
                 }
 
                 // check whether there is a same issn with print version and the print version has no reference to online version
                 if (curr_print_issn->second.l_.empty() && (curr_print_issn->second.x_ == curr_online_sfi->second.l_)) {
-                    // the printed version refers to this online issn
-                    print_issn_cache.erase(print_issn);
+                    // delete the printed version refers to this online issn
+                    print_issn_cache.erase(curr_print_issn);
                 }
             }
             online_issn_cache.erase(curr_online_sfi);
