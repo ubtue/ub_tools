@@ -43,6 +43,7 @@ struct SubFieldInfo {
     std::string t_;
     std::string w_;
     std::string x_;
+    std::string l_; // this is for reference issn from main
     int online_version_counter_;
     int printed_version_counter_;
     bool is_online_;
@@ -56,6 +57,7 @@ struct SubFieldInfo {
         t_ = "";
         w_ = "";
         x_ = "";
+        l_ = "";
     }
 
     SubFieldInfo(MARC::Record &record) {
@@ -67,8 +69,10 @@ struct SubFieldInfo {
             if (field.getTag() == "001")
                 w_ = "(DE-627)" + field.getContents();
 
-            if (field.getTag() == "022")
+            if (field.getTag() == "022") {
                 x_ = field.getFirstSubfieldWithCode('a');
+                l_ = field.getFirstSubfieldWithCode('l');
+            }
 
             if (field.getTag() == "245") {
                 MARC::Subfields subfields(field.getSubfields());
@@ -106,70 +110,103 @@ void UpdateSubfield(MARC::Subfields &subfields, const SubFieldInfo &sub_field_in
 }
 
 
-void UpdateJournalValidity(std::map<std::string, SubFieldInfo> &journal_cache) {
+void UpdateJournalValidity(std::map<std::string, SubFieldInfo> &journal_cache, std::map<std::string, SubFieldInfo> &online_issn_cache,
+                           std::map<std::string, SubFieldInfo> &print_issn_cache) {
     // check whether the issn is occur more than once
-    unsigned online_valid(0), online_invalid(0), print_valid(0), print_invalid(0);
+    // unsigned online_valid(0), online_invalid(0), print_valid(0), print_invalid(0);
 
     LOG_INFO("Cache contents:");
-    for (auto sfi : journal_cache) {
-        if (sfi.second.online_version_counter_ == 1) {
-            journal_cache[sfi.first].is_valid_ = true;
-            LOG_INFO(sfi.first + ": Online (valid)");
-            ++online_valid;
-        } else if (sfi.second.online_version_counter_ > 1) {
-            journal_cache[sfi.first].is_valid_ = false;
-            LOG_INFO(sfi.first + ": Online (invalid)");
-            ++online_invalid;
-        } else if (sfi.second.online_version_counter_ == 0)
-            if (sfi.second.printed_version_counter_ == 1) {
-                journal_cache[sfi.first].is_valid_ = true;
-                LOG_INFO(sfi.first + ": Print (valid)");
-                ++print_valid;
-            } else {
-                journal_cache[sfi.first].is_valid_ = false;
-                LOG_INFO(sfi.first + ": Print (invalid)");
-                ++print_invalid;
+    // check online issn
+    auto online_sfi = online_issn_cache.cbegin();
+    while (online_sfi != online_issn_cache.cend()) {
+        auto curr_online_sfi = online_sfi++;
+        if (curr_online_sfi->second.online_version_counter_ == 1) {
+            // add to journal_cache
+            journal_cache.emplace(curr_online_sfi->first, curr_online_sfi->second);
+
+            // set status to valid
+            journal_cache[curr_online_sfi->second.x_].is_valid_ = true;
+
+            auto print_issn = print_issn_cache.cbegin();
+            while (print_issn != print_issn_cache.cend()) {
+                // check whether the online issn has a refence from the printed version
+                auto curr_print_issn = print_issn++;
+                if (not curr_print_issn->second.l_.empty() && (curr_print_issn->second.l_ == curr_online_sfi->second.x_)) {
+                    // erase the printed version refers to this online issn
+                    print_issn_cache.erase(print_issn);
+                }
+
+                // check whether there is a same issn with print version and the print version has no reference to online version
+                if (curr_print_issn->second.l_.empty() && (curr_print_issn->second.x_ == curr_online_sfi->second.l_)) {
+                    // the printed version refers to this online issn
+                    print_issn_cache.erase(print_issn);
+                }
             }
+            online_issn_cache.erase(curr_online_sfi);
+        }
+        if (curr_online_sfi->second.online_version_counter_ > 1) {
+            auto print_issn = print_issn_cache.cbegin();
+            while (print_issn != print_issn_cache.cend()) {
+                // check whether the online issn has a refence from the printed version
+                auto curr_print_issn = print_issn++;
+                if (not curr_print_issn->second.l_.empty() && (curr_print_issn->second.l_ == curr_online_sfi->second.x_)) {
+                    // delete the printed version refers to this online issn
+                    print_issn_cache.erase(curr_print_issn);
+                }
+
+                // check whether there is a same issn with print version and the print version has no reference to online version
+                if (curr_print_issn->second.l_.empty() && (curr_print_issn->second.x_ == curr_online_sfi->second.l_)) {
+                    // delete the printed version refers to this online issn
+                    print_issn_cache.erase(curr_print_issn);
+                }
+            }
+            online_issn_cache.erase(curr_online_sfi);
+        }
     }
-    LOG_INFO("Online (valid): " + std::to_string(online_valid) + ", " + "Online (invalid): " + std::to_string(online_invalid) + ", "
-             + "Print (valid): " + std::to_string(print_valid) + ", " + "Print (invalid): " + std::to_string(print_invalid));
+    auto print_sfi = print_issn_cache.cbegin();
+    while (print_sfi != print_issn_cache.cend()) {
+        auto curr_print_sfi = print_sfi++;
+        if (curr_print_sfi->second.printed_version_counter_ == 1) {
+            journal_cache.emplace(curr_print_sfi->first, curr_print_sfi->second);
+            journal_cache[curr_print_sfi->second.x_].is_valid_ = true;
+        }
+    }
+    // LOG_INFO("Online (valid): " + std::to_string(online_valid) + ", " + "Online (invalid): " + std::to_string(online_invalid) + ", "
+    //          + "Print (valid): " + std::to_string(print_valid) + ", " + "Print (invalid): " + std::to_string(print_invalid));
 }
 
 
 std::map<std::string, SubFieldInfo> BuildJournalCache(const std::string &input_journal_filename) {
-    std::map<std::string, SubFieldInfo> journal_cache;
+    std::map<std::string, SubFieldInfo> journal_cache, online_issn_cache, printed_issn_cache;
     auto input_journal_file(MARC::Reader::Factory(input_journal_filename));
     int record_counter(0);
+
 
     while (MARC::Record record = input_journal_file->read()) {
         SubFieldInfo sub_field_info_of_record(record);
 
-        // if sub_info is exist in the cache
-        if (journal_cache.find(sub_field_info_of_record.x_) != journal_cache.end()) {
-            if (journal_cache[sub_field_info_of_record.x_].is_online_) {
-                if (sub_field_info_of_record.is_online_)
-                    ++journal_cache[sub_field_info_of_record.x_].online_version_counter_;
-                else
-                    ++journal_cache[sub_field_info_of_record.x_].printed_version_counter_;
+        // online issn
+        if (sub_field_info_of_record.is_online_) {
+            if (online_issn_cache.find(sub_field_info_of_record.x_) != online_issn_cache.end()) {
+                // it is in online cache already
+                ++online_issn_cache[sub_field_info_of_record.x_].online_version_counter_;
             } else {
-                if (sub_field_info_of_record.is_online_) {
-                    sub_field_info_of_record.printed_version_counter_ = journal_cache[sub_field_info_of_record.x_].printed_version_counter_;
-                    journal_cache[sub_field_info_of_record.x_] = sub_field_info_of_record;
-                    ++journal_cache[sub_field_info_of_record.x_].online_version_counter_;
-                } else
-                    ++journal_cache[sub_field_info_of_record.x_].printed_version_counter_;
+                online_issn_cache.emplace(sub_field_info_of_record.x_, sub_field_info_of_record);
             }
         }
-        // sub_info is not in the cache
+        // print issn
         else
         {
-            journal_cache.emplace(sub_field_info_of_record.x_, sub_field_info_of_record);
-            (sub_field_info_of_record.is_online_ ? ++journal_cache[sub_field_info_of_record.x_].online_version_counter_
-                                                 : ++journal_cache[sub_field_info_of_record.x_].printed_version_counter_);
+            if (printed_issn_cache.find(sub_field_info_of_record.x_) != printed_issn_cache.end()) {
+                // it is in print cache already
+                ++online_issn_cache[sub_field_info_of_record.x_].online_version_counter_;
+            } else {
+                printed_issn_cache.emplace(sub_field_info_of_record.x_, sub_field_info_of_record);
+            }
         }
         ++record_counter;
     }
-    UpdateJournalValidity(journal_cache);
+    UpdateJournalValidity(journal_cache, online_issn_cache, printed_issn_cache);
 
     return journal_cache;
 }
@@ -191,20 +228,15 @@ void ISSNLookup(char **argv, std::map<std::string, SubFieldInfo> &journal_cache)
                 const std::string issn(field.getFirstSubfieldWithCode('x'));
                 if (not issn.empty()) {
                     // data is found
-                    if (journal_cache.find(issn) != journal_cache.end()) {
-                        if (journal_cache[issn].is_valid_) {
+                    auto cache_sfi = journal_cache.cbegin();
+                    while (cache_sfi != journal_cache.cend()) {
+                        if (cache_sfi->second.x_ == issn || cache_sfi->second.l_ == issn) {
                             MARC::Subfields subfields(field.getSubfields());
                             UpdateSubfield(subfields, journal_cache[issn]);
                             field.setSubfields(subfields);
                             LOG_INFO(ppn + "/" + issn + ": Updated to " + field.getFirstSubfieldWithCode('x'));
                             ++updated_counter;
-                        } else {
-                            LOG_INFO(ppn + "/" + issn + ": ISSN lookup is invalid");
-                            ++invalid_counter;
                         }
-                    } else {
-                        LOG_INFO(ppn + "/" + issn + ": ISSN lookup failed");
-                        ++failed_counter;
                     }
                 }
             }
