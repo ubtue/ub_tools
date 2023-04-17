@@ -128,7 +128,7 @@ void UpdateSubFieldInfo(SubFieldInfo &sfi, const SubFieldInfo &new_sfi, const bo
 
 bool IsInISSNs(const std::vector<std::string> &issns, const std::vector<std::string> &issns_input) {
     for (const auto &issn : issns_input) {
-        if (std::find(issns.begin(), issns.end(), issn) != issns.end())
+        if (std::find(issns.begin(), issns.end(), StringUtil::ASCIIToUpper(issn)) != issns.end())
             return true;
     }
     return false;
@@ -138,8 +138,8 @@ bool IsInISSNs(const std::vector<std::string> &issns, const std::vector<std::str
 // avoiding duplication in issns's cache
 void InsertIfNotExist(const std::vector<std::string> &issns_input, std::vector<std::string> &issns) {
     for (const auto &issn : issns_input) {
-        if (std::find(issns.begin(), issns.end(), issn) != issns.end())
-            issns.emplace_back(issn);
+        if (std::find(issns.begin(), issns.end(), StringUtil::ASCIIToUpper(issn)) != issns.end())
+            issns.emplace_back(StringUtil::ASCIIToUpper(issn));
     }
 }
 
@@ -151,7 +151,7 @@ std::vector<SubFieldInfo> BuildJournalCache(const std::string &input_journal_fil
 
     while (MARC::Record record = input_journal_file->read()) {
         SubFieldInfo sub_field_info_of_record(record);
-        bool is_exist_in_journal_cache(false);
+        bool exist_in_journal_cache(false);
 
         for (auto &elemt : journal_cache) {
             if (IsInISSNs(sub_field_info_of_record.issns, elemt.issns)) {
@@ -160,25 +160,25 @@ std::vector<SubFieldInfo> BuildJournalCache(const std::string &input_journal_fil
                         ++elemt.online_version_counter_;
                         InsertIfNotExist(sub_field_info_of_record.issns, elemt.issns);
                         elemt.is_valid_ = false;
-                        is_exist_in_journal_cache = true;
+                        exist_in_journal_cache = true;
                         continue;
                     } else {
                         InsertIfNotExist(sub_field_info_of_record.issns, elemt.issns);
                         ++elemt.printed_version_counter_;
-                        is_exist_in_journal_cache = true;
+                        exist_in_journal_cache = true;
                         continue;
                     }
                 } else {
                     if (sub_field_info_of_record.is_online_) {
                         UpdateSubFieldInfo(elemt, sub_field_info_of_record, true);
                         elemt.is_valid_ = true;
-                        is_exist_in_journal_cache = true;
+                        exist_in_journal_cache = true;
                         continue;
                     } else {
                         // print issn refer to other print issn
                         elemt.is_valid_ = false;
                         ++elemt.printed_version_counter_;
-                        is_exist_in_journal_cache = true;
+                        exist_in_journal_cache = true;
                         elemt.issns.emplace_back(sub_field_info_of_record.x_);
                         continue;
                     }
@@ -187,7 +187,7 @@ std::vector<SubFieldInfo> BuildJournalCache(const std::string &input_journal_fil
         }
 
 
-        if (not is_exist_in_journal_cache) {
+        if (not exist_in_journal_cache) {
             sub_field_info_of_record.is_valid_ = true;
             journal_cache.emplace_back(sub_field_info_of_record);
         }
