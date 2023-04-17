@@ -138,7 +138,7 @@ bool IsInISSNs(const std::vector<std::string> &issns, const std::vector<std::str
 // avoiding duplication in issns's cache
 void InsertIfNotExist(const std::vector<std::string> &issns_input, std::vector<std::string> &issns) {
     for (const auto &issn : issns_input) {
-        if (std::find(issns.begin(), issns.end(), StringUtil::ASCIIToUpper(issn)) != issns.end())
+        if (std::find(issns.begin(), issns.end(), StringUtil::ASCIIToUpper(issn)) == issns.end())
             issns.emplace_back(StringUtil::ASCIIToUpper(issn));
     }
 }
