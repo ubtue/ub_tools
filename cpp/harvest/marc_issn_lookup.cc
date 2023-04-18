@@ -130,14 +130,14 @@ void PrettyPrintCache(const std::vector<SubFieldInfo> &journal_cache) {
 }
 
 
-bool IsInISSNs(const std::string &issn, const std::vector<std::string> &issns) {
+bool IsInISSNs(const std::vector<std::string> &issns, const std::string &issn) {
     return (std::find(issns.begin(), issns.end(), StringUtil::ASCIIToUpper(issn)) != issns.end() ? true : false);
 }
 
 
 bool IsInISSNs(const std::vector<std::string> &issns, const std::vector<std::string> &issns_input) {
     for (const auto &issn : issns_input)
-        if (std::find(issns.begin(), issns.end(), StringUtil::ASCIIToUpper(issn)) != issns.end())
+        if (IsInISSNs(issns, issn))
             return true;
 
     return false;
@@ -171,7 +171,7 @@ void UpdateSubFieldAndCombineIssn(SubFieldInfo * const sfi, const SubFieldInfo &
     bool subset(true);
 
     for (const auto &v1 : new_sfi.issns_)
-        subset = (subset || IsInISSNs(v1, sfi->issns_));
+        subset = (subset || IsInISSNs(sfi->issns_, v1));
 
     if (not subset) {
         if (sfi->is_online_ && new_sfi.is_online_) {
