@@ -40,22 +40,23 @@ namespace {
 }
 
 // avoiding duplication in issns's cache
-void InsertIfNotExist(const std::vector<std::string> &issns_input, std::vector<std::string> * const issns) {
-    for (const auto &issn : issns_input) {
-        if (std::find(issns->begin(), issns->end(), StringUtil::ASCIIToUpper(issn)) == issns->end())
-            issns->emplace_back(StringUtil::ASCIIToUpper(issn));
-    }
-}
 void InsertIssnIfNotExist(const std::string &issn, std::vector<std::string> * const issns) {
     if (std::find(issns->begin(), issns->end(), StringUtil::ASCIIToUpper(issn)) == issns->end())
         issns->emplace_back(StringUtil::ASCIIToUpper(issn));
 }
 
+
+void InsertIfNotExist(const std::vector<std::string> &issns_input, std::vector<std::string> * const issns) {
+    for (const auto &issn : issns_input)
+        InsertIssnIfNotExist(issn, issns);
+}
+
+
 struct SubFieldInfo {
     std::string t_;
     std::string w_;
     std::string x_;
-    std::vector<std::string> issns_; // this is for reference issn from main
+    std::vector<std::string> issns_;
     bool is_online_;
     bool is_valid_;
 
@@ -142,6 +143,7 @@ bool IsInISSNs(const std::vector<std::string> &issns, const std::vector<std::str
     return false;
 }
 
+
 void UpdateSubfield(MARC::Subfields &subfields, const SubFieldInfo &sub_field_info) {
     if (!subfields.replaceFirstSubfield('i', "In:"))
         subfields.addSubfield('i', "In:");
@@ -163,6 +165,7 @@ void UpdateSubFieldInfo(SubFieldInfo &sfi, const SubFieldInfo &new_sfi, const bo
     sfi.is_online_ = is_online;
     InsertIfNotExist(new_sfi.issns_, &sfi.issns_);
 }
+
 
 void UpdateSubFieldAndCombineIssn(SubFieldInfo * const sfi, const SubFieldInfo &new_sfi) {
     bool subset(true);
@@ -196,7 +199,7 @@ std::vector<SubFieldInfo> MergeIssn(const std::vector<SubFieldInfo> &journal_cac
     SubFieldInfo content;
     bool restart(false);
 
-    // Multipass checking and combining
+    // Iteration of multiple checking (multi-pass checking)
     for (unsigned i = 0; i < tmp_cache.size(); i++) {
         content = tmp_cache[i];
 
@@ -221,6 +224,7 @@ std::vector<SubFieldInfo> MergeIssn(const std::vector<SubFieldInfo> &journal_cac
     return new_journal_cache;
 }
 
+
 std::vector<SubFieldInfo> BuildJournalCache(const std::string &input_journal_filename) {
     std::vector<SubFieldInfo> journal_cache;
     auto input_journal_file(MARC::Reader::Factory(input_journal_filename));
@@ -237,9 +241,8 @@ std::vector<SubFieldInfo> BuildJournalCache(const std::string &input_journal_fil
                     if (sub_field_info_of_record.is_online_) {
                         InsertIfNotExist(sub_field_info_of_record.issns_, &elemt.issns_);
                         elemt.is_valid_ = false;
-                    } else {
+                    } else
                         InsertIfNotExist(sub_field_info_of_record.issns_, &elemt.issns_);
-                    }
                 } else {
                     if (sub_field_info_of_record.is_online_) {
                         UpdateSubFieldInfo(elemt, sub_field_info_of_record, true);
