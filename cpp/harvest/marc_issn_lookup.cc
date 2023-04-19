@@ -304,9 +304,7 @@ int Main(int argc, char **argv) {
         Usage();
 
     std::vector<SubFieldInfo> journal_cache(BuildJournalCache(argv[2]));
-
-    if (argc == 4 || argc == 5)
-        ISSNLookup(argv, journal_cache);
+    ISSNLookup(argv, journal_cache);
 
     if (argc == 5 && (std::strcmp(argv[4], "--verbose") == 0))
         PrettyPrintCache(journal_cache);
