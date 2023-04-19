@@ -204,6 +204,10 @@ def ClassifySentences(authors_and_sentence_groups, output):
                      if not one_author_tree['titles']:
                          one_author_tree = HandleMissingTitle(one_author_tree)
                      one_author_tree['titles'][-1]['elements'].append({ 'internal_reference' : sentence })
+                 else:
+                     if not one_author_tree['titles']:
+                         one_author_tree = HandleMissingTitle(one_author_tree)
+                     one_author_tree['titles'][-1]['elements'].append({ 'unspecified' : sentence })
 
         drop_falsey = lambda path, key, value: bool(value)
         all_authors.append(remap(one_author_tree, visit=drop_falsey))
@@ -225,7 +229,8 @@ def LabelEntities(authors_with_classifications):
      for author_and_titles in authors_with_classifications:
          docs.append(plain_nlp(author_and_titles['author']))
          for title_and_elements in author_and_titles['titles']:
-             docs.append(plain_nlp(title_and_elements['title']))
+             if 'title' in title_and_elements:
+                  docs.append(plain_nlp(title_and_elements['title']))
              if 'elements' in title_and_elements:
                  for element in title_and_elements['elements']:
                      print(element)
