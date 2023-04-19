@@ -9,7 +9,7 @@ FILE_NEW="ixtheo_remid_`date +'%y%m%d'`_001.xml"
 
 # Download MARC XML from Hebis via SRU
 # (be sure to increase the "maximumRecords" parameter if necessary, right now there are ~500 records)
-wget 'http://sru.hebis.de/sru/DB=2.1?query=pica.abr+%3D+%22REMID%22+or+pica.prv+%3D+%22REMID%22&version=1.1&operation=searchRetrieve&stylesheet=http%3A%2F%2Fsru.hebis.de%2Fsru%2F%3Fxsl%3DsearchRetrieveResponse&recordSchema=marc21&maximumRecords=1000&startRecord=1&recordPacking=xml&sortKeys=LST_Y%2Cpica%2C0%2C%2C' -O $FILE_ORI
+wget 'http://sru.hebis.de/sru/DB=2.1?query=pica.abr+%3D+%22REMID%22+or+pica.prv+%3D+%22REMID%22&version=1.1&operation=searchRetrieve&stylesheet=http%3A%2F%2Fsru.hebis.de%2Fsru%2F%3Fxsl%3DsearchRetrieveResponse&recordSchema=marc21&maximumRecords=10000&startRecord=1&recordPacking=xml&sortKeys=LST_Y%2Cpica%2C0%2C%2C' -O $FILE_ORI
 
 # Remove certain tags from non-MARC namespaces so we can use our tools
 grep -vE 'xml-stylesheet|srw:|diag:|:dc|:diag|:xcql|<startRecord|</startRecord|<maximumRecords|</maximumRecords|<sortKeys|</sortKeys|<rob:|</rob:' $FILE_ORI > $FILE_TEMP
