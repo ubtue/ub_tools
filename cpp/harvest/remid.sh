@@ -83,7 +83,7 @@ do
     cat $CleanFile >> $FILE_ORI
 
     # delete the clean file
-    # rm $CleanFile
+    rm $CleanFile
     (( Counter++ ))
 done
 
