@@ -21,8 +21,12 @@ declare -r FILE_NEW="ixtheo_remid_`date +'%y%m%d'`_001.xml"
 declare -r TEMP_FILE_NAME_PREFIX="tmp_file"
 declare -r CLEAN_FILE_NAME_PREFIX="clean_file"
 
+declare -r URL_PART_1="http://sru.hebis.de/sru/DB=2.1?query=pica.abr+%3D+%22REMID%22+or+pica.prv+%3D+%22REMID%22&version=1.1&operation=searchRetrieve&recordSchema=marc21&maximumRecords="
+declare -r URL_PART_2="&startRecord="
+declare -r URL_PART_3="&recordPacking=xml&sortKeys=LST_Y%2Cpica%2C0%2C%2C"
+
 # maximum number of records per download 
-declare -r RECORDS_PER_CALL=100
+declare -r RECORDS_PER_CALL=500
 
 
 function ColorEcho {
@@ -33,25 +37,27 @@ function ColorEcho {
 ColorEcho "========= REMID Script ===========\n"
 ColorEcho "++++ Counting the total number of record to download ++++"
 # the total number of records
-wget "http://sru.hebis.de/sru/DB=2.1?query=pica.abr+%3D+%22REMID%22+or+pica.prv+%3D+%22REMID%22&version=1.1&operation=searchRetrieve&recordSchema=marc21&maximumRecords=1&startRecord=1&recordPacking=xml&sortKeys=LST_Y%2Cpica%2C0%2C%2C" -O $GET_TOTAL_RECORDS
+wget "${URL_PART_1}1${URL_PART_2}1${URL_PART_3}" -O $GET_TOTAL_RECORDS
 
-TotalRecord=$(sed -n '/srw:numberOfRecords/{s/.*<srw:numberOfRecords>\(.*\)<\/srw:numberOfRecords>.*/\1/;p}' <<< tmp_total_rec $GET_TOTAL_RECORDS)
+
+declare -r TOTAL_RECORD=$(sed -n '/srw:numberOfRecords/{s/.*<srw:numberOfRecords>\(.*\)<\/srw:numberOfRecords>.*/\1/;p}' <<< tmp_total_rec $GET_TOTAL_RECORDS)
 
 rm $GET_TOTAL_RECORDS
 ## End Get the total number of records
 
-NumOfIteration=$(( (TotalRecord + RECORDS_PER_CALL - 1) / RECORDS_PER_CALL ))
+declare -r NUMBER_OF_ITERATION=$(( (TOTAL_RECORD + RECORDS_PER_CALL - 1) / RECORDS_PER_CALL ))
 
-ColorEcho "++++ Total record found ${TotalRecord}, and it will split into ${NumOfIteration} file(s) ++++"
+ColorEcho "++++ Total record found ${TOTAL_RECORD}, and it will split into ${NUMBER_OF_ITERATION} file(s) ++++"
 
 Counter=1
 TempFile=""
 CleanFile=""
 StartRecord=0
 
-while [ $Counter -le $NumOfIteration ]
+echo '<?xml version="1.0" encoding="UTF-8" ?>' > $FILE_ORI
+while [ $Counter -le $NUMBER_OF_ITERATION ]
 do  
-    ColorEcho "++++ Downloading file ${Counter} of ${NumOfIteration} ++++"
+    ColorEcho "++++ Downloading file ${Counter} of ${NUMBER_OF_ITERATION} ++++"
 
     TempFile="${TEMP_FILE_NAME_PREFIX}_${Counter}.xml"
     CleanFile="${CLEAN_FILE_NAME_PREFIX}_${Counter}.xml"
@@ -59,33 +65,24 @@ do
     StartRecord=$(( ( Counter - 1) * RECORDS_PER_CALL + 1 ))
     ColorEcho "Downloading start from record ${StartRecord}"
     # download some records into the file
-    wget "http://sru.hebis.de/sru/DB=2.1?query=pica.abr+%3D+%22REMID%22+or+pica.prv+%3D+%22REMID%22&version=1.1&operation=searchRetrieve&recordSchema=marc21&maximumRecords=${RECORDS_PER_CALL}&startRecord=${StartRecord}&recordPacking=xml&sortKeys=LST_Y%2Cpica%2C0%2C%2C" -O $TempFile
+    wget "${URL_PART_1}${RECORDS_PER_CALL}${URL_PART_2}${StartRecord}${URL_PART_3}" -O $TempFile
 
-    ColorEcho "Purging the file... \n\n"
+    ColorEcho "Purging the file..."
     # clean the temp file
-    grep -vE '<?xml\ version|xml-stylesheet|srw:|diag:|:dc|:diag|:xcql|<startRecord|</startRecord|<maximumRecords|</maximumRecords|<sortKeys|</sortKeys|<rob:|</rob:' $TempFile > $CleanFile    
+    grep -vE '<?xml\ version|xml-stylesheet|srw:|diag:|:dc|:diag|:xcql|<startRecord|</startRecord|<maximumRecords|</maximumRecords|<sortKeys|</sortKeys|<rob:|</rob:' $TempFile > $CleanFile  
 
-    # remove temp file
-    rm $TempFile
-
-    (( Counter++ ))
-done
-
-# merge all clean files
-ColorEcho "++++ Merge all clean files ++++"
-
-Counter=1
-echo '<?xml version="1.0" encoding="UTF-8" ?>' >> $FILE_ORI
-while [ $Counter -le $NumOfIteration ]
-do
-    CleanFile="${CLEAN_FILE_NAME_PREFIX}_${Counter}.xml"
-
+    ColorEcho "Merge the clean file \n"
     cat $CleanFile >> $FILE_ORI
+
+    # delete temp file
+    rm $TempFile
 
     # delete the clean file
     rm $CleanFile
+
     (( Counter++ ))
 done
+
 
 ColorEcho "++++ Make the file readable by marc tool ++++"
 # append this text into line 2
