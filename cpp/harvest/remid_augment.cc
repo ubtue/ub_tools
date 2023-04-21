@@ -20,26 +20,53 @@
 #include <fstream>
 #include <iostream>
 #include <string>
+#include "FileUtil.h"
 #include "MARC.h"
 
 namespace {
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " marc_input marc_output\n";
-    std::cerr << "       marc_input is the marc input file\n";
-    std::cerr << "       marc_output is the marc output file\n";
+    std::cerr << "Usage: " << ::progname << " <--insert_084_r_v | --serial_splitter> marc_input marc_output [issn_output]\n";
+    std::cerr << "       --insert_084_r_v marc_input marc_output\n";
+    std::cerr << "          marc_input is the marc input file\n";
+    std::cerr << "          marc_output is the marc output file\n";
+    std::cerr << "       --insert_084_r_v marc_input marc_output issn_output\n";
+    std::cerr << "          marc_input is the marc input file\n";
+    std::cerr << "          marc_output is the marc output file without serial\n";
+    std::cerr << "          issn_output is the text output file for issn\n";
     std::exit(EXIT_FAILURE);
 }
 
-} // namespace
+void SerialSplitter(char **argv) {
+    auto input_file(MARC::Reader::Factory(argv[2]));
+    auto output_file_marc(MARC::Writer::Factory(argv[3]));
+    std::set<std::string> issns;
+    bool serial;
+    std::ofstream issn_file(argv[4]);
 
-int Main(int argc, char **argv) {
-    if (argc < 3)
-        Usage();
+    while (MARC::Record record = input_file->read()) {
+        serial = false;
+        for (auto &field : record) {
+            if (field.getTag() == "035") {
+                const std::string issn(field.getFirstSubfieldWithCode('a'));
+                if (not issn.empty() && StringUtil::ASCIIToUpper(issn.substr(0, 11)) == "(DE-599)ZDB") {
+                    issns.emplace(issn);
+                    serial = true;
+                }
+                break;
+            }
+        }
+        if (not serial)
+            output_file_marc->write(record);
+    }
 
+    for (auto &issn : issns)
+        issn_file << issn << "\n";
 
-    const std::string input_filename(argv[1]);
-    const std::string output_filename(argv[2]);
+    issn_file.close();
+}
+
+void InsertRVTo084(char **argv) {
     const std::string filter_field("084");
     const char filter_subfield('2');
     const std::string filter_subfield_value("rvk");
@@ -47,9 +74,9 @@ int Main(int argc, char **argv) {
     int total_record(0);
     int total_new_field_added(0);
 
-    auto marc_reader_pointer(MARC::Reader::Factory(input_filename));
+    auto marc_reader_pointer(MARC::Reader::Factory(argv[2]));
     MARC::Reader * const marc_reader(marc_reader_pointer.get());
-    auto marc_writer(MARC::Writer::Factory(output_filename));
+    auto marc_writer(MARC::Writer::Factory(argv[3]));
 
     while (MARC::Record marc_record = marc_reader->read()) {
         const auto check_field(marc_record.findTag(filter_field));
@@ -69,7 +96,7 @@ int Main(int argc, char **argv) {
                 MARC::Tag new_marc_tag(target_field);
                 MARC::Subfields marc_subfields(field.getContents());
                 MARC::Record::Field new_field(new_marc_tag, marc_subfields, 'r', 'v');
-                new_field.deleteAllSubfieldsWithCode('2');
+                new_field.deleteAllSubfieldsWithCode(filter_subfield);
                 marc_record.insertField(new_field);
                 ++total_new_field_added;
             }
@@ -78,5 +105,19 @@ int Main(int argc, char **argv) {
     }
     std::cout << "Processed a total of " << total_record << " record(s)\n";
     std::cout << "Added " << total_new_field_added << " new field(s)\n";
+}
+
+} // namespace
+
+int Main(int argc, char **argv) {
+    if (argc < 4 || argc > 5)
+        Usage();
+
+    if (argc == 4 && (std::strcmp(argv[1], "--insert_084_r_v") == 0))
+        InsertRVTo084(argv);
+
+    if (argc == 5 && (std::strcmp(argv[1], "--serial_splitter") == 0))
+        SerialSplitter(argv);
+
     return EXIT_SUCCESS;
 }
