@@ -1,6 +1,6 @@
 #!/bin/python3
 #
-#    @brief  The automation script to organise process of checking whether the issn is in k10plus if so then get the data and put it in output file.
+#    @brief  The automation script to organise process of checking whether the issn is in k10plus if so then get the data and put it in the output file.
 #           The output file format is mrc.
 #
 #    @author Steven Lolong (steven.lolong@uni-tuebingen.de)
@@ -66,9 +66,10 @@ def Main():
 
         msg = "issn: " + str.strip(line) + " - found: " + \
             str(found) + " record(s), total found: " + \
-            str(total_found) + " record(s)"
+            str(total_found) + " record(s)\r"
 
-        print(msg)
+        sys.stdout.write(msg)
+        sys.stdout.flush()
         found = 0
         yaz_client.sendline("show all")
         yaz_client.expect("\r\n")
@@ -76,7 +77,8 @@ def Main():
     yaz_client.sendline("exit")
 
     input_file.close()
-    print() # print linefeed so that progress output doesn't mess up the console
+    print()  # print linefeed so that progress output doesn't mess up the console
+
 
 try:
     Main()
