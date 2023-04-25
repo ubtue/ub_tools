@@ -9,10 +9,10 @@
 set -o errexit -o nounset
 
 # related to creating temporary file
-declare -r FILE_ORI="remid.xml"
-declare -r FILE_TEMP="remid_tmp.xml"
-declare -r FILE_TEMP_CLEAN="remid_tmp_clean.xml"
-declare -r GET_TOTAL_RECORDS="total_rec.xml"
+declare -r FILE_ORI="/tmp/remid.xml"
+declare -r FILE_TEMP="/tmp/remid_tmp.xml"
+declare -r FILE_TEMP_CLEAN="/tmp/remid_tmp_clean.xml"
+declare -r GET_TOTAL_RECORDS="/tmp/total_rec.xml"
 
 # the output file
 declare -r FILE_NEW="ixtheo_remid_`date +'%y%m%d'`_001.xml"
@@ -60,8 +60,8 @@ while [ $Counter -le $NUMBER_OF_ITERATION ]
 do  
     ColorEcho "++++ Downloading file ${Counter} of ${NUMBER_OF_ITERATION} ++++"
 
-    TempFile="${TEMP_FILE_NAME_PREFIX}_${Counter}.xml"
-    CleanFile="${CLEAN_FILE_NAME_PREFIX}_${Counter}.xml"
+    TempFile="/tmp/${TEMP_FILE_NAME_PREFIX}_${Counter}.xml"
+    CleanFile="/tmp/${CLEAN_FILE_NAME_PREFIX}_${Counter}.xml"
 
     StartRecord=$(( ( Counter - 1) * RECORDS_PER_CALL + 1 ))
     ColorEcho "Downloading start from record ${StartRecord}"
@@ -118,4 +118,5 @@ rm -f $FILE_TEMP_CLEAN
 rm -f $FILE_ORI
 
 ColorEcho "++++ The output filename: ${FILE_NEW} ++++"
+ColorEcho "++++ The output filename: ${FILE_REMOVED_SERIAL} ++++"
 ColorEcho "========== Congratulation! =========="
