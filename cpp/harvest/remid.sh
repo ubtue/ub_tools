@@ -16,6 +16,7 @@ declare -r GET_TOTAL_RECORDS="total_rec.xml"
 
 # the output file
 declare -r FILE_NEW="ixtheo_remid_`date +'%y%m%d'`_001.xml"
+declare -r FILE_REMOVED_SERIAL="ixtheo_removed_serial_`date +'%y%m%d'`_001.txt"
 
 # related to file name pattern
 declare -r TEMP_FILE_NAME_PREFIX="tmp_file"
@@ -108,7 +109,7 @@ marc_augmentor $FILE_TEMP_CLEAN $FILE_TEMP  --insert-field '852:  \x1FaDE-Tue135
 
 ColorEcho "++++ Copying into the ouput file ++++"
 # copy field
-remid_augment $FILE_TEMP $FILE_NEW
+remid_augment $FILE_TEMP $FILE_NEW $FILE_REMOVED_SERIAL
 
 ColorEcho "++++ Remove temporary files ++++"
 # remove unnecessary file

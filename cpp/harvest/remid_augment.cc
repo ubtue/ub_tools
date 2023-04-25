@@ -20,63 +20,72 @@
 #include <fstream>
 #include <iostream>
 #include <string>
+#include "FileUtil.h"
 #include "MARC.h"
+#include "StringUtil.h"
 
 namespace {
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " marc_input marc_output\n";
+    std::cerr << "Usage: " << ::progname << "  marc_input marc_output serial_output\n";
     std::cerr << "       marc_input is the marc input file\n";
-    std::cerr << "       marc_output is the marc output file\n";
+    std::cerr << "       marc_output is the marc output file without serial\n";
+    std::cerr << "       serial_output is the output file for the list of ZDB_ID that removed from marc_input\n";
     std::exit(EXIT_FAILURE);
 }
+
 
 } // namespace
 
 int Main(int argc, char **argv) {
-    if (argc < 3)
+    if (argc != 4)
         Usage();
 
+    std::set<std::string> zdb_ids;
+    auto input_file(MARC::Reader::Factory(argv[1]));
+    auto marc_output(MARC::Writer::Factory(argv[2]));
+    bool serial;
+    std::ofstream zdb_id_file(argv[3]);
+    const std::string zdb_prefix("(DE-599)ZDB");
 
-    const std::string input_filename(argv[1]);
-    const std::string output_filename(argv[2]);
-    const std::string filter_field("084");
-    const char filter_subfield('2');
-    const std::string filter_subfield_value("rvk");
-    const std::string target_field("936");
-    int total_record(0);
-    int total_new_field_added(0);
+    while (MARC::Record record = input_file->read()) {
+        serial = false;
+        // It needs a temporary record (new_record) to hold all changes.
+        // If it did a change on current active record, in some cases it will mis-calculate the size of the subfield inside which is
+        // generate a unreadable (error) character.
+        MARC::Record new_record(record);
 
-    auto marc_reader_pointer(MARC::Reader::Factory(input_filename));
-    MARC::Reader * const marc_reader(marc_reader_pointer.get());
-    auto marc_writer(MARC::Writer::Factory(output_filename));
-
-    while (MARC::Record marc_record = marc_reader->read()) {
-        const auto check_field(marc_record.findTag(filter_field));
-        ++total_record;
-        if (check_field == marc_record.end())
-            continue;
-
-        for (const auto &field : marc_record.getTagRange(filter_field)) {
-            if (field.getTag() != filter_field)
-                continue;
-
-            const auto subfields(field.getSubfields());
-            if (not subfields.hasSubfield(filter_subfield))
-                continue;
-
-            if (subfields.getFirstSubfieldWithCode(filter_subfield) == filter_subfield_value) {
-                MARC::Tag new_marc_tag(target_field);
-                MARC::Subfields marc_subfields(field.getContents());
-                MARC::Record::Field new_field(new_marc_tag, marc_subfields, 'r', 'v');
-                new_field.deleteAllSubfieldsWithCode('2');
-                marc_record.insertField(new_field);
-                ++total_new_field_added;
+        for (auto &field : record.getTagRange("035")) {
+            const std::string zdb_id(field.getFirstSubfieldWithCode('a'));
+            if (StringUtil::StartsWith(zdb_id, zdb_prefix)) {
+                zdb_ids.emplace(zdb_id);
+                serial = true;
+                break;
             }
         }
-        marc_writer->write(marc_record);
+        if (not serial) {
+            for (const auto &fd : record.getTagRange("084")) {
+                const auto subfds(fd.getSubfields());
+                if (subfds.getFirstSubfieldWithCode('2') == "rvk") {
+                    MARC::Tag mt("936");
+                    MARC::Record::Field new_field(mt, 'r', 'v');
+
+                    for (const auto &sfd : subfds)
+                        new_field.appendSubfield(sfd.code_, sfd.value_);
+
+                    new_field.deleteAllSubfieldsWithCode('2');
+                    new_record.insertField(new_field);
+                }
+            }
+            marc_output->write(new_record);
+        }
     }
-    std::cout << "Processed a total of " << total_record << " record(s)\n";
-    std::cout << "Added " << total_new_field_added << " new field(s)\n";
+
+    for (auto &zdb_id : zdb_ids)
+        zdb_id_file << zdb_id << "\n";
+
+    zdb_id_file.close();
+
+
     return EXIT_SUCCESS;
 }
