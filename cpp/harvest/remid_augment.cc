@@ -22,14 +22,15 @@
 #include <string>
 #include "FileUtil.h"
 #include "MARC.h"
+#include "StringUtil.h"
 
 namespace {
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << "  marc_input marc_output issn_output\n";
+    std::cerr << "Usage: " << ::progname << "  marc_input marc_output serial_output\n";
     std::cerr << "       marc_input is the marc input file\n";
     std::cerr << "       marc_output is the marc output file without serial\n";
-    std::cerr << "       issn_output is the text output file for issn that ha\n";
+    std::cerr << "       serial_output is the output file for the list of ZDB_ID that removed from marc_input\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -40,11 +41,13 @@ int Main(int argc, char **argv) {
     if (argc != 4)
         Usage();
 
-    std::set<std::string> issns;
+    std::set<std::string> zdb_ids;
     auto input_file(MARC::Reader::Factory(argv[1]));
     auto marc_output(MARC::Writer::Factory(argv[2]));
     bool serial;
-    std::ofstream issn_file(argv[3]);
+    std::ofstream zdb_id_file(argv[3]);
+    const std::string zdb_prefix("(DE-599)ZDB");
+
     while (MARC::Record record = input_file->read()) {
         serial = false;
         // It needs a temporary record (new_record) to hold all changes.
@@ -53,9 +56,9 @@ int Main(int argc, char **argv) {
         MARC::Record new_record(record);
 
         for (auto &field : record.getTagRange("035")) {
-            const std::string issn(field.getFirstSubfieldWithCode('a'));
-            if (StringUtil::ASCIIToUpper(issn.substr(0, 11)) == "(DE-599)ZDB") {
-                issns.emplace(issn);
+            const std::string zdb_id(field.getFirstSubfieldWithCode('a'));
+            if (StringUtil::StartsWith(zdb_id, zdb_prefix)) {
+                zdb_ids.emplace(zdb_id);
                 serial = true;
                 break;
             }
@@ -78,10 +81,10 @@ int Main(int argc, char **argv) {
         }
     }
 
-    for (auto &issn : issns)
-        issn_file << issn << "\n";
+    for (auto &zdb_id : zdb_ids)
+        zdb_id_file << zdb_id << "\n";
 
-    issn_file.close();
+    zdb_id_file.close();
 
 
     return EXIT_SUCCESS;
