@@ -33,6 +33,7 @@
 namespace {
 
 static const std::vector<std::string> TIME_ASPECT_GND_LINKING_TAGS{ "689" };
+static const std::vector<std::string> TIME_ASPECT_FURTHER_TAGS{ "655" };
 static const std::vector<std::string> KEYWORD_PREFIXES{ "Geschichte ",        "Geistesgeschichte ", "Ideengeschichte ",
                                                         "Kirchengeschichte ", "Sozialgeschichte ",  "Vor- und Frühgeschichte ",
                                                         "Weltgeschichte ",    "Prognose " };
@@ -154,6 +155,16 @@ void ProcessRecords(MARC::Reader * const reader, MARC::Writer * const writer,
             }
         }
 
+        for (const std::string &tag : TIME_ASPECT_FURTHER_TAGS) {
+            for (const auto &time_aspect_field : record.getTagRange(tag)) {
+                if (tag == "655") {
+                    auto y_subfield(time_aspect_field.getFirstSubfieldWithCode('y'));
+                    if (RangeUtil::ConvertTextToTimeRange(y_subfield, &range))
+                        goto augment_record;
+                }
+            }
+        }
+
 augment_record:
         if (not range.empty()) {
             record.insertField("TIM",
@@ -173,7 +184,7 @@ augment_record:
 
 int Main(int argc, char **argv) {
     if (argc != 4)
-        ::Usage("ixtheo_titles authority_records augmented_ixtheo_titles");
+        ::Usage("titles authority_records augmented_titles");
 
     const std::string title_input_filename(argv[1]);
     const std::string authority_filename(argv[2]);
