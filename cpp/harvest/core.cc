@@ -262,8 +262,7 @@ void ConvertJSONToMARC(const std::vector<CORE::Work> &works, MARC::Writer * cons
             bibliographic_level = MARC::Record::BibliographicLevel::SERIAL_COMPONENT_PART;
 
 
-        MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::MONOGRAPH_OR_ITEM,
-                                control_number);
+        MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, bibliographic_level, control_number);
 
         ConvertAuthors(work, &new_record, log_file_path);
 
