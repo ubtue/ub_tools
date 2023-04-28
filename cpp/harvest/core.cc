@@ -104,49 +104,51 @@ void ConvertAuthors(const CORE::Work &work, MARC::Record * const record, const s
     const auto authors(work.getAuthors());
     std::set<std::string> author_names;
 
-    if (authors.size() > 20) {
-        // there are datasets with even more than 1.000 authors.
-        // it is very likely that this is a data problem, since most of them
-        // are in fact authors of references.
-        // we write them to a log file so librarians can check / correct this manually
-        // after delivery.
-        const std::string message(ConvertId(std::to_string(work.getId()))
-                                  + ": Too many authors found, please check manually after delivery (" + std::to_string(authors.size())
-                                  + ").");
-        LOG_INFO(message);
-        FileUtil::AppendStringOrDie(log_file_path, message + "\n");
-    } else {
-        bool is_first_author(true);
-        for (const auto &author : authors) {
-            std::string author_name(author.name_);
-            author_name = CORE::ReplaceFaultyEntities(author_name);
-            author_name = MiscUtil::NormalizeName(author_name);
-
-            if (author_names.find(author_name) != author_names.end())
-                continue; // Found a duplicate author!
-
-            author_names.emplace(author_name);
-
-            const bool is_corporate_author(MiscUtil::IsCorporateAuthor(author_name));
-            std::string author_tag;
-            if (is_first_author) {
-                if (is_corporate_author)
-                    author_tag = "110";
-                else
-                    author_tag = "100";
-            } else {
-                if (is_corporate_author)
-                    author_tag = "710";
-                else
-                    author_tag = "700";
-            }
-
-            record->insertField(author_tag, { { 'a', author_name }, { '4', "aut" } },
-                                /*indicator1=*/'1');
-
-            if (is_first_author)
-                is_first_author = false;
+    bool is_first_author(true);
+    for (const auto &author : authors) {
+        if (not is_first_author and (authors.size() > 20)) {
+            // there are datasets with even more than 1.000 authors.
+            // it is very likely that this is a data problem, since most of them
+            // are in fact authors of references.
+            // We only include the first author from the list
+            // and write the ID to a log file so librarians can
+            // correct this manually after delivery.
+            const std::string message(ConvertId(std::to_string(work.getId()))
+                                      + ": Too many authors found, please check manually after delivery (" + std::to_string(authors.size())
+                                      + ").");
+            LOG_INFO(message);
+            FileUtil::AppendStringOrDie(log_file_path, message + "\n");
+            return;
         }
+
+        std::string author_name(author.name_);
+        author_name = CORE::ReplaceFaultyEntities(author_name);
+        author_name = MiscUtil::NormalizeName(author_name);
+
+        if (author_names.find(author_name) != author_names.end())
+            continue; // Found a duplicate author!
+
+        author_names.emplace(author_name);
+
+        const bool is_corporate_author(MiscUtil::IsCorporateAuthor(author_name));
+        std::string author_tag;
+        if (is_first_author) {
+            if (is_corporate_author)
+                author_tag = "110";
+            else
+                author_tag = "100";
+        } else {
+            if (is_corporate_author)
+                author_tag = "710";
+            else
+                author_tag = "700";
+        }
+
+        record->insertField(author_tag, { { 'a', author_name }, { '4', "aut" } },
+                            /*indicator1=*/'1');
+
+        if (is_first_author)
+            is_first_author = false;
     }
 }
 
