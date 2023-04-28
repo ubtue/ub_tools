@@ -262,8 +262,7 @@ void ConvertJSONToMARC(const std::vector<CORE::Work> &works, MARC::Writer * cons
             bibliographic_level = MARC::Record::BibliographicLevel::SERIAL_COMPONENT_PART;
 
 
-        MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::MONOGRAPH_OR_ITEM,
-                                control_number);
+        MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, bibliographic_level, control_number);
 
         ConvertAuthors(work, &new_record, log_file_path);
 
@@ -272,7 +271,7 @@ void ConvertJSONToMARC(const std::vector<CORE::Work> &works, MARC::Writer * cons
         new_record.insertField("084", { { 'a', "2,1" }, { '2', "ssgn" } });
         new_record.insertField("591", 'a', "Metadaten maschinell erstellt (TUKRIM)");
         new_record.insertField("852", 'a', project_sigil);
-        if (not is_article)
+        if (is_article)
             ConvertYear(work, &new_record);
         ConvertDOI(work, &new_record);
         ConvertDownloadURL(work, &new_record);
