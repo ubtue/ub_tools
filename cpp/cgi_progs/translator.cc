@@ -567,6 +567,11 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
             row_values[index] = (german_updated == "1" or priority_entry == "1")
                                     ? CreateNonEditableHighlightHintEntry(translation, gnd_code, use_subject_link)
                                     : CreateNonEditableHintEntry(translation, gnd_code, use_subject_link);
+        } else if (language_code == "eng") {
+            // Special case for colliding English unaltered MACS and Ixtheo translations from authortity data
+            if ((row_values[index] != CreateNonEditableRowEntry("")) and status == "unreliable")
+                continue;
+            row_values[index] = CreateNonEditableRowEntry(translation);
         } else
             row_values[index] = CreateNonEditableRowEntry(translation);
     }
