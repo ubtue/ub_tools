@@ -19,6 +19,7 @@
  */
 
 #include <iostream>
+#include <map>
 #include "CORE.h"
 #include "FileUtil.h"
 #include "MARC.h"
@@ -57,11 +58,14 @@ struct SubFieldInfo {
     std::string t_;
     std::string w_;
     std::string x_;
+    std::string ppn_;
+    std::map<std::string, std::vector<std::string>> issns_of_ppn_;
     std::vector<std::string> issns_;
     bool is_online_;
     bool is_valid_;
 
     SubFieldInfo() {
+        ppn_ = "";
         is_valid_ = false;
         is_online_ = false;
         t_ = "";
@@ -73,15 +77,21 @@ struct SubFieldInfo {
         is_valid_ = false;
         is_online_ = false;
         for (auto &field : record) {
-            if (field.getTag() == "001")
-                w_ = "(DE-627)" + field.getContents();
-
+            if (field.getTag() == "001") {
+                ppn_ = field.getContents();
+                w_ = "(DE-627)" + ppn_;
+            }
             if (field.getTag() == "022") {
-                x_ = StringUtil::ASCIIToUpper(field.getFirstSubfieldWithCode('a'));
-                InsertIssnIfNotExist(x_, &issns_);
+                if (not field.getFirstSubfieldWithCode('a').empty()) {
+                    x_ = StringUtil::ASCIIToUpper(field.getFirstSubfieldWithCode('a'));
+                    InsertIssnIfNotExist(x_, &issns_);
+                }
 
-                if (not field.getFirstSubfieldWithCode('l').empty())
+                if (not field.getFirstSubfieldWithCode('l').empty()) {
+                    if (x_.empty())
+                        x_ = StringUtil::ASCIIToUpper(field.getFirstSubfieldWithCode('l'));
                     InsertIssnIfNotExist(StringUtil::ASCIIToUpper(field.getFirstSubfieldWithCode('l')), &issns_);
+                }
             }
 
             if (field.getTag() == "245") {
@@ -106,11 +116,22 @@ struct SubFieldInfo {
 
 
 void PrettyPrintSubFieldInfo(const SubFieldInfo &sfi) {
+    std::cout << "ppn: " << sfi.ppn_ << std::endl;
     std::cout << "t: " << sfi.t_ << std::endl;
     std::cout << "w: " << sfi.w_ << std::endl;
     std::cout << "x: " << sfi.x_ << std::endl;
     std::cout << "online: " << (sfi.is_online_ ? "yes" : "no") << std::endl;
     std::cout << "valid: " << (sfi.is_valid_ ? "yes" : "no") << std::endl;
+    std::cout << "related ppn(s) and its issn(s)" << std::endl;
+    for (const auto &ppn : sfi.issns_of_ppn_) {
+        if (ppn.first != sfi.ppn_) {
+            std::cout << "+++ " << ppn.first << ": " << std::endl;
+            for (const auto &issn : ppn.second) {
+                if (not issn.empty())
+                    std::cout << "** " << issn << std::endl;
+            }
+        }
+    }
     std::cout << "related issn(s): " << std::endl;
     for (const auto &issn : sfi.issns_)
         if (issn != sfi.x_)
@@ -195,7 +216,7 @@ void UpdateSubFieldAndCombineIssn(SubFieldInfo * const sfi, const SubFieldInfo &
 
 
 std::vector<SubFieldInfo> MergeDuplicateSubFieldInfos(std::vector<SubFieldInfo> &journal_cache) {
-    std::vector<SubFieldInfo> new_journal_cache;
+    std::vector<SubFieldInfo> new_journal_cache, temp_cache;
     std::vector<SubFieldInfo>::iterator iter;
     SubFieldInfo content;
     bool restart(false);
@@ -218,13 +239,23 @@ std::vector<SubFieldInfo> MergeDuplicateSubFieldInfos(std::vector<SubFieldInfo> 
             }
 
         } while (restart);
-        new_journal_cache.emplace_back(content);
+        temp_cache.emplace_back(content);
         restart = false;
+    }
+
+    // remove data without issn
+    for (unsigned i = 0; i < temp_cache.size(); i++) {
+        content = temp_cache[i];
+        if (not content.x_.empty())
+            new_journal_cache.emplace_back(content);
     }
 
     return new_journal_cache;
 }
 
+void UpdateISSNsOfPPN(const SubFieldInfo input_sbi, SubFieldInfo * const target_sbi) {
+    target_sbi->issns_of_ppn_.insert(std::pair<std::string, std::vector<std::string>>(input_sbi.ppn_, input_sbi.issns_));
+}
 
 std::vector<SubFieldInfo> BuildJournalCache(const std::string &input_journal_filename) {
     std::vector<SubFieldInfo> journal_cache;
@@ -237,6 +268,8 @@ std::vector<SubFieldInfo> BuildJournalCache(const std::string &input_journal_fil
         for (auto &elemt : journal_cache) {
             if (IsInISSNs(sub_field_info_of_record.issns_, elemt.issns_)) {
                 exist_in_journal_cache = true;
+                UpdateISSNsOfPPN(sub_field_info_of_record, &elemt);
+
                 if (elemt.is_online_) {
                     if (sub_field_info_of_record.is_online_)
                         elemt.is_valid_ = false;
