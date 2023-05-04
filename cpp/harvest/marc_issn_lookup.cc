@@ -74,6 +74,8 @@ struct CacheEntry {
     CacheEntry(MARC::Record &record) {
         is_valid_ = false;
         is_online_ = false;
+        is_online_ = record.isElectronicResource();
+
         for (auto &field : record) {
             if (field.getTag() == "001")
                 preferred_ppn_ = field.getContents();
@@ -101,9 +103,6 @@ struct CacheEntry {
                 else
                     preferred_title_ = "";
             }
-
-            if (field.getTag() == "300")
-                is_online_ = (field.getFirstSubfieldWithCode('a') == "Online-Ressource");
         }
     }
 };
@@ -291,6 +290,19 @@ std::vector<CacheEntry> BuildJournalCache(const std::string &inputitlejournal_fi
     return MergeDuplicateCacheEntrys(journal_cache);
 }
 
+void CleanDuplicationOfField773(MARC::Record * const record) {
+    std::vector<std::string> issns;
+    for (auto field(record->begin()); field != record->end(); ++field) {
+        if (field->getTag() == "773") {
+            const std::string issn = field->getFirstSubfieldWithCode('x');
+            if (IsInISSNs(issns, issn)) {
+                record->erase(field);
+            } else {
+                issns.emplace_back(issn);
+            }
+        }
+    }
+}
 
 void ISSNLookup(char **argv, std::vector<CacheEntry> &journal_cache) {
     auto input_file(MARC::Reader::Factory(argv[1]));
@@ -318,6 +330,7 @@ void ISSNLookup(char **argv, std::vector<CacheEntry> &journal_cache) {
                 }
             }
         }
+        CleanDuplicationOfField773(&record);
         output_file->write(record);
     }
 }
