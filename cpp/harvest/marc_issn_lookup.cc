@@ -55,19 +55,19 @@ void InsertIfNotExist(const std::vector<std::string> &issns_input, std::vector<s
 
 
 struct CacheEntry {
-    std::string title_;
+    std::string preferred_title_;
     std::string preferred_issn_;
-    std::string ppn_;
-    std::map<std::string, std::vector<std::string>> issns_of_ppn_;
+    std::string preferred_ppn_;
+    std::map<std::string, std::vector<std::string>> related_ppn_and_its_issns;
     std::vector<std::string> issns_;
     bool is_online_;
     bool is_valid_;
 
     CacheEntry() {
-        ppn_ = "";
+        preferred_ppn_ = "";
         is_valid_ = false;
         is_online_ = false;
-        title_ = "";
+        preferred_title_ = "";
         preferred_issn_ = "";
     }
 
@@ -76,7 +76,7 @@ struct CacheEntry {
         is_online_ = false;
         for (auto &field : record) {
             if (field.getTag() == "001")
-                ppn_ = field.getContents();
+                preferred_ppn_ = field.getContents();
 
             if (field.getTag() == "022") {
                 if (not field.getFirstSubfieldWithCode('a').empty()) {
@@ -93,13 +93,13 @@ struct CacheEntry {
                 std::string subfield_a(subfields.getFirstSubfieldWithCode('a'));
                 std::string subfield_b(subfields.getFirstSubfieldWithCode('b'));
                 if ((not subfield_a.empty()) && (not subfield_b.empty()))
-                    title_ = subfield_a + " " + subfield_b;
+                    preferred_title_ = subfield_a + " " + subfield_b;
                 else if ((not subfield_a.empty()) && subfield_b.empty())
-                    title_ = subfield_a;
+                    preferred_title_ = subfield_a;
                 else if (subfield_a.empty() && (not subfield_b.empty()))
-                    title_ = subfield_b;
+                    preferred_title_ = subfield_b;
                 else
-                    title_ = "";
+                    preferred_title_ = "";
             }
 
             if (field.getTag() == "300")
@@ -110,16 +110,14 @@ struct CacheEntry {
 
 
 void PrettyPrintCacheEntry(const CacheEntry &ce) {
-    std::cout << "ppn: " << ce.ppn_ << std::endl;
-    std::cout << "title (t): " << ce.title_ << std::endl;
-    std::cout << "w: "
-              << "(DE-627)" + ce.ppn_ << std::endl;
+    std::cout << "ppn: " << ce.preferred_ppn_ << std::endl;
+    std::cout << "title (t): " << ce.preferred_title_ << std::endl;
     std::cout << "issn (x): " << ce.preferred_issn_ << std::endl;
     std::cout << "online: " << (ce.is_online_ ? "yes" : "no") << std::endl;
     std::cout << "valid: " << (ce.is_valid_ ? "yes" : "no") << std::endl;
     std::cout << "related ppn(s) and its issn(s)" << std::endl;
-    for (const auto &ppn : ce.issns_of_ppn_) {
-        if (ppn.first != ce.ppn_) {
+    for (const auto &ppn : ce.related_ppn_and_its_issns) {
+        if (ppn.first != ce.preferred_ppn_) {
             std::cout << "+++ " << ppn.first << ": " << std::endl;
             for (const auto &issn : ppn.second) {
                 if (not issn.empty())
@@ -166,18 +164,18 @@ void UpdateSubfield(MARC::Subfields &subfields, const CacheEntry &cache_entry) {
         subfields.addSubfield('i', "In:");
     if (!subfields.replaceFirstSubfield('x', cache_entry.preferred_issn_))
         subfields.addSubfield('x', cache_entry.preferred_issn_);
-    if (!subfields.replaceFirstSubfield('w', "(DE-627)" + cache_entry.ppn_))
-        subfields.addSubfield('w', "(DE-627)" + cache_entry.ppn_);
+    if (!subfields.replaceFirstSubfield('w', "(DE-627)" + cache_entry.preferred_ppn_))
+        subfields.addSubfield('w', "(DE-627)" + cache_entry.preferred_ppn_);
 
-    if (not cache_entry.title_.empty())
-        if (!subfields.replaceFirstSubfield('t', cache_entry.title_))
-            subfields.addSubfield('t', cache_entry.title_);
+    if (not cache_entry.preferred_title_.empty())
+        if (!subfields.replaceFirstSubfield('t', cache_entry.preferred_title_))
+            subfields.addSubfield('t', cache_entry.preferred_title_);
 }
 
 
 void UpdateCacheEntry(CacheEntry &ce, const CacheEntry &new_ce, const bool is_online) {
-    ce.title_ = new_ce.title_;
-    ce.ppn_ = new_ce.ppn_;
+    ce.preferred_title_ = new_ce.preferred_title_;
+    ce.preferred_ppn_ = new_ce.preferred_ppn_;
     ce.preferred_issn_ = new_ce.preferred_issn_;
     ce.is_online_ = is_online;
     InsertIfNotExist(new_ce.issns_, &ce.issns_);
@@ -197,8 +195,8 @@ void UpdateCacheAndCombineIssn(CacheEntry * const ce, const CacheEntry &new_ce) 
 
         if (!ce->is_online_ && new_ce.is_online_) {
             ce->is_valid_ = true;
-            ce->title_ = new_ce.title_;
-            ce->ppn_ = new_ce.ppn_;
+            ce->preferred_title_ = new_ce.preferred_title_;
+            ce->preferred_ppn_ = new_ce.preferred_ppn_;
             ce->preferred_issn_ = new_ce.preferred_issn_;
         }
 
@@ -249,7 +247,8 @@ std::vector<CacheEntry> MergeDuplicateCacheEntrys(std::vector<CacheEntry> &journ
 }
 
 void UpdateISSNsOfPPN(const CacheEntry inputitlesbi, CacheEntry * const targetitlesbi) {
-    targetitlesbi->issns_of_ppn_.insert(std::pair<std::string, std::vector<std::string>>(inputitlesbi.ppn_, inputitlesbi.issns_));
+    targetitlesbi->related_ppn_and_its_issns.insert(
+        std::pair<std::string, std::vector<std::string>>(inputitlesbi.preferred_ppn_, inputitlesbi.issns_));
 }
 
 std::vector<CacheEntry> BuildJournalCache(const std::string &inputitlejournal_filename) {
@@ -294,11 +293,11 @@ std::vector<CacheEntry> BuildJournalCache(const std::string &inputitlejournal_fi
 
 
 void ISSNLookup(char **argv, std::vector<CacheEntry> &journal_cache) {
-    auto inputitlefile(MARC::Reader::Factory(argv[1]));
-    auto outputitlefile(MARC::Writer::Factory(argv[3]));
+    auto input_file(MARC::Reader::Factory(argv[1]));
+    auto output_file(MARC::Writer::Factory(argv[3]));
     std::vector<std::string> updated_ppn, ignored_ppn;
 
-    while (MARC::Record record = inputitlefile->read()) {
+    while (MARC::Record record = input_file->read()) {
         std::string ppn("");
         for (auto &field : record) {
             if (field.getTag() == "001")
@@ -319,7 +318,7 @@ void ISSNLookup(char **argv, std::vector<CacheEntry> &journal_cache) {
                 }
             }
         }
-        outputitlefile->write(record);
+        output_file->write(record);
     }
 }
 
