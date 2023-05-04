@@ -18,6 +18,7 @@ declare -r ARCHIVE_FILE_NOSUPERIOR_MARC=${ARCHIVE_DIR}/${DATETIME}.xml
 declare -r ARCHIVE_FILE_MARC=${ARCHIVE_DIR}/${DATETIME}.xml
 declare -r ISSN_FILE_TXT=${ARCHIVE_DIR}/${DATETIME}.txt
 declare -r ISSN_FILE_MARC=${ARCHIVE_DIR}/${DATETIME}.mrc
+declare -r ISSN_FILE_MARC_NO_DUPLICATION=${ARCHIVE_DIR}/${DATETIME}_clean.mrc
 declare -r LOG_FILE=${ARCHIVE_FILE_MARC}.log
 declare -r TIMESTAMP_FILE=/usr/local/var/lib/tuelib/CORE-KrimDok.timestamp
 if [ -r "$TIMESTAMP_FILE" ]; then
@@ -69,7 +70,8 @@ if [ "$RESULT_COUNT" -gt "0" ]; then
     # ISSN lookup against library compound
     marc_grep "$ARCHIVE_FILE_NOSUPERIOR_MARC" '"773x"' no_label | sort | uniq > "$ISSN_FILE_TXT"
     issn_lookup.py "$ISSN_FILE_TXT" "$ISSN_FILE_MARC"
-    marc_issn_lookup "$ARCHIVE_FILE_NOSUPERIOR_MARC" "$ISSN_FILE_MARC" "$ARCHIVE_FILE_MARC"
+    marc_remove_dups "$ISSN_FILE_MARC" "$ISSN_FILE_MARC_NO_DUPLICATION"
+    marc_issn_lookup "$ARCHIVE_FILE_NOSUPERIOR_MARC" "$ISSN_FILE_MARC_NO_DUPLICATION" "$ARCHIVE_FILE_MARC"
 
     # upload to BSZ
     # TODO: Generate BSZ compatible filename
