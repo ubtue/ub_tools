@@ -184,7 +184,7 @@ void UpdateCacheEntry(CacheEntry &ce, const CacheEntry &new_ce, const bool is_on
 }
 
 
-void UpdateSubFieldAndCombineIssn(CacheEntry * const ce, const CacheEntry &new_ce) {
+void UpdateCacheAndCombineIssn(CacheEntry * const ce, const CacheEntry &new_ce) {
     bool subset(true);
 
     for (const auto &v1 : new_ce.issns_)
@@ -225,7 +225,7 @@ std::vector<CacheEntry> MergeDuplicateCacheEntrys(std::vector<CacheEntry> &journ
 
             for (unsigned j = i + 1; j < journal_cache.size(); j++) {
                 if (IsInISSNs(content.issns_, journal_cache[j].issns_)) {
-                    UpdateSubFieldAndCombineIssn(&content, journal_cache[j]);
+                    UpdateCacheAndCombineIssn(&content, journal_cache[j]);
                     iter = journal_cache.begin() + j;
                     journal_cache.erase(iter);
                     restart = true;
@@ -258,11 +258,11 @@ std::vector<CacheEntry> BuildJournalCache(const std::string &inputitlejournal_fi
 
     while (MARC::Record record = inputitlejournal_file->read()) {
         CacheEntry cache_entry_of_record(record);
-        bool existitlein_journal_cache(false);
+        bool exist_in_journal_cache(false);
 
         for (auto &elemt : journal_cache) {
             if (IsInISSNs(cache_entry_of_record.issns_, elemt.issns_)) {
-                existitlein_journal_cache = true;
+                exist_in_journal_cache = true;
                 UpdateISSNsOfPPN(cache_entry_of_record, &elemt);
 
                 if (elemt.is_online_) {
@@ -283,7 +283,7 @@ std::vector<CacheEntry> BuildJournalCache(const std::string &inputitlejournal_fi
             }
         }
 
-        if (not existitlein_journal_cache) {
+        if (not exist_in_journal_cache) {
             cache_entry_of_record.is_valid_ = true;
             journal_cache.emplace_back(cache_entry_of_record);
         }
