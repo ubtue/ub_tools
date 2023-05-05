@@ -73,7 +73,6 @@ struct CacheEntry {
 
     CacheEntry(MARC::Record &record) {
         is_valid_ = false;
-        is_online_ = false;
         is_online_ = record.isElectronicResource();
 
         for (auto &field : record) {
