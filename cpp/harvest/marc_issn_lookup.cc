@@ -73,7 +73,8 @@ struct CacheEntry {
 
     CacheEntry(MARC::Record &record) {
         is_valid_ = false;
-        is_online_ = false;
+        is_online_ = record.isElectronicResource();
+
         for (auto &field : record) {
             if (field.getTag() == "001")
                 preferred_ppn_ = field.getContents();
@@ -101,9 +102,6 @@ struct CacheEntry {
                 else
                     preferred_title_ = "";
             }
-
-            if (field.getTag() == "300")
-                is_online_ = (field.getFirstSubfieldWithCode('a') == "Online-Ressource");
         }
     }
 };
@@ -116,15 +114,16 @@ void PrettyPrintCacheEntry(const CacheEntry &ce) {
     std::cout << "online: " << (ce.is_online_ ? "yes" : "no") << std::endl;
     std::cout << "valid: " << (ce.is_valid_ ? "yes" : "no") << std::endl;
     std::cout << "related ppn(s) and its issn(s)" << std::endl;
+
     for (const auto &ppn : ce.related_ppn_and_its_issns) {
         if (ppn.first != ce.preferred_ppn_) {
             std::cout << "+++ " << ppn.first << ": " << std::endl;
-            for (const auto &issn : ppn.second) {
+            for (const auto &issn : ppn.second)
                 if (not issn.empty())
                     std::cout << "** " << issn << std::endl;
-            }
         }
     }
+
     std::cout << "related issn(s): " << std::endl;
     for (const auto &issn : ce.issns_)
         if (issn != ce.preferred_issn_)
@@ -189,9 +188,9 @@ void UpdateCacheAndCombineIssn(CacheEntry * const ce, const CacheEntry &new_ce) 
         subset = (subset || IsInISSNs(ce->issns_, v1));
 
     if (not subset) {
-        if (ce->is_online_ && new_ce.is_online_) {
+        if (ce->is_online_ && new_ce.is_online_)
             ce->is_valid_ = false;
-        }
+
 
         if (!ce->is_online_ && new_ce.is_online_) {
             ce->is_valid_ = true;
@@ -291,6 +290,18 @@ std::vector<CacheEntry> BuildJournalCache(const std::string &inputitlejournal_fi
     return MergeDuplicateCacheEntrys(journal_cache);
 }
 
+void CleanDuplicationOfField773(MARC::Record * const record) {
+    std::vector<std::string> issns;
+    for (auto field(record->begin()); field != record->end(); ++field) {
+        if (field->getTag() == "773") {
+            const std::string issn = field->getFirstSubfieldWithCode('x');
+            if (IsInISSNs(issns, issn))
+                record->erase(field);
+            else
+                issns.emplace_back(issn);
+        }
+    }
+}
 
 void ISSNLookup(char **argv, std::vector<CacheEntry> &journal_cache) {
     auto input_file(MARC::Reader::Factory(argv[1]));
@@ -318,6 +329,7 @@ void ISSNLookup(char **argv, std::vector<CacheEntry> &journal_cache) {
                 }
             }
         }
+        CleanDuplicationOfField773(&record);
         output_file->write(record);
     }
 }
