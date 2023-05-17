@@ -21,6 +21,7 @@
 #pragma once
 
 
+#include <set>
 #include <string>
 #include <vector>
 #include <nlohmann/json.hpp>
@@ -90,10 +91,14 @@ public:
 
 
 class Work : public Entity {
+    std::vector<nlohmann::json> getDataProviders() const;
+    void setDataProviders(const std::vector<nlohmann::json> &new_dp_content);
+
 public:
     std::string getAbstract() const;
     std::vector<Author> getAuthors() const;
-    std::vector<unsigned long> getDataProviderIds() const; // JSON also contains name field, but that always seems to be empty
+    std::set<unsigned long> getDataProviderIds() const; // JSON also contains name field, but that always seems to be empty
+    std::string getDOI() const;
     std::string getDocumentType() const;
     std::string getDownloadUrl() const;
     std::string getFieldOfStudy() const;
@@ -103,6 +108,9 @@ public:
     std::string getPublisher() const;
     std::string getTitle() const;
     unsigned getYearPublished() const;
+
+    void purgeDataProviders(const std::set<unsigned long> &data_provider_ids_to_keep);
+    void removeDataProviders(const std::set<unsigned long> &data_provider_ids_to_remove);
 
     bool isArticle() const { return getJournals().empty(); }
 
@@ -198,6 +206,13 @@ std::vector<Work> GetWorksFromFile(const std::string &file);
 void OutputFileStart(const std::string &path);
 void OutputFileAppend(const std::string &path, const Entity &entity, const bool first);
 void OutputFileEnd(const std::string &path);
+
+
+/** \brief Unescape special kind of entites typical for CORE,
+ *         which occur across multiple data providers.
+ *         e.g. "\u27" => "'"
+ */
+std::string ReplaceFaultyEntities(const std::string &s);
 
 
 } // namespace CORE

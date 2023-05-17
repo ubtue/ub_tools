@@ -9,6 +9,7 @@ import os
 import pexpect
 import process_util
 import re
+import shutil
 import sys
 import time
 import traceback
@@ -43,7 +44,7 @@ def ExtractRelevantIds(rdf_xml_document):
             numbers.append(number)
     return numbers
 
-    
+
 def GetNewBNBNumbers(list_no):
     zipped_rdf_filename = "bnbrdf_n" + str(list_no) + ".zip"
     download_url = \
@@ -54,10 +55,10 @@ def GetNewBNBNumbers(list_no):
         return []
     with zipfile.ZipFile(zipped_rdf_filename, "r") as zip_file:
         zip_file.extractall()
-    util.Remove(zipped_rdf_filename)
+
     rdf_filename = "bnbrdf_N" + str(list_no) + ".rdf"
     numbers = ExtractRelevantIds(rdf_filename)
-    util.Remove(rdf_filename)
+
     return numbers
 
 
@@ -155,13 +156,15 @@ def DownloadRecordsRanges(yaz_client, ranges):
 
 def SetupWorkDirectory():
     work_directory: str = "/tmp/bnb-downloader.work"
-    try:
-        os.mkdir(work_directory, mode=0o744)
-    except:
-        pass
+
+    # cleanup old files by re-creating work directory
+    if os.path.isdir(work_directory):
+        shutil.rmtree(work_directory)
+
+    os.mkdir(work_directory, mode=0o744)
     os.chdir(work_directory)
 
-    
+
 def UploadToBSZFTPServer(remote_folder_path: str, marc_filename: str):
     remote_file_name_tmp: str = marc_filename + ".tmp"
 
@@ -219,10 +222,9 @@ def Main():
 
             # Open new MARC dump file for the current list:
             OUTPUT_FILENAME = OUTPUT_FILENAME_PREFIX + str(list_no) + ".mrc"
-            util.Remove(OUTPUT_FILENAME)
             yaz_client.sendline("set_marcdump " + OUTPUT_FILENAME)
             yaz_client.expect("\r\n")
-        
+
             ranges = CoalesceNumbers(bnb_numbers)
             util.Info("The BNB numbers were coalesced into " + str(len(ranges)) + " ranges.")
 
@@ -243,8 +245,6 @@ def Main():
             break
     #end while true
 
-    if OUTPUT_FILENAME is not None and dryrun != True:
-        util.Remove(OUTPUT_FILENAME)
     util.Info("Downloaded a total of " + str(total_count) + " new record(s).")
     if dryrun != True:
         if total_count > 0:

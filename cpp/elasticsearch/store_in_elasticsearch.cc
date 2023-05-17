@@ -37,6 +37,24 @@ namespace {
 }
 
 
+void DumpFullTextInformation(const std::string &filename, FullTextImport::FullTextData &full_text_data) {
+    std::cerr << "\nUNCORRELATED#FILENAME:" << filename;
+    if (not full_text_data.title_.empty())
+        std::cerr << "#TITLE:" << full_text_data.title_;
+    if (not full_text_data.authors_.empty())
+        std::cerr << "#AUTHORS:" << StringUtil::Join(full_text_data.authors_, '|');
+    if (not full_text_data.year_.empty())
+        std::cerr << "#YEAR:" << full_text_data.year_;
+    if (not full_text_data.doi_.empty())
+        std::cerr << "#DOI:" << full_text_data.doi_;
+    if (not full_text_data.issn_.empty())
+        std::cerr << "#ISSN:" << full_text_data.issn_;
+    if (not full_text_data.isbn_.empty())
+        std::cerr << "#ISBN:" << full_text_data.isbn_;
+    std::cerr << '\n';
+}
+
+
 bool ImportDocument(const ControlNumberGuesser &control_number_guesser, FullTextCache * const full_text_cache, const std::string &filename,
                     const bool force_overwrite = false, const bool is_publisher_provided = false, const bool verbose = false) {
     const auto input(FileUtil::OpenInputFileOrDie(filename));
@@ -47,6 +65,8 @@ bool ImportDocument(const ControlNumberGuesser &control_number_guesser, FullText
     if (not FullTextImport::CorrelateFullTextData(control_number_guesser, full_text_data, &ppn)) {
         if (verbose)
             LOG_INFO("Could not correlate data for file \"" + filename + "\"");
+        if (is_publisher_provided)
+            DumpFullTextInformation(filename, full_text_data);
         return false;
     }
     FullTextCache::Entry entry;
@@ -59,12 +79,25 @@ bool ImportDocument(const ControlNumberGuesser &control_number_guesser, FullText
     if (entry_present)
         full_text_cache->deleteEntry(ppn);
 
+    // Extract formatted full text from PDF or HTML
     full_text_cache->insertEntry(ppn, full_text_data.full_text_, /* entry_urls = */ {}, FullTextCache::FULLTEXT, is_publisher_provided);
-    if (not full_text_data.full_text_location_.empty())
-        full_text_cache->extractAndImportHTMLPages(ppn, full_text_data.full_text_location_);
-    LOG_INFO("Inserted text from \"" + filename + "\" as entry for PPN \"" + ppn + "\"");
+    if (full_text_data.full_text_location_.empty())
+        return true;
 
-    return true;
+    if (StringUtil::EndsWith(full_text_data.full_text_location_, ".pdf", true /*ignore case*/)) {
+        full_text_cache->extractPDFAndImportHTMLPages(ppn, full_text_data.full_text_location_, FullTextCache::FULLTEXT,
+                                                      is_publisher_provided);
+        LOG_INFO("Inserted text from PDF \"" + filename + "\" as entry for PPN \"" + ppn + "\"");
+        return true;
+    }
+
+    if (StringUtil::EndsWith(full_text_data.full_text_location_, ".html", true /*ignore case*/)) {
+        full_text_cache->importHTMLFile(ppn, full_text_data.full_text_location_, FullTextCache::FULLTEXT, is_publisher_provided);
+        LOG_INFO("Inserted text from HTML \"" + filename + "\" as entry for PPN \"" + ppn + "\"");
+        return true;
+    }
+
+    LOG_ERROR("Don't know how to handle file \"" + full_text_data.full_text_location_ + "\"");
 }
 
 

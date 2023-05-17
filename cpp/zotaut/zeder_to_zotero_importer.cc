@@ -62,7 +62,7 @@ using namespace ZoteroHarvester;
         "Zeder flavour\n"
         "\tfields_to_update                Comma-separated list of the following fields to update: \n"
         "\t                                \tNAME, ONLINE_PPN, PRINT_PPN, ONLINE_ISSN, PRINT_ISSN, EXPECTED_LANGUAGES, ENTRY_POINT_URL, "
-        "UPLOAD_OPERATION, UPDATE_WINDOW, SSGN, LICENSE, TIEFP, SELECTIVE_EVALUATION.\n"
+        "UPLOAD_OPERATION, UPDATE_WINDOW, SSGN, LICENSE, TIEFP, SELECTIVE_EVALUATION, ADDITIONAL_SELECTORS.\n"
         "\t                                Ignored when importing entries (all importable fields will be imported).\n"
         "\t                                If mode is IMPORT and zeder_ids is '*', new journals will only be added if UPLOAD_OPERATION is "
         "not NONE.\n\n");
@@ -142,6 +142,7 @@ void ParseCommandLineArgs(int * const argc, char *** const argv, CommandLineArgs
         { "PERSONALIZED_AUTHORS", Config::JournalParams::PERSONALIZED_AUTHORS },
         { "SELECTIVE_EVALUATION", Config::JournalParams::SELECTIVE_EVALUATION },
         { "EXPECTED_LANGUAGES", Config::JournalParams::EXPECTED_LANGUAGES },
+        { "ADDITIONAL_SELECTORS", Config::JournalParams::ADDITIONAL_SELECTORS },
     };
 
     const std::string update_fields_list((*argv)[1]);

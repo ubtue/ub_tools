@@ -28,6 +28,7 @@
 #include <systemd/sd-bus.h>
 #include "Compiler.h"
 #include "ExecUtil.h"
+#include "UrlUtil.h"
 #include "WebUtil.h"
 #include "util.h"
 
@@ -95,6 +96,7 @@ void broadcastToSDBus(const std::multimap<std::string, std::string> &cgi_args, c
 
     std::string language_code, translation, index, gnd_code, translator;
     ExtractParams(cgi_args, env_args, &language_code, &translation, &index, &gnd_code, &translator);
+    index = UrlUtil::UrlDecode(index);
     std::string message = std::string("{\"gnd_code\" : \"") + gnd_code + "\", \"language_code\" : \"" + language_code + "\", \"index\" : \""
                           + index + "\", \"translation\" : \"" + translation + "\", \"translator\" : \"" + translator + "\"}";
 

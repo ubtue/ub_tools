@@ -9,6 +9,7 @@ import re
 import sys
 import traceback
 import util
+import codecs
 
 
 def GetMostRecentBSZFile(filename_pattern: str):
@@ -34,7 +35,7 @@ def SendUsageAndExit():
 
 def Main():
     if len(sys.argv) != 4 and len(sys.argv) != 5 and len(sys.argv) != 6 \
-        or (len(sys.argv) == 6 and not sys.argv[1].startswith("--filter-field=")):
+            or (len(sys.argv) == 6 and not sys.argv[1].startswith("--filter-field=")):
         SendUsageAndExit()
 
     count_author_gnd_refs_args = [];
@@ -71,14 +72,21 @@ def Main():
     with open(timestamp_filename, "w") as timestamp_file:
         timestamp_file.write("#TIMESTAMP: " + str(datetime.date.today()) + "\n")
 
-    # Now generate the final output (header + counts):
-    if not util.ConcatenateFiles([ sys.argv[2], timestamp_filename, gnd_counts_filename ], sys.argv[3]):
+    # Create if not exist a bom file with utf-8
+    file_with_utf8 = "/tmp/file_with_utf8"
+    f = codecs.open(file_with_utf8, 'w', 'utf-8')
+    f.write(u'\ufeff')
+    f.close()
+
+    # Now generate the final output (bom-utf8 + header + counts):
+    if not util.ConcatenateFiles([file_with_utf8, sys.argv[2], timestamp_filename, gnd_counts_filename], sys.argv[3]):
         util.SendEmailAndExit("Beacon Generator", "An unexpected error occurred: could not write \"" + sys.argv[3] + "\"!", priority=1)
 
     # Cleanup of temp files:
     os.unlink(gnd_numbers_path)
     os.unlink(timestamp_filename)
     os.unlink(gnd_counts_filename)
+    os.unlink(file_with_utf8)
 
     util.SendEmailAndExit("Beacon File Generator", "Successfully created a Beacon file.", priority=5)
 

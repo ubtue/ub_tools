@@ -1,21 +1,20 @@
-/** \file    nacjd.cc
-    \brief   Identifies URLs that we can use for further processing.
-    \author  andreas-ub
-
-    \copyright 2021 Universitätsbibliothek Tübingen
-
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU Affero General Public License as
-    published by the Free Software Foundation, either version 3 of the
-    License, or (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU Affero General Public License for more details.
-
-    You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+/** \brief Utility for harvesting metadata from NACJD (ICPSR).
+ *  \author Mario Trojan (mario.trojan@uni-tuebingen.de)
+ *
+ *  \copyright 2021-2023 Tübingen University Library.  All rights reserved.
+ *
+ *  This program is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Affero General Public License as
+ *  published by the Free Software Foundation, either version 3 of the
+ *  License, or (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU Affero General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Affero General Public License
+ *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <algorithm>
@@ -33,6 +32,8 @@
 #include "HttpHeader.h"
 #include "JSON.h"
 #include "MARC.h"
+#include "RegexMatcher.h"
+#include "StringUtil.h"
 #include "TimeUtil.h"
 #include "UBTools.h"
 #include "UrlUtil.h"
@@ -181,15 +182,15 @@ bool DownloadID(std::ofstream &json_new_titles, const std::string &id, const boo
 void ExtractExistingIDsFromMarc(MARC::Reader * const marc_reader, std::set<std::string> * const parsed_marc_ids) {
     while (MARC::Record record = marc_reader->read()) {
         std::string ppn(record.getControlNumber());
-        if (StringUtil::Contains(ppn, "[ICPSR]")) {
-            StringUtil::ReplaceString("[ICPSR]", "", &ppn);
+        if (StringUtil::Contains(ppn, "ICPSR")) {
+            StringUtil::ReplaceString("ICPSR", "", &ppn);
             StringUtil::TrimWhite(&ppn);
             parsed_marc_ids->emplace(ppn);
         }
 
         std::string id_035(record.getFirstSubfieldValue("035", 'a'));
-        if (StringUtil::Contains(id_035, "[ICPSR]")) {
-            StringUtil::ReplaceString("[ICPSR]", "", &id_035);
+        if (StringUtil::Contains(id_035, "ICPSR")) {
+            StringUtil::ReplaceString("ICPSR", "", &id_035);
             StringUtil::TrimWhite(&id_035);
             parsed_marc_ids->emplace(id_035);
         }
@@ -286,6 +287,11 @@ void ParseJSONAndWriteMARC(const std::string &json_path, MARC::Writer * const ti
         const auto creators_node(nacjd_node->getArrayNode("creators"));
         const auto description_node(nacjd_node->getOptionalStringNode("description"));
         const auto title_node(nacjd_node->getStringNode("title"));
+        std::string title(title_node->getValue());
+        StringUtil::Map(&title, '[', '(');
+        StringUtil::Map(&title, ']', ')');
+        title = RegexMatcher::ReplaceAll("\\s+/\\s+", title, "/");
+
         if (description_node == nullptr)
             complete = false;
         else {
@@ -370,21 +376,42 @@ void ParseJSONAndWriteMARC(const std::string &json_path, MARC::Writer * const ti
             const std::string doi(identifier_node->getStringNode("identifier")->getValue());
             if (complete) {
                 MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::MONOGRAPH_OR_ITEM,
-                                        "[ICPSR]" + id);
+                                        "ICPSR" + id);
+                new_record.insertControlField("007", "cr||||");
                 new_record.insertField("024", { { 'a', doi }, { '2', "doi" } }, '7');
                 new_record.insertField("041", { { 'a', "eng" } });
                 new_record.insertField("084", { { 'a', "2,1" }, { '2', "ssgn" } });
-                new_record.insertField("245", { { 'a', title_node->getValue() } }, /* indicator 1 = */ '1', /* indicator 2 = */ '0');
-                new_record.insertField("264", { { 'c', std::to_string(year) } });
+                new_record.insertField("245", { { 'a', title } }, /* indicator 1 = */ '1', /* indicator 2 = */ '0');
+                new_record.insertField("264",
+                                       { { 'a', "[Erscheinungsort nicht ermittelbar]" },
+                                         { 'b', "[Verlag nicht ermittelbar]" },
+                                         { 'c', std::to_string(year) } },
+                                       /*indicator1=*/' ', /*indicator2=*/'1');
                 new_record.insertField("520", { { 'a', description } });
                 new_record.insertField("540", { { 'a', license } });
-                new_record.insertField("655", { { 'a', "Forschungsdaten" } }, ' ', '4');
+                new_record.insertField("655",
+                                       { { 'a', "Forschungsdaten" },
+                                         { '0', "(DE-588)1098579690" },
+                                         { '0', "(DE-627)857755366" },
+                                         { '0', "(DE-576)469182156" },
+                                         { '2', "gnd-content" } },
+                                       ' ', '7');
                 const std::string statistics_category(GetStatisticsCategory(title_node->getValue()));
                 if (not statistics_category.empty())
-                    new_record.insertField("655", { { 'a', "Statistik" } }, ' ', '4');
+                    new_record.insertField("655",
+                                           { { 'a', "Statistik" },
+                                             { '0', "(DE-588)4056995-0" },
+                                             { '0', "(DE-627)106152955" },
+                                             { '0', "(DE-576)209119799" },
+                                             { '2', "gnd-content" } },
+                                           ' ', '7');
                 new_record.insertField("852", { { 'a', "DE-2619" } });
-                new_record.insertField("856", { { 'u', "https://www.icpsr.umich.edu/web/NACJD/studies/" + UrlUtil::UrlEncode(id) } },
-                                       '4' /*indicator1*/, '0' /*indicator 2*/);
+                new_record.insertField("856", { { 'u', "https://doi.org/" + doi }, { 'x', "R" }, { 'z', "LF" } }, /*indicator1 = */ '4',
+                                       /*indicator2 = */ '0');
+
+                // Disable Match & Merge
+                new_record.insertField("912", { { 'a', "NOMM" } });
+
                 new_record.insertField("935", { { 'a', "mkri" } });
                 new_record.insertField("935", { { 'a', "nacj" }, { '2', "LOK" } });
                 new_record.insertField("935", { { 'a', "foda" }, { '2', "LOK" } });
