@@ -18,8 +18,8 @@
  */
 
 #include <functional>
-#include <iostream>
 #include <iomanip>
+#include <iostream>
 #include <map>
 #include <sstream>
 #include "DbConnection.h"
@@ -46,26 +46,25 @@ struct DbFieldToMARCMapping {
     const char subfield_code_;
     std::function<void(MARC::Record * const, const std::string)> extraction_function_;
     DbFieldToMARCMapping(const std::string &db_field_name, const std::string marc_tag, const char subfield_code,
-                         ConversionFunctor extraction_function) :
-                         db_field_name_(db_field_name), marc_tag_(marc_tag),
-                         subfield_code_(subfield_code),
-                         extraction_function_(std::bind(extraction_function, marc_tag, subfield_code, std::placeholders::_1, std::placeholders::_2)) {}
+                         ConversionFunctor extraction_function)
+        : db_field_name_(db_field_name), marc_tag_(marc_tag), subfield_code_(subfield_code),
+          extraction_function_(std::bind(extraction_function, marc_tag, subfield_code, std::placeholders::_1, std::placeholders::_2)) { }
 };
 
-const auto DbFieldToMarcMappingComparator = [](const DbFieldToMARCMapping &lhs, const DbFieldToMARCMapping &rhs) { return lhs.db_field_name_ < rhs.db_field_name_;};
+const auto DbFieldToMarcMappingComparator = [](const DbFieldToMARCMapping &lhs, const DbFieldToMARCMapping &rhs) {
+    return lhs.db_field_name_ < rhs.db_field_name_;
+};
 using DbFieldToMARCMappingMultiset = std::multiset<DbFieldToMARCMapping, decltype(DbFieldToMarcMappingComparator)>;
 
 
-enum BIBTEX_ENTRY_TYPES { INPROCEEDINGS, ARTICLE, BOOK, COLLECTION, UNKNOWN};
-const std::map<std::string, int> STRING_TO_BITEX_ENTRY_TYPE {
-   { "inproceedings", BIBTEX_ENTRY_TYPES::INPROCEEDINGS },
-   { "article", BIBTEX_ENTRY_TYPES::ARTICLE },
-   { "book", BIBTEX_ENTRY_TYPES::BOOK },
-   { "collection", BIBTEX_ENTRY_TYPES::COLLECTION }
-};
+enum BIBTEX_ENTRY_TYPES { INPROCEEDINGS, ARTICLE, BOOK, COLLECTION, UNKNOWN };
+const std::map<std::string, int> STRING_TO_BITEX_ENTRY_TYPE{ { "inproceedings", BIBTEX_ENTRY_TYPES::INPROCEEDINGS },
+                                                             { "article", BIBTEX_ENTRY_TYPES::ARTICLE },
+                                                             { "book", BIBTEX_ENTRY_TYPES::BOOK },
+                                                             { "collection", BIBTEX_ENTRY_TYPES::COLLECTION } };
 
 
-MARC::Record * CreateNewRecord(const std::string &keibi_uid, const std::string &bibtex_description) {
+MARC::Record *CreateNewRecord(const std::string &keibi_uid, const std::string &bibtex_description) {
     std::ostringstream formatted_number;
     formatted_number << std::setfill('0') << std::setw(8) << std::atoi(keibi_uid.c_str());
     const std::string ppn("KEI" + formatted_number.str());
@@ -73,24 +72,24 @@ MARC::Record * CreateNewRecord(const std::string &keibi_uid, const std::string &
     MARC::Record::BibliographicLevel type_of_record;
     const auto type_candidate(STRING_TO_BITEX_ENTRY_TYPE.find(bibtex_description));
     if (type_candidate != STRING_TO_BITEX_ENTRY_TYPE.end()) {
-       switch (type_candidate->second) {
-           case BIBTEX_ENTRY_TYPES::BOOK:
-               type_of_record = MARC::Record::BibliographicLevel::MONOGRAPH_OR_ITEM;
-               return new MARC::Record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, type_of_record, ppn);
-           case BIBTEX_ENTRY_TYPES::ARTICLE:
-               type_of_record = MARC::Record::BibliographicLevel::MONOGRAPHIC_COMPONENT_PART;
-               return new MARC::Record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, type_of_record, ppn);
-           case BIBTEX_ENTRY_TYPES::COLLECTION:
-               type_of_record = MARC::Record::BibliographicLevel::MONOGRAPHIC_COMPONENT_PART;
-               return new MARC::Record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, type_of_record, ppn);
-           case BIBTEX_ENTRY_TYPES::INPROCEEDINGS:
-               type_of_record = MARC::Record::BibliographicLevel::MONOGRAPHIC_COMPONENT_PART;
-               auto new_record(new MARC::Record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, type_of_record, ppn));
-               new_record->insertField("655", 'a', "Konferenzschrift");
-               return new_record;
-       }
-   }
-   return new MARC::Record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::UNDEFINED, ppn);
+        switch (type_candidate->second) {
+        case BIBTEX_ENTRY_TYPES::BOOK:
+            type_of_record = MARC::Record::BibliographicLevel::MONOGRAPH_OR_ITEM;
+            return new MARC::Record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, type_of_record, ppn);
+        case BIBTEX_ENTRY_TYPES::ARTICLE:
+            type_of_record = MARC::Record::BibliographicLevel::MONOGRAPHIC_COMPONENT_PART;
+            return new MARC::Record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, type_of_record, ppn);
+        case BIBTEX_ENTRY_TYPES::COLLECTION:
+            type_of_record = MARC::Record::BibliographicLevel::MONOGRAPHIC_COMPONENT_PART;
+            return new MARC::Record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, type_of_record, ppn);
+        case BIBTEX_ENTRY_TYPES::INPROCEEDINGS:
+            type_of_record = MARC::Record::BibliographicLevel::MONOGRAPHIC_COMPONENT_PART;
+            auto new_record(new MARC::Record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, type_of_record, ppn));
+            new_record->insertField("655", 'a', "Konferenzschrift");
+            return new_record;
+        }
+    }
+    return new MARC::Record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::UNDEFINED, ppn);
 }
 
 
@@ -118,45 +117,45 @@ void InsertCreationField(const std::string &tag, const char, MARC::Record * cons
             if (match_result[1] == "0000-00-00")
                 record->insertField(tag, "000101s2000    x |||||      00| ||ger c");
             else
-                record->insertField(tag, StringUtil::Filter(match_result[1], "-").substr(2) + "s" + match_result[2] +"    xx |||||      00| ||ger c");
+                record->insertField(
+                    tag, StringUtil::Filter(match_result[1], "-").substr(2) + "s" + match_result[2] + "    xx |||||      00| ||ger c");
             return;
         } else
             LOG_ERROR("Invalid date format \"" + data + "\"");
     }
     // Fallback with dummy data
     record->insertField(tag, "000101s2000    xx |||||      00| ||ger c");
-
 }
 
 
 void InsertAuthors(const std::string, const char, MARC::Record * const record, const std::string &data) {
-     if (data.length()) {
-         std::vector<std::string> authors;
-         std::string author, further_parts;
-         std::string data_to_split(data);
-         while (StringUtil::SplitOnString(data_to_split, " and ", &author, &further_parts)) {
-             authors.emplace_back(author);
-             data_to_split = further_parts;
-         }
-         authors.emplace_back(data_to_split);
+    if (data.length()) {
+        std::vector<std::string> authors;
+        std::string author, further_parts;
+        std::string data_to_split(data);
+        while (StringUtil::SplitOnString(data_to_split, " and ", &author, &further_parts)) {
+            authors.emplace_back(author);
+            data_to_split = further_parts;
+        }
+        authors.emplace_back(data_to_split);
 
 
-         record->insertField("100", { { 'a', authors[0] }, { '4', "aut" }, {'e', "VerfasserIn" } });
-         for (auto further_author = authors.begin() + 1; further_author != authors.end(); ++further_author)
-              record->insertField("700", { { 'a',  *further_author }, { '4', "aut" }, { 'e', "VerfasserIn" } });
+        record->insertField("100", { { 'a', authors[0] }, { '4', "aut" }, { 'e', "VerfasserIn" } });
+        for (auto further_author = authors.begin() + 1; further_author != authors.end(); ++further_author)
+            record->insertField("700", { { 'a', *further_author }, { '4', "aut" }, { 'e', "VerfasserIn" } });
     }
 }
 
 
 void InsertOrForceSubfield(const std::string &tag, const char subfield_code, MARC::Record * const record, const std::string &data) {
-    if (data.length()){
+    if (data.length()) {
         if (not record->hasTag(tag)) {
             InsertField(tag, subfield_code, record, data);
             return;
         }
         for (auto &field : record->getTagRange(tag)) {
-              // FIXME: Do not necessarily replace
-             field.insertOrReplaceSubfield(subfield_code, data);
+            // FIXME: Do not necessarily replace
+            field.insertOrReplaceSubfield(subfield_code, data);
         }
     }
 }
@@ -164,47 +163,70 @@ void InsertOrForceSubfield(const std::string &tag, const char subfield_code, MAR
 
 void InsertEditors(const std::string, const char, MARC::Record * const record, const std::string &data) {
     if (data.length()) {
-         std::vector<std::string> editors;
-         std::string editor, further_parts;
-         std::string data_to_split(data);
-         while (StringUtil::SplitOnString(data_to_split, " and ", &editor, &further_parts)) {
-             editors.emplace_back(editor);
-             data_to_split = further_parts;
-         }
-         for (const auto &further_editor : editors )
-              record->insertField("700", { { 'a',  further_editor }, { '4', "edt" }, { 'e', "HerausgeberIn" }});
+        std::vector<std::string> editors;
+        std::string editor, further_parts;
+        std::string data_to_split(data);
+        while (StringUtil::SplitOnString(data_to_split, " and ", &editor, &further_parts)) {
+            editors.emplace_back(editor);
+            data_to_split = further_parts;
+        }
+        for (const auto &further_editor : editors)
+            record->insertField("700", { { 'a', further_editor }, { '4', "edt" }, { 'e', "HerausgeberIn" } });
     }
 }
 
-void ConvertCitations(DbConnection * const db_connection,
-                      const DbFieldToMARCMappingMultiset &dbfield_to_marc_mappings,
-                      MARC::Writer * const marc_writer)
-{
-    db_connection->queryOrDie(KEIBI_QUERY);
-    DbResultSet result_set(db_connection->getLastResultSet());
+
+void AddReferencingReviews(MARC::Record * const record, DbConnection *db_connection) {
+    const std::string bibtexCitation(record->getFirstSubfieldValue("BIB", 'a'));
+    if (bibtexCitation.empty())
+        return;
+    db_connection->queryOrDie("SELECT reviews FROM citations WHERE bibtexCitation='" + StringUtil::Escape('\\', '\'', bibtexCitation)
+                              + "'");
+    DbResultSet reviews_result_set(db_connection->getLastResultSet());
+    std::vector<std::string> collected_reviews;
+    while (const auto &review_row = reviews_result_set.getNextRow()) {
+        const std::string review_candidate(review_row["reviews"]);
+        if (not review_candidate.empty())
+            collected_reviews.emplace_back(review_candidate);
+    }
+    std::string all_reviews;
+    StringUtil::Join(collected_reviews, ';', &all_reviews);
+    if (all_reviews.empty())
+        return;
+    record->insertField("REV", 'a', all_reviews);
+    std::cout << "Inserted " << all_reviews << '\n';
+}
+
+
+void ConvertRecords(const IniFile &db_ini_file, const DbFieldToMARCMappingMultiset &dbfield_to_marc_mappings,
+                    MARC::Writer * const marc_writer) {
+    DbConnection db_connection(DbConnection::MySQLFactory(db_ini_file));
+    db_connection.queryOrDie(KEIBI_QUERY);
+    DbResultSet result_set(db_connection.getLastResultSet());
     while (const auto row = result_set.getNextRow()) {
         MARC::Record * const new_record(CreateNewRecord(row["uid"], row[bibtexEntryType_field]));
-        for (auto dbfield_to_marc_mapping(dbfield_to_marc_mappings.begin());
-             dbfield_to_marc_mapping != dbfield_to_marc_mappings.end();
+        for (auto dbfield_to_marc_mapping(dbfield_to_marc_mappings.begin()); dbfield_to_marc_mapping != dbfield_to_marc_mappings.end();
              ++dbfield_to_marc_mapping)
         {
             dbfield_to_marc_mapping->extraction_function_(new_record, row[dbfield_to_marc_mapping->db_field_name_]);
         }
         // Dummy entries
         new_record->insertField("005", TimeUtil::GetCurrentDateAndTime("%Y%m%d%H%M%S") + ".0");
+        // Add all referencing reviews
+        AddReferencingReviews(new_record, &db_connection);
         marc_writer->write(*new_record);
         delete new_record;
     }
 }
 
 
-const std::map<std::string, ConversionFunctor> name_to_functor_map {
-    {  "InsertField", InsertField },
-    {  "IsReview", IsReview },
-    {  "InsertCreationField", InsertCreationField },
-    {  "InsertAuthors", InsertAuthors },
-    {  "InsertOrForceSubfield", InsertOrForceSubfield },
-    {  "InsertEditors", InsertEditors },
+const std::map<std::string, ConversionFunctor> name_to_functor_map{
+    { "InsertField", InsertField },
+    { "IsReview", IsReview },
+    { "InsertCreationField", InsertCreationField },
+    { "InsertAuthors", InsertAuthors },
+    { "InsertOrForceSubfield", InsertOrForceSubfield },
+    { "InsertEditors", InsertEditors },
 };
 
 ConversionFunctor GetConversionFunctor(const std::string &functor_name) {
@@ -214,12 +236,12 @@ ConversionFunctor GetConversionFunctor(const std::string &functor_name) {
 }
 
 
-void ExtractTagAndSubfield(const std::string combined, std::string * tag, char * subfield_code) {
+void ExtractTagAndSubfield(const std::string combined, std::string *tag, char *subfield_code) {
     bool is_no_subfield_tag(StringUtil::StartsWith(combined, "00"));
     if (combined.length() != 4 and not is_no_subfield_tag)
         LOG_ERROR("Invalid Tag and Subfield format " + combined);
-    *tag = combined.substr(0,3);
-    *subfield_code = is_no_subfield_tag ? ' ' :  combined[3];
+    *tag = combined.substr(0, 3);
+    *subfield_code = is_no_subfield_tag ? ' ' : combined[3];
 }
 
 
@@ -239,19 +261,19 @@ void CreateDbFieldToMarcMappings(File * const map_file, DbFieldToMARCMappingMult
         static ThreadSafeRegexMatcher tag_subfield_and_functorname("(?i)([a-z0-9]{3,4})\\s+\\((\\p{L}+)\\)\\s*");
         const std::vector<std::string> extraction_rules(mapping.begin() + 1, mapping.end());
         for (const auto &extraction_rule : extraction_rules) {
-             std::string tag;
-             char subfield_code;
-             ConversionFunctor conversion_functor;
-             if (const auto match_result = tag_subfield_and_functorname.match(extraction_rule)) {
-                 ExtractTagAndSubfield(match_result[1], &tag, &subfield_code);
-                 conversion_functor = GetConversionFunctor(match_result[2]);
-             } else if (extraction_rule.length() >= 3 && extraction_rule.length() <= 4){
-                 ExtractTagAndSubfield(extraction_rule, &tag, &subfield_code);
-                 conversion_functor = GetConversionFunctor("InsertField");
-             } else
-                 LOG_ERROR("Invalid extraction rule: " + extraction_rule);
+            std::string tag;
+            char subfield_code;
+            ConversionFunctor conversion_functor;
+            if (const auto match_result = tag_subfield_and_functorname.match(extraction_rule)) {
+                ExtractTagAndSubfield(match_result[1], &tag, &subfield_code);
+                conversion_functor = GetConversionFunctor(match_result[2]);
+            } else if (extraction_rule.length() >= 3 && extraction_rule.length() <= 4) {
+                ExtractTagAndSubfield(extraction_rule, &tag, &subfield_code);
+                conversion_functor = GetConversionFunctor("InsertField");
+            } else
+                LOG_ERROR("Invalid extraction rule: " + extraction_rule);
 
-             dbfield_to_marc_mappings->emplace(DbFieldToMARCMapping(mapping[0], tag, subfield_code, conversion_functor));
+            dbfield_to_marc_mappings->emplace(DbFieldToMARCMapping(mapping[0], tag, subfield_code, conversion_functor));
         }
     }
 }
@@ -266,16 +288,11 @@ int Main(int argc, char *argv[]) {
     const std::string map_file_path(argv[2]);
     const std::string marc_output_path(argv[3]);
 
-    DbConnection db_connection(DbConnection::MySQLFactory(IniFile(ini_file_path)));
     std::unique_ptr<File> map_file(FileUtil::OpenInputFileOrDie(map_file_path));
     const std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_path));
     DbFieldToMARCMappingMultiset dbfield_to_marc_mappings(DbFieldToMarcMappingComparator);
     CreateDbFieldToMarcMappings(map_file.get(), &dbfield_to_marc_mappings);
-    ConvertCitations(&db_connection, dbfield_to_marc_mappings, marc_writer.get());
+    ConvertRecords(IniFile(ini_file_path), dbfield_to_marc_mappings, marc_writer.get());
 
     return EXIT_SUCCESS;
 }
-
-
-
-
