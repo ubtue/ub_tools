@@ -1,7 +1,7 @@
 /** \brief Convert the KeiBi Database entries to MARC 21 Records
  *  \author Johannes Riedl
  *
- *  \copyright 2021 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2021-23 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -34,7 +34,7 @@
 
 namespace {
 
-using ConversionFunctor = std::function<void(const std::string, const char, MARC::Record * const, const std::string)>;
+using ConversionFunctor = std::function<void(const std::string, const char, MARC::Record * const, const std::string, DbConnection *)>;
 const std::string KEIBI_QUERY("SELECT * FROM citations");
 const char SEPARATOR_CHAR('|');
 const std::string bibtexEntryType_field("bibtexEntryType");
@@ -44,11 +44,13 @@ struct DbFieldToMARCMapping {
     const std::string db_field_name_;
     const std::string marc_tag_;
     const char subfield_code_;
-    std::function<void(MARC::Record * const, const std::string)> extraction_function_;
+    // DbConnection *db_connection_;
+    std::function<void(MARC::Record * const, const std::string, DbConnection * const)> extraction_function_;
     DbFieldToMARCMapping(const std::string &db_field_name, const std::string marc_tag, const char subfield_code,
                          ConversionFunctor extraction_function)
         : db_field_name_(db_field_name), marc_tag_(marc_tag), subfield_code_(subfield_code),
-          extraction_function_(std::bind(extraction_function, marc_tag, subfield_code, std::placeholders::_1, std::placeholders::_2)) { }
+          extraction_function_(std::bind(extraction_function, marc_tag, subfield_code, std::placeholders::_1, std::placeholders::_2,
+                                         std::placeholders::_3)) { }
 };
 
 const auto DbFieldToMarcMappingComparator = [](const DbFieldToMARCMapping &lhs, const DbFieldToMARCMapping &rhs) {
@@ -98,27 +100,49 @@ MARC::Record *CreateNewRecord(const std::string &keibi_uid, const std::string &b
 }
 
 
-void InsertField(const std::string &tag, const char subfield_code, MARC::Record * const record, const std::string &data) {
+void InsertField(const std::string &tag, const char subfield_code, MARC::Record * const record, const std::string &data, DbConnection *) {
     if (data.length())
         record->insertField(tag, subfield_code, data);
 }
 
 
-void IsReview(const std::string &tag, const char subfield_code, MARC::Record * const record, const std::string &data) {
+void IsReview(const std::string &tag, const char subfield_code, MARC::Record * const record, const std::string &data, DbConnection *) {
     if (data.length() and data != "0")
         record->insertField(tag, subfield_code, "Rezension");
 }
 
 
-void InsertCreationField(const std::string &tag, const char, MARC::Record * const record, const std::string &data) {
+bool GetPublicationYearHelper(DbConnection * const db_connection, MARC::Record * const record, std::string * const publication_year) {
+    const std::string uid(record->getControlNumber().substr(3)); /*Skip KEI-Prefix*/
+    db_connection->queryOrDie("SELECT year FROM citations WHERE uid='" + uid + "'");
+    DbResultSet publication_year_result_set(db_connection->getLastResultSet());
+    static ThreadSafeRegexMatcher valid_year_matcher("\\d{4}");
+    if (publication_year_result_set.size() == 1) {
+        *publication_year = publication_year_result_set.getNextRow()["year"];
+        if (valid_year_matcher.match(*publication_year))
+            return true;
+        else
+            LOG_WARNING("Skipping invalid year content \"" + *publication_year + "\"");
+    } else
+        LOG_WARNING("Invalid size of publication year candidates: " + std::to_string(publication_year_result_set.size()) + " for uid "
+                    + uid);
+    return false;
+}
+
+
+void InsertCreationField(const std::string &tag, const char, MARC::Record * const record, const std::string &data,
+                         DbConnection * const db_connection) {
     if (data.length()) {
         static ThreadSafeRegexMatcher date_matcher("((\\d{4})-\\d{2}-\\d{2})[\\t\\s]+\\d{2}:\\d{2}:\\d{2}");
         if (const auto &match_result = date_matcher.match(data)) {
             if (match_result[1] == "0000-00-00")
                 record->insertField(tag, "000101s2000    x |||||      00| ||ger c");
-            else
+            else {
+                std::string publication_year;
+                publication_year = GetPublicationYearHelper(db_connection, record, &publication_year) ? publication_year : match_result[2];
                 record->insertField(
-                    tag, StringUtil::Filter(match_result[1], "-").substr(2) + "s" + match_result[2] + "    xx |||||      00| ||ger c");
+                    tag, StringUtil::Filter(match_result[1], "-").substr(2) + "s" + publication_year + "    xx |||||      00| ||ger c");
+            }
             return;
         } else
             LOG_ERROR("Invalid date format \"" + data + "\"");
@@ -128,7 +152,7 @@ void InsertCreationField(const std::string &tag, const char, MARC::Record * cons
 }
 
 
-void InsertAuthors(const std::string, const char, MARC::Record * const record, const std::string &data) {
+void InsertAuthors(const std::string, const char, MARC::Record * const record, const std::string &data, DbConnection *) {
     if (data.length()) {
         std::vector<std::string> authors;
         std::string author, further_parts;
@@ -147,10 +171,11 @@ void InsertAuthors(const std::string, const char, MARC::Record * const record, c
 }
 
 
-void InsertOrForceSubfield(const std::string &tag, const char subfield_code, MARC::Record * const record, const std::string &data) {
+void InsertOrForceSubfield(const std::string &tag, const char subfield_code, MARC::Record * const record, const std::string &data,
+                           DbConnection *db_connection = nullptr) {
     if (data.length()) {
         if (not record->hasTag(tag)) {
-            InsertField(tag, subfield_code, record, data);
+            InsertField(tag, subfield_code, record, data, db_connection);
             return;
         }
         for (auto &field : record->getTagRange(tag)) {
@@ -161,7 +186,7 @@ void InsertOrForceSubfield(const std::string &tag, const char subfield_code, MAR
 }
 
 
-void InsertEditors(const std::string, const char, MARC::Record * const record, const std::string &data) {
+void InsertEditors(const std::string, const char, MARC::Record * const record, const std::string &data, DbConnection *) {
     if (data.length()) {
         std::vector<std::string> editors;
         std::string editor, further_parts;
@@ -190,7 +215,7 @@ void AddReferencingReviews(MARC::Record * const record, DbConnection *db_connect
             collected_reviews.emplace_back(review_candidate);
     }
     std::string all_reviews;
-    StringUtil::Join(collected_reviews, ';', &all_reviews);
+    StringUtil::Join(collected_reviews, "; ", &all_reviews);
     if (all_reviews.empty())
         return;
     record->insertField("REV", 'a', all_reviews);
@@ -208,7 +233,7 @@ void ConvertRecords(const IniFile &db_ini_file, const DbFieldToMARCMappingMultis
         for (auto dbfield_to_marc_mapping(dbfield_to_marc_mappings.begin()); dbfield_to_marc_mapping != dbfield_to_marc_mappings.end();
              ++dbfield_to_marc_mapping)
         {
-            dbfield_to_marc_mapping->extraction_function_(new_record, row[dbfield_to_marc_mapping->db_field_name_]);
+            dbfield_to_marc_mapping->extraction_function_(new_record, row[dbfield_to_marc_mapping->db_field_name_], &db_connection);
         }
         // Dummy entries
         new_record->insertField("005", TimeUtil::GetCurrentDateAndTime("%Y%m%d%H%M%S") + ".0");
