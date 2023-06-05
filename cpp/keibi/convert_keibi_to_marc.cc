@@ -192,6 +192,7 @@ void InsertOrForceSubfield(const std::string &tag, const char subfield_code, MAR
 
 struct SuperiorInformation {
     std::string journal_;
+    std::string booktitle_;
     std::string series_;
     std::string series_num_;
     std::string series_place_;
@@ -201,34 +202,37 @@ struct SuperiorInformation {
 bool GetSuperiorInformationHelper(DbConnection * const db_connection, MARC::Record * const record,
                                   struct SuperiorInformation * const superior_information) {
     const std::string uid(GetUIDFromPPN(record));
-    db_connection->queryOrDie("SELECT series, number, address FROM citations WHERE uid='" + uid + "'");
+    db_connection->queryOrDie("SELECT journal, booktitle, series, number, address FROM citations WHERE uid='" + uid + "'");
     DbResultSet series_result_set(db_connection->getLastResultSet());
     const auto row(series_result_set.getNextRow());
+    superior_information->journal_ = row["journal"];
+    superior_information->booktitle_ = row["booktitle"];
     superior_information->series_ = row["series"];
     superior_information->series_num_ = row["number"];
     superior_information->series_place_ = row["address"];
     return true;
 }
 
-void InsertSuperiorInformation(const std::string, const char, MARC::Record * const record, const std::string &data,
-                               DbConnection *db_connection) {
+void InsertSuperiorInformation(const std::string, const char, MARC::Record * const record, const std::string, DbConnection *db_connection) {
     struct SuperiorInformation superior_information;
-    if (data.length())
-        superior_information.journal_ = data;
     GetSuperiorInformationHelper(db_connection, record, &superior_information);
     MARC::Subfields _773Subfields;
 
     if (not superior_information.journal_.empty())
         _773Subfields.addSubfield('a', superior_information.journal_);
+    if (not superior_information.booktitle_.empty())
+        _773Subfields.addSubfield('a', superior_information.booktitle_);
     if (not superior_information.series_.empty())
         _773Subfields.addSubfield('t', superior_information.series_);
     if (not superior_information.series_num_.empty())
         _773Subfields.addSubfield('v', superior_information.series_num_);
     if (not superior_information.series_place_.empty())
-        _773Subfields.addSubfield('v', superior_information.series_place_);
+        _773Subfields.addSubfield('d', superior_information.series_place_);
 
-    if (_773Subfields.size())
-        record->insertField("773", _773Subfields, '0', '1');
+    if (_773Subfields.size()) {
+        record->deleteFields("773");
+        record->insertField("773", _773Subfields, '0', '8');
+    }
 }
 
 
