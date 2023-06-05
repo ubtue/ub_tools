@@ -34,7 +34,8 @@
 
 namespace {
 
-using ConversionFunctor = std::function<void(const std::string, const char, MARC::Record * const, const std::string, DbConnection *)>;
+using ConversionFunctor = std::function<void(const std::string /* tag */, const char /*subfield */, const char /* indicator1 */,
+                                             const char /* indicator2 */, MARC::Record * const, const std::string, DbConnection *)>;
 const std::string KEIBI_QUERY("SELECT * FROM citations");
 const char SEPARATOR_CHAR('|');
 const std::string bibtexEntryType_field("bibtexEntryType");
@@ -44,13 +45,15 @@ struct DbFieldToMARCMapping {
     const std::string db_field_name_;
     const std::string marc_tag_;
     const char subfield_code_;
+    const char indicator1_;
+    const char indicator2_;
     // DbConnection *db_connection_;
     std::function<void(MARC::Record * const, const std::string, DbConnection * const)> extraction_function_;
-    DbFieldToMARCMapping(const std::string &db_field_name, const std::string marc_tag, const char subfield_code,
-                         ConversionFunctor extraction_function)
-        : db_field_name_(db_field_name), marc_tag_(marc_tag), subfield_code_(subfield_code),
-          extraction_function_(std::bind(extraction_function, marc_tag, subfield_code, std::placeholders::_1, std::placeholders::_2,
-                                         std::placeholders::_3)) { }
+    DbFieldToMARCMapping(const std::string &db_field_name, const std::string marc_tag, const char subfield_code, const char indicator1,
+                         const char indicator2, ConversionFunctor extraction_function)
+        : db_field_name_(db_field_name), marc_tag_(marc_tag), subfield_code_(subfield_code), indicator1_(indicator1),
+          indicator2_(indicator2), extraction_function_(std::bind(extraction_function, marc_tag, subfield_code, indicator1, indicator2,
+                                                                  std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)) { }
 };
 
 const auto DbFieldToMarcMappingComparator = [](const DbFieldToMARCMapping &lhs, const DbFieldToMARCMapping &rhs) {
@@ -100,15 +103,17 @@ MARC::Record *CreateNewRecord(const std::string &keibi_uid, const std::string &b
 }
 
 
-void InsertField(const std::string &tag, const char subfield_code, MARC::Record * const record, const std::string &data, DbConnection *) {
+void InsertField(const std::string &tag, const char subfield_code, const char indicator1, const char indicator2,
+                 MARC::Record * const record, const std::string &data, DbConnection *) {
     if (data.length())
-        record->insertField(tag, subfield_code, data);
+        record->insertField(tag, subfield_code, data, indicator1, indicator2);
 }
 
 
-void IsReview(const std::string &tag, const char subfield_code, MARC::Record * const record, const std::string &data, DbConnection *) {
+void IsReview(const std::string &tag, const char subfield_code, const char indicator1, const char indicator2, MARC::Record * const record,
+              const std::string &data, DbConnection *) {
     if (data.length() and data != "0")
-        record->insertField(tag, subfield_code, "Rezension");
+        record->insertField(tag, subfield_code, "Rezension", indicator1, indicator2);
 }
 
 
@@ -134,7 +139,7 @@ bool GetPublicationYearHelper(DbConnection * const db_connection, MARC::Record *
 }
 
 
-void InsertCreationField(const std::string &tag, const char, MARC::Record * const record, const std::string &data,
+void InsertCreationField(const std::string &tag, const char, const char, const char, MARC::Record * const record, const std::string &data,
                          DbConnection * const db_connection) {
     if (data.length()) {
         static ThreadSafeRegexMatcher date_matcher("((\\d{4})-\\d{2}-\\d{2})[\\t\\s]+\\d{2}:\\d{2}:\\d{2}");
@@ -156,7 +161,8 @@ void InsertCreationField(const std::string &tag, const char, MARC::Record * cons
 }
 
 
-void InsertAuthors(const std::string, const char, MARC::Record * const record, const std::string &data, DbConnection *) {
+void InsertAuthors(const std::string, const char, const char, const char, MARC::Record * const record, const std::string &data,
+                   DbConnection *) {
     if (data.length()) {
         std::vector<std::string> authors;
         std::string author, further_parts;
@@ -175,11 +181,11 @@ void InsertAuthors(const std::string, const char, MARC::Record * const record, c
 }
 
 
-void InsertOrForceSubfield(const std::string &tag, const char subfield_code, MARC::Record * const record, const std::string &data,
-                           DbConnection *db_connection) {
+void InsertOrForceSubfield(const std::string &tag, const char subfield_code, const char indicator1, const char indicator2,
+                           MARC::Record * const record, const std::string &data, DbConnection * const db_connection) {
     if (data.length()) {
         if (not record->hasTag(tag)) {
-            InsertField(tag, subfield_code, record, data, db_connection);
+            InsertField(tag, subfield_code, indicator1, indicator2, record, data, db_connection);
             return;
         }
         for (auto &field : record->getTagRange(tag)) {
@@ -213,7 +219,8 @@ bool GetSuperiorInformationHelper(DbConnection * const db_connection, MARC::Reco
     return true;
 }
 
-void InsertSuperiorInformation(const std::string, const char, MARC::Record * const record, const std::string, DbConnection *db_connection) {
+void InsertSuperiorInformation(const std::string, const char, const char, const char, MARC::Record * const record, const std::string,
+                               DbConnection *db_connection) {
     struct SuperiorInformation superior_information;
     GetSuperiorInformationHelper(db_connection, record, &superior_information);
     MARC::Subfields _773Subfields;
@@ -236,7 +243,8 @@ void InsertSuperiorInformation(const std::string, const char, MARC::Record * con
 }
 
 
-void InsertEditors(const std::string, const char, MARC::Record * const record, const std::string &data, DbConnection *) {
+void InsertEditors(const std::string, const char, const char, const char, MARC::Record * const record, const std::string &data,
+                   DbConnection *) {
     if (data.length()) {
         std::vector<std::string> editors;
         std::string editor, further_parts;
@@ -312,12 +320,24 @@ ConversionFunctor GetConversionFunctor(const std::string &functor_name) {
 }
 
 
-void ExtractTagAndSubfield(const std::string combined, std::string *tag, char *subfield_code) {
+void ExtractTagSubfieldAndIndicators(const std::string combined, std::string *tag, char *subfield_code, char * const indicator1,
+                                     char * const indicator2) {
     bool is_no_subfield_tag(StringUtil::StartsWith(combined, "00"));
-    if (combined.length() != 4 and not is_no_subfield_tag)
+    std::string tag_and_subfield, indicators;
+    if (not StringUtil::SplitOnString(combined, "[", &tag_and_subfield, &indicators, true /* allow empty parts */))
+        tag_and_subfield = combined;
+    if (tag_and_subfield.length() != 4 and not is_no_subfield_tag)
         LOG_ERROR("Invalid Tag and Subfield format " + combined);
-    *tag = combined.substr(0, 3);
-    *subfield_code = is_no_subfield_tag ? ' ' : combined[3];
+    *tag = tag_and_subfield.substr(0, 3);
+    *subfield_code = is_no_subfield_tag ? ' ' : tag_and_subfield[3];
+    if (indicators.empty()) {
+        *indicator1 = *indicator2 = ' ';
+        return;
+    }
+    if (not(indicators.size() == 3 && indicators[2] == ']'))
+        LOG_ERROR("Invalid indicator specification " + indicators);
+    *indicator1 = indicators[0];
+    *indicator2 = indicators[1];
 }
 
 
@@ -334,22 +354,27 @@ void CreateDbFieldToMarcMappings(File * const map_file, DbFieldToMARCMappingMult
             LOG_WARNING("Invalid line format in line " + std::to_string(linenum));
             continue;
         }
-        static ThreadSafeRegexMatcher tag_subfield_and_functorname("(?i)([a-z0-9]{3,4})\\s+\\((\\p{L}+)\\)\\s*");
+        static ThreadSafeRegexMatcher tag_subfield_and_indicators("(?i)([a-z0-9]{3,4}(?:[[][a-z0-9]{2}[]])?)");
+        static ThreadSafeRegexMatcher tag_subfield_indicators_and_functorname(tag_subfield_and_indicators.getPattern()
+                                                                              + "\\s+\\((\\p{L}+)\\)\\s*");
         const std::vector<std::string> extraction_rules(mapping.begin() + 1, mapping.end());
         for (const auto &extraction_rule : extraction_rules) {
             std::string tag;
             char subfield_code;
+            char indicator1;
+            char indicator2;
             ConversionFunctor conversion_functor;
-            if (const auto match_result = tag_subfield_and_functorname.match(extraction_rule)) {
-                ExtractTagAndSubfield(match_result[1], &tag, &subfield_code);
+            if (const auto &match_result = tag_subfield_indicators_and_functorname.match(extraction_rule)) {
+                ExtractTagSubfieldAndIndicators(match_result[1], &tag, &subfield_code, &indicator1, &indicator2);
                 conversion_functor = GetConversionFunctor(match_result[2]);
-            } else if (extraction_rule.length() >= 3 && extraction_rule.length() <= 4) {
-                ExtractTagAndSubfield(extraction_rule, &tag, &subfield_code);
+            } else if (tag_subfield_and_indicators.match(extraction_rule)) {
+                ExtractTagSubfieldAndIndicators(extraction_rule, &tag, &subfield_code, &indicator1, &indicator2);
                 conversion_functor = GetConversionFunctor("InsertField");
             } else
                 LOG_ERROR("Invalid extraction rule: " + extraction_rule);
 
-            dbfield_to_marc_mappings->emplace(DbFieldToMARCMapping(mapping[0], tag, subfield_code, conversion_functor));
+            dbfield_to_marc_mappings->emplace(
+                DbFieldToMARCMapping(mapping[0], tag, subfield_code, indicator1, indicator2, conversion_functor));
         }
     }
 }
