@@ -116,9 +116,9 @@ bool GetPublicationYearHelper(DbConnection * const db_connection, MARC::Record *
     const std::string uid(record->getControlNumber().substr(3)); /*Skip KEI-Prefix*/
     db_connection->queryOrDie("SELECT year FROM citations WHERE uid='" + uid + "'");
     DbResultSet publication_year_result_set(db_connection->getLastResultSet());
-    static ThreadSafeRegexMatcher valid_year_matcher("\\d{4}");
+    static ThreadSafeRegexMatcher valid_year_matcher("^\\d{4}$");
     if (publication_year_result_set.size() == 1) {
-        *publication_year = publication_year_result_set.getNextRow()["year"];
+        *publication_year = StringUtil::TrimWhite(publication_year_result_set.getNextRow()["year"]);
         if (valid_year_matcher.match(*publication_year))
             return true;
         else
