@@ -56,7 +56,6 @@ int Main(int argc, char **argv) {
         MARC::Record new_record(record);
 
         new_record.erase("264");
-        std::vector<MARC::Record::Field> new_fields_264;
 
         for (auto &field : record.getTagRange("264")) {
             char last_subfield_code = 'a';
