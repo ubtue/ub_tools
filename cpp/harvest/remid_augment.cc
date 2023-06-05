@@ -65,22 +65,20 @@ int Main(int argc, char **argv) {
             MARC::Record::Field new_field(MARC::Tag("264"), ind1, ind2);
 
             for (auto &sub_field : field.getSubfields()) {
-                if (sub_field.code_ == 'a')
+                if (sub_field.code_ == 'a') {
                     if (last_subfield_code != 'a') {
                         // need to restart
-                        new_fields_264.emplace_back(new_field);
+                        new_record.insertFieldAtEnd(new_field);
                         new_field = MARC::Record::Field(MARC::Tag("264"), ind1, ind2);
                     }
+                }
 
                 last_subfield_code = sub_field.code_;
                 new_field.appendSubfield(sub_field.code_, sub_field.value_);
             }
-            new_fields_264.emplace_back(new_field);
+            new_record.insertFieldAtEnd(new_field);
         }
 
-        for (auto &field : new_fields_264) {
-            new_record.insertFieldAtEnd(field);
-        }
 
         for (auto &field : record.getTagRange("035")) {
             const std::string zdb_id(field.getFirstSubfieldWithCode('a'));
