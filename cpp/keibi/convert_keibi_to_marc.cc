@@ -112,8 +112,12 @@ void IsReview(const std::string &tag, const char subfield_code, MARC::Record * c
 }
 
 
+std::string GetUIDFromPPN(MARC::Record * const record) {
+    return record->getControlNumber().substr(3); /*Skip KEI-Prefix*/
+}
+
 bool GetPublicationYearHelper(DbConnection * const db_connection, MARC::Record * const record, std::string * const publication_year) {
-    const std::string uid(record->getControlNumber().substr(3)); /*Skip KEI-Prefix*/
+    const std::string uid(GetUIDFromPPN(record));
     db_connection->queryOrDie("SELECT year FROM citations WHERE uid='" + uid + "'");
     DbResultSet publication_year_result_set(db_connection->getLastResultSet());
     static ThreadSafeRegexMatcher valid_year_matcher("^\\d{4}$");
@@ -172,7 +176,7 @@ void InsertAuthors(const std::string, const char, MARC::Record * const record, c
 
 
 void InsertOrForceSubfield(const std::string &tag, const char subfield_code, MARC::Record * const record, const std::string &data,
-                           DbConnection *db_connection = nullptr) {
+                           DbConnection *db_connection) {
     if (data.length()) {
         if (not record->hasTag(tag)) {
             InsertField(tag, subfield_code, record, data, db_connection);
@@ -183,6 +187,48 @@ void InsertOrForceSubfield(const std::string &tag, const char subfield_code, MAR
             field.insertOrReplaceSubfield(subfield_code, data);
         }
     }
+}
+
+
+struct SuperiorInformation {
+    std::string journal_;
+    std::string series_;
+    std::string series_num_;
+    std::string series_place_;
+};
+
+
+bool GetSuperiorInformationHelper(DbConnection * const db_connection, MARC::Record * const record,
+                                  struct SuperiorInformation * const superior_information) {
+    const std::string uid(GetUIDFromPPN(record));
+    db_connection->queryOrDie("SELECT series, number, address FROM citations WHERE uid='" + uid + "'");
+    DbResultSet series_result_set(db_connection->getLastResultSet());
+    const auto row(series_result_set.getNextRow());
+    superior_information->series_ = row["series"];
+    superior_information->series_num_ = row["number"];
+    superior_information->series_place_ = row["address"];
+    return true;
+}
+
+void InsertSuperiorInformation(const std::string, const char, MARC::Record * const record, const std::string &data,
+                               DbConnection *db_connection) {
+    struct SuperiorInformation superior_information;
+    if (data.length())
+        superior_information.journal_ = data;
+    GetSuperiorInformationHelper(db_connection, record, &superior_information);
+    MARC::Subfields _773Subfields;
+
+    if (not superior_information.journal_.empty())
+        _773Subfields.addSubfield('a', superior_information.journal_);
+    if (not superior_information.series_.empty())
+        _773Subfields.addSubfield('t', superior_information.series_);
+    if (not superior_information.series_num_.empty())
+        _773Subfields.addSubfield('v', superior_information.series_num_);
+    if (not superior_information.series_place_.empty())
+        _773Subfields.addSubfield('v', superior_information.series_place_);
+
+    if (_773Subfields.size())
+        record->insertField("773", _773Subfields, '0', '1');
 }
 
 
@@ -252,6 +298,7 @@ const std::map<std::string, ConversionFunctor> name_to_functor_map{
     { "InsertAuthors", InsertAuthors },
     { "InsertOrForceSubfield", InsertOrForceSubfield },
     { "InsertEditors", InsertEditors },
+    { "InsertSuperiorInformation", InsertSuperiorInformation },
 };
 
 ConversionFunctor GetConversionFunctor(const std::string &functor_name) {
