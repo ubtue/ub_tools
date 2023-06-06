@@ -238,7 +238,7 @@ void InsertSuperiorInformation(const std::string, const char, const char, const 
 
     if (_773Subfields.size()) {
         record->deleteFields("773");
-        record->insertField("773", _773Subfields, '0', '8');
+        record->insertField("773", _773Subfields, '1', '8');
     }
 }
 
