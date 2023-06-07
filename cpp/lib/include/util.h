@@ -83,11 +83,13 @@ public:
     inline void warning(const std::string &function_name, const std::string &msg) {
         warning("in " + function_name + FUNCTION_NAME_SEPARATOR + msg);
     }
+    inline void warning(const std::string &function_name, const int msg) { warning(function_name, std::to_string(msg)); }
 
     virtual void info(const std::string &msg);
     inline void info(const std::string &function_name, const std::string &msg) {
         info("in " + function_name + FUNCTION_NAME_SEPARATOR + msg);
     }
+    inline void info(const std::string &function_name, const int msg) { info(function_name, std::to_string(msg)); }
 
     /** \note Only writes actual log messages if the environment variable "UTIL_LOG_DEBUG" exists and is set
      *  to "true"!
@@ -96,6 +98,7 @@ public:
     inline void debug(const std::string &function_name, const std::string &msg) {
         debug("in " + function_name + FUNCTION_NAME_SEPARATOR + msg);
     }
+    inline void debug(const std::string &function_name, const int msg) { debug(function_name, std::to_string(msg)); }
 
     //* \note Aborts if ""level_candidate" is not one of "ERROR", "WARNING", "INFO" or "DEBUG".
     static LogLevel StringToLogLevel(const std::string &level_candidate);
