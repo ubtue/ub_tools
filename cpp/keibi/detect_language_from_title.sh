@@ -16,7 +16,7 @@ marc_grep "${keibi_mrc}" '"245a"' control_number_and_traditional | \
     cut  -f1,3- -d ':' | `#Trow way tag field`\
     tr '\n' '\0' | \
     tr -d '()\r' | sed "s/['\"]//g" | `#Prevent parsing error`  \
-    xargs -0 -I'{}' sh -c 'echo  "$@" | cut -f1 -d:; echo "$@" | cut -f2 -d: ' _ '{}' | `#split PPN and title` \
+    xargs -0 -I'{}' sh -c 'echo  "$@" | cut -f1 -d:; echo "$@" | cut -f2- -d: ' _ '{}' | `#split PPN and title` \
     sed --expression 's|<[^>]*>||g' | \
     tr -d ':' | \
     awk '{if (NR % 2 == 0) { system("curl --silent -X POST -H \"Content-Type: application/text\" \
