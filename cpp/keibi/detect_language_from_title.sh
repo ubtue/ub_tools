@@ -12,10 +12,10 @@ lang_base_url="$2"
 output="$3"
 
 marc_grep "${keibi_mrc}" '"245a"' control_number_and_traditional | \
-    grep -v '^$' | `#It tuned out there are titles with multiple newlines in it...` \
-    cut  -f1,3- -d ':' | `#Trow way tag field`\
+    grep --extended-regexp '^KEI' | `#It turned out there are titles with multiple newlines and other garbageand other garbage  in it...` \
+    cut  -f1,3- -d ':' | `#Throw way tag field`\
     tr '\n' '\0' | \
-    tr -d '()\r' | sed "s/['\"]//g" | `#Prevent parsing error`  \
+    tr -d '()\r`' | sed "s/['\"]//g" | `#Prevent parsing error`  \
     xargs -0 -I'{}' sh -c 'echo  "$@" | cut -f1 -d:; echo "$@" | cut -f2- -d: ' _ '{}' | `#split PPN and title` \
     sed --expression 's|<[^>]*>||g' | \
     tr -d ':' | \
