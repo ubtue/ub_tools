@@ -365,12 +365,13 @@ def getMostRecentFileMatchingGlob(file_name_glob):
     for name in glob.glob(file_name_glob):
         if not most_recent_matching_name:
             most_recent_matching_name = name
+            stat_buf = os.stat(name)
+            most_recent_mtime = stat_buf.st_mtime
         else:
             stat_buf = os.stat(name)
             if most_recent_mtime is None or stat_buf.st_mtime > most_recent_mtime:
                 most_recent_matching_name = name
                 most_recent_mtime = stat_buf.st_mtime
-
     return most_recent_matching_name
 
 
