@@ -42,7 +42,8 @@ void CreateLanguageLookupMap(File * const detect_file, PPNToLanguageMap * const 
             continue;
         }
         ppn_to_language_map->emplace(
-            std::make_pair(ppn, TranslationUtil::MapInternational2LetterCodeToGerman3Or4LetterCode(language_code)));
+            std::make_pair(ppn, TranslationUtil::MapGermanLanguageCodesToFake3LetterEnglishLanguagesCodes(
+                                    TranslationUtil::MapInternational2LetterCodeToGerman3Or4LetterCode(language_code))));
     }
 }
 
