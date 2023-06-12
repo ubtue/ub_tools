@@ -212,7 +212,7 @@ def Main():
     if config.has_section("Loeschlisten2"):
         all_downloaded_files += DownloadData(config, "Loeschlisten2", ftp, download_cutoff_date, msg)
     if config.has_section("Hinweisabzug"):
-        DownloadData(config, "Hinweisabzug", ftp, "000000", msg)
+        all_downloaded_files += DownloadData(config, "Hinweisabzug", ftp, "000000", msg)
     if config.has_section("Errors"):
         all_downloaded_files += DownloadData(config, "Errors", ftp, download_cutoff_date, msg)
     incremental_authority_cutoff_date =  ShiftDateToTenDaysBefore(download_cutoff_date)

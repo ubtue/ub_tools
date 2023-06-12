@@ -93,6 +93,8 @@ static const auto PREFIX_REMOVE_MARC_FIELD("remove_marc_field_");
 static const auto PREFIX_REMOVE_MARC_SUBFIELD("remove_marc_subfield_");
 static const auto PREFIX_EXCLUDE_MARC_FIELD("exclude_if_marc_field_");
 static const auto PREFIX_REWRITE_MARC_FIELD("rewrite_marc_field_");
+static const auto PREFIX_ADD_MARC_FIELD_IF("add_marc_field_if_");
+static const auto PREFIX_REWRITE_MARC_FIELD_IF("rewrite_marc_field_if_");
 
 
 bool DownloadDelayParams::IsValidIniEntry(const IniFile::Entry &entry) {
@@ -146,29 +148,52 @@ ZoteroMetadataParams::ZoteroMetadataParams(const IniFile::Section &config_sectio
 
 
 bool MarcMetadataParams::IsValidIniEntry(const IniFile::Entry &entry) {
-    return (StringUtil::StartsWith(entry.name_, PREFIX_ADD_MARC_FIELD) or StringUtil::StartsWith(entry.name_, PREFIX_REMOVE_MARC_FIELD)
+    return (StringUtil::StartsWith(entry.name_, PREFIX_ADD_MARC_FIELD_IF)
+            or StringUtil::StartsWith(entry.name_, PREFIX_REWRITE_MARC_FIELD_IF)
+            or StringUtil::StartsWith(entry.name_, PREFIX_ADD_MARC_FIELD) or StringUtil::StartsWith(entry.name_, PREFIX_REMOVE_MARC_FIELD)
             or StringUtil::StartsWith(entry.name_, PREFIX_REMOVE_MARC_SUBFIELD)
             or StringUtil::StartsWith(entry.name_, PREFIX_EXCLUDE_MARC_FIELD)
             or StringUtil::StartsWith(entry.name_, PREFIX_REWRITE_MARC_FIELD));
 }
 
 
+void ExtractMarcFieldIfParams(const std::string &field_if_value, MarcMetadataFieldIfParams * const field_if_params) {
+    auto to_parse(field_if_value);
+    const std::string test_field_name(StringUtil::ExtractHead(&to_parse, ":"));
+    if (test_field_name.length() != MARC::Record::TAG_LENGTH and test_field_name.length() != MARC::Record::TAG_LENGTH + 1)
+        LOG_ERROR("invalid test field name '" + test_field_name
+                  + "' for XXX_field_if_XXX!  expected format: <tag> or <tag><subfield_code>");
+    field_if_params->test_field_name_ = test_field_name;
+    const std::string match_part(StringUtil::ExtractHead(&to_parse, " ||| "));
+    const std::string replace_term(to_parse);
+    if (match_part.empty() or replace_term.empty())
+        LOG_ERROR("Invalid replacement specification in \"" + field_if_value + "\"! expected format: match_part ||| replacement_term");
+    field_if_params->if_matcher_ = std::unique_ptr<ThreadSafeRegexMatcher>(new ThreadSafeRegexMatcher(match_part));
+    field_if_params->replace_term_ = replace_term;
+}
+
+
 MarcMetadataParams::MarcMetadataParams(const IniFile::Section &config_section) {
     for (const auto &entry : config_section) {
-        if (StringUtil::StartsWith(entry.name_, PREFIX_ADD_MARC_FIELD))
+        if (StringUtil::StartsWith(entry.name_, PREFIX_ADD_MARC_FIELD_IF)) {
+            const std::string field_name(entry.name_.substr(__builtin_strlen(PREFIX_ADD_MARC_FIELD_IF)));
+            if (field_name.length() != MARC::Record::TAG_LENGTH and field_name.length() != MARC::Record::TAG_LENGTH + 1)
+                LOG_ERROR("invalid add_field_if_XXX field name '" + field_name + "'! expected format: <tag> or <tag><subfield_code>");
+            MarcMetadataFieldIfParams marc_metadata_field_if_params;
+            ExtractMarcFieldIfParams(entry.value_, &marc_metadata_field_if_params);
+            fields_to_add_if_.emplace(field_name, marc_metadata_field_if_params);
+        } else if (StringUtil::StartsWith(entry.name_, PREFIX_ADD_MARC_FIELD)) {
             fields_to_add_.emplace_back(entry.value_);
-        else if (StringUtil::StartsWith(entry.name_, PREFIX_EXCLUDE_MARC_FIELD)) {
+        } else if (StringUtil::StartsWith(entry.name_, PREFIX_EXCLUDE_MARC_FIELD)) {
             const auto field_name(entry.name_.substr(__builtin_strlen(PREFIX_EXCLUDE_MARC_FIELD)));
             if (field_name.length() != MARC::Record::TAG_LENGTH and field_name.length() != MARC::Record::TAG_LENGTH + 1)
                 LOG_ERROR("invalid exclusion field name '" + field_name + "'! expected format: <tag> or <tag><subfield_code>");
-
             exclusion_filters_.insert(
                 std::make_pair(field_name, std::unique_ptr<ThreadSafeRegexMatcher>(new ThreadSafeRegexMatcher(entry.value_))));
         } else if (StringUtil::StartsWith(entry.name_, PREFIX_REMOVE_MARC_FIELD)) {
             const auto field_name(entry.name_.substr(__builtin_strlen(PREFIX_REMOVE_MARC_FIELD)));
             if (field_name.length() != MARC::Record::TAG_LENGTH + 1)
                 LOG_ERROR("invalid removal filter name '" + field_name + "'! expected format: <tag><subfield_code>");
-
             fields_to_remove_.insert(
                 std::make_pair(field_name, std::unique_ptr<ThreadSafeRegexMatcher>(new ThreadSafeRegexMatcher(entry.value_))));
         } else if (StringUtil::StartsWith(entry.name_, PREFIX_REMOVE_MARC_SUBFIELD)) {
@@ -178,6 +203,13 @@ MarcMetadataParams::MarcMetadataParams(const IniFile::Section &config_section) {
 
             subfields_to_remove_.insert(
                 std::make_pair(field_name, std::unique_ptr<ThreadSafeRegexMatcher>(new ThreadSafeRegexMatcher(entry.value_))));
+        } else if (StringUtil::StartsWith(entry.name_, PREFIX_REWRITE_MARC_FIELD_IF)) {
+            const std::string field_name(entry.name_.substr(__builtin_strlen(PREFIX_REWRITE_MARC_FIELD_IF)));
+            if (field_name.length() != MARC::Record::TAG_LENGTH and field_name.length() != MARC::Record::TAG_LENGTH + 1)
+                LOG_ERROR("invalid rewrite if field name '" + field_name + "'! expected format: <tag> or <tag><subfield_code>");
+            MarcMetadataFieldIfParams marc_metadata_field_if_params;
+            ExtractMarcFieldIfParams(entry.value_, &marc_metadata_field_if_params);
+            fields_to_rewrite_if_.emplace(field_name, marc_metadata_field_if_params);
         } else if (StringUtil::StartsWith(entry.name_, PREFIX_REWRITE_MARC_FIELD)) {
             const auto field_name(entry.name_.substr(__builtin_strlen(PREFIX_REWRITE_MARC_FIELD)));
             if (field_name.length() != MARC::Record::TAG_LENGTH and field_name.length() != MARC::Record::TAG_LENGTH + 1)

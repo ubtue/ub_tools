@@ -170,22 +170,6 @@ unsigned GetTranslationHistory(DbConnection * const connection, const std::strin
 }
 
 
-void InsertIntoVuFindTranslations(DbConnection * const connection, const std::string &token, const std::string &language_code,
-                                  const std::string &text, const std::string &translator) {
-    connection->queryOrDie("INSERT INTO vufind_translations SET token=\"" + UrlUtil::UrlDecode(token) + "\",language_code=\""
-                           + language_code + "\",translation=\"" + connection->escapeString(text) + "\",translator=\"" + translator
-                           + "\";");
-}
-
-
-void InsertIntoKeywordTranslations(DbConnection * const connection, const std::string &ppn, const std::string &gnd_code,
-                                   const std::string &language_code, const std::string &text, const std::string &translator) {
-    connection->queryOrDie("INSERT INTO keyword_translations SET ppn=\"" + ppn + "\",gnd_code=\"" + gnd_code + "\",language_code=\""
-                           + language_code + "\",translation=\"" + connection->escapeString(text) + "\",origin=\"150\",status=\"new\""
-                           + ",translator=\"" + translator + "\";");
-}
-
-
 void UpdateIntoVuFindTranslations(DbConnection * const connection, const std::string &token, const std::string &language_code,
                                   const std::string &text, const std::string &translator) {
     connection->queryOrDie("CALL insert_vufind_translation_entry('" + UrlUtil::UrlDecode(token) + "','" + language_code + "','"
@@ -197,6 +181,41 @@ void UpdateIntoKeywordTranslations(DbConnection * const connection, const std::s
                                    const std::string &language_code, const std::string &text, const std::string &translator) {
     connection->queryOrDie("CALL insert_keyword_translation_entry('" + ppn + "','" + gnd_code + "','" + language_code + "','"
                            + connection->escapeString(text) + "','" + translator + "');");
+}
+
+
+void InsertIntoVuFindTranslations(DbConnection * const connection, const std::string &token, const std::string &language_code,
+                                  const std::string &text, const std::string &translator) {
+    DbTransaction transaction(connection);
+    unsigned existing_translations_count(
+        connection->countOrDie("SELECT COUNT(*) AS count FROM vufind_translations WHERE "
+                               "token=\""
+                                   + UrlUtil::UrlDecode(token) + "\" AND language_code=\"" + language_code + "\"",
+                               "count"));
+    if (unlikely(existing_translations_count))
+        UpdateIntoVuFindTranslations(connection, token, language_code, text, translator);
+    else
+        connection->queryOrDie("INSERT INTO vufind_translations SET token=\"" + UrlUtil::UrlDecode(token) + "\",language_code=\""
+                               + language_code + "\",translation=\"" + connection->escapeString(text) + "\",translator=\"" + translator
+                               + "\";");
+    transaction.commit();
+}
+
+
+void InsertIntoKeywordTranslations(DbConnection * const connection, const std::string &ppn, const std::string &gnd_code,
+                                   const std::string &language_code, const std::string &text, const std::string &translator) {
+    DbTransaction transaction(connection);
+    unsigned existing_translations_count(connection->countOrDie("SELECT COUNT(*) AS count FROM keyword_translations WHERE ppn=\"" + ppn
+                                                                    + "\" AND gnd_code=\"" + gnd_code + "\" AND language_code=\""
+                                                                    + language_code + "\"",
+                                                                "count"));
+    if (unlikely(existing_translations_count))
+        UpdateIntoKeywordTranslations(connection, ppn, gnd_code, language_code, text, translator);
+    else
+        connection->queryOrDie("INSERT INTO keyword_translations SET ppn=\"" + ppn + "\",gnd_code=\"" + gnd_code + "\",language_code=\""
+                               + language_code + "\",translation=\"" + connection->escapeString(text) + "\",origin=\"150\",status=\"new\""
+                               + ",translator=\"" + translator + "\";");
+    transaction.commit();
 }
 
 

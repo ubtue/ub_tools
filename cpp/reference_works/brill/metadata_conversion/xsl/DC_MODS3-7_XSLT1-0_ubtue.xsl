@@ -1,46 +1,46 @@
 ﻿<?xml version="1.0" encoding="UTF-8"?>
-<xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform" 
-    xmlns:dc="http://purl.org/dc/elements/1.1/" 
-    xmlns:sru_dc="info:srw/schema/1/dc-schema" 
-    xmlns:oai_dc="http://www.openarchives.org/OAI/2.0/oai_dc/" 
-    xmlns:xlink="http://www.w3.org/1999/xlink" xmlns="http://www.loc.gov/mods/v3" 
-    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" exclude-result-prefixes="sru_dc oai_dc dc" 
+<xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
+    xmlns:dc="http://purl.org/dc/elements/1.1/"
+    xmlns:sru_dc="info:srw/schema/1/dc-schema"
+    xmlns:oai_dc="http://www.openarchives.org/OAI/2.0/oai_dc/"
+    xmlns:xlink="http://www.w3.org/1999/xlink" xmlns="http://www.loc.gov/mods/v3"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" exclude-result-prefixes="sru_dc oai_dc dc"
     version="1.0">
     <!--
         Version 1.4 2020-06-01 ws
         Upgraded to MODS 3.7
-        
+
         Version 1.3 2020-06-01 ws
         Upgraded to MODS 3.6
-        
+
         Version 1.2 2015-01-23 ws
         Updated URIs to include xslts
         Upgraded to MODS 3.5
-        
-        Version 1.1 2012-08-12 WS  
+
+        Version 1.1 2012-08-12 WS
         Upgraded to MODS 3.4
-        
+
         Version 1.0 2006-11-01 cred@loc.gov
-        
-        This stylesheet will transform simple Dublin Core (DC) expressed in either OAI DC [1] or SRU DC [2] schemata to MODS 
+
+        This stylesheet will transform simple Dublin Core (DC) expressed in either OAI DC [1] or SRU DC [2] schemata to MODS
         version 3.2.
-        
-        Reasonable attempts have been made to automatically detect and process the textual content of DC elements for the purposes 
-        of outputting to MODS.  Because MODS is more granular and expressive than simple DC, transforming a given DC element to the 
-        proper MODS element(s) is difficult and may result in imprecise or incorrect tagging.  Undoubtedly local customizations will 
-        have to be made by those who utilize this stylesheet in order to achieve deisred results.  No attempt has been made to 
-        ignore empty DC elements.  If your DC contains empty elements, they should either be removed, or local customization to 
+
+        Reasonable attempts have been made to automatically detect and process the textual content of DC elements for the purposes
+        of outputting to MODS.  Because MODS is more granular and expressive than simple DC, transforming a given DC element to the
+        proper MODS element(s) is difficult and may result in imprecise or incorrect tagging.  Undoubtedly local customizations will
+        have to be made by those who utilize this stylesheet in order to achieve deisred results.  No attempt has been made to
+        ignore empty DC elements.  If your DC contains empty elements, they should either be removed, or local customization to
         detect the existence of text for each element will have to be added to this stylesheet.
-        
-        MODS also often encourages content adhering to various data value standards.  The contents of some of the more widely used value 
-        standards, such as IANA MIME types, ISO 3166-1, ISO 639-2, etc., have been added into the stylesheet to facilitate proper 
+
+        MODS also often encourages content adhering to various data value standards.  The contents of some of the more widely used value
+        standards, such as IANA MIME types, ISO 3166-1, ISO 639-2, etc., have been added into the stylesheet to facilitate proper
         mapping of simple DC to the proper MODS elements.  A crude attempt at detecting the contents of DC identifiers and outputting them
         to the proper MODS elements has been made as well.  Common persistent identifier schemes, standard numbers, etc., have been included.
         To truly detect these efficiently, XSL/XPath 2.0 or XQuery may be needed in order to utilize regular expressions.
-        
+
         [1] http://www.openarchives.org/OAI/openarchivesprotocol.html#MetadataNamespaces
         [2] http://www.loc.gov/standards/sru/record-schemas.html
-        
+
     -->
     <xsl:output method="xml" indent="yes" encoding="UTF-8"/>
     <!-- ws 1.2 -->
@@ -67,8 +67,8 @@
         </xsl:if>
     </xsl:template>
     <xsl:template match="sru_dc:dcCollection">
-        <modsCollection xmlns="http://www.loc.gov/mods/v3" 
-            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+        <modsCollection xmlns="http://www.loc.gov/mods/v3"
+            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
             xsi:schemaLocation="http://www.loc.gov/mods/v3 http://www.loc.gov/standards/mods/v3/mods-3-7.xsd">
 			<xsl:apply-templates select="sru_dc:dc">
 				<xsl:with-param name="dcCollection">
@@ -86,18 +86,18 @@
 				</mods>
 			</xsl:when>
 			<xsl:otherwise>
-			    <mods version="3.7" xmlns="http://www.loc.gov/mods/v3" 
-			        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+			    <mods version="3.7" xmlns="http://www.loc.gov/mods/v3"
+			        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 			        xsi:schemaLocation="http://www.loc.gov/mods/v3 http://www.loc.gov/standards/mods/v3/mods-3-7.xsd">
 					<xsl:call-template name="dcMain"/>
 				</mods>
 			</xsl:otherwise>
 		</xsl:choose>
-        
+
     </xsl:template>
     <xsl:template match="oai_dc:dc">
-        <mods version="3.7" xmlns="http://www.loc.gov/mods/v3" 
-            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+        <mods version="3.7" xmlns="http://www.loc.gov/mods/v3"
+            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
             xsi:schemaLocation="http://www.loc.gov/mods/v3 http://www.loc.gov/standards/mods/v3/mods-3-7.xsd">
 			<xsl:call-template name="dcMain"/>
         </mods>
@@ -212,7 +212,7 @@
                                 <xsl:attribute name="collection">
                                     <xsl:text>yes</xsl:text>
                                 </xsl:attribute>
-                            </xsl:if>	
+                            </xsl:if>
                             <!-- 2.0: changed software to software, multimedia re: mappings 2012-08-09 -->
                             <xsl:text>software, multimedia</xsl:text>
                         </typeOfResource>
@@ -358,7 +358,7 @@
                 </xsl:choose>
             </xsl:otherwise>
         </xsl:choose>
-    </xsl:template>   
+    </xsl:template>
 
     <xsl:template match="dc:format">
         <physicalDescription>
@@ -376,7 +376,7 @@
                                 <xsl:apply-templates/>
                             </note>
                         </xsl:otherwise>
-                    </xsl:choose>                    
+                    </xsl:choose>
                 </xsl:when>
                 <xsl:when test="starts-with(.,'1') or starts-with(.,'2') or starts-with(.,'3') or starts-with(.,'4') or starts-with(.,'5') or starts-with(.,'6') or starts-with(.,'7') or starts-with(.,'8') or starts-with(.,'9')">
                     <extent>
@@ -396,14 +396,14 @@
             </xsl:choose>
         </physicalDescription>
     </xsl:template>
-    <xsl:template match="dc:identifier">  
+    <xsl:template match="dc:identifier">
         <xsl:if test="starts-with(text(), 'http://')">
             <location>
                 <url>
                     <xsl:value-of select="."/>
                 </url>
             </location>
-        </xsl:if>            
+        </xsl:if>
         <xsl:variable name="iso-3166Check">
             <xsl:value-of select="substring(text(), 1, 2)"/>
         </xsl:variable>
@@ -417,7 +417,7 @@
                     <xsl:when test="starts-with(text(),'urn:hdl') or starts-with(text(),'hdl') or starts-with(text(),'http://hdl.')">
                         <xsl:text>hdl</xsl:text>
                     </xsl:when>
-                    <xsl:when test="starts-with(text(), 'doi') or starts-with(text(), 'http://dx.doi.org')">
+                    <xsl:when test="starts-with(text(), 'doi') or starts-with(text(), 'http://dx.doi.org') or starts-with(text(), 'https://dx.doi.org')">
                         <xsl:text>doi</xsl:text>
                     </xsl:when>
                     <xsl:when test="starts-with(text(), 'ark')">
@@ -466,6 +466,9 @@
           		</xsl:when>
                 <xsl:when test="starts-with(text(), 'http://dx.doi.org')">
                     <xsl:value-of select ="substring-after(text(), 'http://dx.doi.org/')"/>
+          		</xsl:when>
+                <xsl:when test="starts-with(text(), 'https://dx.doi.org')">
+                    <xsl:value-of select ="substring-after(text(), 'https://dx.doi.org/')"/>
           		</xsl:when>
           		<xsl:otherwise>
           			<xsl:apply-templates/>
@@ -537,17 +540,17 @@
 						</title>
 					</titleInfo>
 				</xsl:otherwise>
-			</xsl:choose>            
+			</xsl:choose>
         </relatedItem>
     </xsl:template>
     <xsl:template match="dc:coverage">
             <xsl:choose>
-                <xsl:when test="contains(text(), '°') 
-                    or contains(text(), 'geo:lat') 
-                    or contains(text(), 'geo:lon') 
-                    or contains(text(), ' N ') 
-                    or contains(text(), ' S ') 
-                    or contains(text(), ' E ') 
+                <xsl:when test="contains(text(), '°')
+                    or contains(text(), 'geo:lat')
+                    or contains(text(), 'geo:lon')
+                    or contains(text(), ' N ')
+                    or contains(text(), ' S ')
+                    or contains(text(), ' E ')
                     or contains(text(), ' W ')">
                     <!-- predicting minutes and seconds with ' or " might break if quotes used for other purposes exist in the text node -->
                     <subject>
@@ -558,7 +561,7 @@
                         </cartographics>
                     </subject>
                 </xsl:when>
-                <xsl:when test="contains(text(), ':') and starts-with(text(), '1') and (contains(substring-after(text(), ':'), '1') or contains(substring-after(text(), ':'), '2') or contains(substring-after(text(), ':'), '3') or contains(substring-after(text(), ':'), '4') or contains(substring-after(text(), ':'), '5') or contains(substring-after(text(), ':'), '6') or contains(substring-after(text(), ':'), '7') or contains(substring-after(text(), ':'), '8') or contains(substring-after(text(), ':'), '9'))">                    
+                <xsl:when test="contains(text(), ':') and starts-with(text(), '1') and (contains(substring-after(text(), ':'), '1') or contains(substring-after(text(), ':'), '2') or contains(substring-after(text(), ':'), '3') or contains(substring-after(text(), ':'), '4') or contains(substring-after(text(), ':'), '5') or contains(substring-after(text(), ':'), '6') or contains(substring-after(text(), ':'), '7') or contains(substring-after(text(), ':'), '8') or contains(substring-after(text(), ':'), '9'))">
                         <subject>
                             <cartographics>
                                 <scale>
@@ -586,7 +589,7 @@
                     </subject>
                 </xsl:when>
                 <xsl:when test="string-length(text()) >= 3 and (starts-with(text(), '1') or starts-with(text(), '2') or starts-with(text(), '3') or starts-with(text(), '4') or starts-with(text(), '5') or starts-with(text(), '6') or starts-with(text(), '7') or starts-with(text(), '8') or starts-with(text(), '9') or starts-with(text(), '-') or contains(text(), 'AD') or contains(text(), 'BC')) and not(contains(text(), ':'))">
-                    <subject> 
+                    <subject>
                         <temporal>
                             <xsl:apply-templates/>
                         </temporal>

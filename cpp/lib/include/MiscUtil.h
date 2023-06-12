@@ -302,4 +302,11 @@ std::string ReadProcEntry(const std::string &path);
 std::string NormalizeName(const std::string &name);
 
 
+// Detect via matching whether the name of this author indicates
+// that it is in fact an institution instead of a person.
+// Can be useful in scenarios where the original metadata doesn't store this
+// information (e.g. CORE).
+bool IsCorporateAuthor(const std::string &name);
+
+
 } // namespace MiscUtil

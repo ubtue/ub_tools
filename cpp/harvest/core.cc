@@ -1,7 +1,7 @@
-/** \brief Utility for downloading data from CORE.
+/** \brief Utility for harvesting metadata from CORE.
  *  \author Mario Trojan (mario.trojan@uni-tuebingen.de)
  *
- *  \copyright 2022 Tübingen University Library.  All rights reserved.
+ *  \copyright 2022-2023 Tübingen University Library.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -29,6 +29,7 @@
 #include "KeyValueDB.h"
 #include "MARC.h"
 #include "MiscUtil.h"
+#include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "TextUtil.h"
 #include "TimeUtil.h"
@@ -71,7 +72,7 @@ namespace {
         "\t- [--extended]: If given, print additional statistics (e.g. about data providers).\n"
         "\t- input_file: The JSON file to generate statistics from.\n"
         "\n"
-        "convert [--create-unique-id-db|--ignore-unique-id-dups][--935-entry=entry] --sigil=project_sigil input_file output_file\n"
+        "convert [--create-unique-id-db|--ignore-unique-id-dups][--935-entry=entry] --sigil=project_sigil input_file output_file log_file\n"
         "\t- --create-unique-id-db: This flag has to be specified the first time this program will be executed only.\n"
         "\t- --ignore-unique-id-dups: If specified MARC records will be created for unique ID's which we have encountered\n"
         "\t                           before.  The unique ID database will still be updated.\n"
@@ -81,6 +82,7 @@ namespace {
         "project. An example would be DE-2619 for criminology.\n"
         "\t- input_file: The JSON file to convert.\n"
         "\t- output_file: The MARC or XML file to write to.\n"
+        "\t- log_file: Log file with infos for librarians, e.g. special modifications that need to be considered after import.\n"
         "\n"
         "data-providers output_file\n"
         "\t- output_file: The CSV file to write to.\n"
@@ -92,26 +94,71 @@ namespace {
 }
 
 
+std::string ConvertId(const std::string &id) {
+    return "CORE" + id;
+}
+
+
 // \return True if we found at least one author, else false.
-void ConvertAuthors(const CORE::Work &work, MARC::Record * const record, std::set<std::string> * const authors) {
-    authors->clear();
-    bool first_author(true);
-    for (const auto &author : work.getAuthors()) {
-        if (authors->find(author.name_) != authors->end())
+void ConvertAuthors(const CORE::Work &work, MARC::Record * const record, const std::string &log_file_path) {
+    const auto authors(work.getAuthors());
+    std::set<std::string> author_names;
+
+    bool is_first_author(true);
+    for (const auto &author : authors) {
+        if (not is_first_author and (authors.size() > 20)) {
+            // there are datasets with even more than 1.000 authors.
+            // it is very likely that this is a data problem, since most of them
+            // are in fact authors of references.
+            // We only include the first author from the list
+            // and write the ID to a log file so librarians can
+            // correct this manually after delivery.
+            const std::string message(ConvertId(std::to_string(work.getId()))
+                                      + ": Too many authors found, please check manually after delivery (" + std::to_string(authors.size())
+                                      + ").");
+            LOG_INFO(message);
+            FileUtil::AppendStringOrDie(log_file_path, message + "\n");
+            return;
+        }
+
+        std::string author_name(author.name_);
+        author_name = CORE::ReplaceFaultyEntities(author_name);
+        author_name = MiscUtil::NormalizeName(author_name);
+
+        if (author_names.find(author_name) != author_names.end())
             continue; // Found a duplicate author!
 
-        record->insertField(first_author ? "100" : "700", { { 'a', MiscUtil::NormalizeName(author.name_) }, { '4', "aut" } },
+        author_names.emplace(author_name);
+
+        const bool is_corporate_author(MiscUtil::IsCorporateAuthor(author_name));
+        std::string author_tag;
+        if (is_first_author) {
+            if (is_corporate_author)
+                author_tag = "110";
+            else
+                author_tag = "100";
+        } else {
+            if (is_corporate_author)
+                author_tag = "710";
+            else
+                author_tag = "700";
+        }
+
+        record->insertField(author_tag, { { 'a', author_name }, { '4', "aut" } },
                             /*indicator1=*/'1');
-        authors->insert(author.name_);
-        if (first_author)
-            first_author = false;
+
+        if (is_first_author)
+            is_first_author = false;
     }
 }
 
 
 // \return True if a title was found, else false.
 void ConvertTitle(const CORE::Work &work, MARC::Record * const record) {
-    record->insertField("245", 'a', work.getTitle());
+    std::string title(work.getTitle());
+    title = RegexMatcher::ReplaceAll("\\s+/\\s+", title, "/");
+    title = CORE::ReplaceFaultyEntities(title);
+    record->insertField("245", { { 'a', title } }, /* indicator 1 = */ '1', /* indicator 2 = */ '0');
 }
 
 
@@ -119,6 +166,16 @@ void ConvertYear(const CORE::Work &work, MARC::Record * const record) {
     if (work.getYearPublished() == 0)
         return;
     record->insertField("936", 'j', std::to_string(work.getYearPublished()), 'u', 'w');
+}
+
+
+void ConvertDOI(const CORE::Work &work, MARC::Record * const record) {
+    const std::string doi(work.getDOI());
+    if (not doi.empty()) {
+        record->insertField("024", { { 'a', doi }, { '2', "doi" } }, '7');
+        record->insertField("856", { { 'u', "https://doi.org/" + doi }, { 'x', "R" }, { 'z', "LF" } }, /*indicator1 = */ '4',
+                            /*indicator2 = */ '0');
+    }
 }
 
 
@@ -135,17 +192,22 @@ void ConvertLanguage(const CORE::Work &work, MARC::Record * const record) {
 
 
 void ConvertAbstract(const CORE::Work &work, MARC::Record * const record) {
-    const std::string abstract(work.getAbstract());
-    if (not abstract.empty() and abstract.length() > 5)
-        record->insertField("520", 'a', StringUtil::Truncate(MARC::Record::MAX_VARIABLE_FIELD_DATA_LENGTH, abstract));
+    std::string abstract(work.getAbstract());
+    if (not abstract.empty() and abstract.length() > 5 and abstract != "No abstract available") {
+        abstract = StringUtil::Truncate(MARC::Record::MAX_VARIABLE_FIELD_DATA_LENGTH, abstract);
+        abstract = RegexMatcher::ReplaceAll("(\r?\n){2,}", abstract, "\n");
+        abstract = CORE::ReplaceFaultyEntities(abstract);
+
+        record->insertField("520", 'a', abstract);
+    }
 }
 
 
 void ConvertUncontrolledIndexTerms(const CORE::Work &work, MARC::Record * const record) {
     if (not work.getDocumentType().empty() and work.getDocumentType() != "unknown")
-        record->insertField("653", 'a', work.getDocumentType());
+        record->insertField("650", 'a', work.getDocumentType(), /*indicator1=*/' ', /*indicator2=*/'4');
     if (not work.getFieldOfStudy().empty())
-        record->insertField("653", 'a', work.getFieldOfStudy());
+        record->insertField("650", 'a', work.getFieldOfStudy(), /*indicator1=*/' ', /*indicator2=*/'4');
 }
 
 
@@ -155,14 +217,25 @@ void ConvertYearPublished(const CORE::Work &work, MARC::Record * const record) {
 }
 
 
-void ConvertJournal(const CORE::Work &work, MARC::Record * const record) {
+std::vector<std::string> GetISSNs(const CORE::Work &work) {
+    std::vector<std::string> issns;
+
     for (const auto &journal : work.getJournals()) {
         for (const auto &identifier : journal.identifiers_) {
             if (MiscUtil::IsPossibleISSN(identifier)) {
-                record->insertField("773", { { 'x', identifier } },
-                                    /*indicator1=*/'0', /*indicator2=*/'8');
+                issns.emplace_back(identifier);
             }
         }
+    }
+
+    return issns;
+}
+
+
+void ConvertJournal(const CORE::Work &work, MARC::Record * const record) {
+    for (const auto &issn : GetISSNs(work)) {
+        record->insertField("773", { { 'x', issn } },
+                            /*indicator1=*/'0', /*indicator2=*/'8');
     }
 }
 
@@ -177,33 +250,32 @@ void Convert935Entries(const std::vector<std::pair<std::string, std::string>> &_
 }
 
 
-std::string ConvertId(const std::string &id) {
-    return "CORE" + id;
-}
-
-
-void ConvertJSONToMARC(const std::vector<CORE::Work> &works, MARC::Writer * const marc_writer, const std::string &project_sigil,
-                       const std::vector<std::pair<std::string, std::string>> &_935_entries, KeyValueDB * const unique_id_to_date_map) {
+void ConvertJSONToMARC(const std::vector<CORE::Work> &works, MARC::Writer * const marc_writer, const std::string &log_file_path,
+                       const std::string &project_sigil, const std::vector<std::pair<std::string, std::string>> &_935_entries,
+                       KeyValueDB * const unique_id_to_date_map) {
     unsigned generated_count(0);
     for (const auto &work : works) {
         const auto id(std::to_string(work.getId()));
         const auto control_number(ConvertId(id));
+        const bool is_article(not GetISSNs(work).empty());
 
-        MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::MONOGRAPH_OR_ITEM,
-                                control_number);
-        std::set<std::string> authors;
-        ConvertAuthors(work, &new_record, &authors);
+        MARC::Record::BibliographicLevel bibliographic_level(MARC::Record::BibliographicLevel::MONOGRAPH_OR_ITEM);
+        if (is_article)
+            bibliographic_level = MARC::Record::BibliographicLevel::SERIAL_COMPONENT_PART;
 
-        // Do not use contributors anymore (team decision in video conf. on 09.02.2022)
-        // ConvertContributors(*entry_object, &new_record, authors);
+
+        MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, bibliographic_level, control_number);
+
+        ConvertAuthors(work, &new_record, log_file_path);
 
         ConvertTitle(work, &new_record);
         new_record.insertControlField("007", "cr||||");
-        new_record.insertField("035", 'a', "(core)" + id);
         new_record.insertField("084", { { 'a', "2,1" }, { '2', "ssgn" } });
         new_record.insertField("591", 'a', "Metadaten maschinell erstellt (TUKRIM)");
         new_record.insertField("852", 'a', project_sigil);
-        ConvertYear(work, &new_record);
+        if (is_article)
+            ConvertYear(work, &new_record);
+        ConvertDOI(work, &new_record);
         ConvertDownloadURL(work, &new_record);
         ConvertLanguage(work, &new_record);
         ConvertAbstract(work, &new_record);
@@ -224,7 +296,7 @@ const std::string UNIQUE_ID_TO_DATE_MAP_PATH(UBTools::GetTuelibPath() + "convert
 
 
 void Convert(int argc, char **argv) {
-    if (argc < 6)
+    if (argc < 7)
         Usage();
 
     // ignore "mode" for further args processing
@@ -245,7 +317,7 @@ void Convert(int argc, char **argv) {
         --argc, ++argv;
     }
 
-    if (argc != 4)
+    if (argc != 5)
         Usage();
 
     if (::strncmp(argv[1], "--sigil=", 8) != 0)
@@ -255,13 +327,14 @@ void Convert(int argc, char **argv) {
 
     const std::string json_file_path(argv[1]);
     const std::string marc_file_path(argv[2]);
+    const std::string log_file_path(argv[3]);
     FileUtil::MakeParentDirectoryOrDie(marc_file_path, /*recursive=*/true);
 
     const auto works(CORE::GetWorksFromFile(json_file_path));
     KeyValueDB unique_id_to_date_map(UNIQUE_ID_TO_DATE_MAP_PATH);
 
     const std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_file_path));
-    ConvertJSONToMARC(works, marc_writer.get(), project_sigil, _935_entries, &unique_id_to_date_map);
+    ConvertJSONToMARC(works, marc_writer.get(), log_file_path, project_sigil, _935_entries, &unique_id_to_date_map);
 }
 
 

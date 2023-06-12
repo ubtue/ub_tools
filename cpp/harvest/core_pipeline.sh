@@ -14,7 +14,12 @@ declare -r ARCHIVE_DIR=/usr/local/var/lib/tuelib/CORE
 declare -r ARCHIVE_FILE_JSON_UNFILTERED=${ARCHIVE_DIR}/${DATETIME}_unfiltered.json
 declare -r ARCHIVE_FILE_JSON_FILTERED=${ARCHIVE_DIR}/${DATETIME}_filtered.json
 declare -r ARCHIVE_FILE_JSON=${ARCHIVE_DIR}/${DATETIME}.json
+declare -r ARCHIVE_FILE_NOSUPERIOR_MARC=${ARCHIVE_DIR}/${DATETIME}.xml
 declare -r ARCHIVE_FILE_MARC=${ARCHIVE_DIR}/${DATETIME}.xml
+declare -r ISSN_FILE_TXT=${ARCHIVE_DIR}/${DATETIME}.txt
+declare -r ISSN_FILE_MARC=${ARCHIVE_DIR}/${DATETIME}.mrc
+declare -r ISSN_FILE_MARC_NO_DUPLICATION=${ARCHIVE_DIR}/${DATETIME}_clean.mrc
+declare -r LOG_FILE=${ARCHIVE_FILE_MARC}.log
 declare -r TIMESTAMP_FILE=/usr/local/var/lib/tuelib/CORE-KrimDok.timestamp
 if [ -r "$TIMESTAMP_FILE" ]; then
     TIMESTAMP=$(date --date="$(< "$TIMESTAMP_FILE") -1 day" +%Y-%m-%d)
@@ -58,10 +63,20 @@ core filter "$ARCHIVE_FILE_JSON_UNFILTERED" "$ARCHIVE_FILE_JSON" "$ARCHIVE_FILE_
 RESULT_COUNT=$(core count "$ARCHIVE_FILE_JSON")
 if [ "$RESULT_COUNT" -gt "0" ]; then
     echo "Converting to MARC"
-    core convert --create-unique-id-db --935-entry=TIT:mkri --935-entry=LOK:core --sigil=DE-2619 "$ARCHIVE_FILE_JSON" "$ARCHIVE_FILE_MARC"
+    # Note: The LOG_FILE should be sent to the librarians so they know which CORE IDs could be problematic
+    #       and should be checked manually after import (e.g. datasets with more than 20 authors.)
+    core convert --create-unique-id-db --935-entry=TIT:mkri --935-entry=LOK:core --sigil=DE-2619 "$ARCHIVE_FILE_JSON" "$ARCHIVE_FILE_NOSUPERIOR_MARC" "$LOG_FILE"
+
+    # ISSN lookup against library compound
+    marc_grep "$ARCHIVE_FILE_NOSUPERIOR_MARC" '"773x"' no_label | sort | uniq > "$ISSN_FILE_TXT"
+    issn_lookup.py "$ISSN_FILE_TXT" "$ISSN_FILE_MARC"
+    marc_remove_dups "$ISSN_FILE_MARC" "$ISSN_FILE_MARC_NO_DUPLICATION"
+    marc_issn_lookup "$ARCHIVE_FILE_NOSUPERIOR_MARC" "$ISSN_FILE_MARC_NO_DUPLICATION" "$ARCHIVE_FILE_MARC"
 
     # upload to BSZ
     # TODO: Generate BSZ compatible filename
+    # Also: Please note that CORE data can be huge. The BSZ wants us to deliver at most 5.000 datasets per day
+    #       and split the data over multiple deliveries, if necessary.
     #echo "Uploading to BSZ"
     #upload_to_bsz_ftp_server.py "$ARCHIVE_FILE_MARC" /pub/UBTuebingen_Default/
 
