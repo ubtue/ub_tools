@@ -106,7 +106,10 @@ ColorEcho "++++ Inserting field into the file ++++"
 marc_augmentor $FILE_TEMP_CLEAN $FILE_TEMP  --insert-field '852:  \x1FaDE-Tue135' \
     --insert-field '084:  \x1Fa0\x1F2ssgn' \
     --insert-field '935:  \x1Faremi\x1F2LOK' \
+    --insert-field 'LOK:  \x1F0866\x1FaSPQUE#Universitätsbibliothek Marburg#SPSAM#Archiv des Religionswissenschaftlichen Medien- und Informationsdienstes e. V. (REMID)' \
     --replace-field-if-regex '001:/.+/REMID\0/g' '001:.+'
+
+# As discussed, Match & Merge must stay active, so we will NOT add 912a NOMM.
 
 ColorEcho "++++ Copying into the ouput file ++++"
 # copy field
