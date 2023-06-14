@@ -15,4 +15,4 @@ outputfile="${outputdir}/${refterm}.ids"
 
 # Query Solr using csv writer to avoid overhard, strip the first line that contains the field names, strip possible trailing characters and redirect 
 # the id list to a file named after the original refterm
-curl --silent --get --data-urlencode "q=${query_string}" ${curl_base_string} | tail  -n +2 | sed -e 's/,$//' > "${outputfile}"
+curl --silent --request --data @<(printf "q=%s" "${query_string}") ${curl_base_string} | tail  -n +2 | sed -e 's/,$//' > "${outputfile}"
