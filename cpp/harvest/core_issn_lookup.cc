@@ -25,8 +25,9 @@
 
 [[noreturn]] void Usage() {
     ::Usage(
-        "\n\n"
-        "issn\n");
+        "issn [show]\n"
+        "issn: International Standard Serial Number\n"
+        "show: display the issn info to standard output.\n");
 }
 
 const unsigned int TIMEOUT_IN_SECONDS(15);
@@ -124,7 +125,7 @@ void ExtractingData(ISSNInfo * const issn_info, const nlohmann::json &issn_info_
 }
 
 void PrettyPrintISSNInfo(const ISSNInfo &issn_info) {
-    std::cout << "mainTitle: " << issn_info.main_title_ << std::endl;
+    std::cout << "main title: " << issn_info.main_title_ << std::endl;
     std::cout << "title: " << issn_info.title_ << std::endl;
     std::cout << "format: " << issn_info.format_ << std::endl;
     std::cout << "identifier: " << issn_info.identifier_ << std::endl;
@@ -138,7 +139,7 @@ void PrettyPrintISSNInfo(const ISSNInfo &issn_info) {
         std::cout << name << std::endl;
 }
 int Main(int argc, char *argv[]) {
-    if (argc != 2)
+    if (argc < 2 || argc > 3)
         Usage();
 
     nlohmann::json issn_info_json;
@@ -147,7 +148,8 @@ int Main(int argc, char *argv[]) {
     if (processing_state) {
         ISSNInfo issn_info;
         ExtractingData(&issn_info, issn_info_json, argv[1]);
-        PrettyPrintISSNInfo(issn_info);
+        if (argc == 3 && (std::strcmp(argv[2], "show") == 0))
+            PrettyPrintISSNInfo(issn_info);
     }
 
     return (processing_state ? EXIT_SUCCESS : EXIT_FAILURE);
