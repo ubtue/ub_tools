@@ -77,14 +77,23 @@ bool GetISSNInfo(const std::string &issn, ISSNInfo * const issn_info) {
     Downloader downloader(issn_url, Downloader::Params());
 
     if (downloader.anErrorOccurred()) {
-        LOG_WARNING("Error while downloading data for issn " + issn + ": " + downloader.getLastErrorMessage());
+        LOG_WARNING("Error while downloading data for ISSN " + issn + ": " + downloader.getLastErrorMessage());
         return false;
     }
 
     // Check for rate limiting and error status codes:
     const HttpHeader http_header(downloader.getMessageHeader());
     if (http_header.getStatusCode() != 200) {
-        LOG_WARNING("IssnLookup returned HTTP status code " + std::to_string(http_header.getStatusCode()) + "! for issn: " + issn);
+        LOG_WARNING("IssnLookup returned HTTP status code " + std::to_string(http_header.getStatusCode()) + "! for ISSN: " + issn);
+        return false;
+    }
+
+    const std::string content_type(http_header.getContentType());
+    if (content_type.find("application/json") == std::string::npos) {
+        // Unfortunately if the ISSN doesnt exist, the page will
+        // return status code 200 OK, but HTML instead of JSON, so we need to
+        // detect this case manually.
+        LOG_WARNING("IssnLookup returned no JSON (maybe invalid ISSN) for ISSN: " + issn);
         return false;
     }
 
@@ -110,7 +119,7 @@ void ISSNInfo::PrettyPrint() {
     std::cout << "format: " << format_ << std::endl;
     std::cout << "identifier: " << identifier_ << std::endl;
     std::cout << "type: " << type_ << std::endl;
-    std::cout << "issn: " << issn_ << std::endl;
+    std::cout << "ISSN: " << issn_ << std::endl;
     std::cout << "isPartOf: " << is_part_of_ << std::endl;
     std::cout << "publication: " << publication_ << std::endl;
     std::cout << "url: " << url_ << std::endl;
