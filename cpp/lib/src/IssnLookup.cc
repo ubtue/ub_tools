@@ -77,8 +77,7 @@ bool GetISSNInfo(const std::string &issn, ISSNInfo * const issn_info) {
     Downloader downloader(issn_url, Downloader::Params());
 
     if (downloader.anErrorOccurred()) {
-        const HttpHeader http_header(downloader.getMessageHeader());
-        LOG_ERROR("Error while downloading data for issn " + issn + ": " + downloader.getLastErrorMessage());
+        LOG_WARNING("Error while downloading data for issn " + issn + ": " + downloader.getLastErrorMessage());
         return false;
     }
 
