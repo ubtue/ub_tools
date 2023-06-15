@@ -43,7 +43,7 @@ int Main(int argc, char *argv[]) {
     if (processing_state) {
         IssnLookup::ISSNInfo issn_info;
         IssnLookup::ExtractingData(&issn_info, issn_info_json, argv[1]);
-        if (argc == 3 && (std::strcmp(argv[2], "show") == 0))
+        if (argc == 3 && (std::strcmp(argv[2], "--verbose") == 0))
             IssnLookup::PrettyPrintISSNInfo(issn_info);
     }
 
