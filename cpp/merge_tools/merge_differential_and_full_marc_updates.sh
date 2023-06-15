@@ -4,6 +4,7 @@ set -o errexit -o nounset
 
 no_problems_found=1
 log_file="/usr/local/var/log/tuefind/merge_differential_and_full_marc_updates.log"
+refdump_indicator="hinweis"
 function SendEmail {
     if [[ $no_problems_found -eq 0 ]]; then
         send_email --priority=very_low --recipients="$email_address" --subject="$0 passed on $(hostname)" --message-body="No problems were encountered."
@@ -40,7 +41,9 @@ function CleanUpStaleDirectories() {
 
 function GetDateFromFilename() {
    filename="$1"
-   echo $(ls -t ${filename} 2>/dev/null | head --lines=1 | sed --regexp-extended --expression='s/[^0-9]//g')
+   echo $(ls -t ${filename} 2>/dev/null | \
+          grep --invert-match --ignore-case "${refdump_indicator}" | \
+          head --lines=1 | sed --regexp-extended --expression='s/[^0-9]//g')
 }
 
 
@@ -94,7 +97,8 @@ echo "Creating ${target_filename}"
 
 input_filename=$(generate_merge_order | head --lines=1)
 #If applicable make sure both full dumps exist
-if [[ "${input_filename:0:8}" = "SA-MARC-" && $(ls ${input_filename:0:8}*-${newest_full_dump_date}.tar.gz | wc --lines) != 2 ]]; then
+if [[ "${input_filename:0:8}" = "SA-MARC-" && $(ls ${input_filename:0:8}*-${newest_full_dump_date}.tar.gz | \
+      grep --invert-match --ignore-case "${refdump_indicator}"  | wc --lines) != 2 ]]; then
    echo 'Incorrect number of SA-MARC-* candidates'
    exit 1
 fi

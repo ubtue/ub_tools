@@ -2,7 +2,7 @@
 ###########################################
 # Author: Steven Lolong (steven.lolong@uni-tuebingen.de)
 # copyright 2023 Tübingen University Library.  All rights reserved.
-# 
+#
 # Script to generate a ixtheo_remid file
 ###########################################
 
@@ -26,7 +26,7 @@ declare -r URL_PART_1="http://sru.hebis.de/sru/DB=2.1?query=pica.abr+%3D+%22REMI
 declare -r URL_PART_2="&startRecord="
 declare -r URL_PART_3="&recordPacking=xml&sortKeys=LST_Y%2Cpica%2C0%2C%2C"
 
-# maximum number of records per download 
+# maximum number of records per download
 declare -r RECORDS_PER_CALL=500
 
 
@@ -57,7 +57,7 @@ StartRecord=0
 
 echo '<?xml version="1.0" encoding="UTF-8" ?>' > $FILE_ORI
 while [ $Counter -le $NUMBER_OF_ITERATION ]
-do  
+do
     ColorEcho "++++ Downloading file ${Counter} of ${NUMBER_OF_ITERATION} ++++"
 
     TempFile="/tmp/${TEMP_FILE_NAME_PREFIX}_${Counter}.xml"
@@ -70,7 +70,7 @@ do
 
     ColorEcho "Purging the file..."
     # clean the temp file
-    grep -vE '<?xml\ version|xml-stylesheet|srw:|diag:|:dc|:diag|:xcql|<startRecord|</startRecord|<maximumRecords|</maximumRecords|<sortKeys|</sortKeys|<rob:|</rob:' $TempFile > $CleanFile  
+    grep -vE '<?xml\ version|xml-stylesheet|srw:|diag:|:dc|:diag|:xcql|<startRecord|</startRecord|<maximumRecords|</maximumRecords|<sortKeys|</sortKeys|<rob:|</rob:' $TempFile > $CleanFile
 
     ColorEcho "Merge the clean file \n"
     cat $CleanFile >> $FILE_ORI
@@ -105,7 +105,11 @@ ColorEcho "++++ Inserting field into the file ++++"
 # add new tag(s) to remid
 marc_augmentor $FILE_TEMP_CLEAN $FILE_TEMP  --insert-field '852:  \x1FaDE-Tue135' \
     --insert-field '084:  \x1Fa0\x1F2ssgn' \
-    --insert-field '935:  \x1Faremi\x1F2LOK'
+    --insert-field '935:  \x1Faremi\x1F2LOK' \
+    --insert-field 'LOK:  \x1F0866\x1FaSPQUE#Universitätsbibliothek Marburg#SPSAM#Archiv des Religionswissenschaftlichen Medien- und Informationsdienstes e. V. (REMID)' \
+    --replace-field-if-regex '001:/.+/REMID\0/g' '001:.+'
+
+# As discussed, Match & Merge must stay active, so we will NOT add 912a NOMM.
 
 ColorEcho "++++ Copying into the ouput file ++++"
 # copy field
