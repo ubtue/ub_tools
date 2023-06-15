@@ -29,29 +29,6 @@ namespace IssnLookup {
 
 const unsigned int TIMEOUT_IN_SECONDS(15);
 
-bool GetISSNInfo(const std::string issn, nlohmann::json &issn_info) {
-    const std::string issn_url("https://portal.issn.org/resource/ISSN/" + issn + "?format=json");
-
-    Downloader downloader(issn_url, Downloader::Params(), TIMEOUT_IN_SECONDS * 1000);
-
-    if (downloader.anErrorOccurred()) {
-        const HttpHeader http_header(downloader.getMessageHeader());
-        LOG_ERROR("Error while downloading data for issn " + issn + ": " + downloader.getLastErrorMessage() + ", HTTP status code "
-                  + std::to_string(http_header.getStatusCode()) + "!");
-        return false;
-    }
-
-    std::string issn_info_json(downloader.getMessageBody());
-    try {
-        issn_info = nlohmann::json::parse(issn_info_json);
-    } catch (nlohmann::json::parse_error &ex) {
-        std::string err(ex.what());
-        LOG_ERROR("Failed to parse JSON! " + err);
-        return false;
-    }
-
-    return true;
-}
 
 void ExtractingData(ISSNInfo * const issn_info, const nlohmann::json &issn_info_json, const std::string issn) {
     const std::string issn_uri("resource/ISSN/" + issn), issn_title_uri("resource/ISSN/" + issn + "#KeyTitle");
@@ -97,18 +74,46 @@ void ExtractingData(ISSNInfo * const issn_info, const nlohmann::json &issn_info_
     }
 }
 
-void PrettyPrintISSNInfo(const ISSNInfo &issn_info) {
-    std::cout << "mainTitle: " << issn_info.main_title_ << std::endl;
-    std::cout << "title: " << issn_info.title_ << std::endl;
-    std::cout << "format: " << issn_info.format_ << std::endl;
-    std::cout << "identifier: " << issn_info.identifier_ << std::endl;
-    std::cout << "type: " << issn_info.type_ << std::endl;
-    std::cout << "issn: " << issn_info.issn_ << std::endl;
-    std::cout << "isPartOf: " << issn_info.is_part_of_ << std::endl;
-    std::cout << "publication: " << issn_info.publication_ << std::endl;
-    std::cout << "url: " << issn_info.url_ << std::endl;
+bool GetISSNInfo(const std::string &issn, ISSNInfo * const issn_info) {
+    const std::string issn_url("https://portal.issn.org/resource/ISSN/" + issn + "?format=json");
+
+    Downloader downloader(issn_url, Downloader::Params(), TIMEOUT_IN_SECONDS * 1000);
+
+    if (downloader.anErrorOccurred()) {
+        const HttpHeader http_header(downloader.getMessageHeader());
+        LOG_ERROR("Error while downloading data for issn " + issn + ": " + downloader.getLastErrorMessage() + ", HTTP status code "
+                  + std::to_string(http_header.getStatusCode()) + "!");
+        return false;
+    }
+
+    std::string issn_info_json(downloader.getMessageBody());
+    nlohmann::json issn_info_json_tree;
+
+    try {
+        issn_info_json_tree = nlohmann::json::parse(issn_info_json);
+    } catch (nlohmann::json::parse_error &ex) {
+        std::string err(ex.what());
+        LOG_ERROR("Failed to parse JSON! " + err);
+        return false;
+    }
+
+    ExtractingData(issn_info, issn_info_json_tree, issn);
+
+    return true;
+}
+
+void ISSNInfo::PrettyPrint() {
+    std::cout << "mainTitle: " << main_title_ << std::endl;
+    std::cout << "title: " << title_ << std::endl;
+    std::cout << "format: " << format_ << std::endl;
+    std::cout << "identifier: " << identifier_ << std::endl;
+    std::cout << "type: " << type_ << std::endl;
+    std::cout << "issn: " << issn_ << std::endl;
+    std::cout << "isPartOf: " << is_part_of_ << std::endl;
+    std::cout << "publication: " << publication_ << std::endl;
+    std::cout << "url: " << url_ << std::endl;
     std::cout << "name: " << std::endl;
-    for (auto &name : issn_info.names_)
+    for (auto &name : names_)
         std::cout << name << std::endl;
 }
 

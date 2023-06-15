@@ -36,16 +36,16 @@ int Main(int argc, char *argv[]) {
     if (argc < 2 || argc > 3)
         Usage();
 
-    nlohmann::json issn_info_json;
-    bool processing_state(IssnLookup::GetISSNInfo(argv[1], issn_info_json));
+
+    IssnLookup::ISSNInfo issn_info;
+    bool processing_state(IssnLookup::GetISSNInfo(argv[1], &issn_info));
 
 
     if (processing_state) {
-        IssnLookup::ISSNInfo issn_info;
-        IssnLookup::ExtractingData(&issn_info, issn_info_json, argv[1]);
         if (argc == 3 && (std::strcmp(argv[2], "--verbose") == 0))
-            IssnLookup::PrettyPrintISSNInfo(issn_info);
+            issn_info.PrettyPrint();
     }
+
 
     return (processing_state ? EXIT_SUCCESS : EXIT_FAILURE);
 }

@@ -42,41 +42,20 @@ struct ISSNInfo {
         url_;                // url
     std::vector<std::string> names_;
 
-    ISSNInfo() {
-        main_title_ = "";
-        title_ = "";
-        format_ = "";
-        identifier_ = "";
-        type_ = "";
-        issn_ = "";
-        is_part_of_ = "";
-        publication_ = "";
-        url_ = "";
-    }
+    ISSNInfo() = default;
+
+    /**
+     * \brief Show the content of ISSNInfo structure as debuging purpose
+     */
+    void PrettyPrint();
 };
 
 
 /**
  * \brief Get the ISSN info from https://portal.issn.org/
  * \param issn  single ISSN
- * \param issn_info is used to save the raw issn info
+ * \param issn_info is used to store ISSNInfo
  */
-bool GetISSNInfo(const std::string issn, nlohmann::json &issn_info);
-
-
-/**
- * \brief Extracting data from the raw issn info and store it to the ISSNInfo structure
- * \param issn_info is used to store the extracted issn info in the ISSNInfo' structure
- * \param issn_info_json the raw issn info
- * \param issn single ISSN
- */
-void ExtractingData(ISSNInfo * const issn_info, const nlohmann::json &issn_info_json, const std::string issn);
-
-
-/**
- * \brief Show the content of ISSNInfo structure as debuging purpose
- * \param issn_info the variable of ISSNInfo
- */
-void PrettyPrintISSNInfo(const ISSNInfo &issn_info);
+bool GetISSNInfo(const std::string &issn, ISSNInfo * const issn_info);
 
 } // namespace IssnLookup
