@@ -26,8 +26,8 @@
 [[noreturn]] void Usage() {
     ::Usage(
         "[--verbose] issn \n"
-        "- issn: International Standard Serial Number\n"
-        "- --verbose: print the issn info to standard output.\n");
+        "- --verbose: print the issn info to standard output.\n"
+        "- issn: International Standard Serial Number\n");
 
     std::exit(EXIT_FAILURE);
 }
