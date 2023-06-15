@@ -27,10 +27,7 @@
 namespace IssnLookup {
 
 
-const unsigned int TIMEOUT_IN_SECONDS(15);
-
-
-void ExtractingData(ISSNInfo * const issn_info, const nlohmann::json &issn_info_json, const std::string issn) {
+void ExtractingData(const std::string &issn, const nlohmann::json &issn_info_json, ISSNInfo * const issn_info) {
     const std::string issn_uri("resource/ISSN/" + issn), issn_title_uri("resource/ISSN/" + issn + "#KeyTitle");
     if (issn_info_json.at("@graph").is_structured()) {
         for (auto ar : issn_info_json.at("@graph")) {
@@ -77,12 +74,18 @@ void ExtractingData(ISSNInfo * const issn_info, const nlohmann::json &issn_info_
 bool GetISSNInfo(const std::string &issn, ISSNInfo * const issn_info) {
     const std::string issn_url("https://portal.issn.org/resource/ISSN/" + issn + "?format=json");
 
-    Downloader downloader(issn_url, Downloader::Params(), TIMEOUT_IN_SECONDS * 1000);
+    Downloader downloader(issn_url, Downloader::Params());
 
     if (downloader.anErrorOccurred()) {
         const HttpHeader http_header(downloader.getMessageHeader());
-        LOG_ERROR("Error while downloading data for issn " + issn + ": " + downloader.getLastErrorMessage() + ", HTTP status code "
-                  + std::to_string(http_header.getStatusCode()) + "!");
+        LOG_ERROR("Error while downloading data for issn " + issn + ": " + downloader.getLastErrorMessage());
+        return false;
+    }
+
+    // Check for rate limiting and error status codes:
+    const HttpHeader http_header(downloader.getMessageHeader());
+    if (http_header.getStatusCode() != 200) {
+        LOG_WARNING("IssnLookup returned HTTP status code " + std::to_string(http_header.getStatusCode()) + "! for issn: " + issn);
         return false;
     }
 
@@ -97,7 +100,7 @@ bool GetISSNInfo(const std::string &issn, ISSNInfo * const issn_info) {
         return false;
     }
 
-    ExtractingData(issn_info, issn_info_json_tree, issn);
+    ExtractingData(issn, issn_info_json_tree, issn_info);
 
     return true;
 }

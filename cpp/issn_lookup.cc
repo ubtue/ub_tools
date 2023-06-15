@@ -25,7 +25,7 @@
 
 [[noreturn]] void Usage() {
     ::Usage(
-        "issn [--verbose]\n"
+        "[--verbose] issn \n"
         "- issn: International Standard Serial Number\n"
         "- --verbose: print the issn info to standard output.\n");
 
@@ -36,13 +36,13 @@ int Main(int argc, char *argv[]) {
     if (argc < 2 || argc > 3)
         Usage();
 
-
+    const std::string issn((argc == 2 ? argv[1] : argv[2]));
     IssnLookup::ISSNInfo issn_info;
-    bool processing_state(IssnLookup::GetISSNInfo(argv[1], &issn_info));
+    bool processing_state(IssnLookup::GetISSNInfo(issn, &issn_info));
 
 
     if (processing_state) {
-        if (argc == 3 && (std::strcmp(argv[2], "--verbose") == 0))
+        if (argc == 3 && (std::strcmp(argv[1], "--verbose") == 0))
             issn_info.PrettyPrint();
     }
 

@@ -21,7 +21,7 @@
 #pragma once
 
 #include <iostream>
-#include <nlohmann/json.hpp>
+#include <vector>
 
 
 namespace IssnLookup {
