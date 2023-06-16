@@ -22,6 +22,7 @@
 #include <map>
 #include "CORE.h"
 #include "FileUtil.h"
+#include "IssnLookup.h"
 #include "MARC.h"
 #include "StringUtil.h"
 #include "util.h"
@@ -133,7 +134,7 @@ void PrettyPrintCacheEntry(const CacheEntry &ce) {
 
 void PrettyPrintCache(const std::vector<CacheEntry> &journal_cache) {
     unsigned i(1);
-    std::cout << "********* Cache *********" << std::endl;
+    std::cout << "********* Cache (ISSN found in K10) *********" << std::endl;
     for (const auto &jc : journal_cache) {
         std::cout << "=== Record - " << i << std::endl;
         PrettyPrintCacheEntry(jc);
@@ -158,7 +159,7 @@ bool IsInISSNs(const std::vector<std::string> &issns, const std::vector<std::str
 }
 
 
-void UpdateSubfield(MARC::Subfields &subfields, const CacheEntry &cache_entry) {
+void UpdateSubfieldUsingK10(MARC::Subfields &subfields, const CacheEntry &cache_entry) {
     if (!subfields.replaceFirstSubfield('i', "In:"))
         subfields.addSubfield('i', "In:");
     if (!subfields.replaceFirstSubfield('x', cache_entry.preferred_issn_))
@@ -171,6 +172,19 @@ void UpdateSubfield(MARC::Subfields &subfields, const CacheEntry &cache_entry) {
             subfields.addSubfield('t', cache_entry.preferred_title_);
 }
 
+void UpdateSubfieldUsingISSNOrg(MARC::Subfields &subfields, const IssnLookup::ISSNInfo issn_info, const bool &debug_mode) {
+    if (!subfields.replaceFirstSubfield('i', "In:"))
+        subfields.addSubfield('i', "In:");
+    if (!subfields.replaceFirstSubfield('x', issn_info.issn_))
+        subfields.addSubfield('x', issn_info.issn_);
+
+    if (not issn_info.main_title_.empty())
+        if (!subfields.replaceFirstSubfield('t', issn_info.main_title_))
+            subfields.addSubfield('t', issn_info.main_title_);
+
+    if (debug_mode && not issn_info.main_title_.empty())
+        std::cout << "title: " << issn_info.main_title_ << "\n\n";
+}
 
 void UpdateCacheEntry(CacheEntry &ce, const CacheEntry &new_ce, const bool is_online) {
     ce.preferred_title_ = new_ce.preferred_title_;
@@ -303,7 +317,7 @@ void CleanDuplicationOfField773(MARC::Record * const record) {
     }
 }
 
-void ISSNLookup(char **argv, std::vector<CacheEntry> &journal_cache) {
+void ISSNLookup(char **argv, std::vector<CacheEntry> &journal_cache, const bool &debug_mode) {
     auto input_file(MARC::Reader::Factory(argv[1]));
     auto output_file(MARC::Writer::Factory(argv[3]));
     std::vector<std::string> updated_ppn, ignored_ppn;
@@ -311,6 +325,7 @@ void ISSNLookup(char **argv, std::vector<CacheEntry> &journal_cache) {
     while (MARC::Record record = input_file->read()) {
         std::string ppn("");
         for (auto &field : record) {
+            bool is_issn_in_k10(false);
             if (field.getTag() == "001")
                 ppn = field.getContents();
 
@@ -320,14 +335,39 @@ void ISSNLookup(char **argv, std::vector<CacheEntry> &journal_cache) {
                     // data is found
                     for (const auto &elemt : journal_cache) {
                         bool is_in_l = (std::find(elemt.issns_.begin(), elemt.issns_.end(), issn) != elemt.issns_.end() ? true : false);
-                        if (((elemt.preferred_issn_ == issn) || is_in_l) && elemt.is_valid_) {
+                        if ((elemt.preferred_issn_ == issn) || is_in_l) {
+                            if (elemt.is_valid_) {
+                                MARC::Subfields subfields(field.getSubfields());
+                                UpdateSubfieldUsingK10(subfields, elemt);
+                                field.setSubfields(subfields);
+                            }
+                            // issn is found in k10, ignoring wheather it is if valid or not
+                            is_issn_in_k10 = true;
+                        }
+                    }
+                    if (not is_issn_in_k10) {
+                        IssnLookup::ISSNInfo issn_info;
+
+                        if (IssnLookup::GetISSNInfo(issn, &issn_info)) {
+                            if (debug_mode) {
+                                std::cout << "ISSN not found in K10 but in issn.org: " << std::endl;
+                                std::cout << "PPN: " << ppn << std::endl;
+                                std::cout << "ISSN: " << issn << std::endl;
+                            }
                             MARC::Subfields subfields(field.getSubfields());
-                            UpdateSubfield(subfields, elemt);
-                            field.setSubfields(subfields);
+                            UpdateSubfieldUsingISSNOrg(subfields, issn_info, debug_mode);
+
+                        } else {
+                            if (debug_mode) {
+                                std::cout << "ISSN are not found in K10 or issn.org: " << std::endl;
+                                std::cout << "PPN: " << ppn << std::endl;
+                                std::cout << "ISSN: " << issn << std::endl;
+                            }
                         }
                     }
                 }
             }
+            is_issn_in_k10 = false;
         }
         CleanDuplicationOfField773(&record);
         output_file->write(record);
@@ -343,9 +383,11 @@ int Main(int argc, char **argv) {
         Usage();
 
     std::vector<CacheEntry> journal_cache(BuildJournalCache(argv[2]));
-    ISSNLookup(argv, journal_cache);
+    const bool debug_mode(((argc == 5 && (std::strcmp(argv[4], "--verbose") == 0)) ? true : false));
 
-    if (argc == 5 && (std::strcmp(argv[4], "--verbose") == 0))
+    ISSNLookup(argv, journal_cache, debug_mode);
+
+    if (debug_mode)
         PrettyPrintCache(journal_cache);
 
     return EXIT_SUCCESS;
