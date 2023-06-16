@@ -48,15 +48,21 @@ void ExtractingData(const std::string &issn, const nlohmann::json &issn_info_jso
                             issn_info->is_part_of_ = val;
                         if (key == "publication")
                             issn_info->publication_ = val;
-                        if (key == "url")
-                            issn_info->url_ = val;
+
+                        if (key == "url") {
+                            if (val.is_structured())
+                                for (auto val_item : val)
+                                    issn_info->url_.emplace_back(val_item);
+                            else
+                                issn_info->url_.emplace_back(val);
+                        }
+
                         if (key == "name") {
-                            if (val.is_structured()) {
+                            if (val.is_structured())
                                 for (auto val_item : val)
                                     issn_info->names_.emplace_back(val_item);
-                            } else {
+                            else
                                 issn_info->names_.emplace_back(val);
-                            }
                         }
                     }
                 }
@@ -122,7 +128,9 @@ void ISSNInfo::PrettyPrint() {
     std::cout << "ISSN: " << issn_ << std::endl;
     std::cout << "isPartOf: " << is_part_of_ << std::endl;
     std::cout << "publication: " << publication_ << std::endl;
-    std::cout << "url: " << url_ << std::endl;
+    std::cout << "url: " << std::endl;
+    for (auto &url : url_)
+        std::cout << url << std::endl;
     std::cout << "name: " << std::endl;
     for (auto &name : names_)
         std::cout << name << std::endl;

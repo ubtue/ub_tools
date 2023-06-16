@@ -38,9 +38,9 @@ struct ISSNInfo {
         type_,               // type
         issn_,               // issn
         is_part_of_,         // isPartOf
-        publication_,        // publication
-        url_;                // url
-    std::vector<std::string> names_;
+        publication_;        // publication
+
+    std::vector<std::string> names_, url_;
 
     ISSNInfo() = default;
 
