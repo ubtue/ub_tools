@@ -40,7 +40,7 @@ struct ISSNInfo {
         is_part_of_,         // isPartOf
         publication_;        // publication
 
-    std::vector<std::string> names_, url_;
+    std::vector<std::string> names_, urls_;
 
     ISSNInfo() = default;
 
