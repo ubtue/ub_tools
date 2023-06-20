@@ -161,14 +161,14 @@ void PrettyPrintCache(const std::vector<CacheEntry> &journal_cache, const std::v
         std::cout << "******** Start of PPN used issn data from issn.org ***********" << std::endl;
         for (const auto &pu : ppns_use_issn_org)
             std::cout << "PPN: " << pu.first << ", ISSN: " << pu.second << std::endl;
-        std::cout << "******** End of PPN used issn data from issn.org) ***********\n\n";
+        std::cout << "******** End of PPN used issn data from issn.org ***********\n\n";
     }
 
     if (not ppns_with_issn_not_recognized.empty()) {
         std::cout << "******** Start of PPN used issn data from issn.org ***********" << std::endl;
         for (const auto &pnr : ppns_with_issn_not_recognized)
             std::cout << "PPN: " << pnr.first << ", ISSN: " << pnr.second << std::endl;
-        std::cout << "******** End of PPN used issn data from issn.org) ***********\n\n";
+        std::cout << "******** End of PPN used issn data from issn.org ***********\n\n";
     }
 }
 
