@@ -18,11 +18,11 @@
  chapter                | CHAa
  howpublished           | HPBa
  keywords               | 650a
- volume                 | 936d[uw] (InsertOrForceSubfield)
- number                 | 936e[uw] (InsertOrForceSubfield)
- pages                  | 936h[uw] (InsertOrForceSubfield)
+ volume                 | 936d[uw] (InsertVolumeNumberPagesAndYearInformation)
+ number                 | 936e[uw] (InsertVolumeNumberPagesAndYearInformation)
+ pages                  | 936h[uw] (InsertVolumeNumberPagesAndYearInformation)
  month                  | MONa
- year                   | 936j[uw] (InsertOrForceSubfield)
+ year                   | 936j[uw] (InsertVolumeNumberPagesAndYearInformation)
  year                   | 264c (InsertOrForceSubfield)
  note                   | 520a
  url                    | 856u
