@@ -196,6 +196,32 @@ void InsertOrForceSubfield(const std::string &tag, const char subfield_code, con
 }
 
 
+// Avoid inserting 936 fields for book to ensure proper displaying of full title view
+// Dispatch to correct fields instead
+void InsertVolumeNumberPagesAndYearInformation(const std::string &tag, const char subfield_code, const char indicator1,
+                                               const char indicator2, MARC::Record * const record, const std::string &data,
+                                               DbConnection * const db_connection) {
+    if (record->getBibliographicLevel() != MARC::Record::BibliographicLevel::MONOGRAPH_OR_ITEM) {
+        InsertOrForceSubfield(tag, subfield_code, indicator1, indicator2, record, data, db_connection);
+        return;
+    }
+
+    // Make sure this matches the information given in map_file.txt
+    if (tag == "936" and subfield_code == 'd' /*volume*/)
+        return;
+    if (tag == "936" and subfield_code == 'e' /* number */)
+        return;
+    if (tag == "936" and subfield_code == 'h' /* pages */) {
+        InsertOrForceSubfield("300", 'a', ' ', ' ', record, data, db_connection);
+        return;
+    }
+
+    // Do not reinsert year (should be in 264c)
+    if (tag == "936" and subfield_code == 'j' /* year */)
+        return;
+}
+
+
 struct SuperiorInformation {
     std::string journal_;
     std::string booktitle_;
@@ -311,6 +337,7 @@ const std::map<std::string, ConversionFunctor> name_to_functor_map{
     { "InsertOrForceSubfield", InsertOrForceSubfield },
     { "InsertEditors", InsertEditors },
     { "InsertSuperiorInformation", InsertSuperiorInformation },
+    { "InsertVolumeNumberPagesAndYearInformation", InsertVolumeNumberPagesAndYearInformation },
 };
 
 ConversionFunctor GetConversionFunctor(const std::string &functor_name) {
