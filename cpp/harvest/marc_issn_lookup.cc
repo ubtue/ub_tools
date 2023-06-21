@@ -22,6 +22,7 @@
 #include <map>
 #include "CORE.h"
 #include "FileUtil.h"
+#include "IssnLookup.h"
 #include "MARC.h"
 #include "StringUtil.h"
 #include "util.h"
@@ -131,16 +132,52 @@ void PrettyPrintCacheEntry(const CacheEntry &ce) {
 }
 
 
-void PrettyPrintCache(const std::vector<CacheEntry> &journal_cache) {
+void PrettyPrintCache(const std::vector<CacheEntry> &journal_cache, const std::vector<IssnLookup::ISSNInfo> &issn_org_cache,
+                      const std::map<std::string, std::string> &ppns_use_issn_org,
+                      const std::map<std::string, std::string> &ppns_with_issn_not_recognized,
+                      const std::set<std::string> &issns_not_found) {
     unsigned i(1);
-    std::cout << "********* Cache *********" << std::endl;
+    std::cout << "********* Cache (ISSN found in K10plus) *********" << std::endl;
     for (const auto &jc : journal_cache) {
         std::cout << "=== Record - " << i << std::endl;
         PrettyPrintCacheEntry(jc);
         std::cout << std::endl;
         ++i;
     }
-    std::cout << "******** End of Cache ***********" << std::endl;
+    std::cout << "******** End of Cache (ISSN found in K10plus) ***********\n\n";
+
+    if (not issn_org_cache.empty()) {
+        i = 1;
+        std::cout << "******** Start of Cache (ISSN found in issn.org) ***********" << std::endl;
+        for (auto it : issn_org_cache) {
+            std::cout << "=== Cache of issn.org, record: " << i << std::endl;
+            it.PrettyPrint();
+            std::cout << std::endl;
+            ++i;
+        }
+        std::cout << "******** End of Cache (ISSN found in issn.org) ***********\n\n";
+    }
+
+    if (not ppns_use_issn_org.empty()) {
+        std::cout << "******** Start of PPN used issn data from issn.org ***********" << std::endl;
+        for (const auto &pu : ppns_use_issn_org)
+            std::cout << "PPN: " << pu.first << ", ISSN: " << pu.second << std::endl;
+        std::cout << "******** End of PPN used issn data from issn.org ***********\n\n";
+    }
+
+    if (not ppns_with_issn_not_recognized.empty()) {
+        std::cout << "******** Start of PPN used issn data from issn.org ***********" << std::endl;
+        for (const auto &pnr : ppns_with_issn_not_recognized)
+            std::cout << "PPN: " << pnr.first << ", ISSN: " << pnr.second << std::endl;
+        std::cout << "******** End of PPN used issn data from issn.org ***********\n\n";
+    }
+
+    if (not issns_not_found.empty()) {
+        std::cout << "******** Start of ISSN was not found ***********" << std::endl;
+        for (const auto &isf : issns_not_found)
+            std::cout << "ISSN: " << isf << std::endl;
+        std::cout << "******** End of ISSN was not found ***********\n\n";
+    }
 }
 
 
@@ -157,8 +194,18 @@ bool IsInISSNs(const std::vector<std::string> &issns, const std::vector<std::str
     return false;
 }
 
+bool IsInISSNInfoCache(const std::string issn, const std::vector<IssnLookup::ISSNInfo> &issn_org_cache,
+                       IssnLookup::ISSNInfo * const issn_info) {
+    for (const auto &issn_org : issn_org_cache) {
+        if (issn == issn_org.issn_) {
+            *issn_info = issn_org;
+            return true;
+        }
+    }
+    return false;
+}
 
-void UpdateSubfield(MARC::Subfields &subfields, const CacheEntry &cache_entry) {
+void UpdateSubfieldUsingK10(MARC::Subfields &subfields, const CacheEntry &cache_entry) {
     if (!subfields.replaceFirstSubfield('i', "In:"))
         subfields.addSubfield('i', "In:");
     if (!subfields.replaceFirstSubfield('x', cache_entry.preferred_issn_))
@@ -171,6 +218,16 @@ void UpdateSubfield(MARC::Subfields &subfields, const CacheEntry &cache_entry) {
             subfields.addSubfield('t', cache_entry.preferred_title_);
 }
 
+void UpdateSubfieldUsingISSNOrg(MARC::Subfields &subfields, const IssnLookup::ISSNInfo issn_info) {
+    if (!subfields.replaceFirstSubfield('i', "In:"))
+        subfields.addSubfield('i', "In:");
+    if (!subfields.replaceFirstSubfield('x', issn_info.issn_))
+        subfields.addSubfield('x', issn_info.issn_);
+
+    if (not issn_info.main_title_.empty())
+        if (!subfields.replaceFirstSubfield('t', issn_info.main_title_))
+            subfields.addSubfield('t', issn_info.main_title_);
+}
 
 void UpdateCacheEntry(CacheEntry &ce, const CacheEntry &new_ce, const bool is_online) {
     ce.preferred_title_ = new_ce.preferred_title_;
@@ -303,7 +360,10 @@ void CleanDuplicationOfField773(MARC::Record * const record) {
     }
 }
 
-void ISSNLookup(char **argv, std::vector<CacheEntry> &journal_cache) {
+
+void ISSNLookup(char **argv, std::vector<CacheEntry> &journal_cache, std::vector<IssnLookup::ISSNInfo> * const issn_org_cache,
+                std::map<std::string, std::string> * const ppns_use_issn_org,
+                std::map<std::string, std::string> * const ppns_with_issn_not_recognized, std::set<std::string> * const issns_not_found) {
     auto input_file(MARC::Reader::Factory(argv[1]));
     auto output_file(MARC::Writer::Factory(argv[3]));
     std::vector<std::string> updated_ppn, ignored_ppn;
@@ -311,23 +371,54 @@ void ISSNLookup(char **argv, std::vector<CacheEntry> &journal_cache) {
     while (MARC::Record record = input_file->read()) {
         std::string ppn("");
         for (auto &field : record) {
+            bool is_issn_in_k10plus(false);
             if (field.getTag() == "001")
                 ppn = field.getContents();
 
             if (field.getTag() == "773") {
                 const std::string issn(StringUtil::ASCIIToUpper(field.getFirstSubfieldWithCode('x')));
                 if (not issn.empty()) {
-                    // data is found
-                    for (const auto &elemt : journal_cache) {
-                        bool is_in_l = (std::find(elemt.issns_.begin(), elemt.issns_.end(), issn) != elemt.issns_.end() ? true : false);
-                        if (((elemt.preferred_issn_ == issn) || is_in_l) && elemt.is_valid_) {
-                            MARC::Subfields subfields(field.getSubfields());
-                            UpdateSubfield(subfields, elemt);
-                            field.setSubfields(subfields);
+                    if (issns_not_found->find(issn) == issns_not_found->end()) {
+                        // data is found
+                        for (const auto &elemt : journal_cache) {
+                            bool is_in_l = (std::find(elemt.issns_.begin(), elemt.issns_.end(), issn) != elemt.issns_.end() ? true : false);
+                            if ((elemt.preferred_issn_ == issn) || is_in_l) {
+                                if (elemt.is_valid_) {
+                                    MARC::Subfields subfields(field.getSubfields());
+                                    UpdateSubfieldUsingK10(subfields, elemt);
+                                    field.setSubfields(subfields);
+                                }
+                                // issn is found in k10, ignoring wheather it is if valid or not
+                                is_issn_in_k10plus = true;
+                                break;
+                            }
+                        }
+                        if (not is_issn_in_k10plus) {
+                            IssnLookup::ISSNInfo issn_info;
+                            if (IsInISSNInfoCache(issn, *issn_org_cache, &issn_info)) {
+                                // issn is in the issn info cache already
+                                MARC::Subfields subfields(field.getSubfields());
+                                UpdateSubfieldUsingISSNOrg(subfields, issn_info);
+                                field.setSubfields(subfields);
+                            } else {
+                                if (IssnLookup::GetISSNInfo(issn, &issn_info)) {
+                                    issn_org_cache->emplace_back(issn_info);
+                                    MARC::Subfields subfields(field.getSubfields());
+                                    UpdateSubfieldUsingISSNOrg(subfields, issn_info);
+                                    field.setSubfields(subfields);
+                                    ppns_use_issn_org->insert(std::make_pair(ppn, issn));
+
+                                } else {
+                                    // issn was not found
+                                    issns_not_found->insert(issn);
+                                    ppns_with_issn_not_recognized->insert(std::make_pair(ppn, issn));
+                                }
+                            }
                         }
                     }
                 }
             }
+            is_issn_in_k10plus = false;
         }
         CleanDuplicationOfField773(&record);
         output_file->write(record);
@@ -343,10 +434,16 @@ int Main(int argc, char **argv) {
         Usage();
 
     std::vector<CacheEntry> journal_cache(BuildJournalCache(argv[2]));
-    ISSNLookup(argv, journal_cache);
+    std::vector<IssnLookup::ISSNInfo> issn_org_cache;
+    std::map<std::string, std::string> ppns_use_issn_org, ppns_with_issn_not_recognized;
+    std::set<std::string> issns_not_found;
 
-    if (argc == 5 && (std::strcmp(argv[4], "--verbose") == 0))
-        PrettyPrintCache(journal_cache);
+    const bool debug_mode(((argc == 5 && (std::strcmp(argv[4], "--verbose") == 0)) ? true : false));
+
+    ISSNLookup(argv, journal_cache, &issn_org_cache, &ppns_use_issn_org, &ppns_with_issn_not_recognized, &issns_not_found);
+
+    if (debug_mode)
+        PrettyPrintCache(journal_cache, issn_org_cache, ppns_use_issn_org, ppns_with_issn_not_recognized, issns_not_found);
 
     return EXIT_SUCCESS;
 }

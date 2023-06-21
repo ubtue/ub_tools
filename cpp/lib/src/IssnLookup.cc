@@ -33,6 +33,7 @@ void ExtractingData(const std::string &issn, const nlohmann::json &issn_info_jso
         for (auto ar : issn_info_json.at("@graph")) {
             if (ar.is_structured()) {
                 if (ar.at("@id") == issn_uri) {
+                    issn_info->issn_ = issn;
                     for (auto &[key, val] : ar.items()) {
                         if (key == "mainTitle")
                             issn_info->main_title_ = val;
@@ -42,21 +43,25 @@ void ExtractingData(const std::string &issn, const nlohmann::json &issn_info_jso
                             issn_info->identifier_ = val;
                         if (key == "type")
                             issn_info->type_ = val;
-                        if (key == "issn")
-                            issn_info->issn_ = val;
                         if (key == "isPartOf")
                             issn_info->is_part_of_ = val;
                         if (key == "publication")
                             issn_info->publication_ = val;
-                        if (key == "url")
-                            issn_info->url_ = val;
+
+                        if (key == "url") {
+                            if (val.is_structured())
+                                for (auto val_item : val)
+                                    issn_info->urls_.emplace_back(val_item);
+                            else
+                                issn_info->urls_.emplace_back(val);
+                        }
+
                         if (key == "name") {
-                            if (val.is_structured()) {
+                            if (val.is_structured())
                                 for (auto val_item : val)
                                     issn_info->names_.emplace_back(val_item);
-                            } else {
+                            else
                                 issn_info->names_.emplace_back(val);
-                            }
                         }
                     }
                 }
@@ -122,7 +127,9 @@ void ISSNInfo::PrettyPrint() {
     std::cout << "ISSN: " << issn_ << std::endl;
     std::cout << "isPartOf: " << is_part_of_ << std::endl;
     std::cout << "publication: " << publication_ << std::endl;
-    std::cout << "url: " << url_ << std::endl;
+    std::cout << "url: " << std::endl;
+    for (auto &url : urls_)
+        std::cout << url << std::endl;
     std::cout << "name: " << std::endl;
     for (auto &name : names_)
         std::cout << name << std::endl;
