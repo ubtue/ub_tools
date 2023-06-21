@@ -16,9 +16,9 @@ declare -r ARCHIVE_FILE_JSON_FILTERED=${ARCHIVE_DIR}/${DATETIME}_filtered.json
 declare -r ARCHIVE_FILE_JSON=${ARCHIVE_DIR}/${DATETIME}.json
 declare -r ARCHIVE_FILE_NOSUPERIOR_MARC=${ARCHIVE_DIR}/${DATETIME}.xml
 declare -r ARCHIVE_FILE_MARC=${ARCHIVE_DIR}/${DATETIME}.xml
-declare -r ISSN_FILE_TXT=${ARCHIVE_DIR}/${DATETIME}.txt
-declare -r ISSN_FILE_MARC=${ARCHIVE_DIR}/${DATETIME}.mrc
-declare -r ISSN_FILE_MARC_NO_DUPLICATION=${ARCHIVE_DIR}/${DATETIME}_clean.mrc
+declare -r ISSN_FILE_TXT=${ARCHIVE_DIR}/${DATETIME}_issns.txt
+declare -r ISSN_FILE_MARC=${ARCHIVE_DIR}/${DATETIME}_issns.mrc
+declare -r ISSN_FILE_MARC_NO_DUPLICATION=${ARCHIVE_DIR}/${DATETIME}_issns_dedup.mrc
 declare -r LOG_FILE=${ARCHIVE_FILE_MARC}.log
 declare -r TIMESTAMP_FILE=/usr/local/var/lib/tuelib/CORE-KrimDok.timestamp
 if [ -r "$TIMESTAMP_FILE" ]; then
