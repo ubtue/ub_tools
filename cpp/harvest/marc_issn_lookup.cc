@@ -186,17 +186,23 @@ void ShowInfoForDebugging(const std::vector<CacheEntry> &journal_cache, const st
     }
 
     if (not debug_info.ppns_with_issn_not_recognized_.empty()) {
-        std::cout << "******** Start of PPN with ISSN has not found in k10plus and issn.org ***********" << std::endl;
+        std::cout << "******** Start of PPN with ISSN has not found or invalid in k10plus, and not found in issn.org or timeout while "
+                     "downloading ***********"
+                  << std::endl;
         for (const auto &pnr : debug_info.ppns_with_issn_not_recognized_)
             std::cout << "PPN: " << pnr.first << ", ISSN: " << pnr.second << std::endl;
-        std::cout << "******** End of PPN with ISSN has not found in k10plus and issn.org ***********\n\n";
+        std::cout << "******** End of PPN with ISSN has not found or invalid in k10plus, and not found in issn.org or timeout while "
+                     "downloading  ***********\n\n";
     }
 
     if (not debug_info.issns_not_found_.empty()) {
-        std::cout << "******** Start of ISSN has not found ***********" << std::endl;
+        std::cout << "******** Start of ISSN has not found or invalid in k10plus, and not found in issn.org or timeout while downloading "
+                     "***********"
+                  << std::endl;
         for (const auto &isf : debug_info.issns_not_found_)
             std::cout << "ISSN: " << isf << std::endl;
-        std::cout << "******** End of ISSN has not found ***********\n\n";
+        std::cout << "******** End of ISSN has not found or invalid in k10plus, and not found in issn.org or timeout while downloading "
+                     "***********\n\n";
     }
 }
 
