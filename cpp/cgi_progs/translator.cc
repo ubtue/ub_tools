@@ -803,7 +803,7 @@ bool AssembleMyTranslationsData(DbConnection &db_connection, const IniFile &ini_
     // Get Vufind Translations
     const std::string vufind_query(
         "SELECT token, translation, language_code, translator FROM vufind_translations "
-        "WHERE token IN (SELECT * FROM (SELECT token FROM vufind_translations WHERE "
+        "WHERE next_version_id IS NULL AND token IN (SELECT * FROM (SELECT token FROM vufind_translations WHERE "
         "translator='"
         + translator + "') as t) ORDER BY token, language_code;");
 
@@ -817,6 +817,7 @@ bool AssembleMyTranslationsData(DbConnection &db_connection, const IniFile &ini_
         "keyword_translations AS k INNER JOIN keyword_translations AS l ON "
         "k.language_code='ger' AND k.status='reliable' AND k.ppn=l.ppn AND "
         "l.status!='reliable_synonym' AND l.status != 'unreliable_synonym'"
+        " AND k.next_version_id IS NULL"
         " AND l.ppn IN (SELECT ppn from keyword_translations WHERE translator='"
         + translator + "') ORDER BY k.translation;");
 
