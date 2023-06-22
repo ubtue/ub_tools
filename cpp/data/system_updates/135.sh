@@ -1,7 +1,7 @@
 #!/bin/bash
 set -o errexit
 
-if [[ -e /usr/local/vufind ]]; then
+if [[ $TUEFIND_FLAVOUR == "ixtheo" ]]; then
     OLD_DIR=$PWD
     cd /usr/local/vufind
     composer install --no-interaction
