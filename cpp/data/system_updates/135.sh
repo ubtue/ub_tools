@@ -4,6 +4,6 @@ set -o errexit
 if [[ -e /usr/local/vufind ]]; then
     OLD_DIR=$PWD
     cd /usr/local/vufind
-    sudo composer install
+    composer install --no-interaction
     cd "$OLD_DIR"
 fi
