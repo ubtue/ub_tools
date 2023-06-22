@@ -30,14 +30,14 @@ namespace IssnLookup {
 void ExtractingData(const std::string &issn, const nlohmann::json &issn_info_json, ISSNInfo * const issn_info) {
     const std::string issn_uri("resource/ISSN/" + issn), issn_title_uri("resource/ISSN/" + issn + "#KeyTitle");
     if (issn_info_json.at("@graph").is_structured()) {
-        for (auto ar : issn_info_json.at("@graph")) {
+        for (const auto &ar : issn_info_json.at("@graph")) {
             if (ar.is_structured()) {
                 if (ar.at("@id") == issn_uri) {
                     issn_info->issn_ = issn;
-                    for (auto &[key, val] : ar.items()) {
+                    for (const auto &[key, val] : ar.items()) {
                         if (key == "mainTitle") {
                             if (val.is_structured())
-                                for (auto val_item : val)
+                                for (const auto &val_item : val)
                                     issn_info->main_titles_.emplace_back(val_item);
                             else
                                 issn_info->main_titles_.emplace_back(val);
@@ -52,7 +52,7 @@ void ExtractingData(const std::string &issn, const nlohmann::json &issn_info_jso
 
                         if (key == "isPartOf") {
                             if (val.is_structured())
-                                for (auto val_item : val)
+                                for (const auto &val_item : val)
                                     issn_info->is_part_of_.emplace_back(val_item);
                             else
                                 issn_info->is_part_of_.emplace_back(val);
@@ -63,7 +63,7 @@ void ExtractingData(const std::string &issn, const nlohmann::json &issn_info_jso
 
                         if (key == "url") {
                             if (val.is_structured())
-                                for (auto val_item : val)
+                                for (const auto &val_item : val)
                                     issn_info->urls_.emplace_back(val_item);
                             else
                                 issn_info->urls_.emplace_back(val);
@@ -71,7 +71,7 @@ void ExtractingData(const std::string &issn, const nlohmann::json &issn_info_jso
 
                         if (key == "name") {
                             if (val.is_structured())
-                                for (auto val_item : val)
+                                for (const auto &val_item : val)
                                     issn_info->names_.emplace_back(val_item);
                             else
                                 issn_info->names_.emplace_back(val);
@@ -82,7 +82,7 @@ void ExtractingData(const std::string &issn, const nlohmann::json &issn_info_jso
                     for (auto &[key, val] : ar.items()) {
                         if (key == "value")
                             if (val.is_structured())
-                                for (auto val_item : val)
+                                for (const auto &val_item : val)
                                     issn_info->titles_.emplace_back(val_item);
                             else
                                 issn_info->titles_.emplace_back(val);
@@ -137,11 +137,11 @@ bool GetISSNInfo(const std::string &issn, ISSNInfo * const issn_info) {
 
 void ISSNInfo::PrettyPrint() {
     std::cout << "mainTitle: " << std::endl;
-    for (auto &main_title : main_titles_)
+    for (const auto &main_title : main_titles_)
         std::cout << main_title << std::endl;
 
     std::cout << "title(s): " << std::endl;
-    for (auto &title : titles_)
+    for (const auto &title : titles_)
         std::cout << title << std::endl;
 
     std::cout << "format: " << format_ << std::endl;
@@ -150,17 +150,17 @@ void ISSNInfo::PrettyPrint() {
     std::cout << "ISSN: " << issn_ << std::endl;
 
     std::cout << "isPartOf: " << std::endl;
-    for (auto &is_o : is_part_of_)
+    for (const auto &is_o : is_part_of_)
         std::cout << is_o << std::endl;
 
     std::cout << "publication: " << publication_ << std::endl;
 
     std::cout << "url: " << std::endl;
-    for (auto &url : urls_)
+    for (const auto &url : urls_)
         std::cout << url << std::endl;
 
     std::cout << "name: " << std::endl;
-    for (auto &name : names_)
+    for (const auto &name : names_)
         std::cout << name << std::endl;
 }
 
