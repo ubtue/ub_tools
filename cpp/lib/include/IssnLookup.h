@@ -31,16 +31,16 @@ namespace IssnLookup {
  * \brief Data structure for storing ISSN info taken from https://portal.issn.org/
  */
 struct ISSNInfo {
-    std::string main_title_, // mainTitle
-        title_,              // taken the value from @id with hash #KeyTitle
-        format_,             // format
-        identifier_,         // identifier
-        type_,               // type
-        issn_,               // issn
-        is_part_of_,         // isPartOf
-        publication_;        // publication
+    std::string format_, // format
+        identifier_,     // identifier
+        type_,           // type
+        issn_,           // issn
+        publication_;    // publication
 
-    std::vector<std::string> names_, urls_;
+    std::vector<std::string> titles_, // taken the value from @id with hash #KeyTitle
+        main_titles_,                 // mainTitle
+        is_part_of_,                  // isPartOf
+        names_, urls_;
 
     ISSNInfo() = default;
 
