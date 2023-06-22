@@ -96,7 +96,7 @@ void ExtractingData(const std::string &issn, const nlohmann::json &issn_info_jso
 bool GetISSNInfo(const std::string &issn, ISSNInfo * const issn_info) {
     const std::string issn_url("https://portal.issn.org/resource/ISSN/" + issn + "?format=json");
 
-    Downloader downloader(issn_url, Downloader::Params(), (unsigned)15000);
+    Downloader downloader(issn_url, Downloader::Params());
 
     if (downloader.anErrorOccurred()) {
         LOG_WARNING("Error while downloading data for ISSN " + issn + ": " + downloader.getLastErrorMessage());
