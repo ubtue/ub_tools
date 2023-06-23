@@ -21,6 +21,7 @@
 #include <iostream>
 #include <map>
 #include "CORE.h"
+#include "ControlNumberGuesser.h"
 #include "FileUtil.h"
 #include "IssnLookup.h"
 #include "MARC.h"
@@ -382,7 +383,7 @@ std::vector<CacheEntry> BuildJournalCache(const std::string &inputitlejournal_fi
     return MergeDuplicateCacheEntrys(journal_cache);
 }
 
-void CleanDuplicationOfField773(MARC::Record * const record) {
+void CleanDuplicationOfField773ByISSN(MARC::Record * const record) {
     std::vector<std::string> issns;
     for (auto field(record->begin()); field != record->end(); ++field) {
         if (field->getTag() == "773") {
@@ -391,6 +392,22 @@ void CleanDuplicationOfField773(MARC::Record * const record) {
                 record->erase(field);
             else
                 issns.emplace_back(issn);
+        }
+    }
+}
+
+void CleanDuplicationOfField773ByTitle(MARC::Record * const record) {
+    std::vector<std::string> titles;
+    const ControlNumberGuesser control_number_guesser;
+    for (auto field(record->begin()); field != record->end(); ++field) {
+        if (field->getTag() == "773") {
+            const std::string title(control_number_guesser.NormaliseTitle(field->getFirstSubfieldWithCode('t')));
+            if ((std::find(titles.begin(), titles.end(), title)) != titles.end())
+                record->erase(field);
+            else {
+                titles.emplace_back(title);
+                field->getSubfields().replaceFirstSubfield('t', title);
+            }
         }
     }
 }
@@ -476,7 +493,8 @@ void ISSNLookup(char **argv, std::vector<CacheEntry> &journal_cache, std::vector
                 }
             }
         }
-        CleanDuplicationOfField773(&record);
+        CleanDuplicationOfField773ByISSN(&record);
+        CleanDuplicationOfField773ByTitle(&record);
         output_file->write(record);
     }
 }
