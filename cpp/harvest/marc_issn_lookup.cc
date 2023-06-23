@@ -167,6 +167,8 @@ void ShowInfoForDebugging(const std::vector<CacheEntry> &journal_cache, const st
         std::cout << "******** Start of PPN used issn data from K10Plus ***********" << std::endl;
         for (const auto &pu : debug_info.ppns_use_k10_)
             std::cout << "PPN: " << pu.first << ", ISSN: " << pu.second << std::endl;
+
+        std::cout << "Total: " << debug_info.ppns_use_k10_.size() << std::endl;
         std::cout << "******** End of PPN used issn data from K10Plus ***********\n\n";
     }
 
@@ -175,6 +177,8 @@ void ShowInfoForDebugging(const std::vector<CacheEntry> &journal_cache, const st
                   << std::endl;
         for (const auto &pnr : debug_info.ppns_with_issn_in_k10_but_invalid_)
             std::cout << "PPN: " << pnr.first << ", ISSN: " << pnr.second << std::endl;
+
+        std::cout << "Total: " << debug_info.ppns_with_issn_in_k10_but_invalid_.size() << std::endl;
         std::cout << "******** End of PPN with ISSN found in k10plus but invalid and took information from issn.org ***********\n\n";
     }
 
@@ -182,6 +186,8 @@ void ShowInfoForDebugging(const std::vector<CacheEntry> &journal_cache, const st
         std::cout << "******** Start of PPN used issn data from issn.org ***********" << std::endl;
         for (const auto &pu : debug_info.ppns_use_issn_org_)
             std::cout << "PPN: " << pu.first << ", ISSN: " << pu.second << std::endl;
+
+        std::cout << "Total: " << debug_info.ppns_use_issn_org_.size() << std::endl;
         std::cout << "******** End of PPN used issn data from issn.org ***********\n\n";
     }
 
@@ -191,6 +197,8 @@ void ShowInfoForDebugging(const std::vector<CacheEntry> &journal_cache, const st
                   << std::endl;
         for (const auto &pnr : debug_info.ppns_with_issn_not_recognized_)
             std::cout << "PPN: " << pnr.first << ", ISSN: " << pnr.second << std::endl;
+
+        std::cout << "Total: " << debug_info.ppns_with_issn_not_recognized_.size() << std::endl;
         std::cout << "******** End of PPN with ISSN has not found or invalid in k10plus, and not found in issn.org or timeout while "
                      "downloading  ***********\n\n";
     }
@@ -201,6 +209,8 @@ void ShowInfoForDebugging(const std::vector<CacheEntry> &journal_cache, const st
                   << std::endl;
         for (const auto &isf : debug_info.issns_not_found_)
             std::cout << "ISSN: " << isf << std::endl;
+
+        std::cout << "Total: " << debug_info.issns_not_found_.size() << std::endl;
         std::cout << "******** End of ISSN has not found or invalid in k10plus, and not found in issn.org or timeout while downloading "
                      "***********\n\n";
     }
@@ -244,15 +254,14 @@ void UpdateSubfieldUsingK10(MARC::Subfields &subfields, const CacheEntry &cache_
             subfields.addSubfield('t', cache_entry.preferred_title_);
 }
 
-void UpdateSubfieldUsingISSNOrg(MARC::Subfields &subfields, const IssnLookup::ISSNInfo issn_info, const bool &is_in_k10plus_but_invalid) {
-    if (!is_in_k10plus_but_invalid) {
+void UpdateSubfieldUsingISSNOrg(MARC::Subfields &subfields, const IssnLookup::ISSNInfo issn_info) {
+    if (not issn_info.main_titles_.empty()) {
+        if (!subfields.replaceFirstSubfield('t', issn_info.main_titles_.front()))
+            subfields.addSubfield('t', issn_info.main_titles_.front());
+
         if (!subfields.replaceFirstSubfield('i', "In:"))
             subfields.addSubfield('i', "In:");
     }
-
-    if (not issn_info.main_titles_.empty())
-        if (!subfields.replaceFirstSubfield('t', issn_info.main_titles_.front()))
-            subfields.addSubfield('t', issn_info.main_titles_.front());
 }
 
 void UpdateCacheEntry(CacheEntry &ce, const CacheEntry &new_ce, const bool is_online) {
@@ -435,7 +444,7 @@ void ISSNLookup(char **argv, std::vector<CacheEntry> &journal_cache, std::vector
                             IssnLookup::ISSNInfo issn_info;
                             if (IsInISSNInfoCache(issn, *issn_org_cache, &issn_info)) {
                                 // issn is in the issn info cache already
-                                UpdateSubfieldUsingISSNOrg(subfields, issn_info, is_in_k10plus_but_invalid);
+                                UpdateSubfieldUsingISSNOrg(subfields, issn_info);
                                 field.setSubfields(subfields);
                                 if (debug_mode) {
                                     (is_in_k10plus_but_invalid
@@ -446,7 +455,7 @@ void ISSNLookup(char **argv, std::vector<CacheEntry> &journal_cache, std::vector
                             } else {
                                 if (IssnLookup::GetISSNInfo(issn, &issn_info)) {
                                     issn_org_cache->emplace_back(issn_info);
-                                    UpdateSubfieldUsingISSNOrg(subfields, issn_info, is_in_k10plus_but_invalid);
+                                    UpdateSubfieldUsingISSNOrg(subfields, issn_info);
                                     field.setSubfields(subfields);
                                     if (debug_mode) {
                                         (is_in_k10plus_but_invalid
