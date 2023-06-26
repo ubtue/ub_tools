@@ -5,7 +5,7 @@
  */
 
 /*
-    Copyright (C) 2018-2020 Library of the University of Tübingen
+    Copyright (C) 2018-2023 Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -147,6 +147,19 @@ void AugmentKeywords(MARC::Record * const record, MARC::Reader * const authority
     }
 }
 
+// Despite the special handling of "Werktitel" we still have inconsistenties and side effect because
+// for specific cases $a and $t have identical content - remove $t entirely in this cases
+void DeduplicateIdenticalAAndTSubfieldsInStandardizedKeywords(MARC::Record * const record, bool * const modified_record) {
+    for (auto &field : record->getTagRange("689")) {
+        auto _689_subfields(field.getSubfields());
+        const std::string subfieldAContent(_689_subfields.getFirstSubfieldWithCode('a'));
+        if (not subfieldAContent.empty() and _689_subfields.hasSubfield('t')) {
+            _689_subfields.deleteAllSubfieldsWithCodeMatching('t', ThreadSafeRegexMatcher(RegexMatcher::Escape(subfieldAContent)));
+            *modified_record = true;
+        }
+    }
+}
+
 
 void AugmentKeywordsAndAuthors(MARC::Reader * const marc_reader, MARC::Reader * const authority_reader, MARC::Writer * const marc_writer,
                                const std::unordered_map<std::string, off_t> &authority_offsets) {
@@ -166,6 +179,7 @@ void AugmentKeywordsAndAuthors(MARC::Reader * const marc_reader, MARC::Reader * 
         bool modified_record(false);
         AugmentAuthors(&record, authority_reader, authority_offsets, matcher, &modified_record);
         AugmentKeywords(&record, authority_reader, authority_offsets, matcher, &modified_record);
+        DeduplicateIdenticalAAndTSubfieldsInStandardizedKeywords(&record, &modified_record);
         if (modified_record)
             ++modified_count;
         marc_writer->write(record);
