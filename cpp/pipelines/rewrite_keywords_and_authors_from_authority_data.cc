@@ -155,6 +155,7 @@ void DeduplicateIdenticalAAndTSubfieldsInStandardizedKeywords(MARC::Record * con
         const std::string subfieldAContent(_689_subfields.getFirstSubfieldWithCode('a'));
         if (not subfieldAContent.empty() and _689_subfields.hasSubfield('t')) {
             _689_subfields.deleteAllSubfieldsWithCodeMatching('t', ThreadSafeRegexMatcher(RegexMatcher::Escape(subfieldAContent)));
+            field.setSubfields(_689_subfields);
             *modified_record = true;
         }
     }
