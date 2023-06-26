@@ -52,29 +52,26 @@ struct DebugInfo {
 
 struct TitleInfo773 {
     std::string title_, subfield_w_;
-    char ind1_, ind2_;
 
     TitleInfo773() = default;
 
-    bool IsEqual(const TitleInfo773 &ti) const {
-        if ((title_ == ti.title_) && (ind1_ == ti.ind1_) && (ind2_ == ti.ind2_) && (subfield_w_ == ti.subfield_w_))
-            return true;
-
-        return false;
-    }
-
-    bool CompareButIgnoreW(const TitleInfo773 &ti) const {
-        if ((title_ == ti.title_) && (ind1_ == ti.ind1_) && (ind2_ == ti.ind2_))
-            return true;
-
-        return false;
-    }
-
-    void Update(const MARC::Record::Field &field) {
+    TitleInfo773(const MARC::Record::Field &field) {
         title_ = ControlNumberGuesser::NormaliseTitle(field.getFirstSubfieldWithCode('t'));
         subfield_w_ = field.getFirstSubfieldWithCode('w');
-        ind1_ = field.getIndicator1();
-        ind2_ = field.getIndicator2();
+    }
+
+    bool IsEqual(const TitleInfo773 &ti) const {
+        if ((title_ == ti.title_) && (subfield_w_ == ti.subfield_w_))
+            return true;
+
+        return false;
+    }
+
+    bool IsEqualWithoutW(const TitleInfo773 &ti) const {
+        if ((title_ == ti.title_))
+            return true;
+
+        return false;
     }
 };
 
@@ -84,7 +81,7 @@ bool IsInTitleInfo773Cache(const std::vector<TitleInfo773> &title_info_cache, co
             if (ti.IsEqual(title_info))
                 return true;
         } else {
-            if (ti.CompareButIgnoreW(title_info))
+            if (ti.IsEqualWithoutW(title_info))
                 return true;
         }
     }
@@ -439,20 +436,21 @@ void CleanDuplicationOfField773ByISSN(MARC::Record * const record) {
 void CleanDuplicationOfField773ByTitle(MARC::Record * const record, std::vector<TitleInfo773> * const found_title_info_cache) {
     for (auto field(record->begin()); field != record->end(); ++field) {
         if (field->getTag() == "773") {
-            TitleInfo773 ti;
-            ti.Update(*field);
-            if (not ti.subfield_w_.empty()) {
-                if (IsInTitleInfo773Cache(*found_title_info_cache, ti, false))
-                    record->erase(field);
-                else {
-                    field->getSubfields().replaceFirstSubfield('t', ti.title_);
-                    found_title_info_cache->emplace_back(ti);
+            if (field->getIndicator1() == '0' && field->getIndicator2() == '8') {
+                TitleInfo773 ti(*field);
+                if (not ti.subfield_w_.empty()) {
+                    if (IsInTitleInfo773Cache(*found_title_info_cache, ti, false))
+                        record->erase(field);
+                    else {
+                        field->getSubfields().replaceFirstSubfield('t', ti.title_);
+                        found_title_info_cache->emplace_back(ti);
+                    }
+                } else {
+                    if (IsInTitleInfo773Cache(*found_title_info_cache, ti, true))
+                        record->erase(field);
+                    else
+                        field->getSubfields().replaceFirstSubfield('t', ti.title_);
                 }
-            } else {
-                if (IsInTitleInfo773Cache(*found_title_info_cache, ti, true))
-                    record->erase(field);
-                else
-                    field->getSubfields().replaceFirstSubfield('t', ti.title_);
             }
         }
     }
@@ -463,18 +461,19 @@ void CleanDuplicationOfField773ByTitleSecondPass(MARC::Record * const record, co
 
     for (auto field(record->begin()); field != record->end(); ++field) {
         if (field->getTag() == "773") {
-            TitleInfo773 ti;
-            ti.Update(*field);
-            if (not ti.subfield_w_.empty()) {
-                if (IsInTitleInfo773Cache(found_title_info_cache, ti, false)) {
-                    if (found_counter[ti.title_] > 0)
+            if (field->getIndicator1() == '0' && field->getIndicator2() == '8') {
+                TitleInfo773 ti(*field);
+                if (not ti.subfield_w_.empty()) {
+                    if (IsInTitleInfo773Cache(found_title_info_cache, ti, false)) {
+                        if (found_counter[ti.title_] > 0)
+                            record->erase(field);
+                        else
+                            found_counter[ti.title_]++;
+                    }
+                } else {
+                    if (IsInTitleInfo773Cache(found_title_info_cache, ti, true))
                         record->erase(field);
-                    else
-                        found_counter[ti.title_]++;
                 }
-            } else {
-                if (IsInTitleInfo773Cache(found_title_info_cache, ti, true))
-                    record->erase(field);
             }
         }
     }
