@@ -8,7 +8,6 @@ import org.apache.lucene.index.LeafReaderContext;
 import de.uni_tuebingen.ub.ixTheo.rangeSearch.Range;
 import de.uni_tuebingen.ub.ixTheo.rangeSearch.RangeWeight;
 
-
 public class BibleRangeWeight extends RangeWeight {
     private final boolean isSearchingForBooks;
 
@@ -43,6 +42,6 @@ public class BibleRangeWeight extends RangeWeight {
     // for now it is just use for compatibility
     @Override
     public Explanation explain(LeafReaderContext context, int doc) throws IOException {
-        return explain(context, doc);
+        return explain(context.reader().document(doc));
     }
 }

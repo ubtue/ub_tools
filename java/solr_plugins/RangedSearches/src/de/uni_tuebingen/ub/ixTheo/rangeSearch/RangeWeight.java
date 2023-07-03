@@ -1,6 +1,5 @@
 package de.uni_tuebingen.ub.ixTheo.rangeSearch;
 
-
 import java.beans.Expression;
 import java.io.IOException;
 import java.util.Set;
@@ -10,7 +9,6 @@ import org.apache.lucene.index.Term;
 import org.apache.lucene.search.Explanation;
 import org.apache.lucene.search.Scorer;
 import org.apache.lucene.search.Weight;
-
 
 public abstract class RangeWeight extends Weight {
     protected final static float NOT_RELEVANT = Float.NEGATIVE_INFINITY;
@@ -23,8 +21,10 @@ public abstract class RangeWeight extends Weight {
         this.weight = weight;
     }
 
-    // This needs to be a function, since we cannot override class variables in Java subclasses, only methods.
+    // This needs to be a function, since we cannot override class variables in Java
+    // subclasses, only methods.
     abstract protected String getRangeFieldName();
+
     abstract protected Range[] getRangesFromDatabaseField(final String dbField);
 
     protected boolean matches(final Document document) {
@@ -42,8 +42,10 @@ public abstract class RangeWeight extends Weight {
         return Range.getMatchingScore(field_ranges, ranges);
     }
 
-    // This is just a dummy implementation, override in subclass to get more detailed explanations.
-    // Add "debug=true" to a solr query to see the explanations in the response's debug section.
+    // This is just a dummy implementation, override in subclass to get more
+    // detailed explanations.
+    // Add "debug=true" to a solr query to see the explanations in the response's
+    // debug section.
     protected Explanation explain(final Document document) {
         if (matches(document)) {
             return Explanation.match(customScore(document), "match");
@@ -52,16 +54,11 @@ public abstract class RangeWeight extends Weight {
         }
     }
 
-//    @Override
-//    public Explanation explain(LeafReaderContext context, int documentId) throws IOException {
-//        return explain(context.reader().document(documentId));
-//    }
-
-//    @Override
-//    @Deprecated
-//    public void extractTerms(Set<Term> terms) {
-//        // This is just a dummy, the function is deprecated (but mandatory) in Solr 8.
-//    }
+    // this is a mandatory function to implement
+    @Override
+    public Explanation explain(LeafReaderContext context, int doc) throws IOException {
+        return explain(context.reader().document(doc));
+    }
 
     @Override
     public final RangeScorer scorer(LeafReaderContext context) throws IOException {
@@ -78,14 +75,6 @@ public abstract class RangeWeight extends Weight {
     @Override
     public final boolean isCacheable(LeafReaderContext context) {
         return false;
-    }
-
-   // for now it is just use for compatibility
-    @Override
-    public Explanation explain(LeafReaderContext context, int doc) throws IOException {
-        // try to find another solution, this is just an example but it will go to infinite loop in some cases. 
-        // return new Explanation(context, doc);
-        return explain(context, doc);
     }
 
 }

@@ -19,16 +19,19 @@ public class RangeQuery extends org.apache.lucene.search.Query {
 	}
 
 	@Override
-    public Weight createWeight(final IndexSearcher searcher, final ScoreMode scoreMode, final float boost) throws IOException {
+	public Weight createWeight(final IndexSearcher searcher, final ScoreMode scoreMode, final float boost)
+			throws IOException {
 		// query rewriting is necessary before createWeight delivers any usable result.
-        // rewrite needs to be called multiple times, until the derived Query class no longer changes.
-        // see https://issues.apache.org/jira/browse/LUCENE-6785?jql=text%20~%20%22createWeight%22
+		// rewrite needs to be called multiple times, until the derived Query class no
+		// longer changes.
+		// see
+		// https://issues.apache.org/jira/browse/LUCENE-6785?jql=text%20~%20%22createWeight%22
 		Query rewrite_query = RangeQuery.this.query;
 		Query rewritten_query = rewrite_query;
 		do {
 			rewrite_query = rewritten_query;
 			rewritten_query = rewrite_query.rewrite(searcher.getIndexReader());
-        } while(rewrite_query.getClass() != rewritten_query.getClass());
+		} while (rewrite_query.getClass() != rewritten_query.getClass());
 
 		return rewritten_query.createWeight(searcher, scoreMode, boost);
 	}
@@ -38,7 +41,8 @@ public class RangeQuery extends org.apache.lucene.search.Query {
 		return query.toString(default_field);
 	}
 
-    // The standard toString() in the parent class is final so we needed to give this a different name.
+	// The standard toString() in the parent class is final so we needed to give
+	// this a different name.
 	public String asString() {
 		return "RangeQuery(Query:" + query.toString() + ", Ranges:" + Range.toString(ranges) + ")";
 	}
@@ -48,7 +52,7 @@ public class RangeQuery extends org.apache.lucene.search.Query {
 		if (!(obj instanceof RangeQuery))
 			return false;
 
-        final RangeQuery otherQuery = (RangeQuery)obj;
+		final RangeQuery otherQuery = (RangeQuery) obj;
 		if (otherQuery.ranges.length != ranges.length)
 			return false;
 
@@ -68,8 +72,10 @@ public class RangeQuery extends org.apache.lucene.search.Query {
 		return combinedHashCode;
 	}
 
-	// Compatibility reason 
-	@Override
-	public void visit​(QueryVisitor visitor){}
-	
+	// Compatibility reason
+	// @Override
+	public void visit​(QueryVisitor visitor) {
+		visitor.visitLeaf(this.query);
+	}
+
 }
