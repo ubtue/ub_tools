@@ -15,13 +15,16 @@
 #include "VuFind.h"
 #include "util.h"
 
-using namespace std;
+
+namespace {
+
 
 const std::string DSPACE_SERVER_URL("https://publikationen.uni-tuebingen.de/rest/items/");
 const std::string DOI_KEY("dc.relation.uri");
 const std::string PUBLIKATION_TITLE_KEY("dc.title");
 const std::string DOI_URL_FORMAT("http://dx.doi.org/");
 const std::vector<std::string> NOTIFICATION_EMAIL_ADRESSES = { "andrii.lysohor@uni-tuebingen.de" };
+
 
 void SendNotificationsForDOI(const std::string &email_subject, const std::string &email_message) {
     if (EmailSender::SimplerSendEmail("no-reply@ub.uni-tuebingen.de", NOTIFICATION_EMAIL_ADRESSES, email_subject, email_message,
@@ -30,10 +33,12 @@ void SendNotificationsForDOI(const std::string &email_subject, const std::string
         LOG_ERROR("Failed to send the DOI notification email!");
 }
 
+
 void UpdateItem(DbConnection * const &db_writer, const std::string &doi, const std::string &publication_id) {
     db_writer->queryOrDie("UPDATE tuefind_publications SET doi = " + db_writer->escapeAndQuoteString(doi)
                           + ", doi_notification = NOW() WHERE id= " + db_writer->escapeAndQuoteString(publication_id));
 }
+
 
 std::string ParseDataFromXML(std::shared_ptr<const JSON::ArrayNode> top_node_array, const std::string &field) {
     std::string results;
@@ -47,9 +52,11 @@ std::string ParseDataFromXML(std::shared_ptr<const JSON::ArrayNode> top_node_arr
     return results;
 }
 
+
 std::string do_replace(const std::string &in, const std::string &from, const std::string &to) {
     return std::regex_replace(in, std::regex(from), to);
 }
+
 
 std::string GetClearDOI(const std::string &doi_link) {
     size_t substring_length = doi_link.find(DOI_URL_FORMAT);
@@ -59,6 +66,7 @@ std::string GetClearDOI(const std::string &doi_link) {
         return do_replace(doi_link, DOI_URL_FORMAT, "");
     }
 }
+
 
 bool DownloadAndUpdate(DbConnection * const &db_writer, const std::string &external_document_id, const std::string &publication_id) {
     const std::string DOWNLOAD_URL(DSPACE_SERVER_URL + external_document_id + "/metadata");
@@ -98,6 +106,10 @@ bool DownloadAndUpdate(DbConnection * const &db_writer, const std::string &exter
 
     return true;
 }
+
+
+} // unnamed namespace
+
 
 int main() {
     if (not VuFind::GetTueFindFlavour().empty()) {
