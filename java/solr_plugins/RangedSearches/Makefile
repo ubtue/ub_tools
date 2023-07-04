@@ -24,10 +24,7 @@ $(JAR_FILE): src/de/uni_tuebingen/ub/ixTheo/*/*.java Makefile
 	    -C bin de/uni_tuebingen/ub/ixTheo/rangeSearch \
 	    -C bin de/uni_tuebingen/ub/ixTheo/bibleRangeSearch \
 	    -C bin de/uni_tuebingen/ub/ixTheo/canonesRangeSearch \
-	    -C bin de/uni_tuebingen/ub/ixTheo/timeAspectRangeSearch \
-	    -C bin de/uni_tuebingen/ub/ixTheo/bibleDateRangeSearch \
-	    -C bin de/uni_tuebingen/ub/ixTheo/canonesDateRangeSearch \
-	    -C bin de/uni_tuebingen/ub/ixTheo/timeAspectDateRangeSearch
+	    -C bin de/uni_tuebingen/ub/ixTheo/timeAspectRangeSearch
 
 install: $(JAR_FILE)
 	cp -f $(JAR_FILE) /usr/local/vufind/solr/vufind/jars/

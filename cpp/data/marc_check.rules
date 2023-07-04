@@ -6,4 +6,4 @@
 # Here "ii" represent the indicators.  A hash sign is used as the wildcard symbol for the indicators.
 #
 first_subfield_match ## 1004 arc|aut|sci|art|char|dsr|aus|inv|fmk|pht|cre|ivr|ive|cll|ctg|cmp|art|lsa|lbt|enj|pra|prg|cre|rsp|lyr|aut|com|dfd|apl|ape|jug|jud|ptf|oth
-first_subfield_match uw 936j \\d{4}
+first_subfield_match uw 936j [0-9X]{4}

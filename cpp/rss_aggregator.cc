@@ -322,6 +322,7 @@ int Main(int argc, char *argv[]) {
             Usage();
         --argc, ++argv;
         params.proxy_host_and_port_ = UBTools::GetUBWebProxyURL();
+        params.ignore_ssl_certificates_ = true;
     }
     Downloader downloader(params);
 

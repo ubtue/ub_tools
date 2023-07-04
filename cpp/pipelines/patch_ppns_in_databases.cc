@@ -246,6 +246,7 @@ void ProcessAllDatabases(DbConnection * const db_connection, const SetOrMap &set
     table_func(db_connection, "vufind.resource", "record_id", set_or_map, report_only);
     table_func(db_connection, "vufind.record", "record_id", set_or_map, report_only);
     table_func(db_connection, "vufind.change_tracker", "id", set_or_map, report_only);
+    table_func(db_connection, "vufind.tuefind_publications", "control_number", set_or_map, report_only);
     if (VuFind::GetTueFindFlavour() == "ixtheo") {
         table_func(db_connection, "ixtheo.keyword_translations", "ppn", set_or_map, report_only);
         table_func(db_connection, "vufind.ixtheo_journal_subscriptions", "journal_control_number_or_bundle_name", set_or_map, report_only);

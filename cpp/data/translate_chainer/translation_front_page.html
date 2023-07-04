@@ -173,10 +173,7 @@
             return;
 
         $(object).attr("translation", translation);
-        // For VuFind we can take a straightforward approach
-        // For Keywords there are possibly unreliable translations from the MACS project thus
-        // we have to insert a new translation even if there is already one present in the cell
-        var action = ((category == "vufind_translations" && !IsEmpty(old_translation)) || translator_exists) ? "update" : "insert"
+        var action = (!IsEmpty(old_translation)) ? "update" : "insert"
         $.ajax({{
             type: "PUT",
             url: "translator_ajax",
@@ -283,7 +280,7 @@
 
                 <header class="p-3 mb-3 border-bottom">
                     <div class="row justify-content-center">
-                        <h1 class="mb-3"><a href="/cgi-bin/translator">IxTheo Translation Tool</a></h1>
+                        <h1 class="mb-3"><a href="/cgi-bin/translator">TueFind Translation Tool</a></h1>
                         <div class="col-4">
                             <form action="/cgi-bin/translator" method="POST" class="">
                                 <div class="input-group mb-3">
