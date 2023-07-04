@@ -200,10 +200,37 @@ std::string GenerateLanguageCodeWhereClause(
 static unsigned no_gnd_code_count;
 
 
-bool ExtractTranslationsForASingleRecord(const MARC::Record * const record) {
+std::string GetPseudoGNDSigil(const IniFile &ini_file) {
+    static std::string pseudo_gnd_sigil(ini_file.getString("Configuration", "pseudo_gnd_sigil"));
+    return pseudo_gnd_sigil;
+}
+
+
+bool HasPseudoGNDCode(const MARC::Record &record, const IniFile &ini_file, std::string * const pseudo_gnd_code) {
+    const std::string pseudo_gnd_sigil(GetPseudoGNDSigil(ini_file));
+    pseudo_gnd_code->clear();
+    for (const auto &_035_field : record.getTagRange("035")) {
+        const MARC::Subfields _035_subfields(_035_field.getSubfields());
+        const std::string _035a_field(_035_subfields.getFirstSubfieldWithCode('a'));
+        if (StringUtil::StartsWith(_035a_field, pseudo_gnd_sigil)) {
+            *pseudo_gnd_code = _035a_field.substr(pseudo_gnd_sigil.length());
+            return not pseudo_gnd_code->empty();
+        }
+    }
+    return false;
+}
+
+
+std::string IsPriorityEntry(const MARC::Record &record) {
+    return record.hasTag("PRI") ? "true" : "false";
+}
+
+
+bool ExtractTranslationsForASingleRecord(const MARC::Record * const record, const IniFile &ini_file) {
     // Skip records that are not GND records:
     std::string gnd_code;
-    if (not MARC::GetGNDCode(*record, &gnd_code))
+    std::string pseudo_gnd_code;
+    if (not MARC::GetGNDCode(*record, &gnd_code) and not HasPseudoGNDCode(*record, ini_file, &pseudo_gnd_code))
         return true;
 
     // Extract all synonyms and translations:
@@ -235,10 +262,9 @@ bool ExtractTranslationsForASingleRecord(const MARC::Record * const record) {
         gnd_systems.insert(gnd_systems.begin(), _065a_subfields.begin(), _065a_subfields.end());
     }
     std::string gnd_system(StringUtil::Join(gnd_systems, ","));
-
     const std::string INSERT_STATEMENT_START(
         "INSERT IGNORE INTO keyword_translations (ppn,gnd_code,language_code,"
-        "translation,status,origin,gnd_system,german_updated) VALUES ");
+        "translation,status,origin,gnd_system,german_updated, priority_entry) VALUES ");
     std::string insert_statement(INSERT_STATEMENT_START);
 
     size_t row_counter(0);
@@ -264,7 +290,8 @@ bool ExtractTranslationsForASingleRecord(const MARC::Record * const record) {
         }
 
         insert_statement += "('" + ppn + "', '" + gnd_code + "', '" + language_code + "', '" + translation + "', '" + status + "', '"
-                            + origin + "', '" + gnd_system + "', " + (updated_german ? "true" : "false") + "), ";
+                            + origin + "', '" + gnd_system + "', " + (updated_german ? "true" : "false") + ", " + IsPriorityEntry(*record)
+                            + "), ";
         if (++row_counter > MAX_ROW_COUNT) {
             FlushToDatabase(insert_statement);
             insert_statement = INSERT_STATEMENT_START;
@@ -278,9 +305,9 @@ bool ExtractTranslationsForASingleRecord(const MARC::Record * const record) {
 }
 
 
-void ExtractTranslationsForAllRecords(MARC::Reader * const authority_reader) {
+void ExtractTranslationsForAllRecords(MARC::Reader * const authority_reader, const IniFile &ini_file) {
     while (const MARC::Record record = authority_reader->read()) {
-        if (not ExtractTranslationsForASingleRecord(&record))
+        if (not ExtractTranslationsForASingleRecord(&record, ini_file))
             LOG_ERROR("error while extracting translations from \"" + authority_reader->getPath() + "\"");
     }
     std::cerr << "Added " << keyword_count << " keywords to the translation database.\n";
@@ -305,7 +332,7 @@ int Main(int argc, char **argv) {
         DbConnection db_connection(DbConnection::MySQLFactory(sql_database, sql_username, sql_password));
         shared_connection = &db_connection;
 
-        ExtractTranslationsForAllRecords(authority_marc_reader.get());
+        ExtractTranslationsForAllRecords(authority_marc_reader.get(), ini_file);
     } catch (const std::exception &x) {
         LOG_ERROR("caught exception: " + std::string(x.what()));
     }

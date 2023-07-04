@@ -1827,6 +1827,7 @@
 	<xsl:template match="mods:identifier[@type='doi'] | mods:identifier[@type='hdl'] ">
 		<xsl:call-template name="datafield">
 			<xsl:with-param name="tag">024</xsl:with-param>
+            <xsl:with-param name="ind1">7</xsl:with-param>
 			<xsl:with-param name="subfields">
 				<marc:subfield code="a">
 					<xsl:value-of select="."/>

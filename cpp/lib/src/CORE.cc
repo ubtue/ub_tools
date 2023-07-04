@@ -162,6 +162,8 @@ std::set<unsigned long> Work::getDataProviderIds() const {
 
     return ids;
 }
+
+
 std::vector<nlohmann::json> Work::getDataProviders() const {
     std::vector<nlohmann::json> new_data_providers;
     const auto data_providers(json_["dataProviders"]);
@@ -206,6 +208,11 @@ void Work::removeDataProviders(const std::set<unsigned long> &data_provider_ids_
         }
     }
     setDataProviders(new_data_providers);
+}
+
+
+std::string Work::getDOI() const {
+    return getStringOrDefault("doi");
 }
 
 
@@ -603,6 +610,55 @@ void OutputFileAppend(const std::string &path, const Entity &entity, const bool 
 
 void OutputFileEnd(const std::string &path) {
     FileUtil::AppendStringOrDie(path, "\n]");
+}
+
+
+std::string DecodeFaultyEntityByNumber(const std::string &sequence) {
+    // see also: https://www.fileformat.info/info/unicode/char/27/index.htm
+    // - example: "\u27" => "'"
+    // - example: "\u3c" => "<"
+    // - example: "\u3e" => ">"
+    // these are the most frequent occurrences.
+    // we cannot simply replace all, because we might have counter-examples
+    // for specific data providers like e.g.
+    // "sub\\urban" which must not be replaced.
+    // Also there is not safe way for detecting the length of longer sequences
+    // e.g. with 4 characters instead of 2.
+    const static std::unordered_set<std::string> decodable_entities({ "27", "3c", "3e" });
+
+    const std::string full_sequence("\\u" + sequence);
+    if (decodable_entities.find(sequence) == decodable_entities.end()) {
+        LOG_WARNING("skipping decoding of entity \"" + full_sequence + "\"!");
+        return full_sequence;
+    }
+
+    unsigned byte;
+    if (not StringUtil::ToNumber(sequence, &byte, 16))
+        LOG_ERROR("error decoding entity \"" + full_sequence + "\"!");
+
+    const char decoded(static_cast<char>(byte));
+    std::string result;
+    return result + decoded;
+}
+
+
+std::string ReplaceFaultyEntities(const std::string &s) {
+    std::string unescaped_string;
+    for (auto ch(s.cbegin()); ch != s.cend(); ++ch) {
+        // Example: "\u23", "u3c", "u3e"
+        if (*ch == '\\' and ((ch + 3) < s.cend()) and *(ch + 1) == 'u') {
+            std::string sequence;
+            sequence += *(ch + 2);
+            sequence += *(ch + 3);
+
+            unescaped_string += DecodeFaultyEntityByNumber(sequence);
+
+            ch += 3;
+        } else
+            unescaped_string += *ch;
+    }
+
+    return unescaped_string;
 }
 
 

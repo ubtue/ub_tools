@@ -172,12 +172,28 @@ EndPhase || Abort) &
 wait
 
 
+StartPhase "Add Wikidata IDs to Authority Data"
+(add_authority_external_ref Normdaten-partially-augmented2-"${date}".mrc \
+                            Normdaten-partially-augmented3-"${date}".mrc \
+                            /usr/local/var/lib/tuelib/gnd_to_wiki.csv >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+wait
+
+
 StartPhase "Appending Literary Remains Records"
 (create_literary_remains_records --no-subsystems \
-                                 GesamtTiteldaten-post-phase"$((PHASE-2))"-"${date}".mrc \
+                                 GesamtTiteldaten-post-phase"$((PHASE-3))"-"${date}".mrc \
                                  GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
-                                 Normdaten-partially-augmented2-"${date}".mrc \
+                                 Normdaten-partially-augmented3-"${date}".mrc \
                                  Normdaten-fully-augmented-"${date}".mrc >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+wait
+
+
+StartPhase "Augment Time Aspect References"
+(augment_time_aspects GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+                      Normdaten-fully-augmented-"${date}".mrc \
+                      GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
 

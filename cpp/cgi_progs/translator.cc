@@ -169,24 +169,35 @@ std::string ReplaceAngleBracketsByOrdinaryBrackets(const std::string &value) {
     return StringUtil::Map(value, "<>", "()");
 }
 
+std::string GetSearchBaseLink(const bool use_subject_link) {
+    return use_subject_link ? "/Search/Results?type=Subject&lookfor=" : "/Keywordchainsearch/Results?lookfor=";
+}
 
-std::string CreateNonEditableHintEntry(const std::string &value, const std::string gnd_code,
+std::string GetGNDLink(const std::string &gnd_code) {
+    if (gnd_code == "0")
+        return "";
+
+    return "<a href=\"http://d-nb.info/gnd/" + HtmlUtil::HtmlEscape(gnd_code) + "\""
+          " style=\"float:right\" target=\"_blank\">GND</a>";
+}
+
+std::string CreateNonEditableHintEntry(const std::string &value, const std::string gnd_code, const bool use_subject_link = false,
                                        const std::string background_color = "lightgrey") {
-    return "<td style=\"background-color:" + background_color + "\"><a href = \"/Keywordchainsearch/Results?lookfor=" +
-           HtmlUtil::HtmlEscape(ReplaceAngleBracketsByOrdinaryBrackets(value)) +
-           "\" target=\"_blank\">" + HtmlUtil::HtmlEscape(value) + "</a>"
-           "<a href=\"http://d-nb.info/gnd/" + HtmlUtil::HtmlEscape(gnd_code) + "\""
-           " style=\"float:right\" target=\"_blank\">GND</a></td>";
+    return "<td style=\"background-color:" + background_color + "\"><a href = \"" + GetSearchBaseLink(use_subject_link)
+           + UrlUtil::UrlEncode(HtmlUtil::HtmlEscape(ReplaceAngleBracketsByOrdinaryBrackets(value))) + "\" target=\"_blank\">"
+           + HtmlUtil::HtmlEscape(value) + "</a>" + GetGNDLink(gnd_code) + "</td>";
 }
 
 
-std::string CreateNonEditableUpdateHintEntry(const std::string &value, const std::string gnd_code) {
-    return CreateNonEditableHintEntry(value, gnd_code, "lime");
+std::string CreateNonEditableHighlightHintEntry(const std::string &value, const std::string gnd_code, const bool use_subject_link) {
+    return CreateNonEditableHintEntry(value, gnd_code, use_subject_link, "lime");
 }
 
 
 void GetSynonymsForGNDCode(DbConnection &db_connection, const std::string &gnd_code, std::vector<std::string> * const synonyms) {
     synonyms->clear();
+    if (gnd_code == "0")
+        return;
     const std::string synonym_query("SELECT translation FROM keyword_translations WHERE gnd_code='" + gnd_code
                                     + "' AND status='reliable_synonym' AND language_code='ger'");
     DbResultSet result_set(ExecSqlAndReturnResultsOrDie(synonym_query, &db_connection));
@@ -201,6 +212,8 @@ void GetSynonymsForGNDCode(DbConnection &db_connection, const std::string &gnd_c
 void GetMACSTranslationsForGNDCode(DbConnection &db_connection, const std::string &gnd_code,
                                    std::vector<std::string> * const translations) {
     translations->clear();
+    if (gnd_code == "0")
+        return;
     const std::string macs_query("SELECT translation FROM keyword_translations WHERE gnd_code='" + gnd_code + "' "
                                  "AND origin=750 AND status='unreliable'");
     DbResultSet result_set(ExecSqlAndReturnResultsOrDie(macs_query, &db_connection));
@@ -235,6 +248,11 @@ bool IsEmptyEntryWithoutTranslator(const std::string &entry) {
 
 bool IsMacsColumnVisible(const IniFile &ini_file) {
     return ini_file.getBool(CONFIGURATION_SECTION, "show_macs_col");
+}
+
+
+bool IsUseSubjectSearchLink(const IniFile &ini_file) {
+    return ini_file.getBool(CONFIGURATION_SECTION, "use_subject_search_link", false);
 }
 
 
@@ -439,7 +457,7 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
                                                   const std::vector<std::string> &translator_languages,
                                                   const std::vector<std::string> &additional_view_languages,
                                                   const bool use_untranslated_filter, const std::string &lang_untranslated,
-                                                  const bool show_macs_col) {
+                                                  const bool show_macs_col, const bool use_subject_link) {
     rows->clear();
 
     // For short strings make a prefix search, otherwise search substring
@@ -452,7 +470,7 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
 
     const std::string query(
         "WITH keywords_newest AS (SELECT * FROM keyword_translations WHERE next_version_id IS NULL) "
-        "SELECT l.ppn, l.translation, l.language_code, l.gnd_code, l.status, l.translator, l.german_updated "
+        "SELECT l.ppn, l.translation, l.language_code, l.gnd_code, l.status, l.translator, l.german_updated, l.priority_entry "
         "FROM keywords_newest AS k INNER JOIN keywords_newest AS l ON k.language_code='ger' AND "
         "k.status='reliable' AND k.ppn=l.ppn AND l.status!='reliable_synonym' AND l.status != "
         "'unreliable_synonym'"
@@ -467,7 +485,7 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
 
     const std::string create_result_with_limit(
         "SELECT ppn, translation, language_code, gnd_code, status, translator, "
-        "german_updated FROM keywords_ger_sorted AS v INNER JOIN sort_limit AS u USING "
+        "german_updated, priority_entry FROM keywords_ger_sorted AS v INNER JOIN sort_limit AS u USING "
         "(ppn)");
 
     DbResultSet result_set(ExecSqlAndReturnResultsOrDie(create_result_with_limit, &db_connection));
@@ -491,6 +509,7 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
         std::string translator(db_row["translator"]);
         std::string gnd_code(db_row["gnd_code"]);
         std::string german_updated(db_row["german_updated"]);
+        std::string priority_entry(db_row["priority_entry"]);
         if (current_ppn != ppn) {
             if (not current_ppn.empty())
                 rows->emplace_back(StringUtil::Join(row_values, ""));
@@ -532,8 +551,9 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
             // Since we are iteratring over a single column, make sure sure we select the correct translation (reliable or new)
             if (IsEmptyEntryWithoutTranslator(row_values[index]) or status == "new" or status == "reliable") {
                 if (language_code == "ger")
-                    row_values[index] = (german_updated == "1") ? CreateNonEditableUpdateHintEntry(translation, gnd_code)
-                                                                : CreateNonEditableHintEntry(translation, gnd_code);
+                    row_values[index] = (german_updated == "1" or priority_entry == "1")
+                                            ? CreateNonEditableHighlightHintEntry(translation, gnd_code, use_subject_link)
+                                            : CreateNonEditableHintEntry(translation, gnd_code, use_subject_link);
                 // 20220131: for community version changes in "final" translations shall be possible
                 else if (status == "reliable")
                     row_values[index] =
@@ -543,9 +563,15 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
                         CreateEditableRowEntry(current_ppn, translation, language_code, "keyword_translations", translator, gnd_code);
             }
         } else if (language_code == "ger") {
-            // Use a special display mode for values where the original german term changed
-            row_values[index] = (german_updated == "1") ? CreateNonEditableUpdateHintEntry(translation, gnd_code)
-                                                        : CreateNonEditableHintEntry(translation, gnd_code);
+            // Use a special display mode for values that must be highlighted
+            row_values[index] = (german_updated == "1" or priority_entry == "1")
+                                    ? CreateNonEditableHighlightHintEntry(translation, gnd_code, use_subject_link)
+                                    : CreateNonEditableHintEntry(translation, gnd_code, use_subject_link);
+        } else if (language_code == "eng") {
+            // Special case for colliding English unaltered MACS and Ixtheo translations from authortity data
+            if ((row_values[index] != CreateNonEditableRowEntry("")) and status == "unreliable")
+                continue;
+            row_values[index] = CreateNonEditableRowEntry(translation);
         } else
             row_values[index] = CreateNonEditableRowEntry(translation);
     }
@@ -657,7 +683,7 @@ bool GetNumberOfUntranslatedByLanguage(DbConnection &db_connection, enum Categor
 void ShowFrontPage(DbConnection &db_connection, const std::string &lookfor, const std::string &offset, const std::string &target,
                    const std::string translator, const std::vector<std::string> &translator_languages,
                    const std::vector<std::string> &additional_view_languages, const bool filter_untranslated,
-                   const std::string &lang_untranslated, const bool show_macs_col) {
+                   const std::string &lang_untranslated, const bool show_macs_col, const bool use_subject_link) {
     Template::Map names_to_values_map;
     std::vector<std::string> rows;
     std::string headline;
@@ -674,7 +700,8 @@ void ShowFrontPage(DbConnection &db_connection, const std::string &lookfor, cons
                                                     additional_view_languages, filter_untranslated, lang_untranslated);
     else if (target == "keywords")
         GetKeyWordTranslationsAsHTMLRowsFromDatabase(db_connection, lookfor, offset, &rows, &headline, translator_languages,
-                                                     additional_view_languages, filter_untranslated, lang_untranslated, show_macs_col);
+                                                     additional_view_languages, filter_untranslated, lang_untranslated, show_macs_col,
+                                                     use_subject_link);
     else
         ShowErrorPageAndDie("Error - Invalid Target", "No valid target selected");
 
@@ -776,7 +803,7 @@ bool AssembleMyTranslationsData(DbConnection &db_connection, const IniFile &ini_
     // Get Vufind Translations
     const std::string vufind_query(
         "SELECT token, translation, language_code, translator FROM vufind_translations "
-        "WHERE token IN (SELECT * FROM (SELECT token FROM vufind_translations WHERE "
+        "WHERE next_version_id IS NULL AND token IN (SELECT * FROM (SELECT token FROM vufind_translations WHERE "
         "translator='"
         + translator + "') as t) ORDER BY token, language_code;");
 
@@ -790,6 +817,7 @@ bool AssembleMyTranslationsData(DbConnection &db_connection, const IniFile &ini_
         "keyword_translations AS k INNER JOIN keyword_translations AS l ON "
         "k.language_code='ger' AND k.status='reliable' AND k.ppn=l.ppn AND "
         "l.status!='reliable_synonym' AND l.status != 'unreliable_synonym'"
+        " AND k.next_version_id IS NULL"
         " AND l.ppn IN (SELECT ppn from keyword_translations WHERE translator='"
         + translator + "') ORDER BY k.translation;");
 
@@ -870,6 +898,7 @@ int Main(int argc, char *argv[]) {
     }
 
     bool show_macs_col = IsMacsColumnVisible(ini_file);
+    bool use_subject_link = IsUseSubjectSearchLink(ini_file);
 
     // Read in the views for the respective users
     std::vector<std::string> translator_languages;
@@ -897,7 +926,7 @@ int Main(int argc, char *argv[]) {
     else if (save_action == "restore")
         RestoreUserState(db_connection, translator, translation_target, &lookfor, &offset, filter_untranslated);
     ShowFrontPage(db_connection, lookfor, offset, translation_target, translator, translator_languages, additional_view_languages,
-                  filter_untranslated, lang_untranslated, show_macs_col);
+                  filter_untranslated, lang_untranslated, show_macs_col, use_subject_link);
 
     return EXIT_SUCCESS;
 }

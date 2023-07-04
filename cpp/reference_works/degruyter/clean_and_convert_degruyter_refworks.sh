@@ -38,10 +38,10 @@ function NormalizePPN {
 
 
 EBR_superior=$(printf "%s" '773i:Enthalten in\037tEncyclopedia of the Bible and its reception' \
-                            '\037dBerlin : De Gruyter, 2009' \
-                            '\037g2009' \
+                            '\037dBerlin : De Gruyter, 2002' \
+                            '\037g2002' \
                             '\037hOnline-Ressource' \
-                            '\037w(DE-627)1647336511')
+                            '\037w(DE-627)612654680')
 
 if [ $# != 2 ]; then
     Usage
@@ -72,7 +72,6 @@ GenerateTmpFiles
         --remove-fields '338:.*' \
         --remove-fields '347:.*' \
         --remove-fields '490:.*' \
-        --remove-fields '500:.*' \
         --remove-fields '506:.*' \
         --remove-fields '530:.*' \
         --remove-fields '538:.*' \
@@ -100,15 +99,20 @@ GenerateTmpFiles
         --insert-field '007:cr|||||' \
         --insert-field '084a:0\0372ssgn' \
         --insert-field '084a:1\0372ssgn' \
-        --insert-field '338a:Online-Resource\037bcr\0372rdacarrier' \
         --insert-field '852a:DE-Tue135' \
         --insert-field '935c:uwlx' \
         --insert-field '935a:mteo' \
         --insert-field '936j:XXX' \
+        --insert-field '935a:lxgr\0372LOK' \
         --insert-field 'ELCa:1' \
-        --insert-field-if "${EBR_superior}" '001:EBR.*'
+        --insert-field-if "${EBR_superior}" '001:EBR.*' \
+        --insert-field-if "935a:BIIN" '001:EBR.*'
 
-    cat ${tmpfiles[4]} | xmlstarlet tr xsl/adjust_year.xsl > ${marc_out}
+    cat ${tmpfiles[4]} | xmlstarlet tr xsl/adjust_year.xsl  \
+        |  xmlstarlet tr xsl/fix_leader.xsl \
+        | saxonb-xslt -xsl:xsl/fix_indicators.xsl - \
+        | saxonb-xslt  -xsl:xsl/add_volume.xsl  - \
+        > ${marc_out}
 
 echo "Finished conversion"
 

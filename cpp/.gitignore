@@ -74,6 +74,7 @@
 /inifile_lookup
 /insert_translation_gaps
 /installer
+/issn_lookup
 /jop_grep
 /journal_publishing_processor
 /json_grep
