@@ -1,12 +1,5 @@
 #!/bin/bash
 
-##################
-# script for installation of based-machine
-# os: ubuntu 22.04
-# by Steven Lolong (steven.lolong@uni-tuebingen.de)
-# based on the script maintained by by Mario Trojan
-##################
-
 cd /
 export JAVA_TOOL_OPTIONS="-Dfile.encoding=UTF8"
 
