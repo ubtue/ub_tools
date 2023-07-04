@@ -35,8 +35,8 @@ void SendNotificationsForDOI(const std::string &email_subject, const std::string
 
 
 void UpdateItem(DbConnection * const &db_writer, const std::string &doi, const std::string &publication_id) {
-    db_writer->queryOrDie("UPDATE tuefind_publications SET doi = '" + db_writer->escapeAndQuoteString(doi)
-                          + "', doi_notification_datetime = NOW() WHERE id= " + db_writer->escapeAndQuoteString(publication_id));
+    db_writer->queryOrDie("UPDATE tuefind_publications SET doi = " + db_writer->escapeAndQuoteString(doi)
+                          + ", doi_notification_datetime = NOW() WHERE id= " + db_writer->escapeAndQuoteString(publication_id));
 }
 
 
@@ -93,14 +93,16 @@ void DownloadAndUpdate(DbConnection * const &db_writer, const std::string &exter
     const std::shared_ptr<const JSON::ArrayNode> top_node_array(JSON::JSONNode::CastToArrayNodeOrDie("full_tree", full_tree));
     const std::string doi_url = ParseDataFromJSON(top_node_array, DOI_KEY);
 
-    if (!doi_url.empty()) {
-        const std::string publication_title = ParseDataFromJSON(top_node_array, PUBLICATION_TITLE_KEY);
-        const std::string doi = GetClearDOI(doi_url);
-        LOG_INFO("Processing: " + doi);
-        SendNotificationsForDOI("DOI link notification",
-                                "DOI link: " + doi + " successfully generated for publication " + publication_title);
-        UpdateItem(db_writer, doi, publication_id);
+    if (doi_url.empty()) {
+        LOG_INFO("No DOI found yet for item id " + publication_id);
+        return;
     }
+
+    const std::string publication_title = ParseDataFromJSON(top_node_array, PUBLICATION_TITLE_KEY);
+    const std::string doi = GetClearDOI(doi_url);
+    LOG_INFO("Processing: " + doi);
+    SendNotificationsForDOI("DOI link notification", "DOI link: " + doi + " successfully generated for publication " + publication_title);
+    UpdateItem(db_writer, doi, publication_id);
 }
 
 
