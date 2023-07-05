@@ -186,22 +186,39 @@ void CollectZederArticles(MARC::Reader * const reader, MARC::Writer * const writ
         if (ppn_and_zeder_id_and_ppn_type == ppns_to_zeder_ids_and_types_map.cend())
             continue;
 
-        const auto _773_field(record.getFirstField("773"));
-        if (_773_field != record.end()) {
+        const auto _773_field(record.findTag("773"));
+        const auto g_773_contents(_773_field->getFirstSubfieldWithCode('g'));
+        if (not g_773_contents.empty()) {
+            std::vector<std::string> subfields;
             std::vector<std::string> filtered_dates;
             for (const auto &field : record.getTagRange("773")) {
                 if (field.getIndicator1() == '1') {
                     for (const auto &subfield : field.getSubfields()) {
-                        filtered_dates.emplace_back(explode(subfield.value_, ":"));
+                        StringUtil::Split(subfield.value_, ':', &subfields, true);
+                        filtered_dates.emplace_back(subfields[1]);
                     }
-                    break;
                 }
             }
-
             const std::string pages(filtered_dates[4]);
             const std::string issue(filtered_dates[2]);
             const std::string year(filtered_dates[1]);
             const std::string volume(filtered_dates[0]);
+        } else {
+            const auto _936_field(record.findTag("936"));
+            if (_936_field == record.end())
+                continue;
+
+            if (_936_field->getIndicator1() != 'u' or _936_field->getIndicator2() != 'w')
+                continue;
+
+            const std::string pages(_936_field->getFirstSubfieldWithCode('h'));
+            std::string volume;
+            std::string issue(_936_field->getFirstSubfieldWithCode('e'));
+            if (issue.empty())
+                issue = _936_field->getFirstSubfieldWithCode('d');
+            else
+                volume = _936_field->getFirstSubfieldWithCode('d');
+            const std::string year(_936_field->getFirstSubfieldWithCode('j'));
         }
 
         const std::string zeder_id(std::to_string(ppn_and_zeder_id_and_ppn_type->second.zeder_id_));
@@ -221,20 +238,6 @@ void CollectZederArticles(MARC::Reader * const reader, MARC::Writer * const writ
 
     LOG_INFO("Processed " + std::to_string(total_count) + " MARC record(s) and found "
              + std::to_string(zeder_ids_plus_ppns_to_articles_map->size()) + " Zeder article(s).");
-}
-
-std::string explode(const std::string &data, const std::string &delimiters) {
-    auto is_delim = [&](auto &c) { return delimiters.find(c) != std::string::npos; };
-    std::string result;
-    for (std::string::size_type i(0), len(data.length()), pos(0); i <= len; i++) {
-        if (is_delim(data[i]) || i == len) {
-            auto tok = data.substr(pos, i - pos);
-            if (!tok.empty())
-                result = tok;
-            pos = i + 1;
-        }
-    }
-    return result;
 }
 
 size_t GetArticlesFromDatabase(const IniFile &ini_file, const std::string &system_type, const std::string &hostname,

@@ -1028,22 +1028,30 @@ bool ElectronicArticleIsAvailableInTuebingen(const MARC::Record &record) {
         if (parent_ppn_and_ranges == parent_ppn_to_ranges_map.end())
             return false;
 
-        std::string issue_string, year_string, volume_string;
-        const auto _773_field(record.getFirstField("773"));
-        if (_773_field != record.end()) {
+        const auto _773_field(record.findTag("773"));
+        const auto g_773_contents(_773_field->getFirstSubfieldWithCode('g'));
+        if (not g_773_contents.empty()) {
+            std::vector<std::string> subfields;
             std::vector<std::string> filtered_dates;
             for (const auto &field : record.getTagRange("773")) {
                 if (field.getIndicator1() == '1') {
                     for (const auto &subfield : field.getSubfields()) {
-                        filtered_dates.emplace_back(explode(subfield.value_, ":"));
+                        StringUtil::Split(subfield.value_, ':', &subfields, true);
+                        filtered_dates.emplace_back(subfields[1]);
                     }
-                    break;
                 }
             }
-
             issue_string = filtered_dates[2];
             year_string = filtered_dates[1];
             volume_string = filtered_dates[0];
+        } else {
+            const auto _936_field(record.getFirstField("936"));
+            if (_936_field != record.end()) {
+                const MARC::Subfields _936_subfields(_936_field->getSubfields());
+                issue_string = _936_subfields.getFirstSubfieldWithCode('e');
+                year_string = _936_subfields.getFirstSubfieldWithCode('j');
+                volume_string = _936_subfields.getFirstSubfieldWithCode('d');
+            }
         }
 
         if (issue_string.empty() and year_string.empty() and volume_string.empty())
@@ -1066,21 +1074,6 @@ bool ElectronicArticleIsAvailableInTuebingen(const MARC::Record &record) {
 
     return false;
 }
-
-std::string explode(const std::string &data, const std::string &delimiters) {
-    auto is_delim = [&](auto &c) { return delimiters.find(c) != std::string::npos; };
-    std::string result;
-    for (std::string::size_type i(0), len(data.length()), pos(0); i <= len; i++) {
-        if (is_delim(data[i]) || i == len) {
-            auto tok = data.substr(pos, i - pos);
-            if (!tok.empty())
-                result = tok;
-            pos = i + 1;
-        }
-    }
-    return result;
-}
-
 
 bool Get856URLAndAnchor(const std::string &_856_field_contents, std::string * const url, std::string * const anchor) {
     url->clear(), anchor->clear();

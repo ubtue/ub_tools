@@ -57,39 +57,42 @@ void ExtractYearVolumeIssue(const MARC::Record &record, RecordInfo * const recor
     record_info->volume_ = VOLUME_WILDCARD;
     record_info->issue_ = ISSUE_WILDCARD;
 
-
-    const auto field_773(record.findTag("773"));
-    if (field_773 == record.end())
-        return;
-
-    std::vector<std::string> filtered_dates;
-    for (const auto &field : record.getTagRange("773")) {
-        if (field.getIndicator1() == '1') {
-            for (const auto &subfield : field.getSubfields()) {
-                filtered_dates.emplace_back(explode(subfield.value_, ":"));
+    const auto _773_field(record.findTag("773"));
+    const auto g_773_contents(_773_field->getFirstSubfieldWithCode('g'));
+    if (not g_773_contents.empty()) {
+        std::vector<std::string> subfields;
+        std::vector<std::string> filtered_dates;
+        for (const auto &field : record.getTagRange("773")) {
+            if (field.getIndicator1() == '1') {
+                for (const auto &subfield : field.getSubfields()) {
+                    StringUtil::Split(subfield.value_, ':', &subfields, true);
+                    filtered_dates.emplace_back(subfields[1]);
+                }
             }
-            break;
+        }
+        record_info->volume_ = filtered_dates[0];
+        record_info->year_ = filtered_dates[1];
+        record_info->issue_ = filtered_dates[2];
+    } else {
+        for (const auto &field : record.getTagRange("936")) {
+            if (field.getIndicator1() != 'u' or field.getIndicator2() != 'w')
+                continue;
+
+            const MARC::Subfields subfields(field.getSubfields());
+
+            const auto year(subfields.getFirstSubfieldWithCode('j'));
+            if (not year.empty())
+                record_info->year_ = year;
+
+            const auto volume(subfields.getFirstSubfieldWithCode('d'));
+            if (not volume.empty())
+                record_info->volume_ = volume;
+
+            const auto issue(subfields.getFirstSubfieldWithCode('e'));
+            if (not issue.empty())
+                record_info->issue_ = issue;
         }
     }
-
-    record_info->year_ = filtered_dates[1];
-    record_info->volume_ = filtered_dates[0];
-    record_info->issue_ = filtered_dates[2];
-}
-
-
-std::string explode(const std::string &data, const std::string &delimiters) {
-    auto is_delim = [&](auto &c) { return delimiters.find(c) != std::string::npos; };
-    std::string result;
-    for (std::string::size_type i(0), len(data.length()), pos(0); i <= len; i++) {
-        if (is_delim(data[i]) || i == len) {
-            auto tok = data.substr(pos, i - pos);
-            if (!tok.empty())
-                result = tok;
-            pos = i + 1;
-        }
-    }
-    return result;
 }
 
 

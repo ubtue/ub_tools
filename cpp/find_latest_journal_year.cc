@@ -157,19 +157,29 @@ void ProcessRecords(MARC::Reader * const marc_reader, std::unordered_map<std::st
             continue;
 
         std::string year_as_string;
-        const auto _773_field(record.getFirstField("773"));
-        if (_773_field != record.end()) {
+        const auto _773_field(record.findTag("773"));
+        const auto g_773_contents(_773_field->getFirstSubfieldWithCode('g'));
+        if (not g_773_contents.empty()) {
+            std::vector<std::string> subfields;
             std::vector<std::string> filtered_dates;
             for (const auto &field : record.getTagRange("773")) {
                 if (field.getIndicator1() == '1') {
                     for (const auto &subfield : field.getSubfields()) {
-                        filtered_dates.emplace_back(explode(subfield.value_, ":"));
+                        StringUtil::Split(subfield.value_, ':', &subfields, true);
+                        filtered_dates.emplace_back(subfields[1]);
                     }
-                    break;
                 }
             }
             year_as_string = filtered_dates[1];
+        } else {
+            for (const auto &field : record.getTagRange("936")) {
+                const MARC::Subfields subfields(field.getSubfields());
+                year_as_string = subfields.getFirstSubfieldWithCode('j');
+                if (not year_as_string.empty())
+                    break;
+            }
         }
+
         if (year_as_string.empty())
             continue;
 
@@ -190,19 +200,6 @@ void ProcessRecords(MARC::Reader * const marc_reader, std::unordered_map<std::st
     LOG_INFO("Processed " + std::to_string(record_count) + " MARC record(s).");
 }
 
-std::string explode(const std::string &data, const std::string &delimiters) {
-    auto is_delim = [&](auto &c) { return delimiters.find(c) != std::string::npos; };
-    std::string result;
-    for (std::string::size_type i(0), len(data.length()), pos(0); i <= len; i++) {
-        if (is_delim(data[i]) || i == len) {
-            auto tok = data.substr(pos, i - pos);
-            if (!tok.empty())
-                result = tok;
-            pos = i + 1;
-        }
-    }
-    return result;
-}
 
 void GenerateReport(const std::string &report_filename, const std::unordered_map<std::string, JournalDescriptor> &ppn_to_journal_desc_map) {
     std::unique_ptr<File> report(FileUtil::OpenOutputFileOrDie(report_filename));

@@ -79,43 +79,35 @@ void GetJournalEntriesFromDb(DbConnection * const db_connection, const std::stri
             const auto dois(record.getDOIs());
             csv_row += ";" + TextUtil::CSVEscape(StringUtil::Join(dois, '\n'));
 
-            const auto field_773(record.findTag("773"));
-            if (field_773 == record.end())
-                return;
-
-            std::vector<std::string> filtered_dates;
-            for (const auto &field : record.getTagRange("773")) {
-                if (field.getIndicator1() == '1') {
-                    for (const auto &subfield : field.getSubfields()) {
-                        filtered_dates.emplace_back(explode(subfield.value_, ":"));
+            const auto _773_field(record.findTag("773"));
+            const auto g_773_contents(_773_field->getFirstSubfieldWithCode('g'));
+            if (not g_773_contents.empty()) {
+                std::vector<std::string> subfields;
+                std::vector<std::string> filtered_dates;
+                for (const auto &field : record.getTagRange("773")) {
+                    if (field.getIndicator1() == '1') {
+                        for (const auto &subfield : field.getSubfields()) {
+                            StringUtil::Split(subfield.value_, ':', &subfields, true);
+                            filtered_dates.emplace_back(subfields[1]);
+                        }
                     }
+                }
+                csv_row += ";" + filtered_dates[1];
+                csv_row += ";" + filtered_dates[0];
+                csv_row += ";" + filtered_dates[2];
+            } else {
+                for (const auto &_936_field : record.getTagRange("936")) {
+                    csv_row += ";" + _936_field.getFirstSubfieldWithCode('j');
+                    csv_row += ";" + _936_field.getFirstSubfieldWithCode('d');
+                    csv_row += ";" + _936_field.getFirstSubfieldWithCode('e');
                     break;
                 }
             }
-
-            csv_row += ";" + filtered_dates[1];
-            csv_row += ";" + filtered_dates[0];
-            csv_row += ";" + filtered_dates[2];
         }
 
         csv_file->writeln(csv_row);
     }
 }
-
-std::string explode(const std::string &data, const std::string &delimiters) {
-    auto is_delim = [&](auto &c) { return delimiters.find(c) != std::string::npos; };
-    std::string result;
-    for (std::string::size_type i(0), len(data.length()), pos(0); i <= len; i++) {
-        if (is_delim(data[i]) || i == len) {
-            auto tok = data.substr(pos, i - pos);
-            if (!tok.empty())
-                result = tok;
-            pos = i + 1;
-        }
-    }
-    return result;
-}
-
 
 } // unnamed namespace
 

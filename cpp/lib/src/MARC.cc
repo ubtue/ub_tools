@@ -31,6 +31,7 @@
 #include "FileUtil.h"
 #include "MiscUtil.h"
 #include "RegexMatcher.h"
+#include "StringUtil.h"
 #include "TextUtil.h"
 #include "UBTools.h"
 #include "util.h"
@@ -1097,12 +1098,24 @@ std::string Record::getMostRecentPublicationYear(const std::string &fallback) co
     }
 
     if ((isArticle() or isReviewArticle()) and not isMonograph()) {
-        for (const auto &_773_field : getTagRange("773")) {
-            if (_773_field.getIndicator1() == '1') {
-                const auto g_773_contents(_773_field.getFirstSubfieldWithCode('g'));
-                if (not g_773_contents.empty()) {
+        std::vector<std::string> subfields;
+        std::vector<std::string> filtered_dates;
+        for (const auto &field : getTagRange("773")) {
+            if (field.getIndicator1() == '1') {
+                for (const auto &subfield : field.getSubfields()) {
+                    StringUtil::Split(subfield.value_, ':', &subfields, true);
+                    filtered_dates.emplace_back(subfields[1]);
+                }
+            }
+        }
+        if (not filtered_dates.empty()) {
+            return filtered_dates[1];
+        } else {
+            for (const auto &_936_field : getTagRange("936")) {
+                const auto j_contents(_936_field.getFirstSubfieldWithCode('j'));
+                if (not j_contents.empty()) {
                     static const auto year_matcher(RegexMatcher::RegexMatcherFactoryOrDie("(\\d{4})"));
-                    if (year_matcher->matched(g_773_contents))
+                    if (year_matcher->matched(j_contents))
                         return (*year_matcher)[1];
                 }
             }
