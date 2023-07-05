@@ -18,7 +18,7 @@ function ColorEcho {
     echo -e "\033[1;34m" $1 "\033[0m"
 }
 
-ColorEcho "*************** Starting installation of vufind/tuefind for ixtheo *******************"
+ColorEcho "*************** The installation script is running *******************"
 
 # make sure we are on ubuntu
 if [ -e /etc/debian_version ]; then

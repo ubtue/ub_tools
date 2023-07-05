@@ -24,7 +24,6 @@ ColorEcho "installing/updating ub_tools dependencies..."
 apt-get --yes update
 
 # install additional 
-apt-get --yes install sudo curl
 apt-get --yes install sudo wget
 
 # install software-properties-common for apt-add-repository
