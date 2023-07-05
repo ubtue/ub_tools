@@ -85,7 +85,7 @@
 // Print a log message to the terminal with a bright green background.
 void Echo(const std::string &log_message) {
     std::cout << "\x1B"
-              << "[42m--- " << log_message << "\x1B"
+              << "[42m--- " << "Installer -> " + log_message << "\x1B"
               << "[0m\n";
 }
 
@@ -143,13 +143,13 @@ TemporaryChDir::~TemporaryChDir() {
 
 
 void GitActivateCustomHooks(const std::string &repository) {
-    Echo("Installer -> git activate custom hooks");
+    Echo("git activate custom hooks");
     const std::string original_git_directory(repository + "/.git");
     const std::string original_hooks_directory(original_git_directory + "/hooks");
     const std::string custom_hooks_directory(repository + "/git-config/hooks");
 
     if (FileUtil::IsDirectory(custom_hooks_directory) and FileUtil::IsDirectory(original_hooks_directory)) {
-        Echo("Installer -> Activating custom git hooks in " + repository);
+        Echo("Activating custom git hooks in " + repository);
         FileUtil::RemoveDirectory(original_hooks_directory);
         TemporaryChDir tmp1(original_git_directory);
         FileUtil::CreateSymlink(custom_hooks_directory, "hooks");
@@ -188,7 +188,7 @@ public:
 
 void MountDeptDriveAndInstallSSHKeysOrDie(const VuFindSystemType vufind_system_type) {
     std::vector<Mountpoint> mount_points;
-    Echo("Installer -> mount dept drive and install ssh key");
+    Echo("mount dept drive and install ssh key");
     mount_points.emplace_back(Mountpoint("/mnt/ZE020150", "/mnt/ZE020150/FID-Entwicklung", "//sn00.zdv.uni-tuebingen.de/ZE020150"));
     mount_points.emplace_back(Mountpoint("/mnt/ZE020110", "/mnt/ZE020110/FID-Projekte", "//sn00.zdv.uni-tuebingen.de/ZE020110"));
 
@@ -277,7 +277,7 @@ void CreateUbToolsDatabase(DbConnection * const db_connection_root) {
     const std::string sql_username(section->getString("sql_username"));
     const std::string sql_password(section->getString("sql_password"));
 
-    Echo("Installer -> Trying database connection setting");
+    Echo("Trying database connection setting");
     db_connection_root->mySQLCreateUserIfNotExists(sql_username, sql_password);
     if (not db_connection_root->mySQLDatabaseExists(sql_database)) {
         Echo("Intaller -> Creating ub_tools MySQL database");
@@ -286,7 +286,7 @@ void CreateUbToolsDatabase(DbConnection * const db_connection_root) {
         db_connection_root->mySQLGrantAllPrivileges(sql_database + "_tmp", sql_username);
         db_connection_root->mySQLGrantGrantOption(sql_database, sql_username);
 
-        Echo("Installer -> Trying to import database from sql file: " + INSTALLER_DATA_DIRECTORY + "/ub_tools.sql");
+        Echo("Trying to import database from sql file: " + INSTALLER_DATA_DIRECTORY + "/ub_tools.sql");
         DbConnection::MySQLImportFile(INSTALLER_DATA_DIRECTORY + "/ub_tools.sql", sql_database, sql_username, sql_password);
     }
 }
@@ -300,27 +300,27 @@ void CreateVuFindDatabases(const VuFindSystemType vufind_system_type, DbConnecti
     IniFile ub_tools_ini_file(DbConnection::DEFAULT_CONFIG_FILE_PATH);
     const auto ub_tools_ini_section(ub_tools_ini_file.getSection("Database"));
     const std::string ub_tools_username(ub_tools_ini_section->getString("sql_username"));
-    Echo("Installer -> Create vufind databases");
+    Echo("Create vufind databases");
     db_connection_root->mySQLCreateUserIfNotExists(sql_username, sql_password);
     if (not db_connection_root->mySQLDatabaseExists(sql_database)) {
-        Echo("Installer -> Creating " + sql_database + " database");
+        Echo("Creating " + sql_database + " database");
         db_connection_root->mySQLCreateDatabase(sql_database);
-        Echo("Installer -> mysql grant privileges");
+        Echo("mysql grant privileges");
         db_connection_root->mySQLGrantAllPrivileges(sql_database, sql_username);
         db_connection_root->mySQLGrantAllPrivileges(sql_database, ub_tools_username);
         db_connection_root->mySQLGrantGrantOption(sql_database, ub_tools_username);
 
-        Echo("Installer -> Importing vufind db");
+        Echo("Importing vufind db");
         DbConnection::MySQLImportFile(VUFIND_DIRECTORY + "/module/VuFind/sql/mysql.sql", sql_database, sql_username, sql_password);
         MySQLImportFileIfExists(VUFIND_DIRECTORY + "/module/TueFind/sql/mysql.sql", sql_database, sql_username, sql_password);
-        Echo("Installer -> Importing tuefind");
+        Echo("Importing tuefind");
         switch (vufind_system_type) {
         case IXTHEO:
-            Echo("Installer -> Importing ixtheo");
+            Echo("Importing ixtheo");
             MySQLImportFileIfExists(VUFIND_DIRECTORY + "/module/IxTheo/sql/mysql.sql", sql_database, sql_username, sql_password);
             break;
         case KRIMDOK:
-            Echo("Installer -> Importing krimdok");
+            Echo("Importing krimdok");
             MySQLImportFileIfExists(VUFIND_DIRECTORY + "/module/KrimDok/sql/mysql.sql", sql_database, sql_username, sql_password);
             break;
         }
@@ -332,10 +332,10 @@ void CreateVuFindDatabases(const VuFindSystemType vufind_system_type, DbConnecti
         const std::string ixtheo_database(translations_ini_section->getString("sql_database"));
         const std::string ixtheo_username(translations_ini_section->getString("sql_username"));
         const std::string ixtheo_password(translations_ini_section->getString("sql_password"));
-        Echo("Installer -> vufind system, checking database connection setting");
+        Echo("vufind system, checking database connection setting");
         db_connection_root->mySQLCreateUserIfNotExists(ixtheo_username, ixtheo_password);
         if (not db_connection_root->mySQLDatabaseExists(ixtheo_database)) {
-            Echo("Installer -> Creating " + ixtheo_database + " database");
+            Echo("Creating " + ixtheo_database + " database");
             db_connection_root->mySQLCreateDatabase(ixtheo_database);
             db_connection_root->mySQLGrantAllPrivileges(ixtheo_database, ixtheo_username);
             db_connection_root->mySQLGrantAllPrivileges(ixtheo_database, sql_username);
@@ -352,11 +352,11 @@ void SystemdEnableAndRunUnit(const std::string unit) {
         LOG_ERROR("Installer -> " + unit + " unit not found in systemd, installation problem?");
 
     if (not SystemdUtil::IsUnitEnabled(unit)) {
-        Echo("Installer -> Enabling system unit");
+        Echo("Enabling system unit");
         SystemdUtil::EnableUnit(unit);
     }
     if (not SystemdUtil::IsUnitRunning(unit)) {
-        Echo("Installer -> Starting the system unit");
+        Echo("Starting the system unit");
         SystemdUtil::StartUnit(unit);
     }
 }
@@ -365,23 +365,23 @@ void SystemdEnableAndRunUnit(const std::string unit) {
 void InstallSoftwareDependencies(const std::string vufind_system_type_string, const InstallationType installation_type,
                                  const bool install_systemctl) {
     // install / update dependencies
-    Echo("Installer -> Install software dependencies from: " + INSTALLER_SCRIPTS_DIRECTORY + "/install_ubuntu_packages.sh");
+    Echo("Install software dependencies from: " + INSTALLER_SCRIPTS_DIRECTORY + "/install_ubuntu_packages.sh");
     std::string script(INSTALLER_SCRIPTS_DIRECTORY + "/install_ubuntu_packages.sh");
 
     if (installation_type == UB_TOOLS_ONLY) {
-        Echo("Installer -> running script for UBTools only");
+        Echo("running script for UBTools only");
         ExecUtil::ExecOrDie(script);
     } else if (installation_type == FULLTEXT_BACKEND) {
-        Echo("Installer -> running script for fulltext backend");
+        Echo("running script for fulltext backend");
         ExecUtil::ExecOrDie(script, { "fulltext_backend" });
     } else if (installation_type == VUFIND) {
-        Echo("Installer -> running script with special param for vufind");
+        Echo("running script with special param for vufind");
         ExecUtil::ExecOrDie(script, { vufind_system_type_string });
     }
 
     // check systemd configuration
     if (install_systemctl) {
-        Echo("Installer -> starting systemctl for Apache2 and MySQL");
+        Echo("starting systemctl for Apache2 and MySQL");
         std::string apache_unit_name("apache2");
         std::string mysql_unit_name("mysql");
         SystemdEnableAndRunUnit(apache_unit_name);
@@ -391,7 +391,7 @@ void InstallSoftwareDependencies(const std::string vufind_system_type_string, co
 
 
 void RegisterSystemUpdateVersion() {
-    Echo("Installer -> registering system update version");
+    Echo("registering system update version");
     const std::string SYSTEM_UPDATES_DIRECTORY(UB_TOOLS_DIRECTORY + "/cpp/data/system_updates");
     FileUtil::Directory directory(SYSTEM_UPDATES_DIRECTORY, "(^\\d+\\.sh$|\\d+\\.(?:.*)\\.sql)");
     unsigned max_version(99);
@@ -408,7 +408,7 @@ void RegisterSystemUpdateVersion() {
 
 
 static void GenerateAndInstallVuFindServiceTemplate(const VuFindSystemType system_type, const std::string &service_name) {
-    Echo("Installer -> generating and install vufind service template");
+    Echo("generating and install vufind service template");
     FileUtil::AutoTempDirectory temp_dir;
 
     Template::Map names_to_values_map;
@@ -417,11 +417,11 @@ static void GenerateAndInstallVuFindServiceTemplate(const VuFindSystemType syste
     const std::string vufind_service(Template::ExpandTemplate(
         FileUtil::ReadStringOrDie(INSTALLER_DATA_DIRECTORY + "/" + service_name + ".service.template"), names_to_values_map));
     const std::string service_file_path(temp_dir.getDirectoryPath() + "/" + service_name + ".service");
-    Echo("Installer -> writing vufind service file.");
+    Echo("writing vufind service file.");
     FileUtil::WriteStringOrDie(service_file_path, vufind_service);
-    Echo("Installer -> installing vufind servcie");
+    Echo("installing vufind servcie");
     SystemdUtil::InstallUnit(service_file_path);
-    Echo("Installer -> enabling vufind service.");
+    Echo("enabling vufind service.");
     SystemdUtil::EnableUnit(service_name);
 }
 
@@ -431,7 +431,7 @@ void SetupSysLog() {
     if (IsDockerEnvironment())
         return;
 
-    Echo("Installer -> setup syslog");
+    Echo("setup syslog");
     // logfile for zts docker container
     const std::string ZTS_LOGFILE(UBTools::GetTueFindLogPath() + "/zts.log");
     FileUtil::TouchFileOrDie(ZTS_LOGFILE);
@@ -448,39 +448,39 @@ void SetupSysLog() {
 }
 
 void SetupSudo() {
-    Echo("Installer -> setup sudo");
+    Echo("setup sudo");
     FileUtil::CopyOrDie(INSTALLER_DATA_DIRECTORY + "/sudo.zts-restart", "/etc/sudoers.d/99-zts_restart");
     FileUtil::CopyOrDie(INSTALLER_DATA_DIRECTORY + "/sudo.alphabrowse_index_ramdisk", "/etc/sudoers.d/99-alphabrowse_index_ramdisk");
 }
 
 
 void InstallUBTools(const bool make_install, DbConnection * const db_connection_root) {
-    Echo("Installer -> Install UBTools");
+    Echo("Install UBTools");
     // First install iViaCore-mkdep...
     ChangeDirectoryOrDie(UB_TOOLS_DIRECTORY + "/cpp/lib/mkdep");
     ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("make"), { "--jobs=4", "install" });
 
     // ...then create /usr/local/var/lib/tuelib
     if (not FileUtil::Exists(UBTools::GetTuelibPath())) {
-        Echo("Installer -> Creating " + UBTools::GetTuelibPath());
+        Echo("Creating " + UBTools::GetTuelibPath());
         FileUtil::MakeDirectoryOrDie(UBTools::GetTuelibPath(), /* recursive = */ true);
     }
 
     // ..and /usr/local/var/log/tuefind
     if (not FileUtil::Exists(UBTools::GetTueFindLogPath())) {
-        Echo("Installer -> Creating " + UBTools::GetTueFindLogPath());
+        Echo("Creating " + UBTools::GetTueFindLogPath());
         FileUtil::MakeDirectoryOrDie(UBTools::GetTueFindLogPath(), /* recursive = */ true);
     }
 
     // ..and /usr/local/var/tmp
     if (not FileUtil::Exists(UBTools::GetTueLocalTmpPath())) {
-        Echo("Installer -> Creating " + UBTools::GetTueLocalTmpPath());
+        Echo("Creating " + UBTools::GetTueLocalTmpPath());
         FileUtil::MakeDirectoryOrDie(UBTools::GetTueLocalTmpPath(), /* recursive = */ true);
     }
 
     const std::string ZOTERO_ENHANCEMENT_MAPS_DIRECTORY(UBTools::GetTuelibPath() + "zotero-enhancement-maps");
     if (not FileUtil::Exists(ZOTERO_ENHANCEMENT_MAPS_DIRECTORY)) {
-        Echo("Installer -> Cloning Zetero");
+        Echo("Cloning Zetero");
         const std::string git_url("https://github.com/ubtue/zotero-enhancement-maps.git");
         ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("git"), { "clone", git_url, ZOTERO_ENHANCEMENT_MAPS_DIRECTORY });
     }
@@ -490,45 +490,45 @@ void InstallUBTools(const bool make_install, DbConnection * const db_connection_
     SetupSudo();
 
     if (AppArmorUtil::IsEnabled()) {
-        Echo("Installer -> Setup AppArmor for apache2");
+        Echo("Setup AppArmor for apache2");
         const std::string profile_id("apache2");
-        Echo("Installer -> Install local profile");
+        Echo("Install local profile");
         AppArmorUtil::InstallLocalProfile(INSTALLER_DATA_DIRECTORY + "/apparmor/" + profile_id);
-        Echo("Installer -> Set local profile");
+        Echo("Set local profile");
         AppArmorUtil::SetLocalProfileMode(profile_id, AppArmorUtil::ENFORCE);
     }
 
     // ...and then install the rest of ub_tools:
-    Echo("Installer -> Change directory to " + UB_TOOLS_DIRECTORY);
+    Echo("Change directory to " + UB_TOOLS_DIRECTORY);
     ChangeDirectoryOrDie(UB_TOOLS_DIRECTORY);
     if (make_install) {
-        Echo("Installer -> Make install");
+        Echo("Make install");
         ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("make"), { "--jobs=4", "install" });
     } else {
-        Echo("Installer -> Make");
+        Echo("Make");
         ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("make"), { "--jobs=4" });
     }
 
-    Echo("Installer -> creating database");
+    Echo("creating database");
     CreateUbToolsDatabase(db_connection_root);
 
-    Echo("Installer -> git activate custom hooks");
+    Echo("git activate custom hooks");
     GitActivateCustomHooks(UB_TOOLS_DIRECTORY);
 
-    Echo("Installer -> make directory");
+    Echo("make directory");
     FileUtil::MakeDirectoryOrDie("/usr/local/run");
 
-    Echo("Installer -> register system update version");
+    Echo("register system update version");
     RegisterSystemUpdateVersion();
 
     // Install boot notification service:
     if (SystemdUtil::IsAvailable()) {
-        Echo("Installer -> install boot notification");
+        Echo("install boot notification");
         SystemdUtil::InstallUnit(UB_TOOLS_DIRECTORY + "/cpp/data/installer/boot_notification.service");
         SystemdUtil::EnableUnit("boot_notification");
     }
 
-    Echo("Installer -> ub_tools installed successfully");
+    Echo("ub_tools installed successfully");
 }
 
 
@@ -542,7 +542,7 @@ std::string GetStringFromTerminal(const std::string &prompt) {
 
 void InstallCronjobs(const bool production, const std::string &cronjobs_template_file, const std::string &crontab_block_start,
                      const std::string &crontab_block_end, Template::Map &names_to_values_map) {
-    Echo("Installer -> install cronjobs");
+    Echo("install cronjobs");
     FileUtil::AutoTempFile crontab_temp_file_old;
     // crontab -l returns error code if crontab is empty, so dont use ExecUtil::ExecOrDie!!!
     ExecUtil::Exec(ExecUtil::LocateOrDie("crontab"), { "-l" }, "", crontab_temp_file_old.getFilePath());
@@ -574,7 +574,7 @@ void InstallCronjobs(const bool production, const std::string &cronjobs_template
 
 
 void InstallVuFindCronjobs(const bool production, const VuFindSystemType vufind_system_type) {
-    Echo("Installer -> install vufind cronjob");
+    Echo("install vufind cronjob");
     static const std::string start_vufind_autogenerated("# START VUFIND AUTOGENERATED");
     static const std::string end_vufind_autogenerated("# END VUFIND AUTOGENERATED");
 
@@ -592,7 +592,7 @@ void InstallVuFindCronjobs(const bool production, const VuFindSystemType vufind_
 
 
 void AddUserToGroup(const std::string &username, const std::string &groupname) {
-    Echo("Installer -> Adding user " + username + " to group " + groupname);
+    Echo("Adding user " + username + " to group " + groupname);
     ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("usermod"), { "--append", "--groups", groupname, username });
 }
 
@@ -601,7 +601,7 @@ void AddUserToGroup(const std::string &username, const std::string &groupname) {
 void CreateUserIfNotExists(const std::string &username) {
     const int user_exists(ExecUtil::Exec(ExecUtil::LocateOrDie("id"), { "-u", username }));
     if (user_exists == 1) {
-        Echo("Installer -> Creating user " + username + "...");
+        Echo("Creating user " + username + "...");
         ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("useradd"),
                             { "--system", "--user-group", "--no-create-home", "--shell", "/bin/bash", username });
     } else if (user_exists > 1)
@@ -613,7 +613,7 @@ void GenerateXml(const std::string &filename_source, const std::string &filename
     std::string dirname_source, basename_source;
     FileUtil::DirnameAndBasename(filename_source, &dirname_source, &basename_source);
 
-    Echo("Installer -> Generating " + filename_target + " from " + basename_source);
+    Echo("Generating " + filename_target + " from " + basename_source);
     ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("xmllint"), { "--xinclude", "--format", filename_source }, "", filename_target);
 }
 
@@ -645,9 +645,9 @@ void UseCustomFileIfExists(std::string filename_custom, std::string filename_def
 
 void DownloadVuFind() {
     if (FileUtil::IsDirectory(VUFIND_DIRECTORY))
-        Echo("Installer -> VuFind directory already exists, skipping download");
+        Echo("VuFind directory already exists, skipping download");
     else {
-        Echo("Installer -> Downloading TueFind git repository");
+        Echo("Downloading TueFind git repository");
         const std::string git_url("https://github.com/ubtue/tuefind.git");
         ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("git"), { "clone", git_url, VUFIND_DIRECTORY });
         GitActivateCustomHooks(VUFIND_DIRECTORY);
@@ -661,7 +661,7 @@ void DownloadVuFind() {
  * - Grant permissions on relevant directories
  */
 void ConfigureApacheUser() {
-    Echo("Installer -> Configuring apache user");
+    Echo("Configuring apache user");
     const std::string username("vufind");
     CreateUserIfNotExists(username);
 
@@ -690,14 +690,14 @@ void ConfigureApacheUser() {
  * - register solr service in systemd
  */
 void ConfigureSolrUserAndService(const VuFindSystemType system_type, const bool install_systemctl) {
-    Echo("Installer -> Configuring Solr User and Service");
+    Echo("Configuring Solr User and Service");
     // note: if you wanna change username, don't do it only here, also check vufind.service!
     const std::string USER_AND_GROUP_NAME("solr");
     const std::string VUFIND_SERVICE("vufind");
 
     CreateUserIfNotExists(USER_AND_GROUP_NAME);
 
-    Echo("Installer -> Setting directory permissions for Solr user...");
+    Echo("Setting directory permissions for Solr user...");
     FileUtil::ChangeOwnerOrDie(VUFIND_DIRECTORY + "/solr", USER_AND_GROUP_NAME, USER_AND_GROUP_NAME, /*recursive=*/true);
     FileUtil::ChangeOwnerOrDie(VUFIND_DIRECTORY + "/import", USER_AND_GROUP_NAME, USER_AND_GROUP_NAME, /*recursive=*/true);
 
@@ -711,7 +711,7 @@ void ConfigureSolrUserAndService(const VuFindSystemType system_type, const bool 
     // systemctl: we do enable as well as daemon-reload and restart
     // to achieve an idempotent installation
     if (install_systemctl) {
-        Echo("Installer -> Activating " + VUFIND_SERVICE + " service");
+        Echo("Activating " + VUFIND_SERVICE + " service");
         GenerateAndInstallVuFindServiceTemplate(system_type, VUFIND_SERVICE);
         SystemdEnableAndRunUnit(VUFIND_SERVICE);
     }
@@ -720,7 +720,7 @@ void ConfigureSolrUserAndService(const VuFindSystemType system_type, const bool 
 
 void PermanentlySetEnvironmentVariables(const std::vector<std::pair<std::string, std::string>> &keys_and_values,
                                         const std::string &script_path) {
-    Echo("Installer -> Permanetly set environment variables");
+    Echo("Permanetly set environment variables");
     std::string variables;
     for (const auto &[key, value] : keys_and_values)
         variables += "export " + key + "=" + value + "\n";
@@ -730,7 +730,7 @@ void PermanentlySetEnvironmentVariables(const std::vector<std::pair<std::string,
 
 
 void SetVuFindEnvironmentVariables(const std::string &vufind_system_type_string) {
-    Echo("Installer -> Setup vufind environment");
+    Echo("Setup vufind environment");
     std::vector<std::pair<std::string, std::string>> keys_and_values{
         { "VUFIND_HOME", VUFIND_DIRECTORY },
         { "VUFIND_LOCAL_DIR", VUFIND_DIRECTORY + "/local/tuefind/instances/" + vufind_system_type_string },
@@ -741,7 +741,7 @@ void SetVuFindEnvironmentVariables(const std::string &vufind_system_type_string)
 
 void SetFulltextEnvironmentVariables() {
     // Currently only the IxTheo approach is supported
-    Echo("Installer -> Set full text environment variables");
+    Echo("Set full text environment variables");
     const std::vector<std::pair<std::string, std::string>> keys_and_values{ { "FULLTEXT_FLAVOUR", "fulltext_ixtheo" } };
     PermanentlySetEnvironmentVariables(keys_and_values, "/etc/profile.d/fulltext.sh");
 }
@@ -760,7 +760,7 @@ void SetFulltextEnvironmentVariables() {
  */
 void ConfigureVuFind(const bool production, const VuFindSystemType vufind_system_type, const bool install_cronjobs,
                      const bool install_systemctl) {
-    Echo("Installer -> Configuring vufind");
+    Echo("Configuring vufind");
     // We need to increase default_socket_timeout for big downloads on slow mirrors, especially Solr (default 60 seconds) .
     TemporaryChDir tmp2(VUFIND_DIRECTORY);
     ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("php"), { "-d", "default_socket_timeout=600", ExecUtil::LocateOrDie("composer"), "install" });
@@ -768,41 +768,41 @@ void ConfigureVuFind(const bool production, const VuFindSystemType vufind_system
     // see https://stackoverflow.com/questions/16151018/how-to-fix-npm-throwing-error-without-sudo
     ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("sudo"), { "npm", "install" });
 
-    Echo("Installer -> Building CSS");
+    Echo("Building CSS");
     ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("grunt"), { "less" });
 
     const std::string vufind_system_type_string(VuFindSystemTypeToString(vufind_system_type));
-    Echo("Installer -> Starting configuration for " + vufind_system_type_string);
+    Echo("Starting configuration for " + vufind_system_type_string);
     const std::string SOLR_BIBLIO_DIRECTORY = VUFIND_DIRECTORY + "/solr/vufind/biblio/conf";
     const std::string SOLR_AUTHORITY_DIRECTORY = VUFIND_DIRECTORY + "/solr/vufind/authority/conf";
 
-    Echo("Installer -> SOLR Configuration (solrconfig.xml)");
+    Echo("SOLR Configuration (solrconfig.xml)");
     ExecUtil::ExecOrDie(SOLR_BIBLIO_DIRECTORY + "/make_symlinks.sh", { vufind_system_type_string });
 
-    Echo("Installer -> SOLR Schema biblio (schema_local_*.xml)");
+    Echo("SOLR Schema biblio (schema_local_*.xml)");
     ExecUtil::ExecOrDie(SOLR_BIBLIO_DIRECTORY + "/generate_xml.sh", { vufind_system_type_string });
 
-    Echo("Installer -> Synonyms (synonyms_*.txt)");
+    Echo("Synonyms (synonyms_*.txt)");
     ExecUtil::ExecOrDie(SOLR_BIBLIO_DIRECTORY + "/touch_synonyms.sh", { vufind_system_type_string });
 
-    Echo("Installer -> SOLR Schema authority (schema_local_*.xml)");
+    Echo("SOLR Schema authority (schema_local_*.xml)");
     ExecUtil::ExecOrDie(SOLR_AUTHORITY_DIRECTORY + "/generate_xml.sh", { vufind_system_type_string });
 
-    Echo("Installer -> solrmarc (marc_local.properties)");
+    Echo("solrmarc (marc_local.properties)");
     ExecUtil::ExecOrDie(VUFIND_DIRECTORY + "/import/make_marc_local_properties.sh", { vufind_system_type_string });
 
     SetVuFindEnvironmentVariables(vufind_system_type_string);
 
-    Echo("Installer -> Alphabetical browse");
+    Echo("Alphabetical browse");
     UseCustomFileIfExists(VUFIND_DIRECTORY + "/index-alphabetic-browse_" + vufind_system_type_string + ".sh",
                           VUFIND_DIRECTORY + "/index-alphabetic-browse.sh");
 
     if (install_cronjobs) {
-        Echo("Installer -> Setting cronjobs");
+        Echo("Setting cronjobs");
         InstallVuFindCronjobs(production, vufind_system_type);
     }
 
-    Echo("Installer -> Creating log directory");
+    Echo("Creating log directory");
     ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("mkdir"), { "-p", UBTools::GetTueFindLogPath() });
 
     ConfigureSolrUserAndService(vufind_system_type, install_systemctl);
@@ -810,34 +810,34 @@ void ConfigureVuFind(const bool production, const VuFindSystemType vufind_system
 
     const std::string NEWSLETTER_DIRECTORY_PATH(UBTools::GetTuelibPath() + "newsletters");
     if (not FileUtil::Exists(NEWSLETTER_DIRECTORY_PATH)) {
-        Echo("Installer -> Creating " + NEWSLETTER_DIRECTORY_PATH);
+        Echo("Creating " + NEWSLETTER_DIRECTORY_PATH);
         FileUtil::MakeDirectoryOrDie(NEWSLETTER_DIRECTORY_PATH, /*recursive=*/true);
 
-        Echo("Installer -> Creating " + NEWSLETTER_DIRECTORY_PATH + "/sent");
+        Echo("Creating " + NEWSLETTER_DIRECTORY_PATH + "/sent");
         FileUtil::MakeDirectoryOrDie(NEWSLETTER_DIRECTORY_PATH + "/sent");
 
         FileUtil::ChangeOwnerOrDie(NEWSLETTER_DIRECTORY_PATH, "vufind", "vufind", /*recursive=*/true);
     }
 
-    Echo("Installer -> Generating HMAC hash");
+    Echo("Generating HMAC hash");
     const std::string HMAC_FILE_PATH(VUFIND_LOCAL_OVERRIDES_DIRECTORY + "/hmac.conf");
     if (not FileUtil::Exists(HMAC_FILE_PATH))
         FileUtil::WriteStringOrDie(HMAC_FILE_PATH,
                                    StringUtil::GenerateRandom(/*length=*/32, /*alphabet=*/"abcdefghijklmnopqrstuvwxyz0123456789"));
 
-    Echo("Installer -> " + vufind_system_type_string + " configuration completed!");
+    Echo(vufind_system_type_string + " configuration completed!");
 }
 
 
 void InstallFullTextBackendCronjobs(const bool production) {
-    Echo("Installer -> Installing full text backend cronjobs");
+    Echo("Installing full text backend cronjobs");
     Template::Map empty_map;
     InstallCronjobs(production, "fulltext.cronjobs", "# START AUTOGENERATED", "# END AUTOGENERATED", empty_map);
 }
 
 
 void WaitForElasticsearchReady() {
-    Echo("installer -> Waiting for elastic search ready");
+    Echo("Waiting for elastic search ready");
     const std::string host("127.0.0.1"); // avoid docker address assign problem
     const std::string base_url("http://" + host + ":9200/");
     const unsigned MAX_ITERATIONS(5);
@@ -868,7 +868,7 @@ void WaitForElasticsearchReady() {
 
 
 void ConfigureFullTextBackend(const bool production, const bool install_cronjobs = false) {
-    Echo("Installer -> Configuring full text backend");
+    Echo("Configuring full text backend");
     static const std::string elasticsearch_programs_dir("/usr/local/ub_tools/cpp/elasticsearch");
     bool es_was_already_running(false);
     pid_t es_install_pid(0);
@@ -908,7 +908,7 @@ int Main(int argc, char **argv) {
     if (argc < 2)
         Usage();
 
-    Echo("Installer -> Starting installation");
+    Echo("Starting installation");
     std::string file_contents;
     if (not(FileUtil::ReadString("/etc/issue", &file_contents)
             and StringUtil::FindCaseInsensitive(file_contents, "ubuntu") != std::string::npos))
@@ -991,7 +991,7 @@ int Main(int argc, char **argv) {
 
     MountDeptDriveAndInstallSSHKeysOrDie(vufind_system_type);
 
-    Echo("installer -> checking MySQL server, whether it is active or not");
+    Echo("checking MySQL server, whether it is active or not");
     // Init root DB connection for later re-use
     AssureMysqlServerIsRunning();
     DbConnection db_connection_root(DbConnection::MySQLFactory("mysql", "root", ""));
@@ -1002,23 +1002,23 @@ int Main(int argc, char **argv) {
     Echo("starting VUFIND installation");
     if (installation_type == VUFIND) {
         FileUtil::MakeDirectoryOrDie("/mnt/zram");
-        Echo("installer -> download vufind ...");
+        Echo("download vufind ...");
         DownloadVuFind();
 #ifndef __clang__
 #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
 #endif
-        Echo("installer -> configure vufind");
+        Echo("configure vufind");
         ConfigureVuFind(production, vufind_system_type, not omit_cronjobs, install_systemctl);
 #ifndef __clang__
 #pragma GCC diagnostic error "-Wmaybe-uninitialized"
 #endif
     }
-    Echo("installer -> installing ub_tools");
+    Echo("installing ub_tools");
     InstallUBTools(/* make_install = */ true, &db_connection_root);
     if (installation_type == FULLTEXT_BACKEND)
         ConfigureFullTextBackend(production, not omit_cronjobs);
     else if (installation_type == VUFIND) {
-        Echo("Installer -> start creating vufind database");
+        Echo("start creating vufind database");
         CreateVuFindDatabases(vufind_system_type, &db_connection_root);
         Echo("finish install vufind database");
     }
