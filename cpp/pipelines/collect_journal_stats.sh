@@ -1,17 +1,8 @@
 #!/bin/bash
 # Factored out run for collect_journal_stats
+set -o errexit -o nounset
+
 source pipeline_functions.sh
-declare -r -i FIFO_BUFFER_SIZE=1000000 # in bytes
-
-
-TMP_NULL="/tmp/null.mrc"
-function CreateTemporaryNullDevice {
-    if [ ! -c ${TMP_NULL} ]; then
-        mknod ${TMP_NULL} c 1 3
-        chmod 666 ${TMP_NULL}
-    fi
-}
-
 
 function Usage {
     echo "usage: $0 ixtheo|krimdok"
@@ -23,37 +14,38 @@ if [ $# != 1 ]; then
 fi
 
 system_type="$1"
-
 if [[  ${system_type} != ixtheo && ${system_type} != krimdok ]]; then
     Usage
-fi 
-
-title_file=$(ls -1 GesamtTiteldaten-post-pipeline-* | sort --reverse | head --lines 1)
-
-if [[ ! "${title_file}" =~ GesamtTiteldaten-post-pipeline-[0-9][0-9][0-9][0-9][0-9][0-9].mrc ]]; then
-    echo 'Could not identify a file matching GesamtTiteldaten-post-pipeline-[0-9][0-9][0-9][0-9][0-9][0-9].mrc!'
-    exit 1
 fi
-
-
-# Determines the embedded date of the files we're processing:
-date=$(DetermineDateFromFilename ${title_file})
 
 # Sets up the log file:
 logdir=/usr/local/var/log/tuefind
 log="${logdir}/collect_journal_stats.log"
 rm -f "${log}"
 
-CreateTemporaryNullDevice
-echo -e "\n\nUsing \"${title_file}\" as input for ${system_type}" | tee --append "${log}"
+function EchoLog {
+    echo -e "$1" | tee --append "${log}"
+}
 
-OVERALL_START=$(date +%s.%N)
+title_file=$(ls -1 GesamtTiteldaten-post-pipeline-* | sort --reverse | head --lines 1)
+if [[ ! "${title_file}" =~ GesamtTiteldaten-post-pipeline-[0-9][0-9][0-9][0-9][0-9][0-9].mrc ]]; then
+    EchoLog 'Could not identify a file matching GesamtTiteldaten-post-pipeline-[0-9][0-9][0-9][0-9][0-9][0-9].mrc!'
+    exit 1
+fi
+
+json_out_file="/tmp/collect_journal_stats.json"
+rm -f "${json_out_file}"
+
+# Determines the embedded date of the files we're processing:
+date=$(DetermineDateFromFilename ${title_file})
+
+EchoLog "Using \"${title_file}\" as input for ${system_type}"
 
 # Note: It is necessary to run this phase after articles have had their journal's PPN's inserted!
-StartPhase "Populate the Zeder Journal Timeliness Database Table"
-(collect_journal_stats ${system_type} ${title_file} ${TMP_NULL} >> "${log}" 2>&1 && \
-EndPhase || Abort) &
-wait
+EchoLog "Collect Journal Stats for Zeder"
+collect_journal_stats ${system_type} ${title_file} ${json_out_file} 2>&1 | tee --append "${log}"
 
-echo -e "\n\nPipeline done after $(CalculateTimeDifference $OVERALL_START $(date +%s.%N)) minutes." | tee --append "${log}"
-echo "*** COLLECT JOURNAL STATS PIPELINE DONE - $(date) ***" | tee --append "${log}"
+EchoLog "Uploading generated JSON file to Zeder..."
+curl --verbose --request POST --header "Content-Type: multipart/form-data" --form Datenquelle=$(hostname) --form "Datei=@${json_out_file}" --form "s_stufe=2" "http://www-ub.ub.uni-tuebingen.de/zeder/cgi-bin/index.cgi/artikelliste_hochladen"
+
+EchoLog "Upload finished"

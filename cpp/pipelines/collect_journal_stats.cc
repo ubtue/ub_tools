@@ -39,7 +39,7 @@ namespace {
 
 [[noreturn]] void Usage() {
     ::Usage(
-        "[--min-log-level=log_level] [--debug] system_type marc_input marc_output\n"
+        "[--min-log-level=log_level] [--debug] system_type marc_input json_output\n"
         "\twhere \"system_type\" must be one of ixtheo|krimdok");
 }
 
@@ -170,13 +170,13 @@ const size_t MAX_ISSUE_DATABASE_LENGTH(8); // maximum length of the issue column
 
 
 // Collects articles for whose superior PPN we have an entry in "ppns_to_zeder_ids_and_types_map".
-void CollectZederArticles(MARC::Reader * const reader, MARC::Writer * const writer,
+void CollectZederArticles(MARC::Reader * const reader,
                           const std::unordered_map<std::string, ZederIdAndPPNType> &ppns_to_zeder_ids_and_types_map,
                           std::unordered_map<std::string, std::vector<Article>> * const zeder_ids_plus_ppns_to_articles_map) {
+    LOG_INFO("Processing Zeder data...");
     unsigned total_count(0);
     while (const auto record = reader->read()) {
         ++total_count;
-        writer->write(record); // For the next pipeline phase.
 
         const std::string superior_control_number(record.getSuperiorControlNumber());
         if (superior_control_number.empty())
@@ -222,39 +222,7 @@ void CollectZederArticles(MARC::Reader * const reader, MARC::Writer * const writ
 }
 
 
-size_t GetArticlesFromDatabase(const IniFile &ini_file, const std::string &system_type, const std::string &hostname,
-                               std::unordered_map<std::string, Article> * const existing_articles) {
-    DbConnection db_connection_select(DbConnection::MySQLFactory(ini_file, "DatabaseSelect"));
-    db_connection_select.queryOrDie(
-        "SELECT MAX(timestamp),Zeder_ID,PPN,Jahr,Band,Heft,Seitenbereich"
-        " FROM zeder.erschliessung WHERE Quellrechner='"
-        + hostname + "' AND Systemtyp='" + system_type + "' GROUP BY Zeder_ID,PPN,Jahr,Band,Heft,Seitenbereich");
-    auto result_set(db_connection_select.getLastResultSet());
-    while (const auto row = result_set.getNextRow()) {
-        // n.a. can be replaced after the unique article id is created in the zeder data model
-        const Article db_entry("n.a.", row["Jahr"], row["Band"], row["Heft"], row["Seitenbereich"]);
-        const auto key(row["Zeder_ID"] + "+" + row["PPN"]);
-        auto key_and_article(existing_articles->find(key));
-        if (key_and_article == existing_articles->end() or db_entry.isNewerThan(key_and_article->second))
-            (*existing_articles)[key] = db_entry;
-    }
-
-    return existing_articles->size();
-}
-
-
-// \return True if "test_article" either does not exist in the database or is newer than the newest existing entry.
-bool IsNewerThanWhatExistsInDB(const std::unordered_map<std::string, Article> &existing_articles, const std::string &zeder_id,
-                               const std::string &ppn, const Article &test_article) {
-    const auto key_and_entry(existing_articles.find(zeder_id + "+" + ppn));
-    if (key_and_entry == existing_articles.cend())
-        return true;
-
-    return test_article.isNewerThan(key_and_entry->second);
-}
-
-
-std::string GetPNN(const std::string &zeder_id_plus_ppn) {
+std::string GetPPN(const std::string &zeder_id_plus_ppn) {
     const auto plus_pos(zeder_id_plus_ppn.find('+'));
     if (unlikely(plus_pos == std::string::npos))
         LOG_ERROR("missing + in \"" + zeder_id_plus_ppn + "\"!");
@@ -262,68 +230,12 @@ std::string GetPNN(const std::string &zeder_id_plus_ppn) {
 }
 
 
-void UpdateDatabase(const std::string &system_type,
-                    const std::unordered_map<std::string, ZederIdAndPPNType> &ppns_to_zeder_ids_and_types_map,
-                    const std::unordered_map<std::string, std::vector<Article>> &zeder_ids_plus_ppns_to_articles_map) {
-    std::unordered_map<std::string, Article> existing_articles;
-    const IniFile ini_file;
-    const auto HOSTNAME(DnsUtil::GetHostname());
-    if (not ppns_to_zeder_ids_and_types_map.empty())
-        LOG_INFO("Found " + std::to_string(GetArticlesFromDatabase(ini_file, system_type, HOSTNAME, &existing_articles))
-                 + " existing database entries.");
-
-    const auto JOB_START_TIME(std::to_string(std::time(nullptr)));
-
-    DbConnection db_connection_insert(DbConnection::MySQLFactory(ini_file, "DatabaseInsert"));
-    const unsigned SQL_INSERT_BATCH_SIZE(50);
-    const std::vector<std::string> COLUMN_NAMES{ "timestamp", "Quellrechner", "Systemtyp", "Zeder_ID", "PPN_Typ",
-                                                 "PPN",       "Jahr",         "Band",      "Heft",     "Seitenbereich" };
-    std::vector<std::vector<std::optional<std::string>>> column_values;
-
-    for (const auto &[zeder_id_plus_ppn, articles] : zeder_ids_plus_ppns_to_articles_map) {
-        const auto ppn(GetPNN(zeder_id_plus_ppn));
-        const auto ppn_and_zeder_id_and_ppn_type(ppns_to_zeder_ids_and_types_map.find(ppn));
-        if (unlikely(ppn_and_zeder_id_and_ppn_type == ppns_to_zeder_ids_and_types_map.cend()))
-            LOG_ERROR("no Zeder ID found for (Zeitschrift_)PPN \"" + ppn + "\"!");
-
-        const auto zeder_id(std::to_string(ppn_and_zeder_id_and_ppn_type->second.zeder_id_));
-        for (auto article(articles.cbegin());
-             article != articles.cend() and IsNewerThanWhatExistsInDB(existing_articles, zeder_id, ppn, *article); ++article)
-        {
-            const std::vector<std::optional<std::string>> new_column_values{
-                { /* timestamp */ JOB_START_TIME },
-                { /* Quellrechner */ HOSTNAME },
-                {
-                    /* Systemtyp */ system_type,
-                },
-                { /* Zeder_ID */ zeder_id },
-                { /* Zeitschrift_PPN_Typ */ std::string(1, ppn_and_zeder_id_and_ppn_type->second.type_) },
-                { /* Zeitschrift_PPN */ ppn },
-                { /* Jahr */ article->jahr_ },
-                { /* Band */ article->band_ },
-                { /* Heft */ article->heft_ },
-                { /* Seitenbereich */ article->seitenbereich_ },
-            };
-            column_values.emplace_back(new_column_values);
-
-            if (column_values.size() == SQL_INSERT_BATCH_SIZE) {
-                db_connection_insert.insertIntoTableOrDie("zeder.erschliessung", COLUMN_NAMES, column_values);
-                column_values.clear();
-            }
-        }
-    }
-    if (not column_values.empty())
-        db_connection_insert.insertIntoTableOrDie("zeder.erschliessung", COLUMN_NAMES, column_values);
-
-    LOG_INFO("Inserted " + std::to_string(zeder_ids_plus_ppns_to_articles_map.size()) + " entries into Ingo's database.");
-}
-
-
 void GenerateJson(const std::string &system_type, const std::unordered_map<std::string, ZederIdAndPPNType> &ppns_to_zeder_ids_and_types_map,
                   const std::unordered_map<std::string, std::vector<Article>> &zeder_ids_plus_ppns_to_articles_map,
-                  bool produce_unreadable_file = true) {
+                  const std::string &json_output_file) {
+    LOG_INFO("Generate output file: " + json_output_file);
     const auto HOSTNAME(DnsUtil::GetHostname());
-    auto raped_json_file(FileUtil::OpenOutputFileOrDie("/tmp/collect_journal_stats.json"));
+    auto json_file(FileUtil::OpenOutputFileOrDie(json_output_file));
     const auto JOB_START_TIME(std::to_string(std::time(nullptr)));
     unsigned long outer_size = zeder_ids_plus_ppns_to_articles_map.size();
     unsigned long outer_position = 0;
@@ -338,12 +250,9 @@ void GenerateJson(const std::string &system_type, const std::unordered_map<std::
     std::vector<std::string> baende;
     std::vector<std::string> hefte;
     std::vector<std::string> seitenbereiche;
-    if (not produce_unreadable_file)
-        *raped_json_file << "["
-                         << "\n";
     for (const auto &[zeder_id_plus_ppn, articles] : zeder_ids_plus_ppns_to_articles_map) {
         ++outer_position;
-        const auto ppn(GetPNN(zeder_id_plus_ppn));
+        const auto ppn(GetPPN(zeder_id_plus_ppn));
         const auto ppn_and_zeder_id_and_ppn_type(ppns_to_zeder_ids_and_types_map.find(ppn));
         if (unlikely(ppn_and_zeder_id_and_ppn_type == ppns_to_zeder_ids_and_types_map.cend()))
             LOG_ERROR("no Zeder ID found for (Zeitschrift_)PPN \"" + ppn + "\"!");
@@ -364,44 +273,36 @@ void GenerateJson(const std::string &system_type, const std::unordered_map<std::
                                                                         { "Heft", article.heft_ },
                                                                         { "Seitenbereich", article.seitenbereich_ } };
             JSON::ObjectNode object_node(columns);
-            if (produce_unreadable_file) {
-                timestamps.push_back(object_node.getStringValue("timestamp"));
-                quellrechner.push_back("\"" + object_node.getStringValue("Quellrechner") + "\"");
-                systemtypen.push_back("\"" + object_node.getStringValue("Systemtyp") + "\"");
-                zeder_ids.push_back(object_node.getStringValue("Zeder_ID"));
-                ppn_typen.push_back("\"" + object_node.getStringValue("Zeitschrift_PPN_Typ") + "\"");
-                ppns.push_back("\"" + object_node.getStringValue("Zeitschrift_PPN") + "\"");
-                art_ppns.push_back("\"" + object_node.getStringValue("Artikel_PPN") + "\"");
-                jahre.push_back("\"" + object_node.getStringValue("Jahr") + "\"");
-                baende.push_back("\"" + object_node.getStringValue("Band") + "\"");
-                hefte.push_back("\"" + object_node.getStringValue("Heft") + "\"");
-                seitenbereiche.push_back("\"" + object_node.getStringValue("Seitenbereich") + "\"");
-            } else {
-                *raped_json_file << object_node.toString();
-                std::string separator = inner_position >= articles.size() and outer_position >= outer_size ? "" : ",";
-                *raped_json_file << separator << "\n";
-            }
+
+            timestamps.push_back(object_node.getStringValue("timestamp"));
+            quellrechner.push_back("\"" + object_node.getStringValue("Quellrechner") + "\"");
+            systemtypen.push_back("\"" + object_node.getStringValue("Systemtyp") + "\"");
+            zeder_ids.push_back(object_node.getStringValue("Zeder_ID"));
+            ppn_typen.push_back("\"" + object_node.getStringValue("Zeitschrift_PPN_Typ") + "\"");
+            ppns.push_back("\"" + object_node.getStringValue("Zeitschrift_PPN") + "\"");
+            art_ppns.push_back("\"" + object_node.getStringValue("Artikel_PPN") + "\"");
+            jahre.push_back("\"" + object_node.getStringValue("Jahr") + "\"");
+            baende.push_back("\"" + object_node.getStringValue("Band") + "\"");
+            hefte.push_back("\"" + object_node.getStringValue("Heft") + "\"");
+            seitenbereiche.push_back("\"" + object_node.getStringValue("Seitenbereich") + "\"");
         }
     }
-    if (produce_unreadable_file) {
-        *raped_json_file << "{";
-        *raped_json_file << "\"timestamp\":[" << StringUtil::Join(timestamps, ",") << "],";
-        *raped_json_file << "\"Quellrechner\":[" << StringUtil::Join(quellrechner, ",") << "],";
-        *raped_json_file << "\"Systemtyp\":[" << StringUtil::Join(systemtypen, ",") << "],";
-        *raped_json_file << "\"Zeder_ID\":[" << StringUtil::Join(zeder_ids, ",") << "],";
-        *raped_json_file << "\"Zeitschrift_PPN_Typ\":[" << StringUtil::Join(ppn_typen, ",") << "],";
-        *raped_json_file << "\"Zeitschrift_PPN\":[" << StringUtil::Join(ppns, ",") << "],";
-        *raped_json_file << "\"Artikel_PPN\":[" << StringUtil::Join(art_ppns, ",") << "],";
-        *raped_json_file << "\"Jahr\":[" << StringUtil::Join(jahre, ",") << "],";
-        *raped_json_file << "\"Band\":[" << StringUtil::Join(baende, ",") << "],";
-        *raped_json_file << "\"Heft\":[" << StringUtil::Join(hefte, ",") << "],";
-        *raped_json_file << "\"Seitenbereich\":[" << StringUtil::Join(seitenbereiche, ",") << "]";
-        *raped_json_file << "}";
-    } else {
-        *raped_json_file << "]"
-                         << "\n";
-    }
-    LOG_INFO("Inserted " + std::to_string(outer_size) + " entries into JSON file for Ingo's database.");
+
+    *json_file << "{";
+    *json_file << "\"timestamp\":[" << StringUtil::Join(timestamps, ",") << "],";
+    *json_file << "\"Quellrechner\":[" << StringUtil::Join(quellrechner, ",") << "],";
+    *json_file << "\"Systemtyp\":[" << StringUtil::Join(systemtypen, ",") << "],";
+    *json_file << "\"Zeder_ID\":[" << StringUtil::Join(zeder_ids, ",") << "],";
+    *json_file << "\"Zeitschrift_PPN_Typ\":[" << StringUtil::Join(ppn_typen, ",") << "],";
+    *json_file << "\"Zeitschrift_PPN\":[" << StringUtil::Join(ppns, ",") << "],";
+    *json_file << "\"Artikel_PPN\":[" << StringUtil::Join(art_ppns, ",") << "],";
+    *json_file << "\"Jahr\":[" << StringUtil::Join(jahre, ",") << "],";
+    *json_file << "\"Band\":[" << StringUtil::Join(baende, ",") << "],";
+    *json_file << "\"Heft\":[" << StringUtil::Join(hefte, ",") << "],";
+    *json_file << "\"Seitenbereich\":[" << StringUtil::Join(seitenbereiche, ",") << "]";
+    *json_file << "}";
+
+    LOG_INFO("Wrote " + std::to_string(outer_size) + " entries into JSON output file.");
 }
 
 
@@ -410,6 +311,8 @@ const std::string TEXT_FILE_DIRECTORY(UBTools::GetFIDProjectsPath() + "Zeder_Sup
 
 void UpdateTextFiles(const bool debug, const std::unordered_map<std::string, std::vector<Article>> &zeder_ids_plus_ppns_to_articles_map) {
     const auto DIRECTORY_PREFIX(debug ? "/tmp/collect_journal_stats/" : TEXT_FILE_DIRECTORY + "/" + DnsUtil::GetHostname() + "/");
+    LOG_INFO("Writing output to " + DIRECTORY_PREFIX + "...");
+
     if (not FileUtil::Exists(DIRECTORY_PREFIX))
         FileUtil::MakeDirectoryOrDie(DIRECTORY_PREFIX);
 
@@ -466,16 +369,16 @@ int Main(int argc, char *argv[]) {
     const auto ppns_to_zeder_ids_and_types_map(GetPPNsToZederIdsAndTypesMap(system_type));
 
     const auto marc_reader(MARC::Reader::Factory(argv[2]));
-    const auto marc_writer(MARC::Writer::Factory(argv[3]));
+    const std::string json_out_file(argv[3]);
     std::unordered_map<std::string, std::vector<Article>> zeder_ids_plus_ppns_to_articles_map;
-    CollectZederArticles(marc_reader.get(), marc_writer.get(), ppns_to_zeder_ids_and_types_map, &zeder_ids_plus_ppns_to_articles_map);
+    CollectZederArticles(marc_reader.get(), ppns_to_zeder_ids_and_types_map, &zeder_ids_plus_ppns_to_articles_map);
 
     if (not ppns_to_zeder_ids_and_types_map.empty()) {
         SortArticles(&zeder_ids_plus_ppns_to_articles_map);
+        GenerateJson(system_type, ppns_to_zeder_ids_and_types_map, zeder_ids_plus_ppns_to_articles_map, json_out_file);
+
         if (not debug)
-            UpdateDatabase(system_type, ppns_to_zeder_ids_and_types_map, zeder_ids_plus_ppns_to_articles_map);
-        GenerateJson(system_type, ppns_to_zeder_ids_and_types_map, zeder_ids_plus_ppns_to_articles_map);
-        UpdateTextFiles(debug, zeder_ids_plus_ppns_to_articles_map);
+            UpdateTextFiles(debug, zeder_ids_plus_ppns_to_articles_map);
     }
 
     return EXIT_SUCCESS;
