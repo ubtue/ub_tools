@@ -141,7 +141,8 @@ ArchiveType GetArchiveType(const std::string &member_name) {
 std::string GetAuthorGNDNumber(const std::string &author, const std::string &author_lookup_base_url) {
     static std::mutex fetch_author_gnd_url_to_gnd_cache_mutex;
     static std::unordered_map<std::string, std::string> fetch_author_gnd_url_to_gnd_cache;
-    static const ThreadSafeRegexMatcher AUTHOR_GND_MATCHER("Link zu diesem Datensatz in der GND:\\s*<[^>]+><a[^>]*>http(?:s)?://d-nb.info/gnd/([0-9X]+)</a>");
+    static const ThreadSafeRegexMatcher AUTHOR_GND_MATCHER(
+        "Link zu diesem Datensatz in der GND:\\s*<[^>]+><a[^>]*>http(?:s)?://d-nb.info/gnd/([0-9X]+)</a>");
 
     // "author" must be in the lastname,firstname format
     const std::string lookup_url(author_lookup_base_url + UrlUtil::UrlEncode(author));
@@ -226,14 +227,37 @@ void ExtractYearVolumeIssue(const MARC::Record &record, std::string * const year
     if (field_008 != record.end())
         *year = field_008->getContents().substr(7, 4);
 
-    const auto field_936(record.findTag("936"));
-    if (field_936 == record.end())
+    const auto field_773(record.findTag("773"));
+    if (field_773 == record.end())
         return;
 
-    *volume = field_936->getFirstSubfieldWithCode('d');
-    *issue = field_936->getFirstSubfieldWithCode('e');
+    std::vector<std::string> filtered_dates;
+    for (const auto &field : record.getTagRange("773")) {
+        if (field.getIndicator1() == '1') {
+            for (const auto &subfield : field.getSubfields()) {
+                filtered_dates.emplace_back(explode(subfield.value_, ":"));
+            }
+            break;
+        }
+    }
+
+    *volume = filtered_dates[0];
+    *issue = filtered_dates[2];
 }
 
+std::string explode(const std::string &data, const std::string &delimiters) {
+    auto is_delim = [&](auto &c) { return delimiters.find(c) != std::string::npos; };
+    std::string result;
+    for (std::string::size_type i(0), len(data.length()), pos(0); i <= len; i++) {
+        if (is_delim(data[i]) || i == len) {
+            auto tok = data.substr(pos, i - pos);
+            if (!tok.empty())
+                result = tok;
+            pos = i + 1;
+        }
+    }
+    return result;
+}
 
 std::string GetK10PlusPPNFromSubfield(const MARC::Record::Field &field, const char subfield_code) {
     for (const auto &subfield_code_and_value : field.getSubfields()) {
