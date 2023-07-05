@@ -1,5 +1,5 @@
-/** \file  CopyUsingRegex.h 
- *  \brief  Helper functions for copy file(s) using regex for file name 
+/** \file  CopyUsingRegex.h
+ *  \brief  Helper functions for copy file(s) using regex for file name
  *  \author Steven Lolong (steven.lolong@uni-tuebingen.de)
  *
  *  \copyright 2022 Universitätsbibliothek Tübingen.  All rights reserved.
@@ -19,13 +19,18 @@
  */
 #pragma once
 
-#include <vector>
 #include <string>
+#include <vector>
 
 
 namespace CopyUsingRegex {
 
-void GetAllFiles(const char* srcPat, std::vector<char*>& fileList);
+/** \brief   Copy using regex for file name
+ *  \param   srcPath  The source folder path
+ *  \param   desPath  The destination folder path
+ *  \param   fName  Filename with or without regex
+ *  \return  void
+ */
 void CopyFiles(const char* srcPath, const char* desPath, std::string fName);
 
 

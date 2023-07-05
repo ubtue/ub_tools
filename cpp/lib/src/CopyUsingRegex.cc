@@ -1,5 +1,5 @@
-/** \file  CopyUsingRegex.cc 
- *  \brief  Helper functions for copy file(s) using regex for file name 
+/** \file  CopyUsingRegex.cc
+ *  \brief  Helper functions for copy file(s) using regex for file name
  *  \author Steven Lolong (steven.lolong@uni-tuebingen.de)
  *
  *  \copyright 2022 Universitätsbibliothek Tübingen.  All rights reserved.
@@ -18,24 +18,38 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <vector>
-#include <dirent.h>
+#include <iostream>
 #include <regex>
 #include <string>
-#include <iostream>
-#include "FileUtil.h"
+#include <vector>
+#include <dirent.h>
 #include "CopyUsingRegex.h"
+#include "FileUtil.h"
 
 
-void CopyUsingRegex::CopyFiles(const char* srcPath, const char* desPath, std::string fName){
-    std::vector<char *> fileList;
+void GetAllFiles(const char* srcPath, std::vector<char*>& fileList) {
+    DIR* dir;
+    struct dirent* diread;
+
+    if ((dir = opendir(srcPath)) != nullptr) {
+        while ((diread = readdir(dir)) != nullptr) {
+            fileList.push_back(diread->d_name);
+        }
+        closedir(dir);
+    } else {
+        perror("opendir");
+    }
+}
+
+void CopyUsingRegex::CopyFiles(const char* srcPath, const char* desPath, std::string fName) {
+    std::vector<char*> fileList;
     std::string sourcePath(srcPath);
     std::string destPath(desPath);
-    CopyUsingRegex::GetAllFiles(srcPath, fileList);
+    GetAllFiles(srcPath, fileList);
 
-    for(auto f : fileList){
-        if(regex_search(f, std::regex(fName))){
-        // if(regex_match(f, std::regex(fName))){
+    for (auto f : fileList) {
+        if (regex_search(f, std::regex(fName))) {
+            // if(regex_match(f, std::regex(fName))){
             sourcePath = srcPath;
             destPath = desPath;
             sourcePath = sourcePath.append(f);
@@ -44,19 +58,5 @@ void CopyUsingRegex::CopyFiles(const char* srcPath, const char* desPath, std::st
             std::cout << "Copying from: " << sourcePath << " to: " << destPath << std::endl;
             FileUtil::CopyOrDie(sourcePath, destPath);
         }
-    }
-
-}
-
-void CopyUsingRegex::GetAllFiles(const char* srcPath, std::vector<char*>& fileList){
-    DIR *dir; struct dirent *diread;
-
-    if ((dir = opendir(srcPath)) != nullptr) {
-        while ((diread = readdir(dir)) != nullptr) {
-            fileList.push_back(diread->d_name);
-        }
-        closedir (dir);
-    } else {
-        perror ("opendir");
     }
 }
