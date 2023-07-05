@@ -49,7 +49,6 @@ void CopyUsingRegex::CopyFiles(const char* srcPath, const char* desPath, std::st
 
     for (auto f : fileList) {
         if (regex_search(f, std::regex(fName))) {
-            // if(regex_match(f, std::regex(fName))){
             sourcePath = srcPath;
             destPath = desPath;
             sourcePath = sourcePath.append(f);

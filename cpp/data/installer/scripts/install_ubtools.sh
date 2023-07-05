@@ -5,6 +5,21 @@
 # compile cpp installer
 # run it
 
+# ./install_ubtools.sh parameter
+# parameter option:
+#   - fulltext-backend  <--test | --production> [--omit-cronjobs] [--omit-systemctl] [--omit-systemctl]
+#   - ub-tools-only
+#   - vufind < ixtheo | krimdok >  <--test | --production> [--omit-cronjobs] [--omit-systemctl] [--omit-systemctl] 
+#  
+# example:
+# ./install_ubtools.sh vufind ixtheo --test --omit-cronjobs | tee ~/output.log
+
+function ColorEcho {
+    echo -e "\033[1;34m" $1 "\033[0m"
+}
+
+ColorEcho "*************** Starting installation of vufind/tuefind for ixtheo *******************"
+
 # make sure we are on ubuntu
 if [ -e /etc/debian_version ]; then
     #print ubuntu version
