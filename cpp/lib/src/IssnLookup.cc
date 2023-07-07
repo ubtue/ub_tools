@@ -32,7 +32,7 @@ void ExtractingData(const std::string &issn, const nlohmann::json &issn_info_jso
     if (issn_info_json.at("@graph").is_structured()) {
         for (const auto &ar : issn_info_json.at("@graph")) {
             if (ar.is_structured()) {
-                if (ar.at("@id") == issn_uri) {
+                if (ar.at("@id").get<std::string>() == issn_uri) {
                     issn_info->issn_ = issn;
                     for (const auto &[key, val] : ar.items()) {
                         if (key == "mainTitle") {
@@ -78,7 +78,7 @@ void ExtractingData(const std::string &issn, const nlohmann::json &issn_info_jso
                         }
                     }
                 }
-                if (ar.at("@id") == issn_title_uri) {
+                if (ar.at("@id").get<std::string>() == issn_title_uri) {
                     for (auto &[key, val] : ar.items()) {
                         if (key == "value")
                             if (val.is_structured())
