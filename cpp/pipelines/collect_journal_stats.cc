@@ -186,19 +186,17 @@ void CollectZederArticles(MARC::Reader * const reader, MARC::Writer * const writ
         if (ppn_and_zeder_id_and_ppn_type == ppns_to_zeder_ids_and_types_map.cend())
             continue;
 
-        const auto _773_field(record.findTag("773"));
-        const auto g_773_contents(_773_field->getFirstSubfieldWithCode('g'));
-        if (not g_773_contents.empty()) {
-            std::vector<std::string> subfields;
-            std::vector<std::string> filtered_dates;
-            for (const auto &field : record.getTagRange("773")) {
-                if (field.getIndicator1() == '1') {
-                    for (const auto &subfield : field.getSubfields()) {
-                        StringUtil::Split(subfield.value_, ':', &subfields, true);
-                        filtered_dates.emplace_back(subfields[1]);
-                    }
+        std::vector<std::string> subfields;
+        std::vector<std::string> filtered_dates;
+        for (const auto &field : record.getTagRange("773")) {
+            if (field.getIndicator1() == '1') {
+                for (const auto &subfield : field.getSubfields()) {
+                    StringUtil::Split(subfield.value_, ':', &subfields, true);
+                    filtered_dates.emplace_back(subfields[1]);
                 }
             }
+        }
+        if (not filtered_dates.empty()) {
             const std::string pages(filtered_dates[4]);
             const std::string issue(filtered_dates[2]);
             const std::string year(filtered_dates[1]);

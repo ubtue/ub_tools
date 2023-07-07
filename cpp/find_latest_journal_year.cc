@@ -157,19 +157,18 @@ void ProcessRecords(MARC::Reader * const marc_reader, std::unordered_map<std::st
             continue;
 
         std::string year_as_string;
-        const auto _773_field(record.findTag("773"));
-        const auto g_773_contents(_773_field->getFirstSubfieldWithCode('g'));
-        if (not g_773_contents.empty()) {
-            std::vector<std::string> subfields;
-            std::vector<std::string> filtered_dates;
-            for (const auto &field : record.getTagRange("773")) {
-                if (field.getIndicator1() == '1') {
-                    for (const auto &subfield : field.getSubfields()) {
-                        StringUtil::Split(subfield.value_, ':', &subfields, true);
-                        filtered_dates.emplace_back(subfields[1]);
-                    }
+
+        std::vector<std::string> subfields;
+        std::vector<std::string> filtered_dates;
+        for (const auto &field : record.getTagRange("773")) {
+            if (field.getIndicator1() == '1') {
+                for (const auto &subfield : field.getSubfields()) {
+                    StringUtil::Split(subfield.value_, ':', &subfields, true);
+                    filtered_dates.emplace_back(subfields[1]);
                 }
             }
+        }
+        if (not filtered_dates.empty()) {
             year_as_string = filtered_dates[1];
         } else {
             for (const auto &field : record.getTagRange("936")) {

@@ -79,27 +79,31 @@ void GetJournalEntriesFromDb(DbConnection * const db_connection, const std::stri
             const auto dois(record.getDOIs());
             csv_row += ";" + TextUtil::CSVEscape(StringUtil::Join(dois, '\n'));
 
-            const auto _773_field(record.findTag("773"));
-            const auto g_773_contents(_773_field->getFirstSubfieldWithCode('g'));
-            if (not g_773_contents.empty()) {
-                std::vector<std::string> subfields;
-                std::vector<std::string> filtered_dates;
-                for (const auto &field : record.getTagRange("773")) {
-                    if (field.getIndicator1() == '1') {
-                        for (const auto &subfield : field.getSubfields()) {
-                            StringUtil::Split(subfield.value_, ':', &subfields, true);
-                            filtered_dates.emplace_back(subfields[1]);
-                        }
+            std::vector<std::string> subfields;
+            std::vector<std::string> filtered_dates;
+            for (const auto &field : record.getTagRange("773")) {
+                if (field.getIndicator1() == '1') {
+                    for (const auto &subfield : field.getSubfields()) {
+                        StringUtil::Split(subfield.value_, ':', &subfields, true);
+                        filtered_dates.emplace_back(subfields[1]);
                     }
                 }
+            }
+            if (not filtered_dates.empty()) {
                 csv_row += ";" + filtered_dates[1];
                 csv_row += ";" + filtered_dates[0];
                 csv_row += ";" + filtered_dates[2];
             } else {
                 for (const auto &_936_field : record.getTagRange("936")) {
-                    csv_row += ";" + _936_field.getFirstSubfieldWithCode('j');
-                    csv_row += ";" + _936_field.getFirstSubfieldWithCode('d');
-                    csv_row += ";" + _936_field.getFirstSubfieldWithCode('e');
+                    if (not _936_field.getFirstSubfieldWithCode('j').empty()) {
+                        csv_row += ";" + _936_field.getFirstSubfieldWithCode('j');
+                    }
+                    if (not _936_field.getFirstSubfieldWithCode('d').empty()) {
+                        csv_row += ";" + _936_field.getFirstSubfieldWithCode('d');
+                    }
+                    if (not _936_field.getFirstSubfieldWithCode('e').empty()) {
+                        csv_row += ";" + _936_field.getFirstSubfieldWithCode('e');
+                    }
                     break;
                 }
             }

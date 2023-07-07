@@ -57,19 +57,17 @@ void ExtractYearVolumeIssue(const MARC::Record &record, RecordInfo * const recor
     record_info->volume_ = VOLUME_WILDCARD;
     record_info->issue_ = ISSUE_WILDCARD;
 
-    const auto _773_field(record.findTag("773"));
-    const auto g_773_contents(_773_field->getFirstSubfieldWithCode('g'));
-    if (not g_773_contents.empty()) {
-        std::vector<std::string> subfields;
-        std::vector<std::string> filtered_dates;
-        for (const auto &field : record.getTagRange("773")) {
-            if (field.getIndicator1() == '1') {
-                for (const auto &subfield : field.getSubfields()) {
-                    StringUtil::Split(subfield.value_, ':', &subfields, true);
-                    filtered_dates.emplace_back(subfields[1]);
-                }
+    std::vector<std::string> subfields;
+    std::vector<std::string> filtered_dates;
+    for (const auto &field : record.getTagRange("773")) {
+        if (field.getIndicator1() == '1') {
+            for (const auto &subfield : field.getSubfields()) {
+                StringUtil::Split(subfield.value_, ':', &subfields, true);
+                filtered_dates.emplace_back(subfields[1]);
             }
         }
+    }
+    if (not filtered_dates.empty()) {
         record_info->volume_ = filtered_dates[0];
         record_info->year_ = filtered_dates[1];
         record_info->issue_ = filtered_dates[2];
