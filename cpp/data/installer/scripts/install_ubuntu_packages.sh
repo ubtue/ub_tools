@@ -1,6 +1,5 @@
 #!/bin/bash
 
-cd /
 export JAVA_TOOL_OPTIONS="-Dfile.encoding=UTF8"
 
 if [[ $# > 1 ]]; then
@@ -23,7 +22,7 @@ ColorEcho "installing/updating ub_tools dependencies..."
 
 apt-get --yes update
 
-# install additional 
+# install additional libraries for docker environment 
 apt-get --yes install sudo wget
 
 # install software-properties-common for apt-add-repository

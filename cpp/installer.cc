@@ -744,9 +744,7 @@ void PermanentlySetEnvironmentVariables(const std::vector<std::pair<std::string,
 
 
 void SetVuFindEnvironmentVariables(const std::string &vufind_system_type_string) {
-<<<<<<< HEAD
     Echo("Setup vufind environment");
-=======
     std::string vufind_local_modules_content("TueFindSearch,TueFind");
 
     if (vufind_system_type_string == "ixtheo")
@@ -755,12 +753,12 @@ void SetVuFindEnvironmentVariables(const std::string &vufind_system_type_string)
     if (vufind_system_type_string == "krimdok")
         vufind_local_modules_content += ",KrimDok";
 
->>>>>>> 126f06f4cb3c9a7b4df2c3ed7707b0b3757cdfce
     std::vector<std::pair<std::string, std::string>> keys_and_values{
         { "VUFIND_HOME", VUFIND_DIRECTORY },
         { "VUFIND_LOCAL_DIR", VUFIND_DIRECTORY + "/local/tuefind/instances/" + vufind_system_type_string },
         { "VUFIND_LOCAL_MODULES", vufind_local_modules_content },
         { "TUEFIND_FLAVOUR", vufind_system_type_string },
+        { "JAVA_TOOL_OPTIONS", "-Dfile.encoding=UTF8" },
     };
     PermanentlySetEnvironmentVariables(keys_and_values, "/etc/profile.d/vufind.sh");
 }
