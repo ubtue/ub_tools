@@ -21,8 +21,10 @@
  */
 #include "FileUtil.h"
 #include <fstream>
+#include <iostream>
 #include <list>
 #include <memory>
+#include <regex>
 #include <stdexcept>
 #include <cassert>
 #include <cerrno>
@@ -879,7 +881,7 @@ FileUtil::FileType GuessFileType(const std::string &filename) {
                 file_type = FILE_TYPE_PDF;
             break;
         case 'h':
-            if (file_extension == "phtml") // serverside parsed html
+            if (file_extension == "phtml")    // serverside parsed html
                 file_type = FILE_TYPE_HTML;
             else if (file_extension == "php") //
                 file_type = FILE_TYPE_HTML;
@@ -1599,5 +1601,39 @@ bool ReadLink(const std::string &path, std::string * const link_target) {
     }
 }
 
+
+void GetAllFiles(const char *srcPath, std::vector<char *> &fileList) {
+    DIR *dir;
+    struct dirent *diread;
+
+    if ((dir = opendir(srcPath)) != nullptr) {
+        while ((diread = readdir(dir)) != nullptr) {
+            fileList.push_back(diread->d_name);
+        }
+        closedir(dir);
+    } else {
+        perror("opendir");
+    }
+}
+
+
+void CopyUsingRegex(const char *srcPath, const char *desPath, std::string fName) {
+    std::vector<char *> fileList;
+    std::string sourcePath(srcPath);
+    std::string destPath(desPath);
+    GetAllFiles(srcPath, fileList);
+
+    for (auto f : fileList) {
+        if (regex_search(f, std::regex(fName))) {
+            sourcePath = srcPath;
+            destPath = desPath;
+            sourcePath = sourcePath.append(f);
+            destPath = destPath.append(f);
+            std::cout << "Match file: " << f << std::endl;
+            std::cout << "Copying from: " << sourcePath << " to: " << destPath << std::endl;
+            CopyOrDie(sourcePath, destPath);
+        }
+    }
+}
 
 } // namespace FileUtil

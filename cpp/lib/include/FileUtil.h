@@ -653,5 +653,12 @@ std::string GroupnameFromGID(const gid_t gid);
  */
 bool ReadLink(const std::string &path, std::string * const link_target);
 
+/** \brief   Copy using regex for file name
+ *  \param   srcPath  The source folder path
+ *  \param   desPath  The destination folder path
+ *  \param   fName  Filename with or without regex
+ *  \return  void
+ */
+void CopyUsingRegex(const char *srcPath, const char *desPath, std::string fName);
 
 } // namespace FileUtil
