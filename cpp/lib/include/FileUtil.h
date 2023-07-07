@@ -505,7 +505,7 @@ bool Copy(const std::string &from_path, const std::string &to_path, const bool t
 void CopyOrDie(const std::string &from_path, const std::string &to_path);
 
 /**
- * \brief Copy file that support cross filesystem's type. The maximum size of copy file is 2GB only.
+ * \brief Copy file that support cross filesystem's type.
  * \param fromPath              Source file with absolute or relative path
  * \param toPath                Target file with absolute or relative path
  */
@@ -653,12 +653,5 @@ std::string GroupnameFromGID(const gid_t gid);
  */
 bool ReadLink(const std::string &path, std::string * const link_target);
 
-/** \brief   Copy using regex for file name
- *  \param   srcPath  The source folder path
- *  \param   desPath  The destination folder path
- *  \param   fName  Filename with or without regex
- *  \return  void
- */
-void CopyUsingRegex(const char *srcPath, const char *desPath, std::string fName);
 
 } // namespace FileUtil

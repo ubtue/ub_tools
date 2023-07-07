@@ -229,7 +229,6 @@ void MountDeptDriveAndInstallSSHKeysOrDie(const VuFindSystemType vufind_system_t
     if (not FileUtil::Exists(SSH_KEYS_DIR_LOCAL))
         FileUtil::MakeDirectoryOrDie(SSH_KEYS_DIR_LOCAL, false, 0700);
     if (not FileUtil::Exists(GITHUB_ROBOT_PRIVATE_KEY_LOCAL)) {
-        // disable using this function for a while until the patch the error in 'copy_file_range()' in new linux kernel
         // FileUtil::CopyOrDie(GITHUB_ROBOT_PRIVATE_KEY_REMOTE, GITHUB_ROBOT_PRIVATE_KEY_LOCAL);
         FileUtil::CopyOrDieXFs(GITHUB_ROBOT_PRIVATE_KEY_REMOTE, GITHUB_ROBOT_PRIVATE_KEY_LOCAL);
         FileUtil::ChangeModeOrDie(GITHUB_ROBOT_PRIVATE_KEY_LOCAL, 0600);
@@ -257,7 +256,7 @@ void AssureMysqlServerIsRunning() {
 
     const unsigned TIMEOUT(30); // seconds
     if (not FileUtil::WaitForFile(mysql_sock_path, TIMEOUT, 5 /*seconds*/))
-        Error("Installer -> can't find " + mysql_sock_path + " after " + std::to_string(TIMEOUT) + " seconds of looking!");
+        Error("can't find " + mysql_sock_path + " after " + std::to_string(TIMEOUT) + " seconds of looking!");
 }
 
 
@@ -363,7 +362,7 @@ void CreateVuFindDatabases(const VuFindSystemType vufind_system_type, DbConnecti
 
 void SystemdEnableAndRunUnit(const std::string unit) {
     if (not SystemdUtil::IsUnitAvailable(unit))
-        LOG_ERROR("Installer -> " + unit + " unit not found in systemd, installation problem?");
+        LOG_ERROR(unit + " unit not found in systemd, installation problem?");
 
     if (not SystemdUtil::IsUnitEnabled(unit)) {
         Echo("Enabling system unit");
@@ -619,7 +618,7 @@ void CreateUserIfNotExists(const std::string &username) {
         ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("useradd"),
                             { "--system", "--user-group", "--no-create-home", "--shell", "/bin/bash", username });
     } else if (user_exists > 1)
-        Error("Installer -> Failed to check if user exists: " + username);
+        Error("Failed to check if user exists: " + username);
 }
 
 
@@ -873,7 +872,7 @@ void WaitForElasticsearchReady() {
             break;
         ::sleep(SLEEP_TIME_SECS);
         if (iteration == MAX_ITERATIONS)
-            LOG_ERROR("Installer -> ES apparently down [1]");
+            LOG_ERROR("ES apparently down [1]");
     }
 
     const unsigned TIMEOUT_MS(5 * 1000);
@@ -886,7 +885,7 @@ void WaitForElasticsearchReady() {
             break;
         ::sleep(SLEEP_TIME_SECS);
         if (iteration == MAX_ITERATIONS)
-            LOG_ERROR("Installer -> ES apparently down [2]");
+            LOG_ERROR("ES apparently down [2]");
     }
 }
 
