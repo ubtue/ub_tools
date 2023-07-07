@@ -705,4 +705,14 @@ std::string NormalizeName(const std::string &name) {
 }
 
 
+const ThreadSafeRegexMatcher CORPORATE_AUTHOR_MATCHER(
+    "\\b(Universit\\w+|College|School|Institut\\w+|Fakult\\w+|Council|Office|Association|International|Center|Centre)\\b",
+    ThreadSafeRegexMatcher::Option::ENABLE_UTF8 | ThreadSafeRegexMatcher::Option::CASE_INSENSITIVE);
+
+
+bool IsCorporateAuthor(const std::string &name) {
+    return CORPORATE_AUTHOR_MATCHER.match(name);
+}
+
+
 } // namespace MiscUtil

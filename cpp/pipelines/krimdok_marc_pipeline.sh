@@ -134,19 +134,11 @@ EndPhase
 
 
 StartPhase "Parent-to-Child Linking and Flagging of Subscribable Items"
-make_named_pipe --buffer-size=$FIFO_BUFFER_SIZE GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1
 (add_superior_and_alertable_flags krimdok GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                                           GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" \
     >> "${log}" 2>&1 && \
 EndPhase || Abort) &
-
-
-# Note: It is necessary to run this phase after articles have had their journal's PPN's inserted!
-StartPhase "Populate the Zeder Journal Timeliness Database Table"
-make_named_pipe --buffer-size=$FIFO_BUFFER_SIZE GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1
-(collect_journal_stats krimdok GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
-                               GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
-EndPhase || Abort) &
+wait
 
 
 StartPhase "Add Additional Open Access URL's"
@@ -180,12 +172,28 @@ EndPhase || Abort) &
 wait
 
 
+StartPhase "Add Wikidata IDs to Authority Data"
+(add_authority_external_ref Normdaten-partially-augmented2-"${date}".mrc \
+                            Normdaten-partially-augmented3-"${date}".mrc \
+                            /usr/local/var/lib/tuelib/gnd_to_wiki.csv >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+wait
+
+
 StartPhase "Appending Literary Remains Records"
 (create_literary_remains_records --no-subsystems \
-                                 GesamtTiteldaten-post-phase"$((PHASE-2))"-"${date}".mrc \
+                                 GesamtTiteldaten-post-phase"$((PHASE-3))"-"${date}".mrc \
                                  GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
-                                 Normdaten-partially-augmented2-"${date}".mrc \
+                                 Normdaten-partially-augmented3-"${date}".mrc \
                                  Normdaten-fully-augmented-"${date}".mrc >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+wait
+
+
+StartPhase "Augment Time Aspect References"
+(augment_time_aspects GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+                      Normdaten-fully-augmented-"${date}".mrc \
+                      GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
 

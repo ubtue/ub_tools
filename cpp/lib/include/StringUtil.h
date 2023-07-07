@@ -109,12 +109,61 @@ inline std::string AppendSubstring(std::string &target, const std::string &sourc
     return target;
 }
 
+
+/** \brief  Returns what isalpha would return in the "C" locale.
+ *  \param  ch  The character to test.
+ *  \return True if "ch" is an alphabetic character in the "C" locale, else false.
+ */
+inline bool IsUppercaseAsciiLetter(const char ch) {
+    // Caution: the following code assumes a character set where A-Z are consecutive, e.g. ANSI or ASCII but not EBCDIC etc.
+    return ch >= 'A' and ch <= 'Z';
+}
+
+
+/** \brief  Returns what isalpha would return in the "C" locale.
+ *  \param  ch  The character to test.
+ *  \return True if "ch" is an alphabetic character in the "C" locale, else false.
+ */
+inline bool IsUppercaseAsciiLetter(const int ch) {
+    // Caution: the following code assumes a character set where A-Z are consecutive, e.g. ANSI or ASCII but not EBCDIC etc.
+    return ch >= 'A' and ch <= 'Z';
+}
+
+
+/** \brief  Tests whether "ch" is an ASCII lowercase letter or not.
+ *  \param  ch  The character to test.
+ *  \return True if "ch" is a lowercase ASCII letter, else returns false.
+ */
+inline bool IsLowercaseAsciiLetter(const char ch) {
+    // Caution: the following code assumes a character set where a-z are consecutive, e.g. ANSI or ASCII but not EBCDIC etc.
+    return ch >= 'a' and ch <= 'z';
+}
+
+
+/** \brief  Tests whether "ch" is an ASCII lowercase letter or not.
+ *  \param  ch  The character to test.
+ *  \return True if "ch" is a lowercase ASCII letter, else returns false.
+ */
+inline bool IsLowercaseAsciiLetter(const int ch) {
+    // Caution: the following code assumes a character set where a-z are consecutive, e.g. ANSI or ASCII but not EBCDIC etc.
+    return ch >= 'a' and ch <= 'z';
+}
+
+
 /** \brief Converts an ASCII character to lowercase. */
-inline char ASCIIToLower(const char ch);
+inline char ASCIIToLower(const char ch) {
+    if (IsUppercaseAsciiLetter(ch))
+        return ch + 32;
+    return ch;
+}
 
 
 /** \brief Converts an ASCII character to uppercase. */
-inline char ASCIIToUpper(const char ch);
+inline char ASCIIToUpper(const char ch) {
+    if (IsLowercaseAsciiLetter(ch))
+        return ch - 32;
+    return ch;
+}
 
 
 /** \brief Converts the ASCII letters in "s" to lowercase. */
@@ -1932,26 +1981,6 @@ inline size_t NonWhitespaceLength(const std::string &text) {
 }
 
 
-/** \brief  Tests whether "ch" is an ASCII lowercase letter or not.
- *  \param  ch  The character to test.
- *  \return True if "ch" is a lowercase ASCII letter, else returns false.
- */
-inline bool IsLowercaseAsciiLetter(const char ch) {
-    // Caution: the following code assumes a character set where a-z are consecutive, e.g. ANSI or ASCII but not EBCDIC etc.
-    return ch >= 'a' and ch <= 'z';
-}
-
-
-/** \brief  Tests whether "ch" is an ASCII lowercase letter or not.
- *  \param  ch  The character to test.
- *  \return True if "ch" is a lowercase ASCII letter, else returns false.
- */
-inline bool IsLowercaseAsciiLetter(const int ch) {
-    // Caution: the following code assumes a character set where a-z are consecutive, e.g. ANSI or ASCII but not EBCDIC etc.
-    return ch >= 'a' and ch <= 'z';
-}
-
-
 /** \brief  Returns what isalpha would return in the "C" locale.
  *  \param  ch  The character to test.
  *  \return True if "ch" is an alphabetic character in the "C" locale, else false.
@@ -1970,26 +1999,6 @@ inline bool IsAsciiLetter(const char ch) {
 inline bool IsAsciiLetter(const int ch) {
     // Caution: the following code assumes a character set where a-z, A-Z are consecutive, e.g. ANSI or ASCII but not EBCDIC etc.
     return (ch >= 'a' and ch <= 'z') or (ch >= 'A' and ch <= 'Z');
-}
-
-
-/** \brief  Returns what isalpha would return in the "C" locale.
- *  \param  ch  The character to test.
- *  \return True if "ch" is an alphabetic character in the "C" locale, else false.
- */
-inline bool IsUppercaseAsciiLetter(const char ch) {
-    // Caution: the following code assumes a character set where A-Z are consecutive, e.g. ANSI or ASCII but not EBCDIC etc.
-    return ch >= 'A' and ch <= 'Z';
-}
-
-
-/** \brief  Returns what isalpha would return in the "C" locale.
- *  \param  ch  The character to test.
- *  \return True if "ch" is an alphabetic character in the "C" locale, else false.
- */
-inline bool IsUppercaseAsciiLetter(const int ch) {
-    // Caution: the following code assumes a character set where A-Z are consecutive, e.g. ANSI or ASCII but not EBCDIC etc.
-    return ch >= 'A' and ch <= 'Z';
 }
 
 

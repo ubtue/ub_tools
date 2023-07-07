@@ -3,6 +3,8 @@ set -o errexit -o nounset
 
 
 no_problems_found=1
+log_file="/usr/local/var/log/tuefind/merge_differential_and_full_marc_updates.log"
+refdump_indicator="hinweis"
 function SendEmail {
     if [[ $no_problems_found -eq 0 ]]; then
         send_email --priority=very_low --recipients="$email_address" --subject="$0 passed on $(hostname)" --message-body="No problems were encountered."
@@ -10,7 +12,7 @@ function SendEmail {
     else
         send_email --priority=high --recipients="$email_address" --subject="$0 failed on $(hostname)"  \
                    --message-body="$(printf '%q' "$(echo -e "Check /usr/local/var/log/tuefind/merge_differential_and_full_marc_updates.log for details.\n\n" \
-                                     "$(tail -20 /usr/local/var/log/tuefind/merge_differential_and_full_marc_updates.log)" \
+                                     "$(tail -20 ${log_file})" \
                                         "'\n'")")"
         exit 1
     fi
@@ -34,6 +36,14 @@ function CleanUpStaleDirectories() {
     for stale_stage_directory in $(exec 2>/dev/null; ls -1 --directory temp_directory*); do
           rm --recursive ${stale_stage_directory}
     done
+}
+
+
+function GetDateFromFilename() {
+   filename="$1"
+   echo $(ls -t ${filename} 2>/dev/null | \
+          grep --invert-match --ignore-case "${refdump_indicator}" | \
+          head --lines=1 | sed --regexp-extended --expression='s/[^0-9]//g')
 }
 
 
@@ -61,6 +71,15 @@ if [ ! -e $MUTEX_FILE ]; then
     exit 0
 fi
 
+> ${log_file}
+
+# Make sure we do not gobble up full dumps and pseudo full dumps
+newest_full_dump_date=$(GetDateFromFilename "SA-MARC-*.tar.gz")
+newest_pseudo_dump_date=$(GetDateFromFilename "Complete-MARC-*.tar.gz")
+if [[ ${newest_full_dump_date} = ${newest_pseudo_dump_date} ]]; then
+    echo "Newest full dump and newest pseudo dump may not have the same date"
+    exit 1
+fi
 
 target_filename=Complete-MARC-$(date +%y%m%d).tar.gz
 if [[ -e $target_filename ]]; then
@@ -76,8 +95,13 @@ CleanUpStaleDirectories
 
 echo "Creating ${target_filename}"
 
-
 input_filename=$(generate_merge_order | head --lines=1)
+#If applicable make sure both full dumps exist
+if [[ "${input_filename:0:8}" = "SA-MARC-" && $(ls ${input_filename:0:8}*-${newest_full_dump_date}.tar.gz | \
+      grep --invert-match --ignore-case "${refdump_indicator}"  | wc --lines) != 2 ]]; then
+   echo 'Incorrect number of SA-MARC-* candidates'
+   exit 1
+fi
 
 # Create a subdirectory from the input archive:
 extraction_directory="${input_filename%.tar.gz}"
@@ -85,10 +109,6 @@ mkdir "$extraction_directory"
 cd "$extraction_directory"
 tar xzf ../"$input_filename"
 cd -
-
-if [[ "$(generate_merge_order | wc --lines)" == 1 && "${input_filename:0:8}" = "SA-MARC-" ]]; then
-    generate_complete_dumpfile "$input_filename" "$target_filename"
-fi
 
 input_directory=$extraction_directory
 

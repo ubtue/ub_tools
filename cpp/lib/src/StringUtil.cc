@@ -124,20 +124,6 @@ char ToHexChar(const unsigned u) {
 namespace StringUtil {
 
 
-inline char ASCIIToLower(const char ch) {
-    if (IsUppercaseAsciiLetter(ch))
-        return ch + 32;
-    return ch;
-}
-
-
-inline char ASCIIToUpper(const char ch) {
-    if (IsLowercaseAsciiLetter(ch))
-        return ch - 32;
-    return ch;
-}
-
-
 std::string &ASCIIToLower(std::string * const s) {
     for (auto &ch : *s)
         ch = ASCIIToLower(ch);

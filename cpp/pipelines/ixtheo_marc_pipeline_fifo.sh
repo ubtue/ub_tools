@@ -97,6 +97,7 @@ StartPhase "Filter out Self-referential 856 Fields" \
     --remove-fields 'LOK:086630(.*)\x{1F}x' `# Remove internal bibliographic comments` \
     --filter-chars 130a:240a:245a '@' \
     --remove-subfields '6002:blmsh' '6102:blmsh' '6302:blmsh' '6892:blmsh' '6502:blmsh' '6512:blmsh' '6552:blmsh' \
+                       '655k:.*' '655v:.*' \
     --replace 600a:610a:630a:648a:650a:650x:651a:653a:655a "(.*)\\.$" "\\1" `# Remove trailing periods for the following keyword normalisation.` \
     --replace-strings 600a:610a:630a:648a:650a:650x:651a:655a /usr/local/var/lib/tuelib/keyword_normalisation.map \
     --replace 100a:700a /usr/local/var/lib/tuelib/author_normalisation.map \
@@ -176,16 +177,8 @@ wait
 
 
 StartPhase "Parent-to-Child Linking and Flagging of Subscribable Items"
-make_named_pipe --buffer-size=$FIFO_BUFFER_SIZE GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1
 (add_superior_and_alertable_flags ixtheo GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                                          GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
-EndPhase || Abort) &
-
-
-# Note: It is necessary to run this phase after articles have had their journal's PPN's inserted!
-StartPhase "Populate the Zeder Journal Timeliness Database Table"
-(collect_journal_stats ixtheo GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
-                              GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
 
@@ -207,7 +200,7 @@ wait
 StartPhase "Add Wikidata IDs to Authority Data"
 (add_authority_external_ref Normdaten-partially-augmented2-"${date}".mrc \
                             Normdaten-partially-augmented3-"${date}".mrc \
-                            /usr/local/var/lib/tuelib/gnd_to_wiki.txt >> "${log}" 2>&1 && \
+                            /usr/local/var/lib/tuelib/gnd_to_wiki.csv >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
 
