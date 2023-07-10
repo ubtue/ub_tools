@@ -1098,28 +1098,9 @@ std::string Record::getMostRecentPublicationYear(const std::string &fallback) co
     }
 
     if ((isArticle() or isReviewArticle()) and not isMonograph()) {
-        std::vector<std::string> subfields;
-        std::vector<std::string> filtered_dates;
-        for (const auto &field : getTagRange("773")) {
-            if (field.getIndicator1() == '1') {
-                for (const auto &subfield : field.getSubfields()) {
-                    StringUtil::Split(subfield.value_, ':', &subfields, true);
-                    filtered_dates.emplace_back(subfields[1]);
-                }
-            }
-        }
-        if (not filtered_dates.empty()) {
-            return filtered_dates[1];
-        } else {
-            for (const auto &_936_field : getTagRange("936")) {
-                const auto j_contents(_936_field.getFirstSubfieldWithCode('j'));
-                if (not j_contents.empty()) {
-                    static const auto year_matcher(RegexMatcher::RegexMatcherFactoryOrDie("(\\d{4})"));
-                    if (year_matcher->matched(j_contents))
-                        return (*year_matcher)[1];
-                }
-            }
-        }
+        const auto issue_info(BSZUtil::ExtractYearVolumeIssue(Record()));
+        if (not issue_info.year_.empty())
+            return issue_info.year_;
     }
 
     for (const auto &_190_field : getTagRange("190")) {

@@ -25,6 +25,7 @@
 #include <vector>
 #include <cstdio>
 #include <cstdlib>
+#include "BSZUtil.h"
 #include "FileUtil.h"
 #include "MARC.h"
 #include "StringUtil.h"
@@ -156,33 +157,11 @@ void ProcessRecords(MARC::Reader * const marc_reader, std::unordered_map<std::st
         if (parent_ppn_and_journal_desc == ppn_to_journal_desc_map->end())
             continue;
 
-        std::string year_as_string;
-
-        std::vector<std::string> subfields;
-        std::vector<std::string> filtered_dates;
-        for (const auto &field : record.getTagRange("773")) {
-            if (field.getIndicator1() == '1') {
-                for (const auto &subfield : field.getSubfields()) {
-                    StringUtil::Split(subfield.value_, ':', &subfields, true);
-                    filtered_dates.emplace_back(subfields[1]);
-                }
-            }
-        }
-        if (not filtered_dates.empty()) {
-            year_as_string = filtered_dates[1];
-        } else {
-            for (const auto &field : record.getTagRange("936")) {
-                const MARC::Subfields subfields(field.getSubfields());
-                year_as_string = subfields.getFirstSubfieldWithCode('j');
-                if (not year_as_string.empty())
-                    break;
-            }
-        }
-
-        if (year_as_string.empty())
+        const auto issue_info(BSZUtil::ExtractYearVolumeIssue(record));
+        if (issue_info.year_.empty())
             continue;
 
-        year_as_string = GetSecondYearOfRange(year_as_string);
+        const std::string year_as_string(GetSecondYearOfRange(issue_info.year_));
         if (year_as_string.length() != 4) {
             LOG_INFO("Bad year: \"" + year_as_string + "\". (1)");
             continue;

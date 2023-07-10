@@ -19,6 +19,7 @@
 
 #include <unordered_map>
 #include <cstdlib>
+#include "BSZUtil.h"
 #include "Compiler.h"
 #include "DbConnection.h"
 #include "DnsUtil.h"
@@ -186,38 +187,11 @@ void CollectZederArticles(MARC::Reader * const reader,
         if (ppn_and_zeder_id_and_ppn_type == ppns_to_zeder_ids_and_types_map.cend())
             continue;
 
-        std::vector<std::string> subfields;
-        std::vector<std::string> filtered_dates;
-        for (const auto &field : record.getTagRange("773")) {
-            if (field.getIndicator1() == '1') {
-                for (const auto &subfield : field.getSubfields()) {
-                    StringUtil::Split(subfield.value_, ':', &subfields, true);
-                    filtered_dates.emplace_back(subfields[1]);
-                }
-            }
-        }
-        if (not filtered_dates.empty()) {
-            const std::string pages(filtered_dates[4]);
-            const std::string issue(filtered_dates[2]);
-            const std::string year(filtered_dates[1]);
-            const std::string volume(filtered_dates[0]);
-        } else {
-            const auto _936_field(record.findTag("936"));
-            if (_936_field == record.end())
-                continue;
-
-            if (_936_field->getIndicator1() != 'u' or _936_field->getIndicator2() != 'w')
-                continue;
-
-            const std::string pages(_936_field->getFirstSubfieldWithCode('h'));
-            std::string volume;
-            std::string issue(_936_field->getFirstSubfieldWithCode('e'));
-            if (issue.empty())
-                issue = _936_field->getFirstSubfieldWithCode('d');
-            else
-                volume = _936_field->getFirstSubfieldWithCode('d');
-            const std::string year(_936_field->getFirstSubfieldWithCode('j'));
-        }
+        const auto issue_info(BSZUtil::ExtractYearVolumeIssue(record));
+        const std::string pages(issue_info.pages_);
+        std::string volume(issue_info.volume_);
+        std::string issue(issue_info.issue_);
+        const std::string year(issue_info.year_);
 
         const std::string zeder_id(std::to_string(ppn_and_zeder_id_and_ppn_type->second.zeder_id_));
         const std::string ppn_type(1, ppn_and_zeder_id_and_ppn_type->second.type_);
@@ -238,39 +212,8 @@ void CollectZederArticles(MARC::Reader * const reader,
              + std::to_string(zeder_ids_plus_ppns_to_articles_map->size()) + " Zeder article(s).");
 }
 
-size_t GetArticlesFromDatabase(const IniFile &ini_file, const std::string &system_type, const std::string &hostname,
-                               std::unordered_map<std::string, Article> * const existing_articles) {
-    DbConnection db_connection_select(DbConnection::MySQLFactory(ini_file, "DatabaseSelect"));
-    db_connection_select.queryOrDie(
-        "SELECT MAX(timestamp),Zeder_ID,PPN,Jahr,Band,Heft,Seitenbereich"
-        " FROM zeder.erschliessung WHERE Quellrechner='"
-        + hostname + "' AND Systemtyp='" + system_type + "' GROUP BY Zeder_ID,PPN,Jahr,Band,Heft,Seitenbereich");
-    auto result_set(db_connection_select.getLastResultSet());
-    while (const auto row = result_set.getNextRow()) {
-        // n.a. can be replaced after the unique article id is created in the zeder data model
-        const Article db_entry("n.a.", row["Jahr"], row["Band"], row["Heft"], row["Seitenbereich"]);
-        const auto key(row["Zeder_ID"] + "+" + row["PPN"]);
-        auto key_and_article(existing_articles->find(key));
-        if (key_and_article == existing_articles->end() or db_entry.isNewerThan(key_and_article->second))
-            (*existing_articles)[key] = db_entry;
-    }
 
-    return existing_articles->size();
-}
-
-
-// \return True if "test_article" either does not exist in the database or is newer than the newest existing entry.
-bool IsNewerThanWhatExistsInDB(const std::unordered_map<std::string, Article> &existing_articles, const std::string &zeder_id,
-                               const std::string &ppn, const Article &test_article) {
-    const auto key_and_entry(existing_articles.find(zeder_id + "+" + ppn));
-    if (key_and_entry == existing_articles.cend())
-        return true;
-
-    return test_article.isNewerThan(key_and_entry->second);
-}
-
-
-std::string GetPNN(const std::string &zeder_id_plus_ppn) {
+std::string GetPPN(const std::string &zeder_id_plus_ppn) {
     const auto plus_pos(zeder_id_plus_ppn.find('+'));
     if (unlikely(plus_pos == std::string::npos))
         LOG_ERROR("missing + in \"" + zeder_id_plus_ppn + "\"!");

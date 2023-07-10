@@ -27,6 +27,7 @@
 #include <set>
 #include <utility>
 #include <cstdlib>
+#include "BSZUtil.h"
 #include "Compiler.h"
 #include "HtmlUtil.h"
 #include "MARC.h"
@@ -1028,40 +1029,18 @@ bool ElectronicArticleIsAvailableInTuebingen(const MARC::Record &record) {
         if (parent_ppn_and_ranges == parent_ppn_to_ranges_map.end())
             return false;
 
-        std::vector<std::string> subfields;
-        std::vector<std::string> filtered_dates;
-        for (const auto &field : record.getTagRange("773")) {
-            if (field.getIndicator1() == '1') {
-                for (const auto &subfield : field.getSubfields()) {
-                    StringUtil::Split(subfield.value_, ':', &subfields, true);
-                    filtered_dates.emplace_back(subfields[1]);
-                }
-            }
-        }
-        if (not filtered_dates.empty()) {
-            issue_string = filtered_dates[2];
-            year_string = filtered_dates[1];
-            volume_string = filtered_dates[0];
-        } else {
-            const auto _936_field(record.getFirstField("936"));
-            if (_936_field != record.end()) {
-                const MARC::Subfields _936_subfields(_936_field->getSubfields());
-                issue_string = _936_subfields.getFirstSubfieldWithCode('e');
-                year_string = _936_subfields.getFirstSubfieldWithCode('j');
-                volume_string = _936_subfields.getFirstSubfieldWithCode('d');
-            }
-        }
+        const auto issue_info(BSZUtil::ExtractYearVolumeIssue(record));
 
-        if (issue_string.empty() and year_string.empty() and volume_string.empty())
+        if (issue_info.issue_.empty() and issue_info.year_.empty() and issue_info.volume_.empty())
             return false;
         unsigned issue;
-        if (not StringUtil::ToUnsigned(issue_string, &issue))
+        if (not StringUtil::ToUnsigned(issue_info.issue_, &issue))
             issue = Range::ISSUE_WILDCARD;
         unsigned year;
-        if (not StringUtil::ToUnsigned(year_string, &year))
+        if (not StringUtil::ToUnsigned(issue_info.year_, &year))
             return false; // Need at least the year!
         unsigned volume;
-        if (not StringUtil::ToUnsigned(volume_string, &volume))
+        if (not StringUtil::ToUnsigned(issue_info.volume_, &volume))
             volume = Range::VOLUME_WILDCARD;
 
         for (const auto &range : parent_ppn_and_ranges->second) {
