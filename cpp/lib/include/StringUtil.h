@@ -2126,22 +2126,6 @@ unsigned EditDistance(const std::string &s1, const std::string &s2);
 std::string LongestCommonSubstring(const std::string &s1, const std::string &s2);
 
 
-/** \brief  Returns the MD5 cryptographic hash for "s".
- *  \param  s  The string for which we want the cryptographic hash.
- *  \return The cryptographic hash for "s".
- *  \note   Use Sha1() instead!
- */
-std::string Md5(const std::string &s);
-
-
-/** \brief  Returns a "folding" of the MD5 cryptographic hash for "s".
- *  \param  s  The string for which we want the cryptographic hash.
- *  \return The folded cryptographic hash for "s".
- *  \note   Use Sha1() instead!
- */
-uint64_t Md5As64Bits(const std::string &s);
-
-
 /** \brief  Returns the SHA-1 cryptographic hash for "s".
  *  \param  s  The string for which we want the cryptographic hash.
  *  \return The cryptographic hash for "s".

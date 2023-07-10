@@ -1367,6 +1367,9 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
     if (parameters.download_item_.journal_.selective_evaluation_)
         marc_record->insertFieldAtEnd("935", { { 'a', "NABZ" }, { '2', "LOK" } });
 
+    // Disable Match & Merge
+    marc_record->insertField("912", { { 'a', "NOMM" } });
+
     // Personalized Authors
     // c.f. https://github.com/ubtue/DatenProbleme/issues/1651
     if (parameters.download_item_.journal_.personalized_authors_ == "J" and marc_record->hasTag("100"))

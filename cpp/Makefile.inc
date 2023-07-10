@@ -20,9 +20,9 @@ else
 endif
 
 ifeq ($(CCC),clang++)
-  CCCFLAGS += -std=gnu++2a -Wno-vla-extension #-Wno-c++1y-extensions
+  CCCFLAGS += -std=gnu++20 -Wno-vla-extension #-Wno-c++1y-extensions
 else
-  CCCFLAGS += -std=gnu++2a
+  CCCFLAGS += -std=gnu++20
 endif
 OBJ            = .
 MAKE_DEPS      = /usr/local/bin/iViaCore-mkdep
