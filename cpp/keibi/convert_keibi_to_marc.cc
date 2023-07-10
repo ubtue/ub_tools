@@ -21,6 +21,7 @@
 #include <iomanip>
 #include <iostream>
 #include <map>
+#include <mutex>
 #include <sstream>
 #include "DbConnection.h"
 #include "FileUtil.h"
@@ -69,11 +70,15 @@ const std::map<std::string, int> STRING_TO_BITEX_ENTRY_TYPE{ { "inproceedings", 
                                                              { "collection", BIBTEX_ENTRY_TYPES::COLLECTION } };
 
 
-MARC::Record *CreateNewRecord(const std::string &keibi_uid, const std::string &bibtex_description) {
+std::string AssembleKeibiPPN(const std::string &keibi_uid) {
     std::ostringstream formatted_number;
     formatted_number << std::setfill('0') << std::setw(8) << std::atoi(keibi_uid.c_str());
-    const std::string ppn("KEI" + formatted_number.str());
+    return "KEI" + formatted_number.str();
+}
 
+
+MARC::Record *CreateNewRecord(const std::string &keibi_uid, const std::string &bibtex_description) {
+    const std::string ppn(AssembleKeibiPPN(keibi_uid));
     MARC::Record::BibliographicLevel type_of_record;
     const auto type_candidate(STRING_TO_BITEX_ENTRY_TYPE.find(bibtex_description));
     if (type_candidate != STRING_TO_BITEX_ENTRY_TYPE.end()) {
@@ -233,7 +238,27 @@ struct SuperiorInformation {
     std::string series_;
     std::string series_num_;
     std::string series_place_;
+    std::set<std::string> superior_ppns_;
 };
+
+std::once_flag get_fs_keys_and_uids_once;
+
+// Apparently there is some limited support for superior works originally using the fs_key field
+// Extract all superiro works
+void GetSuperiorPPNs(DbConnection * const db_connection, std::string key_candidate, std::set<std::string> * const superior_ppns) {
+    static std::unordered_multimap<std::string, std::string> all_superior_works;
+    std::call_once(get_fs_keys_and_uids_once, [&] {
+        db_connection->queryOrDie("SELECT fs_key,uid FROM citations WHERE fs_key !='' GROUP BY fs_key, uid ORDER BY fs_key");
+        DbResultSet superior_result_set(db_connection->getLastResultSet());
+        while (const auto row = superior_result_set.getNextRow())
+            all_superior_works.emplace(row["fs_key"], AssembleKeibiPPN(row["uid"]));
+    });
+
+    const auto fs_key_and_uids(all_superior_works.equal_range(key_candidate));
+    *superior_ppns = std::set<std::string>();
+    for (auto fs_key_and_uid(fs_key_and_uids.first); fs_key_and_uid != fs_key_and_uids.second; ++fs_key_and_uid)
+        superior_ppns->emplace(fs_key_and_uid->second);
+}
 
 
 bool GetSuperiorInformationHelper(DbConnection * const db_connection, MARC::Record * const record,
@@ -247,6 +272,11 @@ bool GetSuperiorInformationHelper(DbConnection * const db_connection, MARC::Reco
     superior_information->series_ = row["series"];
     superior_information->series_num_ = row["number"];
     superior_information->series_place_ = row["address"];
+    std::set<std::string> superior_ppns;
+    std::string key_candidate =
+        (not superior_information->journal_.empty()) ? superior_information->journal_ : superior_information->booktitle_;
+    GetSuperiorPPNs(db_connection, key_candidate, &superior_ppns);
+    superior_information->superior_ppns_ = superior_ppns;
     return true;
 }
 
@@ -266,6 +296,9 @@ void InsertSuperiorInformation(const std::string, const char, const char, const 
         _773Subfields.addSubfield('v', superior_information.series_num_);
     if (not superior_information.series_place_.empty())
         _773Subfields.addSubfield('d', superior_information.series_place_);
+    // Tag superior works as such and add appropriate references for articles
+    for (const auto &superior_ppn : superior_information.superior_ppns_)
+        _773Subfields.addSubfield('w', "(DE-627)" + superior_ppn);
 
     if (_773Subfields.size()) {
         record->deleteFields("773");
@@ -312,6 +345,22 @@ void AddReferencingReviews(MARC::Record * const record, DbConnection *db_connect
 }
 
 
+std::once_flag get_fs_uids_once;
+
+
+void AddSuperiorFlag(MARC::Record * const record, DbConnection *db_connection) {
+    static std::set<std::string> uids_with_fs_key;
+    std::call_once(get_fs_uids_once, [&] {
+        db_connection->queryOrDie("SELECT uid FROM citations WHERE fs_key !=''");
+        DbResultSet superior_result_set(db_connection->getLastResultSet());
+        while (const auto row = superior_result_set.getNextRow())
+            uids_with_fs_key.emplace(AssembleKeibiPPN(row["uid"]));
+    });
+    if (uids_with_fs_key.find(record->getControlNumber()) != uids_with_fs_key.end())
+        record->insertField("SPR", 'a', "1");
+}
+
+
 void ConvertRecords(const IniFile &db_ini_file, const DbFieldToMARCMappingMultiset &dbfield_to_marc_mappings,
                     MARC::Writer * const marc_writer) {
     DbConnection db_connection(DbConnection::MySQLFactory(db_ini_file));
@@ -328,6 +377,8 @@ void ConvertRecords(const IniFile &db_ini_file, const DbFieldToMARCMappingMultis
         new_record->insertField("005", TimeUtil::GetCurrentDateAndTime("%Y%m%d%H%M%S") + ".0");
         // Add all referencing reviews
         AddReferencingReviews(new_record, &db_connection);
+        // Add superior flag
+        AddSuperiorFlag(new_record, &db_connection);
         marc_writer->write(*new_record);
         delete new_record;
     }
