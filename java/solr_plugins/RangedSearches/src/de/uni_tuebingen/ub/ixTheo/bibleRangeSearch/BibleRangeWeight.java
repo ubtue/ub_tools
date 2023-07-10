@@ -39,10 +39,4 @@ public class BibleRangeWeight extends RangeWeight {
         return fieldRanges.length != 0 && Range.hasIntersections(ranges, fieldRanges);
     }
 
-    // for now it is just use for compatibility
-    // @Override
-    // public Explanation explain(LeafReaderContext context, int doc) throws
-    // IOException {
-    // return explain(context.reader().document(doc));
-    // }
 }

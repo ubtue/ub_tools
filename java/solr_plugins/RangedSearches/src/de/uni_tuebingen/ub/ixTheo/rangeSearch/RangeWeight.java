@@ -77,4 +77,10 @@ public abstract class RangeWeight extends Weight {
         return false;
     }
 
+    @Override
+    @Deprecated
+    public void extractTerms(Set<Term> terms) {
+        super.extractTerms(terms);
+    }
+
 }
