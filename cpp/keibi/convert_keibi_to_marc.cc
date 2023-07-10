@@ -84,14 +84,19 @@ MARC::Record *CreateNewRecord(const std::string &keibi_uid, const std::string &b
         case BIBTEX_ENTRY_TYPES::ARTICLE:
             type_of_record = MARC::Record::BibliographicLevel::MONOGRAPHIC_COMPONENT_PART;
             return new MARC::Record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, type_of_record, ppn);
-        case BIBTEX_ENTRY_TYPES::COLLECTION:
-            type_of_record = MARC::Record::BibliographicLevel::MONOGRAPHIC_COMPONENT_PART;
-            return new MARC::Record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, type_of_record, ppn);
-        case BIBTEX_ENTRY_TYPES::INPROCEEDINGS:
+        case BIBTEX_ENTRY_TYPES::COLLECTION: {
+            type_of_record = MARC::Record::BibliographicLevel::MONOGRAPH_OR_ITEM;
+            auto new_record(new MARC::Record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, type_of_record, ppn));
+            new_record->insertField("655", { { 'a', "Aufsatzsammlung" }, { '0', "(DE-588)4143413-4" }, { '0', "(DE-627)105605727" } }, ' ',
+                                    '7');
+            return new_record;
+        }
+        case BIBTEX_ENTRY_TYPES::INPROCEEDINGS: {
             type_of_record = MARC::Record::BibliographicLevel::MONOGRAPHIC_COMPONENT_PART;
             auto new_record(new MARC::Record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, type_of_record, ppn));
-            new_record->insertField("655", 'a', "Konferenzschrift");
+            new_record->insertField("655", 'a', "Konferenzschrift", ' ', '7');
             return new_record;
+        }
         }
     }
     return new MARC::Record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::UNDEFINED, ppn);
