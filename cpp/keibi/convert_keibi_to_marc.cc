@@ -251,7 +251,7 @@ void GetSuperiorPPNs(DbConnection * const db_connection, std::string key_candida
         db_connection->queryOrDie("SELECT fs_key,uid FROM citations WHERE fs_key !='' GROUP BY fs_key, uid ORDER BY fs_key");
         DbResultSet superior_result_set(db_connection->getLastResultSet());
         while (const auto row = superior_result_set.getNextRow())
-            all_superior_works.emplace(row["fs_key"], AssembleKeibiPPN(row["uid"]));
+            all_superior_works.emplace(StringUtil::TrimWhite(row["fs_key"]), AssembleKeibiPPN(row["uid"]));
     });
 
     const auto fs_key_and_uids(all_superior_works.equal_range(key_candidate));
@@ -267,11 +267,11 @@ bool GetSuperiorInformationHelper(DbConnection * const db_connection, MARC::Reco
     db_connection->queryOrDie("SELECT journal, booktitle, series, number, address FROM citations WHERE uid='" + uid + "'");
     DbResultSet series_result_set(db_connection->getLastResultSet());
     const auto row(series_result_set.getNextRow());
-    superior_information->journal_ = row["journal"];
-    superior_information->booktitle_ = row["booktitle"];
-    superior_information->series_ = row["series"];
-    superior_information->series_num_ = row["number"];
-    superior_information->series_place_ = row["address"];
+    superior_information->journal_ = StringUtil::TrimWhite(row["journal"]);
+    superior_information->booktitle_ = StringUtil::TrimWhite(row["booktitle"]);
+    superior_information->series_ = StringUtil::TrimWhite(row["series"]);
+    superior_information->series_num_ = StringUtil::TrimWhite(row["number"]);
+    superior_information->series_place_ = StringUtil::TrimWhite(row["address"]);
     std::set<std::string> superior_ppns;
     std::string key_candidate =
         (not superior_information->journal_.empty()) ? superior_information->journal_ : superior_information->booktitle_;
