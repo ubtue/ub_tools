@@ -189,8 +189,14 @@ void CollectZederArticles(MARC::Reader * const reader,
 
         const auto issue_info(BSZUtil::ExtractYearVolumeIssue(record));
         const std::string pages(issue_info.pages_);
-        std::string volume(issue_info.volume_);
+
+        std::string volume;
         std::string issue(issue_info.issue_);
+        if (issue.empty())
+            issue = issue_info.volume_;
+        else
+            volume = issue_info.volume_;
+
         const std::string year(issue_info.year_);
 
         const std::string zeder_id(std::to_string(ppn_and_zeder_id_and_ppn_type->second.zeder_id_));

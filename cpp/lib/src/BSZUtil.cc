@@ -225,6 +225,10 @@ void ExtractArchiveMembers(const std::string &archive_name, std::vector<std::str
 IssueInfo ExtractYearVolumeIssue(const MARC::Record &record) {
     IssueInfo issue_info;
 
+    const auto field_008(record.findTag("008"));
+    if (field_008 != record.end())
+        issue_info.year_ = field_008->getContents().substr(7, 4);
+
     // Priority: 773
     for (const auto &field : record.getTagRange("773")) {
         if (field.getIndicator1() == '1' && field.getIndicator2() == '8') {
