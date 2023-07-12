@@ -54,7 +54,7 @@ const std::string EMAIL_SENDER("no-reply@ub.uni-tuebingen.de");
 
 
 struct DSpaceItem {
-    std::string author_;
+    std::vector<std::string> authors_;
     std::string doi_;
     std::string title_;
 
@@ -71,7 +71,7 @@ struct DSpaceItem {
             if (key == "dc.title")
                 title_ = value;
             else if (key == "dc.contributor.author")
-                author_ = value;
+                authors_.emplace_back(value);
             else if (key == "dc.identifier.uri") {
                 if (StringUtil::StartsWith(value, DOI_URL_PREFIX)) {
                     doi_ = StringUtil::ReplaceString(DOI_URL_PREFIX, "", value);
@@ -83,7 +83,9 @@ struct DSpaceItem {
 
 
 void SendNotificationsForItem(const DSpaceItem &dspace_item, const std::vector<std::string> &notification_mail_addresses) {
-    const std::string subject(dspace_item.author_);
+    std::string subject("Neue Zweitveröffentlichung");
+    if (dspace_item.authors_.size() > 0)
+        subject = dspace_item.authors_[0];
     const std::string body(dspace_item.title_ + "\n" + DOI_URL_PREFIX + dspace_item.doi_);
 
     if (EmailSender::SimplerSendEmail(EMAIL_SENDER, notification_mail_addresses, subject, body, EmailSender::MEDIUM) > 299)
