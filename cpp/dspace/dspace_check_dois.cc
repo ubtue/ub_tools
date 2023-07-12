@@ -85,7 +85,7 @@ struct DSpaceItem {
 void SendNotificationsForItem(const DSpaceItem &dspace_item, const std::vector<std::string> &notification_mail_addresses) {
     std::string subject("Neue Zweitveröffentlichung");
     if (dspace_item.authors_.size() > 0)
-        subject = dspace_item.authors_[0];
+        subject = StringUtil::Join(dspace_item.authors_, ", ");
     const std::string body(dspace_item.title_ + "\n" + DOI_URL_PREFIX + dspace_item.doi_);
 
     if (EmailSender::SimplerSendEmail(EMAIL_SENDER, notification_mail_addresses, subject, body, EmailSender::MEDIUM) > 299)
