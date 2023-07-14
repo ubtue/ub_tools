@@ -267,7 +267,7 @@ void MySQLImportFileIfExists(const std::string &sql_file, const std::string &sql
 }
 
 
-void CreateUbToolsDatabase(DbConnection * const db_connection_root) {
+void CreateUbToolsDatabase(DbConnection *const db_connection_root) {
     IniFile ini_file(DbConnection::DEFAULT_CONFIG_FILE_PATH);
     const auto section(ini_file.getSection("Database"));
     const std::string sql_database(section->getString("sql_database"));
@@ -289,7 +289,7 @@ void CreateUbToolsDatabase(DbConnection * const db_connection_root) {
 }
 
 
-void CreateVuFindDatabases(const VuFindSystemType vufind_system_type, DbConnection * const db_connection_root) {
+void CreateVuFindDatabases(const VuFindSystemType vufind_system_type, DbConnection *const db_connection_root) {
     const std::string sql_database("vufind");
     const std::string sql_username("vufind");
     const std::string sql_password("vufind");
@@ -338,7 +338,21 @@ void CreateVuFindDatabases(const VuFindSystemType vufind_system_type, DbConnecti
             db_connection_root->mySQLGrantAllPrivileges(ixtheo_database, sql_username);
             db_connection_root->mySQLGrantAllPrivileges(ixtheo_database, ub_tools_username);
             db_connection_root->mySQLGrantGrantOption(ixtheo_database, ub_tools_username);
-            DbConnection::MySQLImportFile(INSTALLER_DATA_DIRECTORY + "/ixtheo.sql", ixtheo_database, ixtheo_username, ixtheo_password);
+
+
+            const std::string tmp_file("/tmp/installer_file.cnf"), sql_file(INSTALLER_DATA_DIRECTORY + "/ixtheo.sql");
+            std::string error__;
+
+            FileUtil::WriteStringOrDie(tmp_file, "[client]\n");
+            FileUtil::AppendStringOrDie(tmp_file, "user=" + ixtheo_username + "\n");
+            FileUtil::AppendStringOrDie(tmp_file, "password=" + ixtheo_password + "\n");
+            FileUtil::AppendStringOrDie(tmp_file, "host=localhost");
+
+            ExecUtil::ExecSubcommandAndCaptureStdout(
+                ExecUtil::LocateOrDie("mysql") + " --defaults-extra-file=" + tmp_file + " " + ixtheo_database + " < " + sql_file, &error__,
+                false);
+
+            ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("rm"), { "-f", tmp_file });
         }
     } else if (vufind_system_type == KRIMDOK) {
         IniFile translations_ini_file(UBTools::GetTuelibPath() + "translations.conf");
@@ -467,7 +481,7 @@ void SetupSudo() {
 }
 
 
-void InstallUBTools(const bool make_install, DbConnection * const db_connection_root) {
+void InstallUBTools(const bool make_install, DbConnection *const db_connection_root) {
     Echo("Install UBTools");
     // First install iViaCore-mkdep...
     ChangeDirectoryOrDie(UB_TOOLS_DIRECTORY + "/cpp/lib/mkdep");
