@@ -77,9 +77,4 @@ public abstract class RangeWeight extends Weight {
         return false;
     }
 
-    @Override
-    public void extractTerms(Set<Term> terms) {
-        weight.extractTerms(terms);
-    }
-
 }
