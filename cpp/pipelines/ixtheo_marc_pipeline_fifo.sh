@@ -86,13 +86,21 @@ EndPhase || Abort) &
 wait
 
 
+StartPhase "Rewrite Authors and Standardized Keywords from Authority Data"
+make_named_pipe --buffer-size=$FIFO_BUFFER_SIZE GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1
+(rewrite_keywords_and_authors_from_authority_data GesamtTiteldaten-post-phase"$((PHASE-2))"-"${date}".mrc \
+                                                  Normdaten-"${date}".mrc \
+                                                  GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+
+
 StartPhase "Filter out Self-referential 856 Fields" \
            "\n\tRemove Sorting Chars From Title Subfields" \
            "\n\tRemove blmsh Subject Heading Terms" \
            "\n\tFix Local Keyword Capitalisations" \
            "\n\tStandardise German B.C. Year References"
 (marc_filter \
-     GesamtTiteldaten-post-phase"$((PHASE-2))"-"${date}".mrc GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
+     GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
     --remove-fields '856u:ixtheo\.de' \
     --remove-fields 'LOK:086630(.*)\x{1F}x' `# Remove internal bibliographic comments` \
     --filter-chars 130a:240a:245a '@' \
@@ -104,18 +112,12 @@ StartPhase "Filter out Self-referential 856 Fields" \
     --globally-substitute 260b:264b:773d /usr/local/var/lib/tuelib/publisher_normalisation.map \
     --replace 245a "^L' (.*)" "L'\\1" `# Replace "L' arbe" with "L'arbe" etc.` \
     --replace 100a:700a "^\\s+(.*)" "\\1" `# Replace " van Blerk, Nico" with "van Blerk, Nico" etc.` \
-    --replace 100d:689d:700d "v(\\d+)\\s?-\\s?v(\\d+)" "\\1 v.Chr.-\\2 v.Chr" \
-    --replace 100d:689d:700d "v(\\d+)\\s?-\\s?(\\d+)" "\\1 v.Chr.-\\2" \
-    --replace 100d:689d:700d "v(\\d+)" "\\1 v. Chr." \
+    --replace 100d:700d "v(\\d+)\\s?-\\s?v(\\d+)" "\\1 v.Chr.-\\2 v.Chr" \
+    --replace 100d:700d "v(\\d+)\\s?-\\s?(\\d+)" "\\1 v.Chr.-\\2" \
+    --replace 100d:700d "v(\\d+)" "\\1 v. Chr." \
+    --replace 689a "(.*)\\s+(\\d+)\\s?v. Chr.\\s?-\\s?(\\d+)\\s?v. Chr" "\\1 v\\2-v\\3" \
+    --replace 689a "(.*)\\s+(\\d+)v.Chr.\\s?-\\s?(\\d+)" "\\1 v\\2-\\3" \
 >> "${log}" 2>&1 && \
-EndPhase || Abort) &
-wait
-
-
-StartPhase "Rewrite Authors and Standardized Keywords from Authority Data"
-(rewrite_keywords_and_authors_from_authority_data GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
-                                                  Normdaten-"${date}".mrc \
-                                                  GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
 
