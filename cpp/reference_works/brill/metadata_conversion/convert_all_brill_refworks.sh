@@ -27,9 +27,11 @@ clean_script="./clean_and_augment_brill_marc_records.sh"
 augment_authors="./add_author_associations"
 get_author_associations="./associate_authors.sh"
 associate_rgg4_titles_script="./associate_rgg4_titles.sh"
+replace_title_by_id_program="./replace_title_by_id"
 rgg4_multicandidates_rewrite_file="rgg4_daten/rgg4_multicandidates_rewrite_checked_clean.txt"
 rgg4_unassociated_rewrite_file="rgg4_daten/rgg4_unassociated_rewrite_erl.txt"
 rgg4_multicandidates_manual_rewrite_file="/dev/null"
+rgg4_id_title_replacements="rgg4_daten/rgg4_id_title_replacements.txt"
 
 
 REFWORKS=$(printf "%s" '.*\(BDRO\|BEJO\|BEHO\|BERO\|BESO\|ECO\|EECO\|' \
@@ -74,6 +76,7 @@ for archive_file in $(find ${archive_dir} -regex $(printf "%s" ${REFWORKS}) -pri
                      <(cat ${rgg4_rewrite_file} ${rgg4_multicandidates_rewrite_file} \
                        ${rgg4_unassociated_rewrite_file} ${rgg4_multicandidates_manual_rewrite_file}) \
                      | sponge ${outfile}
+        ${replace_title_by_id_program} ${outfile} ${tmp_stdout} ${rgg4_id_title_replacements} | sponge ${outfile}
     fi
     #Generate more easily readable text representation
     marc_format_outfile=${outfile%.xml}.txt
