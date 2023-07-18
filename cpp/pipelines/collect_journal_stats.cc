@@ -230,7 +230,7 @@ std::string GetPPN(const std::string &zeder_id_plus_ppn) {
 }
 
 
-void GenerateJson(const std::string &system_type, const std::unordered_map<std::string, ZederIdAndPPNType> &ppns_to_zeder_ids_and_types_map,
+void GenerateJson(const std::unordered_map<std::string, ZederIdAndPPNType> &ppns_to_zeder_ids_and_types_map,
                   const std::unordered_map<std::string, std::vector<Article>> &zeder_ids_plus_ppns_to_articles_map,
                   const std::string &json_output_file) {
     LOG_INFO("Generate output file: " + json_output_file);
@@ -241,7 +241,6 @@ void GenerateJson(const std::string &system_type, const std::unordered_map<std::
     unsigned long outer_position = 0;
     std::vector<std::string> timestamps;
     std::vector<std::string> quellrechner;
-    std::vector<std::string> systemtypen;
     std::vector<std::string> zeder_ids;
     std::vector<std::string> ppn_typen;
     std::vector<std::string> ppns;
@@ -260,23 +259,17 @@ void GenerateJson(const std::string &system_type, const std::unordered_map<std::
         unsigned long inner_position = 0;
         for (auto &article : articles) {
             ++inner_position;
-            const std::unordered_map<std::string, std::string> columns{ { "timestamp", JOB_START_TIME },
-                                                                        { "Quellrechner", HOSTNAME },
-                                                                        { "Systemtyp", system_type },
-                                                                        { "Zeder_ID", zeder_id },
-                                                                        { "Zeitschrift_PPN_Typ",
-                                                                          std::string(1, ppn_and_zeder_id_and_ppn_type->second.type_) },
-                                                                        { "Zeitschrift_PPN", ppn },
-                                                                        { "Artikel_PPN", article.id_ },
-                                                                        { "Jahr", article.jahr_ },
-                                                                        { "Band", article.band_ },
-                                                                        { "Heft", article.heft_ },
-                                                                        { "Seitenbereich", article.seitenbereich_ } };
+            const std::unordered_map<std::string, std::string> columns{
+                { "timestamp", JOB_START_TIME }, { "Quellrechner", HOSTNAME },
+                { "Zeder_ID", zeder_id },        { "Zeitschrift_PPN_Typ", std::string(1, ppn_and_zeder_id_and_ppn_type->second.type_) },
+                { "Zeitschrift_PPN", ppn },      { "Artikel_PPN", article.id_ },
+                { "Jahr", article.jahr_ },       { "Band", article.band_ },
+                { "Heft", article.heft_ },       { "Seitenbereich", article.seitenbereich_ }
+            };
             JSON::ObjectNode object_node(columns);
 
             timestamps.push_back(object_node.getStringValue("timestamp"));
             quellrechner.push_back("\"" + object_node.getStringValue("Quellrechner") + "\"");
-            systemtypen.push_back("\"" + object_node.getStringValue("Systemtyp") + "\"");
             zeder_ids.push_back(object_node.getStringValue("Zeder_ID"));
             ppn_typen.push_back("\"" + object_node.getStringValue("Zeitschrift_PPN_Typ") + "\"");
             ppns.push_back("\"" + object_node.getStringValue("Zeitschrift_PPN") + "\"");
@@ -291,7 +284,6 @@ void GenerateJson(const std::string &system_type, const std::unordered_map<std::
     *json_file << "{";
     *json_file << "\"timestamp\":[" << StringUtil::Join(timestamps, ",") << "],";
     *json_file << "\"Quellrechner\":[" << StringUtil::Join(quellrechner, ",") << "],";
-    *json_file << "\"Systemtyp\":[" << StringUtil::Join(systemtypen, ",") << "],";
     *json_file << "\"Zeder_ID\":[" << StringUtil::Join(zeder_ids, ",") << "],";
     *json_file << "\"Zeitschrift_PPN_Typ\":[" << StringUtil::Join(ppn_typen, ",") << "],";
     *json_file << "\"Zeitschrift_PPN\":[" << StringUtil::Join(ppns, ",") << "],";
@@ -375,7 +367,7 @@ int Main(int argc, char *argv[]) {
 
     if (not ppns_to_zeder_ids_and_types_map.empty()) {
         SortArticles(&zeder_ids_plus_ppns_to_articles_map);
-        GenerateJson(system_type, ppns_to_zeder_ids_and_types_map, zeder_ids_plus_ppns_to_articles_map, json_out_file);
+        GenerateJson(ppns_to_zeder_ids_and_types_map, zeder_ids_plus_ppns_to_articles_map, json_out_file);
 
         if (not debug)
             UpdateTextFiles(debug, zeder_ids_plus_ppns_to_articles_map);
