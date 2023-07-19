@@ -155,7 +155,7 @@ struct CacheEntry {
                         if (preferred_issn_.empty())
                             preferred_issn_ = StringUtil::ASCIIToUpper(field.getFirstSubfieldWithCode('x'));
 
-                        InsertIssnIfNotExist(preferred_issn_, &issns_);
+                        InsertIssnIfNotExist(field.getFirstSubfieldWithCode('x'), &issns_);
                     }
                 }
             }
