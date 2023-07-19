@@ -150,11 +150,13 @@ struct CacheEntry {
             }
 
             if (field.getTag() == "776") {
-                if (not field.getFirstSubfieldWithCode('x').empty()) {
-                    if (preferred_issn_.empty())
-                        preferred_issn_ = StringUtil::ASCIIToUpper(field.getFirstSubfieldWithCode('x'));
+                if (field.getIndicator1() == '0' and field.getIndicator2() == '8') {
+                    if (not field.getFirstSubfieldWithCode('x').empty()) {
+                        if (preferred_issn_.empty())
+                            preferred_issn_ = StringUtil::ASCIIToUpper(field.getFirstSubfieldWithCode('x'));
 
-                    InsertIssnIfNotExist(preferred_issn_, &issns_);
+                        InsertIssnIfNotExist(preferred_issn_, &issns_);
+                    }
                 }
             }
         }
