@@ -151,7 +151,9 @@ struct CacheEntry {
 
             if (field.getTag() == "776") {
                 if (not field.getFirstSubfieldWithCode('x').empty()) {
-                    preferred_issn_ = StringUtil::ASCIIToUpper(field.getFirstSubfieldWithCode('x'));
+                    if (preferred_issn_.empty())
+                        preferred_issn_ = StringUtil::ASCIIToUpper(field.getFirstSubfieldWithCode('x'));
+
                     InsertIssnIfNotExist(preferred_issn_, &issns_);
                 }
             }
