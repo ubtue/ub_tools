@@ -85,7 +85,7 @@ char help_text[] =
     "\n"
     "  Output label format:\n"
     "    label_format = matched_field_or_subfield | control_number | control_number_and_matched_field_or_subfield\n"
-    "                   | no_label | marc_binary | marc_xml | control_number_and_traditional | xml\n"
+    "                   | no_label | marc_binary | marc_xml | control_number_and_traditional | xml_debug\n"
     "\n"
     "  The default output label is the control number followed by a colon followed by the matched field or \n"
     "  subfield followed by a colon.  When the formats are \"marc_binary\" or \"marc_xml\" entire records will always\n"
@@ -121,7 +121,7 @@ enum OutputLabel {
     MARC_BINARY,
     MARC_XML,
     CONTROL_NUMBER_AND_TRADITIONAL,
-    XML
+    XML_DEBUG
 };
 
 
@@ -140,8 +140,8 @@ OutputLabel ParseOutputLabel(const std::string &label_format_candidate) {
         return MARC_BINARY;
     if (label_format_candidate == "marc_xml")
         return MARC_XML;
-    if (label_format_candidate == "xml")
-        return XML;
+    if (label_format_candidate == "xml_debug")
+        return XML_DEBUG;
     if (label_format_candidate == "control_number_and_traditional")
         return CONTROL_NUMBER_AND_TRADITIONAL;
 
@@ -173,7 +173,7 @@ void Emit(const std::string &control_number, const std::string &tag_or_tag_plus_
     case CONTROL_NUMBER_AND_TRADITIONAL:
         std::cout << control_number << ':' << tag_or_tag_plus_subfield_code << ':' << StringUtil::Map(contents, '\x1F', '$') << '\n';
         return;
-    case XML:
+    case XML_DEBUG:
         std::string xml_string_output;
         XmlWriter xml_writer(&xml_string_output, XmlWriter::XmlDeclarationWriteBehaviour::DoNotWriteTheXmlDeclaration, 0U,
                              XmlWriter::NoConversion);
