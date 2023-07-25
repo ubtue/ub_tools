@@ -324,12 +324,8 @@ void CreateVuFindDatabases(const VuFindSystemType vufind_system_type, DbConnecti
     }
 
     const std::string tmp_file("/tmp/installer_file.cnf");
-    std::string error__;
+    std::string sql_file, error__;
 
-    FileUtil::WriteStringOrDie(tmp_file, "[client]\n");
-    FileUtil::AppendStringOrDie(tmp_file, "user=" + ixtheo_username + "\n");
-    FileUtil::AppendStringOrDie(tmp_file, "password=" + ixtheo_password + "\n");
-    FileUtil::AppendStringOrDie(tmp_file, "host=localhost");
 
     if (vufind_system_type == IXTHEO) {
         IniFile translations_ini_file(UBTools::GetTuelibPath() + "translations.conf");
@@ -346,6 +342,11 @@ void CreateVuFindDatabases(const VuFindSystemType vufind_system_type, DbConnecti
             db_connection_root->mySQLGrantAllPrivileges(ixtheo_database, sql_username);
             db_connection_root->mySQLGrantAllPrivileges(ixtheo_database, ub_tools_username);
             db_connection_root->mySQLGrantGrantOption(ixtheo_database, ub_tools_username);
+
+            FileUtil::WriteStringOrDie(tmp_file, "[client]\n");
+            FileUtil::AppendStringOrDie(tmp_file, "user=" + ixtheo_username + "\n");
+            FileUtil::AppendStringOrDie(tmp_file, "password=" + ixtheo_password + "\n");
+            FileUtil::AppendStringOrDie(tmp_file, "host=localhost");
 
             sql_file = INSTALLER_DATA_DIRECTORY + "/ixtheo.sql";
 
@@ -366,6 +367,11 @@ void CreateVuFindDatabases(const VuFindSystemType vufind_system_type, DbConnecti
             db_connection_root->mySQLGrantAllPrivileges(krim_translations_database, sql_username);
             db_connection_root->mySQLGrantAllPrivileges(krim_translations_database, ub_tools_username);
             db_connection_root->mySQLGrantGrantOption(krim_translations_database, ub_tools_username);
+
+            FileUtil::WriteStringOrDie(tmp_file, "[client]\n");
+            FileUtil::AppendStringOrDie(tmp_file, "user=" + krim_translations_username + "\n");
+            FileUtil::AppendStringOrDie(tmp_file, "password=" + krim_translations_password + "\n");
+            FileUtil::AppendStringOrDie(tmp_file, "host=localhost");
 
             sql_file = INSTALLER_DATA_DIRECTORY + "/krim_translations.sql";
 
