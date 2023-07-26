@@ -326,10 +326,10 @@ void CreateVuFindDatabases(const VuFindSystemType vufind_system_type, DbConnecti
     const std::string tmp_file("/tmp/installer_file.cnf");
     std::string sql_file, error__;
 
-    IniFile translations_ini_file(UBTools::GetTuelibPath() + "translations.conf");
-    const auto translations_ini_section(translations_ini_file.getSection("Database"));
 
     if (vufind_system_type == IXTHEO) {
+        IniFile translations_ini_file(UBTools::GetTuelibPath() + "translations.conf");
+        const auto translations_ini_section(translations_ini_file.getSection("Database"));
         const std::string ixtheo_database(translations_ini_section->getString("sql_database"));
         const std::string ixtheo_username(translations_ini_section->getString("sql_username"));
         const std::string ixtheo_password(translations_ini_section->getString("sql_password"));
@@ -343,10 +343,21 @@ void CreateVuFindDatabases(const VuFindSystemType vufind_system_type, DbConnecti
             db_connection_root->mySQLGrantAllPrivileges(ixtheo_database, ub_tools_username);
             db_connection_root->mySQLGrantGrantOption(ixtheo_database, ub_tools_username);
 
-
             sql_file = INSTALLER_DATA_DIRECTORY + "/ixtheo.sql";
+
+
+            FileUtil::WriteStringOrDie(tmp_file, "[client]\n");
+            FileUtil::AppendStringOrDie(tmp_file, "user=" + translations_ini_section->getString("sql_username") + "\n");
+            FileUtil::AppendStringOrDie(tmp_file, "password=" + translations_ini_section->getString("sql_password") + "\n");
+            FileUtil::AppendStringOrDie(tmp_file, "host=localhost");
+
+            ExecUtil::ExecSubcommandAndCaptureStdout(ExecUtil::LocateOrDie("mysql") + " --defaults-extra-file=" + tmp_file + " "
+                                                         + translations_ini_section->getString("sql_database") + " < " + sql_file,
+                                                     &error__, false);
         }
     } else if (vufind_system_type == KRIMDOK) {
+        IniFile translations_ini_file(UBTools::GetTuelibPath() + "translations.conf");
+        const auto translations_ini_section(translations_ini_file.getSection("Database"));
         const std::string krim_translations_database(translations_ini_section->getString("sql_database"));
         const std::string krim_translations_username(translations_ini_section->getString("sql_username"));
         const std::string krim_translations_password(translations_ini_section->getString("sql_password"));
@@ -361,17 +372,19 @@ void CreateVuFindDatabases(const VuFindSystemType vufind_system_type, DbConnecti
             db_connection_root->mySQLGrantGrantOption(krim_translations_database, ub_tools_username);
 
             sql_file = INSTALLER_DATA_DIRECTORY + "/krim_translations.sql";
+
+            FileUtil::WriteStringOrDie(tmp_file, "[client]\n");
+            FileUtil::AppendStringOrDie(tmp_file, "user=" + translations_ini_section->getString("sql_username") + "\n");
+            FileUtil::AppendStringOrDie(tmp_file, "password=" + translations_ini_section->getString("sql_password") + "\n");
+            FileUtil::AppendStringOrDie(tmp_file, "host=localhost");
+
+            ExecUtil::ExecSubcommandAndCaptureStdout(ExecUtil::LocateOrDie("mysql") + " --defaults-extra-file=" + tmp_file + " "
+                                                         + translations_ini_section->getString("sql_database") + " < " + sql_file,
+                                                     &error__, false);
         }
     }
 
-    FileUtil::WriteStringOrDie(tmp_file, "[client]\n");
-    FileUtil::AppendStringOrDie(tmp_file, "user=" + translations_ini_section->getString("sql_username") + "\n");
-    FileUtil::AppendStringOrDie(tmp_file, "password=" + translations_ini_section->getString("sql_password") + "\n");
-    FileUtil::AppendStringOrDie(tmp_file, "host=localhost");
 
-    ExecUtil::ExecSubcommandAndCaptureStdout(ExecUtil::LocateOrDie("mysql") + " --defaults-extra-file=" + tmp_file + " "
-                                                 + translations_ini_section->getString("sql_database") + " < " + sql_file,
-                                             &error__, false);
     ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("rm"), { "-f", tmp_file });
 }
 
