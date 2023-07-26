@@ -153,10 +153,11 @@ void ConvertAuthors(const CORE::Work &work, MARC::Record * const record, const s
 }
 
 
-// \return True if a title was found, else false.
 void ConvertTitle(const CORE::Work &work, MARC::Record * const record) {
     std::string title(work.getTitle());
+    title = RegexMatcher::ReplaceAll("(\r?\n)", title, " ");
     title = RegexMatcher::ReplaceAll("\\s+/\\s+", title, "/");
+    title = RegexMatcher::ReplaceAll("\\s{2,}", title, " ");
     title = CORE::ReplaceFaultyEntities(title);
     record->insertField("245", { { 'a', title } }, /* indicator 1 = */ '1', /* indicator 2 = */ '0');
 }
