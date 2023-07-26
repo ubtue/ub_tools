@@ -117,6 +117,7 @@ StartPhase "Filter out Self-referential 856 Fields" \
     --replace 100d:700d "v(\\d+)" "\\1 v. Chr." \
     --replace 689a "(.*)\\s+(\\d+)\\s?v. Chr.\\s?-\\s?(\\d+)\\s?v. Chr" "\\1 v\\2-v\\3" \
     --replace 689a "(.*)\\s+(\\d+)\\s?v. Chr.\\s?-\\s?(\\d+)" "\\1 v\\2-\\3" \
+    --replace 689a "(.*)\\s+(\\d+)\\s?-\\s?(\\d+)\\s*v.\\s?Chr" "\\1 v\\2-v\\3" \
 >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
