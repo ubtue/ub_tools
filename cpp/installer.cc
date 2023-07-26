@@ -345,7 +345,6 @@ void CreateVuFindDatabases(const VuFindSystemType vufind_system_type, DbConnecti
 
             sql_file = INSTALLER_DATA_DIRECTORY + "/ixtheo.sql";
 
-
             FileUtil::WriteStringOrDie(tmp_file, "[client]\n");
             FileUtil::AppendStringOrDie(tmp_file, "user=" + translations_ini_section->getString("sql_username") + "\n");
             FileUtil::AppendStringOrDie(tmp_file, "password=" + translations_ini_section->getString("sql_password") + "\n");
@@ -383,7 +382,6 @@ void CreateVuFindDatabases(const VuFindSystemType vufind_system_type, DbConnecti
                                                      &error__, false);
         }
     }
-
 
     ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("rm"), { "-f", tmp_file });
 }
