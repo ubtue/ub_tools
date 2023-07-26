@@ -350,8 +350,11 @@ void CreateVuFindDatabases(const VuFindSystemType vufind_system_type, DbConnecti
             FileUtil::AppendStringOrDie(tmp_file, "password=" + translations_ini_section->getString("sql_password") + "\n");
             FileUtil::AppendStringOrDie(tmp_file, "host=localhost");
 
-            ExecUtil::ExecSubcommandAndCaptureStdout(ExecUtil::LocateOrDie("mysql") + " --defaults-extra-file=" + tmp_file + " "
-                                                         + translations_ini_section->getString("sql_database") + " < " + sql_file,
+            // ExecUtil::ExecSubcommandAndCaptureStdout(ExecUtil::LocateOrDie("mysql") + " --defaults-extra-file=" + tmp_file + " "
+            //                                              + translations_ini_section->getString("sql_database") + " < " + sql_file,
+            //  &error__, false);
+            ExecUtil::ExecSubcommandAndCaptureStdout(ExecUtil::LocateOrDie("mysql") + " -u " + ixtheo_username + " -p" + ixtheo_password
+                                                         + " " + ixtheo_database + " < " + sql_file,
                                                      &error__, false);
         }
     } else if (vufind_system_type == KRIMDOK) {
