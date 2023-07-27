@@ -1,0 +1,6 @@
+200a | 245a
+700a | 100a
+700b | XXXa (AppendAuthorFirstName)
+700f | 100d (InsertOrForceSubfield)
+101a | 041a
+461v | 600a
