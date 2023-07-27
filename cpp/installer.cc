@@ -323,8 +323,8 @@ void CreateVuFindDatabases(const VuFindSystemType vufind_system_type, DbConnecti
         }
     }
 
-    const std::string tmp_file("/tmp/installer_file.cnf");
-    std::string sql_file, error__;
+    // const std::string tmp_file("/tmp/installer_file.cnf");
+    std::string error__;
 
 
     if (vufind_system_type == IXTHEO) {
@@ -343,18 +343,18 @@ void CreateVuFindDatabases(const VuFindSystemType vufind_system_type, DbConnecti
             db_connection_root->mySQLGrantAllPrivileges(ixtheo_database, ub_tools_username);
             db_connection_root->mySQLGrantGrantOption(ixtheo_database, ub_tools_username);
 
-            sql_file = INSTALLER_DATA_DIRECTORY + "/ixtheo.sql";
+            const std::string sql_file = INSTALLER_DATA_DIRECTORY + "/ixtheo.sql";
 
-            FileUtil::WriteStringOrDie(tmp_file, "[client]\n");
-            FileUtil::AppendStringOrDie(tmp_file, "user=" + translations_ini_section->getString("sql_username") + "\n");
-            FileUtil::AppendStringOrDie(tmp_file, "password=" + translations_ini_section->getString("sql_password") + "\n");
-            FileUtil::AppendStringOrDie(tmp_file, "host=localhost");
+            // FileUtil::WriteStringOrDie(tmp_file, "[client]\n");
+            // FileUtil::AppendStringOrDie(tmp_file, "user=" + translations_ini_section->getString("sql_username") + "\n");
+            // FileUtil::AppendStringOrDie(tmp_file, "password=" + translations_ini_section->getString("sql_password") + "\n");
+            // FileUtil::AppendStringOrDie(tmp_file, "host=localhost");
 
             // ExecUtil::ExecSubcommandAndCaptureStdout(ExecUtil::LocateOrDie("mysql") + " --defaults-extra-file=" + tmp_file + " "
             //                                              + translations_ini_section->getString("sql_database") + " < " + sql_file,
             //  &error__, false);
-            ExecUtil::ExecSubcommandAndCaptureStdout(ExecUtil::LocateOrDie("mysql") + " -u " + ixtheo_username + " -p" + ixtheo_password
-                                                         + " " + ixtheo_database + " < " + sql_file,
+            ExecUtil::ExecSubcommandAndCaptureStdout(ExecUtil::LocateOrDie("mysql") + " \"-u " + ixtheo_username + "\" \"-p"
+                                                         + ixtheo_password + "\" " + ixtheo_database + " < " + sql_file,
                                                      &error__, false);
         }
     } else if (vufind_system_type == KRIMDOK) {
@@ -373,20 +373,25 @@ void CreateVuFindDatabases(const VuFindSystemType vufind_system_type, DbConnecti
             db_connection_root->mySQLGrantAllPrivileges(krim_translations_database, ub_tools_username);
             db_connection_root->mySQLGrantGrantOption(krim_translations_database, ub_tools_username);
 
-            sql_file = INSTALLER_DATA_DIRECTORY + "/krim_translations.sql";
+            const std::string sql_file = INSTALLER_DATA_DIRECTORY + "/krim_translations.sql";
 
-            FileUtil::WriteStringOrDie(tmp_file, "[client]\n");
-            FileUtil::AppendStringOrDie(tmp_file, "user=" + translations_ini_section->getString("sql_username") + "\n");
-            FileUtil::AppendStringOrDie(tmp_file, "password=" + translations_ini_section->getString("sql_password") + "\n");
-            FileUtil::AppendStringOrDie(tmp_file, "host=localhost");
+            // FileUtil::WriteStringOrDie(tmp_file, "[client]\n");
+            // FileUtil::AppendStringOrDie(tmp_file, "user=" + translations_ini_section->getString("sql_username") + "\n");
+            // FileUtil::AppendStringOrDie(tmp_file, "password=" + translations_ini_section->getString("sql_password") + "\n");
+            // FileUtil::AppendStringOrDie(tmp_file, "host=localhost");
 
-            ExecUtil::ExecSubcommandAndCaptureStdout(ExecUtil::LocateOrDie("mysql") + " --defaults-extra-file=" + tmp_file + " "
-                                                         + translations_ini_section->getString("sql_database") + " < " + sql_file,
+            // ExecUtil::ExecSubcommandAndCaptureStdout(ExecUtil::LocateOrDie("mysql") + " --defaults-extra-file=" + tmp_file + " "
+            //                                              + translations_ini_section->getString("sql_database") + " < " + sql_file,
+            //                                          &error__, false);
+
+            ExecUtil::ExecSubcommandAndCaptureStdout(ExecUtil::LocateOrDie("mysql") + " \"-u " + krim_translations_username + "\" \"-p"
+                                                         + krim_translations_password + "\" " + krim_translations_database + " < "
+                                                         + sql_file,
                                                      &error__, false);
         }
     }
 
-    ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("rm"), { "-f", tmp_file });
+    // ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("rm"), { "-f", tmp_file });
 }
 
 
