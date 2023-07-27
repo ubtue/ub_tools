@@ -353,8 +353,8 @@ void CreateVuFindDatabases(const VuFindSystemType vufind_system_type, DbConnecti
             // ExecUtil::ExecSubcommandAndCaptureStdout(ExecUtil::LocateOrDie("mysql") + " --defaults-extra-file=" + tmp_file + " "
             //                                              + translations_ini_section->getString("sql_database") + " < " + sql_file,
             //  &error__, false);
-            ExecUtil::ExecSubcommandAndCaptureStdout(ExecUtil::LocateOrDie("mysql") + " \"-u " + ixtheo_username + "\" \"-p"
-                                                         + ixtheo_password + "\" " + ixtheo_database + " < " + sql_file,
+            ExecUtil::ExecSubcommandAndCaptureStdout(ExecUtil::LocateOrDie("mysql") + " -u " + ixtheo_username + " \"-p" + ixtheo_password
+                                                         + "\" " + ixtheo_database + " < " + sql_file,
                                                      &error__, false);
         }
     } else if (vufind_system_type == KRIMDOK) {
@@ -384,7 +384,7 @@ void CreateVuFindDatabases(const VuFindSystemType vufind_system_type, DbConnecti
             //                                              + translations_ini_section->getString("sql_database") + " < " + sql_file,
             //                                          &error__, false);
 
-            ExecUtil::ExecSubcommandAndCaptureStdout(ExecUtil::LocateOrDie("mysql") + " \"-u " + krim_translations_username + "\" \"-p"
+            ExecUtil::ExecSubcommandAndCaptureStdout(ExecUtil::LocateOrDie("mysql") + " -u " + krim_translations_username + " \"-p"
                                                          + krim_translations_password + "\" " + krim_translations_database + " < "
                                                          + sql_file,
                                                      &error__, false);
