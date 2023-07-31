@@ -72,15 +72,6 @@ MARC::Record *CreateNewRecord(const std::string id) {
 }
 
 
-std::string ExtractPublicationYear(const std::string &published_at) {
-    static ThreadSafeRegexMatcher date_matcher("((\\d{4})-\\d{2}-\\d{2})");
-    if (const auto &match_result = date_matcher.match(published_at)) {
-        return match_result[2];
-    }
-    return "";
-}
-
-
 void InsertField(const std::string &tag, const char subfield_code, MARC::Record * const record, const std::string &data) {
     if (data.length())
         record->insertField(tag, subfield_code, data);
@@ -138,16 +129,6 @@ void InsertOrForceSubfield(const std::string &tag, const char subfield_code, MAR
 }
 
 
-void InsertCreationDates(const std::string, const char, MARC::Record * const record, const std::string &data) {
-    if (data.length()) {
-        const std::string year(ExtractPublicationYear(data));
-        if (not year.empty())
-            record->insertField("936", { { 'j', year } }, 'u', 'w');
-        record->insertField("264", { { 'c', year } });
-    }
-}
-
-
 void AppendAuthorFirstName(const std::string, const char, MARC::Record * const record, const std::string &data) {
     const std::string author_last_name_with_comma(record->getFirstSubfieldValue("100", 'a'));
     for (auto &field : record->getTagRange("100")) {
@@ -159,13 +140,39 @@ void AppendAuthorFirstName(const std::string, const char, MARC::Record * const r
     }
 }
 
+void ExtractVolumeYearAndPages(const std::string, const char, MARC::Record * const record, const std::string &data) {
+    const std::string component_matcher_str("Vol[.]\\s+(\\d+)[(](\\d{4})[)](\\d+),\\s*(\\d+)-(\\d+)\\s*p.");
+    static ThreadSafeRegexMatcher matcher((ThreadSafeRegexMatcher(component_matcher_str)));
+    const auto matched(matcher.match(data));
+
+    if (not matched)
+        LOG_ERROR("Invalid volume/year/pages specification: \"" + data + "\"");
+
+    MARC::Subfields _936_subfields;
+    const std::string volume(matched[1]);
+    _936_subfields.addSubfield('d', volume);
+
+    const std::string year(matched[2]);
+    _936_subfields.addSubfield('j', year);
+    record->insertField("264", { { 'c', year } });
+
+    const std::string issue(matched[3]);
+    _936_subfields.addSubfield('e', issue);
+
+    const std::string start_page(matched[4]);
+    const std::string end_page(matched[5]);
+    _936_subfields.addSubfield('h', start_page + "-" + end_page);
+
+    record->insertField("936", _936_subfields, 'u', 'w');
+}
+
 
 const std::map<std::string, ConversionFunctor> name_to_functor_map{ { "InsertField", InsertField },
                                                                     { "InsertCreationField", InsertCreationField },
-                                                                    { "InsertCreationDates", InsertCreationDates },
                                                                     { "InsertAuthors", InsertAuthors },
                                                                     { "InsertOrForceSubfield", InsertOrForceSubfield },
-                                                                    { "AppendAuthorFirstName", AppendAuthorFirstName } };
+                                                                    { "AppendAuthorFirstName", AppendAuthorFirstName },
+                                                                    { "ExtractVolumeYearAndPages", ExtractVolumeYearAndPages } };
 
 
 ConversionFunctor GetConversionFunctor(const std::string &functor_name) {
