@@ -38,6 +38,11 @@ namespace {
 using ConversionFunctor = std::function<void(const std::string, const char, MARC::Record * const, const std::string)>;
 const char SEPARATOR_CHAR('|');
 enum OJSITALY_TYPES { STUDIA_PATAVINA, RIVISTA_SCIENCE_DELL_EDUCAZIONE };
+const std::map<std::string, enum OJSITALY_TYPES> OJSITALY_TYPE_NAMES_TO_ENUM {
+    { "Studia_Patavina", STUDIA_PATAVINA },
+    { "Revista_science_dell_educatione", RIVISTA_SCIENCE_DELL_EDUCAZIONE }
+};
+
 
 struct MARCToMARCMapping {
     const std::string marc_in_tag_and_subfield_;
@@ -179,8 +184,23 @@ void ExtractTagAndSubfield(const std::string combined, std::string *tag, char *s
 }
 
 
+void GetOJSItalyType(File * const map_file, enum OJSITALY_TYPES * const ojsitaly_type) {
+    if (map_file->eof())
+        LOG_ERROR("Could not determine OJSItaly type");
+    std::string line;
+    map_file->getline(&line);
+    std::vector<std::string> type_line_components;
+    StringUtil::SplitThenTrim(line, SEPARATOR_CHAR, " \t", &type_line_components);
+    if (type_line_components.size() != 2 and type_line_components[0] != "TYPE")
+        LOG_ERROR("Invalid type line : \"" + line + "\"");
+    if (not OJSITALY_TYPE_NAMES_TO_ENUM.contains(type_line_components[1]))
+        LOG_ERROR("Invalid OJSITALY type: \"" + type_line_components[1]);
+    *ojsitaly_type = OJSITALY_TYPE_NAMES_TO_ENUM.at(type_line_components[1]);
+}
+
+
 void CreateMARCToMARCMappings(File * const map_file, MARCToMARCMappingMultiset * const marc_to_marc_mappings) {
-    unsigned linenum(0);
+    unsigned linenum(1); // We are called after GetOJSItalyType()
     while (not map_file->eof()) {
         ++linenum;
         std::string line;
@@ -239,28 +259,26 @@ MARC::Subfields GetSuperiorWorkDescription(enum OJSITALY_TYPES type, const std::
 }
 
 
-void ConvertRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
+void ConvertRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer, const enum OJSITALY_TYPES ojsitaly_type,
                     const MARCToMARCMappingMultiset &marc_to_marc_mappings) {
     unsigned id(0);
-    for (const auto ojsitaly_type : { OJSITALY_TYPES::STUDIA_PATAVINA }) {
-        while (MARC::Record record = marc_reader->read()) {
-            ++id;
-            MARC::Record *new_record(CreateNewRecord(std::to_string(id)));
-            for (auto marc_to_marc_mapping(marc_to_marc_mappings.begin()); marc_to_marc_mapping != marc_to_marc_mappings.end();
-                 ++marc_to_marc_mapping) {
-                std::string tag(marc_to_marc_mapping->marc_in_tag_and_subfield_.substr(0, 3));
-                char subfield_code(marc_to_marc_mapping->marc_in_tag_and_subfield_[3]);
-                marc_to_marc_mapping->extraction_function_(new_record, record.getFirstSubfieldValue(tag, subfield_code));
-            }
-            // Dummy entries
-            new_record->insertField("003", "DE-Tue135");
-            new_record->insertField("005", TimeUtil::GetCurrentDateAndTime("%Y%m%d%H%M%S") + ".0");
-            new_record->insertField("007", "cr|||||");
-            new_record->insertField("084", { { 'a', "1" }, { '2', "ssgn" } });
-            new_record->insertField("773", GetSuperiorWorkDescription(ojsitaly_type, new_record->getFirstSubfieldValue("264", 'c')));
-            marc_writer->write(*new_record);
-            delete new_record;
+    while (MARC::Record record = marc_reader->read()) {
+        ++id;
+        MARC::Record *new_record(CreateNewRecord(std::to_string(id)));
+        for (auto marc_to_marc_mapping(marc_to_marc_mappings.begin()); marc_to_marc_mapping != marc_to_marc_mappings.end();
+             ++marc_to_marc_mapping) {
+            std::string tag(marc_to_marc_mapping->marc_in_tag_and_subfield_.substr(0, 3));
+            char subfield_code(marc_to_marc_mapping->marc_in_tag_and_subfield_[3]);
+            marc_to_marc_mapping->extraction_function_(new_record, record.getFirstSubfieldValue(tag, subfield_code));
         }
+        // Dummy entries
+        new_record->insertField("003", "DE-Tue135");
+        new_record->insertField("005", TimeUtil::GetCurrentDateAndTime("%Y%m%d%H%M%S") + ".0");
+        new_record->insertField("007", "cr|||||");
+        new_record->insertField("084", { { 'a', "1" }, { '2', "ssgn" } });
+        new_record->insertField("773", GetSuperiorWorkDescription(ojsitaly_type, new_record->getFirstSubfieldValue("264", 'c')));
+        marc_writer->write(*new_record);
+        delete new_record;
     }
 }
 
@@ -279,9 +297,11 @@ int Main(int argc, char *argv[]) {
     const std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(marc_input_path));
     std::unique_ptr<File> map_file(FileUtil::OpenInputFileOrDie(map_file_path));
     const std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_path));
+    enum OJSITALY_TYPES ojsitaly_type;
+    GetOJSItalyType(map_file.get(), &ojsitaly_type);
     MARCToMARCMappingMultiset marc_to_marc_mappings(MARCToMARCMappingComparator);
     CreateMARCToMARCMappings(map_file.get(), &marc_to_marc_mappings);
-    ConvertRecords(marc_reader.get(), marc_writer.get(), marc_to_marc_mappings);
+    ConvertRecords(marc_reader.get(), marc_writer.get(), ojsitaly_type, marc_to_marc_mappings);
 
     return EXIT_SUCCESS;
 }
