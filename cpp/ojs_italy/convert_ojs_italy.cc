@@ -72,15 +72,6 @@ MARC::Record *CreateNewRecord(const std::string id) {
 }
 
 
-std::string ExtractPublicationYear(const std::string &published_at) {
-    static ThreadSafeRegexMatcher date_matcher("((\\d{4})-\\d{2}-\\d{2})");
-    if (const auto &match_result = date_matcher.match(published_at)) {
-        return match_result[2];
-    }
-    return "";
-}
-
-
 void InsertField(const std::string &tag, const char subfield_code, MARC::Record * const record, const std::string &data) {
     if (data.length())
         record->insertField(tag, subfield_code, data);
@@ -138,16 +129,6 @@ void InsertOrForceSubfield(const std::string &tag, const char subfield_code, MAR
 }
 
 
-void InsertCreationDates(const std::string, const char, MARC::Record * const record, const std::string &data) {
-    if (data.length()) {
-        const std::string year(ExtractPublicationYear(data));
-        if (not year.empty())
-            record->insertField("936", { { 'j', year } }, 'u', 'w');
-        record->insertField("264", { { 'c', year } });
-    }
-}
-
-
 void AppendAuthorFirstName(const std::string, const char, MARC::Record * const record, const std::string &data) {
     const std::string author_last_name_with_comma(record->getFirstSubfieldValue("100", 'a'));
     for (auto &field : record->getTagRange("100")) {
@@ -159,13 +140,39 @@ void AppendAuthorFirstName(const std::string, const char, MARC::Record * const r
     }
 }
 
+void ExtractVolumeYearAndPages(const std::string, const char, MARC::Record * const record, const std::string &data) {
+    const std::string component_matcher_str("Vol[.]\\s+(\\d+)[(](\\d{4})[)](\\d+),\\s*(\\d+)-(\\d+)\\s*p.");
+    static ThreadSafeRegexMatcher matcher((ThreadSafeRegexMatcher(component_matcher_str)));
+    const auto matched(matcher.match(data));
+
+    if (not matched)
+        LOG_ERROR("Invalid volume/year/pages specification: \"" + data + "\"");
+
+    MARC::Subfields _936_subfields;
+    const std::string volume(matched[1]);
+    _936_subfields.addSubfield('d', volume);
+
+    const std::string year(matched[2]);
+    _936_subfields.addSubfield('j', year);
+    record->insertField("264", { { 'c', year } });
+
+    const std::string issue(matched[3]);
+    _936_subfields.addSubfield('e', issue);
+
+    const std::string start_page(matched[4]);
+    const std::string end_page(matched[5]);
+    _936_subfields.addSubfield('h', start_page + "-" + end_page);
+
+    record->insertField("936", _936_subfields, 'u', 'w');
+}
+
 
 const std::map<std::string, ConversionFunctor> name_to_functor_map{ { "InsertField", InsertField },
                                                                     { "InsertCreationField", InsertCreationField },
-                                                                    { "InsertCreationDates", InsertCreationDates },
                                                                     { "InsertAuthors", InsertAuthors },
                                                                     { "InsertOrForceSubfield", InsertOrForceSubfield },
-                                                                    { "AppendAuthorFirstName", AppendAuthorFirstName } };
+                                                                    { "AppendAuthorFirstName", AppendAuthorFirstName },
+                                                                    { "ExtractVolumeYearAndPages", ExtractVolumeYearAndPages } };
 
 
 ConversionFunctor GetConversionFunctor(const std::string &functor_name) {
@@ -259,6 +266,17 @@ MARC::Subfields GetSuperiorWorkDescription(enum OJSITALY_TYPES type, const std::
 }
 
 
+void CleanTitles(MARC::Record * const record) {
+    static ThreadSafeRegexMatcher matcher((ThreadSafeRegexMatcher("(?:<<(.*)>>)")));
+    std::string title(record->getFirstSubfieldValue("245", 'a'));
+    const std::string new_title = matcher.replaceWithBackreferences(title, "\\1");
+    auto _245_field = record->getFirstField("245");
+    MARC::Subfields _245_subfields(_245_field->getSubfields());
+    _245_subfields.replaceFirstSubfield('a', new_title);
+    record->replaceField("245", _245_subfields, _245_field->getIndicator1(), _245_field->getIndicator2());
+}
+
+
 void ConvertRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer, const enum OJSITALY_TYPES ojsitaly_type,
                     const MARCToMARCMappingMultiset &marc_to_marc_mappings) {
     unsigned id(0);
@@ -277,6 +295,7 @@ void ConvertRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_
         new_record->insertField("007", "cr|||||");
         new_record->insertField("084", { { 'a', "1" }, { '2', "ssgn" } });
         new_record->insertField("773", GetSuperiorWorkDescription(ojsitaly_type, new_record->getFirstSubfieldValue("264", 'c')));
+        CleanTitles(new_record);
         marc_writer->write(*new_record);
         delete new_record;
     }
