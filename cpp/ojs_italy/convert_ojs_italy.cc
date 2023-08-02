@@ -158,7 +158,7 @@ void AppendAuthorFirstName(const std::string, const char, MARC::Record * const r
     }
 }
 
-void ExtractStudiaPataviaVolumeYearAndPages(const std::string, const char, MARC::Record * const record, const std::string &data) {
+void ExtractStudiaPatavinaVolumeYearAndPages(const std::string, const char, MARC::Record * const record, const std::string &data) {
     const std::string component_matcher_str("Vol[.]\\s+(\\d+)[(](\\d{4})[)](\\d+),\\s*(\\d+)-(\\d+)\\s*p.");
     static ThreadSafeRegexMatcher matcher((ThreadSafeRegexMatcher(component_matcher_str)));
     const auto matched(matcher.match(data));
@@ -245,7 +245,7 @@ const std::map<std::string, ConversionFunctor> name_to_functor_map{
     { "InsertOrForceSubfield", InsertOrForceSubfield },
     { "InsertOrAppendToSubfield", InsertOrAppendToSubfield },
     { "AppendAuthorFirstName", AppendAuthorFirstName },
-    { "ExtractStudiaPataviaVolumeYearAndPages", ExtractStudiaPataviaVolumeYearAndPages },
+    { "ExtractStudiaPatavinaVolumeYearAndPages", ExtractStudiaPatavinaVolumeYearAndPages },
     { "ExtractRivistaVolumeIssueAndYear", ExtractRivistaVolumeIssueAndYear },
     { "ExtractRevistaPages", ExtractRevistaPages }
 };
