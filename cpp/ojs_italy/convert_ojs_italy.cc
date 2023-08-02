@@ -129,6 +129,24 @@ void InsertOrForceSubfield(const std::string &tag, const char subfield_code, MAR
 }
 
 
+void InsertOrAppendToSubfield(const std::string &tag, const char subfield_code, MARC::Record * const record, const std::string &data) {
+    if (data.length()) {
+        if (not record->hasTag(tag)) {
+            InsertField(tag, subfield_code, record, data);
+            return;
+        }
+        for (auto &field : record->getTagRange(tag)) {
+            if (field.hasSubfield(subfield_code)) {
+                auto subfields(field.getSubfields());
+                subfields.replaceFirstSubfield(subfield_code, subfields.getFirstSubfieldWithCode(subfield_code) + data);
+                field = MARC::Record::Field(tag, subfields, field.getIndicator1(), field.getIndicator2());
+            } else
+                field.insertOrReplaceSubfield(subfield_code, data);
+        }
+    }
+}
+
+
 void AppendAuthorFirstName(const std::string, const char, MARC::Record * const record, const std::string &data) {
     const std::string author_last_name_with_comma(record->getFirstSubfieldValue("100", 'a'));
     for (auto &field : record->getTagRange("100")) {
@@ -225,6 +243,7 @@ const std::map<std::string, ConversionFunctor> name_to_functor_map{
     { "InsertCreationField", InsertCreationField },
     { "InsertAuthors", InsertAuthors },
     { "InsertOrForceSubfield", InsertOrForceSubfield },
+    { "InsertOrAppendToSubfield", InsertOrAppendToSubfield },
     { "AppendAuthorFirstName", AppendAuthorFirstName },
     { "ExtractStudiaPataviaVolumeYearAndPages", ExtractStudiaPataviaVolumeYearAndPages },
     { "ExtractRivistaVolumeIssueAndYear", ExtractRivistaVolumeIssueAndYear },
