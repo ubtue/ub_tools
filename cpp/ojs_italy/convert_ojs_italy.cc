@@ -140,7 +140,7 @@ void AppendAuthorFirstName(const std::string, const char, MARC::Record * const r
     }
 }
 
-void ExtractVolumeYearAndPages(const std::string, const char, MARC::Record * const record, const std::string &data) {
+void ExtractStudiaPataviaVolumeYearAndPages(const std::string, const char, MARC::Record * const record, const std::string &data) {
     const std::string component_matcher_str("Vol[.]\\s+(\\d+)[(](\\d{4})[)](\\d+),\\s*(\\d+)-(\\d+)\\s*p.");
     static ThreadSafeRegexMatcher matcher((ThreadSafeRegexMatcher(component_matcher_str)));
     const auto matched(matcher.match(data));
@@ -166,13 +166,70 @@ void ExtractVolumeYearAndPages(const std::string, const char, MARC::Record * con
     record->insertField("936", _936_subfields, 'u', 'w');
 }
 
+void CreateOrAppendTo936IfPresent(MARC::Record * const record, const MARC::Subfields _936_subfields) {
+    if (record->hasFieldWithTag("936")) {
+        for (auto &field : record->getTagRange("936")) {
+            if (not(field.getIndicator1() == 'u' and field.getIndicator2() == 'w'))
+                continue;
 
-const std::map<std::string, ConversionFunctor> name_to_functor_map{ { "InsertField", InsertField },
-                                                                    { "InsertCreationField", InsertCreationField },
-                                                                    { "InsertAuthors", InsertAuthors },
-                                                                    { "InsertOrForceSubfield", InsertOrForceSubfield },
-                                                                    { "AppendAuthorFirstName", AppendAuthorFirstName },
-                                                                    { "ExtractVolumeYearAndPages", ExtractVolumeYearAndPages } };
+            MARC::Subfields _936_subfields_present(field.getSubfields());
+            for (const auto &new_subfield : _936_subfields)
+                _936_subfields_present.appendSubfield(new_subfield);
+            field = MARC::Record::Field("936", _936_subfields_present, field.getIndicator1(), field.getIndicator2());
+        }
+    } else
+        record->insertField("936", _936_subfields, 'u', 'w');
+}
+
+
+void ExtractRivistaVolumeIssueAndYear(const std::string, const char, MARC::Record * const record, const std::string &data) {
+    const std::string volume_issue_and_year_str("a[.](\\d+):n(\\d+(?:-\\d+)?)\\s+[(](\\d{4}).*");
+    static ThreadSafeRegexMatcher matcher((ThreadSafeRegexMatcher(volume_issue_and_year_str)));
+    const auto matched(matcher.match(data));
+
+    if (matched) {
+        MARC::Subfields _936_subfields;
+        const std::string volume(matched[1]);
+        _936_subfields.addSubfield('d', volume);
+
+        const std::string issue(matched[2]);
+        _936_subfields.addSubfield('e', issue);
+
+        const std::string year(matched[3]);
+        _936_subfields.addSubfield('j', year);
+
+        CreateOrAppendTo936IfPresent(record, _936_subfields);
+    } else
+        LOG_WARNING("Could not extract volume, issue and year from \"" + data + "\"");
+}
+
+
+void ExtractRevistaPages(const std::string, const char, MARC::Record * const record, const std::string &data) {
+    const std::string page_str("(?:P|pp)[.]\\s+(\\d+)-(\\d+)");
+    static ThreadSafeRegexMatcher matcher((ThreadSafeRegexMatcher(page_str)));
+    const auto matched(matcher.match(data));
+
+    if (matched) {
+        MARC::Subfields _936_subfields;
+        const std::string start_page(matched[1]);
+        const std::string end_page(matched[2]);
+        _936_subfields.addSubfield('h', start_page + "-" + end_page);
+        CreateOrAppendTo936IfPresent(record, _936_subfields);
+    } else
+        LOG_WARNING("Could not extract pages from \"" + data + "\"");
+}
+
+
+const std::map<std::string, ConversionFunctor> name_to_functor_map{
+    { "InsertField", InsertField },
+    { "InsertCreationField", InsertCreationField },
+    { "InsertAuthors", InsertAuthors },
+    { "InsertOrForceSubfield", InsertOrForceSubfield },
+    { "AppendAuthorFirstName", AppendAuthorFirstName },
+    { "ExtractStudiaPataviaVolumeYearAndPages", ExtractStudiaPataviaVolumeYearAndPages },
+    { "ExtractRivistaVolumeIssueAndYear", ExtractRivistaVolumeIssueAndYear },
+    { "ExtractRevistaPages", ExtractRevistaPages }
+};
 
 
 ConversionFunctor GetConversionFunctor(const std::string &functor_name) {
