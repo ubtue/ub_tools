@@ -82,14 +82,21 @@ void GetJournalEntriesFromDb(DbConnection * const db_connection, const std::stri
 
             const auto issue_info(BSZUtil::ExtractYearVolumeIssue(record));
 
+            std::string data_year("");
             if (not issue_info.year_.empty())
-                csv_row += ";" + issue_info.year_;
+                data_year = issue_info.year_;
 
+            std::string data_volume("");
             if (not issue_info.volume_.empty())
-                csv_row += ";" + issue_info.volume_;
+                data_volume = issue_info.volume_;
 
+            std::string data_issue("");
             if (not issue_info.issue_.empty())
-                csv_row += ";" + issue_info.issue_;
+                data_issue = issue_info.issue_;
+
+            csv_row += ";" + data_year;
+            csv_row += ";" + data_volume;
+            csv_row += ";" + data_issue;
         }
 
         csv_file->writeln(csv_row);
