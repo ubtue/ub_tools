@@ -385,6 +385,13 @@ std::string Assemble773gContent(const MARC::Record &record) {
 }
 
 
+void AddSelectors(MARC::Record * const record) {
+    record->insertFieldAtEnd("935", { { 'a', "itbk" }, { '2', "LOK" } });
+    record->insertFieldAtEnd("935", { { 'a', "aixrk" }, { '2', "LOK" } });
+    record->insertFieldAtEnd("935", { { 'a', "aixzs" }, { '2', "LOK" } });
+}
+
+
 void ConvertRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer, const enum OJSITALY_TYPE ojsitaly_type,
                     const MARCToMARCMappingMultiset &marc_to_marc_mappings) {
     unsigned id(0);
@@ -404,6 +411,7 @@ void ConvertRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_
         new_record->insertField("084", { { 'a', "1" }, { '2', "ssgn" } });
         new_record->insertField("773", GetSuperiorWorkDescription(ojsitaly_type, Assemble773gContent(*new_record)));
         CleanTitles(new_record);
+        AddSelectors(new_record);
         marc_writer->write(*new_record);
         delete new_record;
     }
