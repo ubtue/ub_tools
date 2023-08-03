@@ -238,6 +238,13 @@ void ExtractRevistaPages(const std::string, const char, MARC::Record * const rec
 }
 
 
+void ExtractLanguageFrom008(const std::string, const char, MARC::Record * const record, const std::string &data) {
+    // Extract three letter language code at position 35
+    const std::string lang(data.substr(35, 3));
+    InsertField("041", 'a', record, lang);
+}
+
+
 const std::map<std::string, ConversionFunctor> name_to_functor_map{
     { "InsertField", InsertField },
     { "InsertCreationField", InsertCreationField },
@@ -247,7 +254,8 @@ const std::map<std::string, ConversionFunctor> name_to_functor_map{
     { "AppendAuthorFirstName", AppendAuthorFirstName },
     { "ExtractStudiaPatavinaVolumeYearAndPages", ExtractStudiaPatavinaVolumeYearAndPages },
     { "ExtractRivistaVolumeIssueAndYear", ExtractRivistaVolumeIssueAndYear },
-    { "ExtractRevistaPages", ExtractRevistaPages }
+    { "ExtractRevistaPages", ExtractRevistaPages },
+    { "ExtractLanguageFrom008", ExtractLanguageFrom008 }
 };
 
 
@@ -297,7 +305,7 @@ void CreateMARCToMARCMappings(File * const map_file, MARCToMARCMappingMultiset *
             LOG_WARNING("Invalid line format in line " + std::to_string(linenum));
             continue;
         }
-        static ThreadSafeRegexMatcher tag_subfield_and_functorname("(?i)([a-z0-9]{3,4})\\s+\\((\\p{L}+)\\)\\s*");
+        static ThreadSafeRegexMatcher tag_subfield_and_functorname("(?i)([a-z0-9]{3,4})\\s+\\((\\p{L}[\\p{L}0-9]+)\\)\\s*");
         const std::vector<std::string> extraction_rules(mapping.begin() + 1, mapping.end());
         for (const auto &extraction_rule : extraction_rules) {
             std::string tag;
@@ -402,7 +410,10 @@ void ConvertRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_
              ++marc_to_marc_mapping) {
             std::string tag(marc_to_marc_mapping->marc_in_tag_and_subfield_.substr(0, 3));
             char subfield_code(marc_to_marc_mapping->marc_in_tag_and_subfield_[3]);
-            marc_to_marc_mapping->extraction_function_(new_record, record.getFirstSubfieldValue(tag, subfield_code));
+            if (unlikely(!subfield_code))
+                marc_to_marc_mapping->extraction_function_(new_record, record.getFirstFieldContents(tag));
+            else
+                marc_to_marc_mapping->extraction_function_(new_record, record.getFirstSubfieldValue(tag, subfield_code));
         }
         // Dummy entries
         new_record->insertField("003", "DE-Tue135");
