@@ -1,0 +1,8 @@
+TYPE | Revista_science_dell_educatione
+008  | 041a (ExtractLanguageFrom008)
+100a | 100a
+100d | 100d (InsertOrForceSubfield)
+245a | 245a
+245b | 245b (InsertOrForceSubfield)
+300a | XXXx (ExtractRevistaPages)
+773g | XXXx (ExtractRivistaVolumeIssueAndYear)
