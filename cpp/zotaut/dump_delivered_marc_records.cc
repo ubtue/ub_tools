@@ -94,9 +94,9 @@ void GetJournalEntriesFromDb(DbConnection * const db_connection, const std::stri
             if (not issue_info.issue_.empty())
                 data_issue = issue_info.issue_;
 
-            csv_row += ";" + data_year;
-            csv_row += ";" + data_volume;
-            csv_row += ";" + data_issue;
+            csv_row += ";" + TextUtil::CSVEscape(data_year);
+            csv_row += ";" + TextUtil::CSVEscape(data_volume);
+            csv_row += ";" + TextUtil::CSVEscape(data_issue);
         }
 
         csv_file->writeln(csv_row);
