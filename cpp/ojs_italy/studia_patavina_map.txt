@@ -4,4 +4,4 @@ TYPE | Studia_Patavina
 700b | XXXa (AppendAuthorFirstName)
 700f | 100d (InsertOrForceSubfield)
 101a | 041a
-461v | XXXa (ExtractVolumeYearAndPages)
+461v | XXXa (ExtractStudiaPatavinaVolumeYearAndPages)
