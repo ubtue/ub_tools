@@ -318,13 +318,13 @@ void CreateMARCToMARCMappings(File * const map_file, MARCToMARCMappingMultiset *
 }
 
 
-MARC::Subfields GetSuperiorWorkDescription(enum OJSITALY_TYPE type, const std::string &publication_year) {
+MARC::Subfields GetSuperiorWorkDescription(enum OJSITALY_TYPE type, const std::string &subfield_g_content) {
     switch (type) {
     case OJSITALY_TYPE::STUDIA_PATAVINA:
         return MARC::Subfields({ { 'i', "Enhalten in" },
                                  { 't', "Studia patavina" },
                                  { 'd', "Padova : Facoltà teologica del Triveneto, 1954" },
-                                 { 'g', publication_year },
+                                 { 'g', subfield_g_content },
                                  { 'w', "(DE-627)166751685" },
                                  { 'w', "(DE-600)301088-0" },
                                  { 'w', "(DE-576)015186075" } });
@@ -332,7 +332,7 @@ MARC::Subfields GetSuperiorWorkDescription(enum OJSITALY_TYPE type, const std::s
         return MARC::Subfields({ { 'i', "Enhalten in" },
                                  { 't', "Rivista di scienze dell'educazione" },
                                  { 'd', "Roma, 1973" },
-                                 { 'g', publication_year },
+                                 { 'g', subfield_g_content },
                                  { 'w', "(DE627)166430072 " },
                                  { 'w', "(DE600)188494-3" },
                                  { 'w', "(DE576)014791072" } });
@@ -350,6 +350,38 @@ void CleanTitles(MARC::Record * const record) {
     MARC::Subfields _245_subfields(_245_field->getSubfields());
     _245_subfields.replaceFirstSubfield('a', new_title);
     record->replaceField("245", _245_subfields, _245_field->getIndicator1(), _245_field->getIndicator2());
+}
+
+std::string Assemble773gContent(const MARC::Record &record) {
+    std::string _773g_content;
+    for (const auto &_936field : record.getTagRange("936")) {
+        if (not(_936field.getIndicator1() == 'u' and _936field.getIndicator2()))
+            continue;
+        const MARC::Subfields _936_subfields(_936field.getSubfields());
+        const std::string volume(_936_subfields.getFirstSubfieldWithCode('d'));
+        _773g_content += volume;
+
+        std::string year(_936_subfields.getFirstSubfieldWithCode('j'));
+        if (year.empty())
+            year = record.getFirstSubfieldValue("264", 'c');
+        if (not year.empty()) {
+            _773g_content += _773g_content.size() ? " " : "";
+            _773g_content += "(" + year + ")";
+        }
+
+        const std::string issue(_936_subfields.getFirstSubfieldWithCode('e'));
+        if (not issue.empty()) {
+            _773g_content += _773g_content.size() ? " " : "";
+            _773g_content += issue;
+        }
+
+        const std::string pages(_936_subfields.getFirstSubfieldWithCode('h'));
+        if (not pages.empty()) {
+            _773g_content += _773g_content.size() ? ", " : "";
+            _773g_content += "Seite " + pages;
+        }
+    }
+    return _773g_content;
 }
 
 
@@ -370,7 +402,7 @@ void ConvertRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_
         new_record->insertField("005", TimeUtil::GetCurrentDateAndTime("%Y%m%d%H%M%S") + ".0");
         new_record->insertField("007", "cr|||||");
         new_record->insertField("084", { { 'a', "1" }, { '2', "ssgn" } });
-        new_record->insertField("773", GetSuperiorWorkDescription(ojsitaly_type, new_record->getFirstSubfieldValue("264", 'c')));
+        new_record->insertField("773", GetSuperiorWorkDescription(ojsitaly_type, Assemble773gContent(*new_record)));
         CleanTitles(new_record);
         marc_writer->write(*new_record);
         delete new_record;
