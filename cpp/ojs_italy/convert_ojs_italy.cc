@@ -37,8 +37,8 @@ namespace {
 
 using ConversionFunctor = std::function<void(const std::string, const char, MARC::Record * const, const std::string)>;
 const char SEPARATOR_CHAR('|');
-enum OJSITALY_TYPES { STUDIA_PATAVINA, RIVISTA_SCIENCE_DELL_EDUCAZIONE };
-const std::map<std::string, enum OJSITALY_TYPES> OJSITALY_TYPE_NAMES_TO_ENUM {
+enum OJSITALY_TYPE { STUDIA_PATAVINA, RIVISTA_SCIENCE_DELL_EDUCAZIONE };
+const std::map<std::string, enum OJSITALY_TYPE> OJSITALY_TYPE_NAMES_TO_ENUM {
     { "Studia_Patavina", STUDIA_PATAVINA },
     { "Revista_science_dell_educatione", RIVISTA_SCIENCE_DELL_EDUCAZIONE }
 };
@@ -63,10 +63,10 @@ const auto MARCToMARCMappingComparator = [](const MARCToMARCMapping &lhs, const 
 using MARCToMARCMappingMultiset = std::multiset<MARCToMARCMapping, decltype(MARCToMARCMappingComparator)>;
 
 
-MARC::Record *CreateNewRecord(const std::string id) {
+MARC::Record *CreateNewRecord(enum OJSITALY_TYPE type, const std::string id) {
     std::ostringstream formatted_number;
     formatted_number << std::setfill('0') << std::setw(8) << std::atoi(id.c_str());
-    const std::string prefix("STP");
+    const std::string prefix(type == STUDIA_PATAVINA ? "STP" : "RSE");
     const std::string ppn(prefix + formatted_number.str());
     return new MARC::Record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::SERIAL_COMPONENT_PART, ppn);
 }
@@ -267,7 +267,7 @@ void ExtractTagAndSubfield(const std::string combined, std::string *tag, char *s
 }
 
 
-void GetOJSItalyType(File * const map_file, enum OJSITALY_TYPES * const ojsitaly_type) {
+void GetOJSItalyType(File * const map_file, enum OJSITALY_TYPE * const ojsitaly_type) {
     if (map_file->eof())
         LOG_ERROR("Could not determine OJSItaly type");
     std::string line;
@@ -318,9 +318,9 @@ void CreateMARCToMARCMappings(File * const map_file, MARCToMARCMappingMultiset *
 }
 
 
-MARC::Subfields GetSuperiorWorkDescription(enum OJSITALY_TYPES type, const std::string &publication_year) {
+MARC::Subfields GetSuperiorWorkDescription(enum OJSITALY_TYPE type, const std::string &publication_year) {
     switch (type) {
-    case OJSITALY_TYPES::STUDIA_PATAVINA:
+    case OJSITALY_TYPE::STUDIA_PATAVINA:
         return MARC::Subfields({ { 'i', "Enhalten in" },
                                  { 't', "Studia patavina" },
                                  { 'd', "Padova : Facoltà teologica del Triveneto, 1954" },
@@ -328,7 +328,7 @@ MARC::Subfields GetSuperiorWorkDescription(enum OJSITALY_TYPES type, const std::
                                  { 'w', "(DE-627)166751685" },
                                  { 'w', "(DE-600)301088-0" },
                                  { 'w', "(DE-576)015186075" } });
-    case OJSITALY_TYPES::RIVISTA_SCIENCE_DELL_EDUCAZIONE:
+    case OJSITALY_TYPE::RIVISTA_SCIENCE_DELL_EDUCAZIONE:
         return MARC::Subfields({ { 'i', "Enhalten in" },
                                  { 't', "Rivista di scienze dell'educazione" },
                                  { 'd', "Roma, 1973" },
@@ -353,12 +353,12 @@ void CleanTitles(MARC::Record * const record) {
 }
 
 
-void ConvertRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer, const enum OJSITALY_TYPES ojsitaly_type,
+void ConvertRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer, const enum OJSITALY_TYPE ojsitaly_type,
                     const MARCToMARCMappingMultiset &marc_to_marc_mappings) {
     unsigned id(0);
     while (MARC::Record record = marc_reader->read()) {
         ++id;
-        MARC::Record *new_record(CreateNewRecord(std::to_string(id)));
+        MARC::Record *new_record(CreateNewRecord(ojsitaly_type, std::to_string(id)));
         for (auto marc_to_marc_mapping(marc_to_marc_mappings.begin()); marc_to_marc_mapping != marc_to_marc_mappings.end();
              ++marc_to_marc_mapping) {
             std::string tag(marc_to_marc_mapping->marc_in_tag_and_subfield_.substr(0, 3));
@@ -392,7 +392,7 @@ int Main(int argc, char *argv[]) {
     const std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(marc_input_path));
     std::unique_ptr<File> map_file(FileUtil::OpenInputFileOrDie(map_file_path));
     const std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_path));
-    enum OJSITALY_TYPES ojsitaly_type;
+    enum OJSITALY_TYPE ojsitaly_type;
     GetOJSItalyType(map_file.get(), &ojsitaly_type);
     MARCToMARCMappingMultiset marc_to_marc_mappings(MARCToMARCMappingComparator);
     CreateMARCToMARCMappings(map_file.get(), &marc_to_marc_mappings);
