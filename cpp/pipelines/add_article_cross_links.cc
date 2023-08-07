@@ -23,6 +23,7 @@
 #include <unordered_set>
 #include <cstdio>
 #include <cstdlib>
+#include "BSZUtil.h"
 #include "Compiler.h"
 #include "ControlNumberGuesser.h"
 #include "FileUtil.h"
@@ -57,24 +58,10 @@ void ExtractYearVolumeIssue(const MARC::Record &record, RecordInfo * const recor
     record_info->volume_ = VOLUME_WILDCARD;
     record_info->issue_ = ISSUE_WILDCARD;
 
-    for (const auto &field : record.getTagRange("936")) {
-        if (field.getIndicator1() != 'u' or field.getIndicator2() != 'w')
-            continue;
-
-        const MARC::Subfields subfields(field.getSubfields());
-
-        const auto year(subfields.getFirstSubfieldWithCode('j'));
-        if (not year.empty())
-            record_info->year_ = year;
-
-        const auto volume(subfields.getFirstSubfieldWithCode('d'));
-        if (not volume.empty())
-            record_info->volume_ = volume;
-
-        const auto issue(subfields.getFirstSubfieldWithCode('e'));
-        if (not issue.empty())
-            record_info->issue_ = issue;
-    }
+    const auto issue_info(BSZUtil::ExtractYearVolumeIssue(record));
+    record_info->year_ = issue_info.year_;
+    record_info->volume_ = issue_info.volume_;
+    record_info->issue_ = issue_info.issue_;
 }
 
 

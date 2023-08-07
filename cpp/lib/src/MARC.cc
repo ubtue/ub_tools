@@ -31,6 +31,7 @@
 #include "FileUtil.h"
 #include "MiscUtil.h"
 #include "RegexMatcher.h"
+#include "StringUtil.h"
 #include "TextUtil.h"
 #include "UBTools.h"
 #include "util.h"
@@ -1097,13 +1098,11 @@ std::string Record::getMostRecentPublicationYear(const std::string &fallback) co
     }
 
     if ((isArticle() or isReviewArticle()) and not isMonograph()) {
-        for (const auto &_936_field : getTagRange("936")) {
-            const auto j_contents(_936_field.getFirstSubfieldWithCode('j'));
-            if (not j_contents.empty()) {
-                static const auto year_matcher(RegexMatcher::RegexMatcherFactoryOrDie("(\\d{4})"));
-                if (year_matcher->matched(j_contents))
-                    return (*year_matcher)[1];
-            }
+        const auto issue_info(BSZUtil::ExtractYearVolumeIssue(*this));
+        if (not issue_info.year_.empty()) {
+            static const auto year_matcher(RegexMatcher::RegexMatcherFactoryOrDie("(\\d{4})"));
+            if (year_matcher->matched(issue_info.year_))
+                return (*year_matcher)[1];
         }
     }
 
@@ -1799,7 +1798,8 @@ bool Record::isValid(std::string * const error_message) const {
                 }
                 ++ch; // Skip over the subfield code.
                 if (unlikely(ch == field.contents_.end() or *ch == '\x1F'))
-                    LOG_WARNING(getControlNumber() + ": subfield '" + std::string(1, *(ch - 1)) + "' is empty! (tag: " + field.getTag().toString() + ")");
+                    LOG_WARNING(getControlNumber() + ": subfield '" + std::string(1, *(ch - 1))
+                                + "' is empty! (tag: " + field.getTag().toString() + ")");
 
                 // Skip over the subfield contents:
                 while (ch != field.contents_.end() and *ch != '\x1F')

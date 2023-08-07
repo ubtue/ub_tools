@@ -19,6 +19,7 @@
 
 #include <unordered_map>
 #include <cstdlib>
+#include "BSZUtil.h"
 #include "Compiler.h"
 #include "DbConnection.h"
 #include "DnsUtil.h"
@@ -186,21 +187,17 @@ void CollectZederArticles(MARC::Reader * const reader,
         if (ppn_and_zeder_id_and_ppn_type == ppns_to_zeder_ids_and_types_map.cend())
             continue;
 
-        const auto _936_field(record.findTag("936"));
-        if (_936_field == record.end())
-            continue;
+        const auto issue_info(BSZUtil::ExtractYearVolumeIssue(record));
+        const std::string pages(issue_info.pages_);
 
-        if (_936_field->getIndicator1() != 'u' or _936_field->getIndicator2() != 'w')
-            continue;
-
-        const std::string pages(_936_field->getFirstSubfieldWithCode('h'));
         std::string volume;
-        std::string issue(_936_field->getFirstSubfieldWithCode('e'));
+        std::string issue(issue_info.issue_);
         if (issue.empty())
-            issue = _936_field->getFirstSubfieldWithCode('d');
+            issue = issue_info.volume_;
         else
-            volume = _936_field->getFirstSubfieldWithCode('d');
-        const std::string year(_936_field->getFirstSubfieldWithCode('j'));
+            volume = issue_info.volume_;
+
+        const std::string year(issue_info.year_);
 
         const std::string zeder_id(std::to_string(ppn_and_zeder_id_and_ppn_type->second.zeder_id_));
         const std::string ppn_type(1, ppn_and_zeder_id_and_ppn_type->second.type_);

@@ -141,7 +141,8 @@ ArchiveType GetArchiveType(const std::string &member_name) {
 std::string GetAuthorGNDNumber(const std::string &author, const std::string &author_lookup_base_url) {
     static std::mutex fetch_author_gnd_url_to_gnd_cache_mutex;
     static std::unordered_map<std::string, std::string> fetch_author_gnd_url_to_gnd_cache;
-    static const ThreadSafeRegexMatcher AUTHOR_GND_MATCHER("Link zu diesem Datensatz in der GND:\\s*<[^>]+><a[^>]*>http(?:s)?://d-nb.info/gnd/([0-9X]+)</a>");
+    static const ThreadSafeRegexMatcher AUTHOR_GND_MATCHER(
+        "Link zu diesem Datensatz in der GND:\\s*<[^>]+><a[^>]*>http(?:s)?://d-nb.info/gnd/([0-9X]+)</a>");
 
     // "author" must be in the lastname,firstname format
     const std::string lookup_url(author_lookup_base_url + UrlUtil::UrlEncode(author));
@@ -221,19 +222,62 @@ void ExtractArchiveMembers(const std::string &archive_name, std::vector<std::str
 }
 
 
-void ExtractYearVolumeIssue(const MARC::Record &record, std::string * const year, std::string * const volume, std::string * const issue) {
+IssueInfo ExtractYearVolumeIssue(const MARC::Record &record) {
+    IssueInfo issue_info;
+
     const auto field_008(record.findTag("008"));
     if (field_008 != record.end())
-        *year = field_008->getContents().substr(7, 4);
+        issue_info.year_ = field_008->getContents().substr(7, 4);
 
-    const auto field_936(record.findTag("936"));
-    if (field_936 == record.end())
-        return;
+    // Priority: 773
+    for (const auto &field : record.getTagRange("773")) {
+        if (field.getIndicator1() == '1' && field.getIndicator2() == '8') {
+            auto subfields_g = field.getSubfields().extractSubfields('g');
+            std::vector<std::string> parts;
+            for (const auto &subfield_g : subfields_g) {
+                StringUtil::Split(subfield_g, ':', &parts);
 
-    *volume = field_936->getFirstSubfieldWithCode('d');
-    *issue = field_936->getFirstSubfieldWithCode('e');
+                if (parts.size() == 2) {
+                    if (parts[0] == "year")
+                        issue_info.year_ = parts[1];
+                    else if (parts[0] == "volume")
+                        issue_info.volume_ = parts[1];
+                    else if (parts[0] == "issue")
+                        issue_info.issue_ = parts[1];
+                    else if (parts[0] == "month")
+                        issue_info.month_ = parts[1];
+                    else if (parts[0] == "pages")
+                        issue_info.pages_ = parts[1];
+                }
+            }
+            return issue_info;
+        }
+    }
+
+    // Fallback: 936
+    for (const auto &field : record.getTagRange("936")) {
+        if (field.getIndicator1() == 'u' && field.getIndicator2() == 'w') {
+            if (field.hasSubfield('d'))
+                issue_info.volume_ = field.getFirstSubfieldWithCode('d');
+
+            if (field.hasSubfield('e'))
+                issue_info.issue_ = field.getFirstSubfieldWithCode('e');
+
+            if (field.hasSubfield('h'))
+                issue_info.pages_ = field.getFirstSubfieldWithCode('h');
+
+            if (field.hasSubfield('j'))
+                issue_info.year_ = field.getFirstSubfieldWithCode('j');
+
+            if (field.hasSubfield('c'))
+                issue_info.month_ = field.getFirstSubfieldWithCode('c');
+
+            return issue_info;
+        }
+    }
+
+    return issue_info;
 }
-
 
 std::string GetK10PlusPPNFromSubfield(const MARC::Record::Field &field, const char subfield_code) {
     for (const auto &subfield_code_and_value : field.getSubfields()) {

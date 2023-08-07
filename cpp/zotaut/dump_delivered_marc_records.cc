@@ -21,6 +21,7 @@
 #include <vector>
 #include <cstdio>
 #include <cstdlib>
+#include "BSZUtil.h"
 #include "DbConnection.h"
 #include "FileUtil.h"
 #include "GzStream.h"
@@ -79,18 +80,28 @@ void GetJournalEntriesFromDb(DbConnection * const db_connection, const std::stri
             const auto dois(record.getDOIs());
             csv_row += ";" + TextUtil::CSVEscape(StringUtil::Join(dois, '\n'));
 
-            for (const auto &_936_field : record.getTagRange("936")) {
-                csv_row += ";" + _936_field.getFirstSubfieldWithCode('j');
-                csv_row += ";" + _936_field.getFirstSubfieldWithCode('d');
-                csv_row += ";" + _936_field.getFirstSubfieldWithCode('e');
-                break;
-            }
+            const auto issue_info(BSZUtil::ExtractYearVolumeIssue(record));
+
+            std::string data_year("");
+            if (not issue_info.year_.empty())
+                data_year = issue_info.year_;
+
+            std::string data_volume("");
+            if (not issue_info.volume_.empty())
+                data_volume = issue_info.volume_;
+
+            std::string data_issue("");
+            if (not issue_info.issue_.empty())
+                data_issue = issue_info.issue_;
+
+            csv_row += ";" + TextUtil::CSVEscape(data_year);
+            csv_row += ";" + TextUtil::CSVEscape(data_volume);
+            csv_row += ";" + TextUtil::CSVEscape(data_issue);
         }
 
         csv_file->writeln(csv_row);
     }
 }
-
 
 } // unnamed namespace
 
