@@ -30,7 +30,7 @@ associate_rgg4_titles_script="./associate_rgg4_titles.sh"
 replace_title_by_id_program="./replace_title_by_id"
 rgg4_multicandidates_rewrite_file="rgg4_daten/rgg4_multicandidates_rewrite_checked_clean.txt"
 rgg4_unassociated_rewrite_file="rgg4_daten/rgg4_unassociated_rewrite_erl.txt"
-rgg4_multicandidates_manual_rewrite_file="/dev/null"
+rgg4_multicandidates_manual_rewrite_file="rgg4_daten/rgg4_multicandidates_manual_rewrite_stripped_erl_clean.txt"
 rgg4_id_title_replacements="rgg4_daten/rgg4_id_title_replacements.txt"
 
 
