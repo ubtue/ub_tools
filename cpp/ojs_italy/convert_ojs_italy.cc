@@ -421,6 +421,7 @@ void ConvertRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_
         new_record->insertField("007", "cr|||||");
         new_record->insertField("084", { { 'a', "1" }, { '2', "ssgn" } });
         new_record->insertField("773", GetSuperiorWorkDescription(ojsitaly_type, Assemble773gContent(*new_record)));
+        new_record->insertField("852", { { 'a', "DE-Tue135" } });
         CleanTitles(new_record);
         AddSelectors(new_record);
         marc_writer->write(*new_record);

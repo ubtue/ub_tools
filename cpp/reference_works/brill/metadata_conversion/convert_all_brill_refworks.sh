@@ -29,8 +29,8 @@ get_author_associations="./associate_authors.sh"
 associate_rgg4_titles_script="./associate_rgg4_titles.sh"
 replace_title_by_id_program="./replace_title_by_id"
 rgg4_multicandidates_rewrite_file="rgg4_daten/rgg4_multicandidates_rewrite_checked_clean.txt"
-rgg4_unassociated_rewrite_file="rgg4_daten/rgg4_unassociated_rewrite_erl.txt"
-rgg4_multicandidates_manual_rewrite_file="/dev/null"
+rgg4_unassociated_rewrite_file="rgg4_daten/rgg4_unassociated_rewrite_erl_fixes.txt"
+rgg4_multicandidates_manual_rewrite_file="rgg4_daten/rgg4_multicandidates_manual_rewrite_stripped_erl_clean.txt"
 rgg4_id_title_replacements="rgg4_daten/rgg4_id_title_replacements.txt"
 
 
@@ -69,6 +69,10 @@ for archive_file in $(find ${archive_dir} -regex $(printf "%s" ${REFWORKS}) -pri
                     sed -r -e 's/\.xml$/.txt/')
         tmpfiles+=(${rgg4_rewrite_file})
         ${associate_rgg4_titles_script} ./rgg4_daten/orig_titles_230223.txt ./rgg4_daten/web_entries_230223.txt ${rgg4_rewrite_file}
+        # Normalize strange spaces
+        cat ${outfile} | \
+            sed "s/[$(echo -ne '\u2000\u2001\u2002\u2002\u2003\u2004\u2005\u2006\u2007|\u2008\u2009\u200A\u200B')]/ /g" | \
+            sponge ${outfile}
         tmp_stdout="/tmp/stdout.xml"
         ln --symbolic /dev/stdout ${tmp_stdout}
         tmpfiles+=(${tmp_stdout})
