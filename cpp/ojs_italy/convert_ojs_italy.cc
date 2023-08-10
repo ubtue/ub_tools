@@ -341,9 +341,9 @@ MARC::Subfields GetSuperiorWorkDescription(enum OJSITALY_TYPE type, const std::s
                                  { 't', "Rivista di scienze dell'educazione" },
                                  { 'd', "Roma, 1973" },
                                  { 'g', subfield_g_content },
-                                 { 'w', "(DE627)166430072 " },
-                                 { 'w', "(DE600)188494-3" },
-                                 { 'w', "(DE576)014791072" } });
+                                 { 'w', "(DE-627)166430072" },
+                                 { 'w', "(DE-600)188494-3" },
+                                 { 'w', "(DE-576)014791072" } });
     default:
         LOG_ERROR("Invalid OJSItaly type: " + std::to_string(type));
     }
