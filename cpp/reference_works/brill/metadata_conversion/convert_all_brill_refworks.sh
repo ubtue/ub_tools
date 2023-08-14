@@ -78,7 +78,7 @@ for archive_file in $(find ${archive_dir} -regex $(printf "%s" ${REFWORKS}) -pri
         tmpfiles+=(${tmp_stdout})
         marc_filter ${outfile} ${tmp_stdout} --replace 245a \
                      <(cat ${rgg4_rewrite_file} ${rgg4_multicandidates_rewrite_file} \
-                       ${rgg4_unassociated_rewrite_file} ${rgg4_multicandidates_manual_rewrite_file}) \
+                       ${rgg4_unassociated_rewrite_file} ${rgg4_multicandidates_manual_rewrite_file} | sed 's/^/\^/') \
                      | sponge ${outfile}
         ${replace_title_by_id_program} ${outfile} ${tmp_stdout} ${rgg4_id_title_replacements} | sponge ${outfile}
     fi
