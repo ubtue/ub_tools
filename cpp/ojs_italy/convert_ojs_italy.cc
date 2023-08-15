@@ -418,7 +418,7 @@ void ConvertRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_
         // Dummy entries
         new_record->insertField("003", "DE-Tue135");
         new_record->insertField("005", TimeUtil::GetCurrentDateAndTime("%Y%m%d%H%M%S") + ".0");
-        new_record->insertField("007", "cr|||||");
+        new_record->insertField("007", "tu");
         new_record->insertField("084", { { 'a', "1" }, { '2', "ssgn" } });
         new_record->insertField("773", GetSuperiorWorkDescription(ojsitaly_type, Assemble773gContent(*new_record)));
         new_record->insertField("852", { { 'a', "DE-Tue135" } });
