@@ -20,12 +20,7 @@ tmpfile1=$(mktemp -t associate_rgg4XXXXX.txt)
 tmpfile2=$(mktemp -t associate_rgg4XXXXX.txt)
 tmpfile3=$(mktemp -t associate_rgg4XXXXX.txt)
 ./associate_rgg4_titles ${orig_titles} ${web_titles} ${tmpfile1}
-# Filter out names where the last name is just doubled. Otherwise we would lose the first names
-# because the webtitles are one token only :-(
-# Prepend results or else the filtering below will get problems
-cat <(cat ${orig_titles} | grep -v -E '[-][>]'  | grep --perl-regexp '([^\s]+)\s+(\1,.*)' | \
-    awk '{out=$0; $1="";  print out " | ", $0}' | sed -re 's/\s+[|]\s+/ | /') ${tmpfile1} | sponge ${tmpfile1}
-cat <(cat ${tmpfile1} | grep -v '|||' | sed -rn '/\w+:$/q;p' ) | \
+cat <(cat ${tmpfile1} | grep -v '|||' | sed -rn '/\w+:$/q;p') | \
     `#Replace double expressions to save names etc` \
     `#sed -re 's/(\b(\w+)\s+\2\b(.*))\s[|].*/\1 | \2\3/' |` \
     `#Escape ->` \

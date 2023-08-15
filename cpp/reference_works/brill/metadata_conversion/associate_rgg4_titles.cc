@@ -26,7 +26,6 @@
 #include <string_view>
 #include "FileUtil.h"
 #include "MARC.h"
-#include "RegexMatcher.h"
 #include "util.h"
 
 
@@ -65,17 +64,12 @@ int Main(int argc, char *argv[]) {
     ReadTitles(web_titles_file.get(), &web_titles);
 
     std::map<std::string, std::vector<std::string>> multiple_candidates;
-    const std::string duplicated_person_name("([^\\s]+)\\s+\\1,.*");
-    static ThreadSafeRegexMatcher name_matcher(duplicated_person_name);
 
     for (const auto &web_title : web_titles) {
         std::vector<std::string> matches;
         std::copy_if(orig_titles.begin(), orig_titles.end(), std::back_inserter(matches), [&web_title](const std::string &orig_title) {
-            // Skip matches that are not entire words and do not include patterns like "last_name last_name, first_name", as
-            // they will be treated differently
-            return orig_title == web_title
-                       ? true
-                       : (orig_title.starts_with(std::string_view(web_title + ' ')) and not name_matcher.match(orig_title));
+            // Skip matches that are not entire words
+            return orig_title == web_title ? true : orig_title.starts_with(std::string_view(web_title + ' '));
         });
         if (matches.size() == 0) {
             output_file << " ||| " << web_title << '\n';
