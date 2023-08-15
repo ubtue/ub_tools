@@ -32,6 +32,8 @@ rgg4_multicandidates_rewrite_file="rgg4_daten/rgg4_multicandidates_rewrite_check
 rgg4_unassociated_rewrite_file="rgg4_daten/rgg4_unassociated_rewrite_erl_fixes.txt"
 rgg4_multicandidates_manual_rewrite_file="rgg4_daten/rgg4_multicandidates_manual_rewrite_stripped_erl_clean.txt"
 rgg4_id_title_replacements="rgg4_daten/rgg4_id_title_replacements.txt"
+rgg4_id_title_replacements_authors="rgg4_daten/rgg4_id_title_replacements_authors.txt"
+rgg4_id_title_replacements_authors_comma_end="rgg4_daten/rgg4_id_title_replacements_authors_comma_end.txt"
 
 
 REFWORKS=$(printf "%s" '.*\(BDRO\|BEJO\|BEHO\|BERO\|BESO\|ECO\|EECO\|' \
@@ -80,7 +82,9 @@ for archive_file in $(find ${archive_dir} -regex $(printf "%s" ${REFWORKS}) -pri
                      <(cat ${rgg4_rewrite_file} ${rgg4_multicandidates_rewrite_file} \
                        ${rgg4_unassociated_rewrite_file} ${rgg4_multicandidates_manual_rewrite_file} | sed 's/^/\^/') \
                      | sponge ${outfile}
-        ${replace_title_by_id_program} ${outfile} ${tmp_stdout} ${rgg4_id_title_replacements} | sponge ${outfile}
+        ${replace_title_by_id_program} ${outfile} ${tmp_stdout} \
+             <(cat ${rgg4_id_title_replacements} ${rgg4_id_title_replacements_authors} ${rgg4_id_title_replacements_authors_comma_end}) \
+             | sponge ${outfile}
     fi
     #Generate more easily readable text representation
     marc_format_outfile=${outfile%.xml}.txt
