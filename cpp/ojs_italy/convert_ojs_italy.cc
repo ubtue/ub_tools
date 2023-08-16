@@ -90,7 +90,7 @@ void InsertAuthors(const std::string, const char, MARC::Record * const record, c
         authors.emplace_back(data_to_split);
 
 
-        record->insertField("100", { { 'a', authors[0] }, { '4', "aut" }, { 'e', "VerfasserIn" } });
+        record->insertField("100", { { 'a', authors[0] }, { '4', "aut" }, { 'e', "VerfasserIn" } }, '1');
         for (auto further_author = authors.begin() + 1; further_author != authors.end(); ++further_author)
             record->insertField("700", { { 'a', *further_author }, { '4', "aut" }, { 'e', "VerfasserIn" } });
     }
