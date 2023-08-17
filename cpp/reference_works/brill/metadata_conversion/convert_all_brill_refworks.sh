@@ -85,6 +85,7 @@ for archive_file in $(find ${archive_dir} -regex $(printf "%s" ${REFWORKS}) -pri
         ${replace_title_by_id_program} ${outfile} ${tmp_stdout} \
              <(cat ${rgg4_id_title_replacements} ${rgg4_id_title_replacements_authors} ${rgg4_id_title_replacements_authors_comma_end}) \
              | sponge ${outfile}
+        marc_augmentor ${outfile} ${tmp_stdout} --insert-field '912a:NOMM' | sponge ${outfile}
     fi
     #Generate more easily readable text representation
     marc_format_outfile=${outfile%.xml}.txt
