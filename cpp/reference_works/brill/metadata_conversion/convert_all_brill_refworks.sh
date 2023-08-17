@@ -86,6 +86,9 @@ for archive_file in $(find ${archive_dir} -regex $(printf "%s" ${REFWORKS}) -pri
              <(cat ${rgg4_id_title_replacements} ${rgg4_id_title_replacements_authors} ${rgg4_id_title_replacements_authors_comma_end}) \
              | sponge ${outfile}
         marc_augmentor ${outfile} ${tmp_stdout} --insert-field '912a:NOMM' | sponge ${outfile}
+        # Remove annoying dots at end (negative lookbehind to skip the expressin "sen."
+        marc_filter ${outfile} ${tmp_stdout} --globally-substitute '245a' '((?<!se)[a-z])[.]$' '\1' \
+             | sponge ${outfile}
     fi
     #Generate more easily readable text representation
     marc_format_outfile=${outfile%.xml}.txt
