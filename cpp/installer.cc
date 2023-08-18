@@ -323,8 +323,6 @@ void CreateVuFindDatabases(const VuFindSystemType vufind_system_type, DbConnecti
         }
     }
 
-    std::string error_msg;
-
 
     if (vufind_system_type == IXTHEO) {
         IniFile translations_ini_file(UBTools::GetTuelibPath() + "translations.conf");
@@ -344,12 +342,8 @@ void CreateVuFindDatabases(const VuFindSystemType vufind_system_type, DbConnecti
 
             const std::string sql_file = INSTALLER_DATA_DIRECTORY + "/ixtheo.sql";
 
-            if (!ExecUtil::ExecSubcommandAndCaptureStdout(ExecUtil::LocateOrDie("mysql") + " -u " + ixtheo_username + " \"-p"
-                                                              + ixtheo_password + "\" " + ixtheo_database + " < " + sql_file,
-                                                          &error_msg, false))
-            {
-                LOG_ERROR(error_msg);
-            }
+            ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("mysql"),
+                                { "-u", ixtheo_username, "-p" + ixtheo_password, ixtheo_database, "<", sql_file });
         }
     } else if (vufind_system_type == KRIMDOK) {
         IniFile translations_ini_file(UBTools::GetTuelibPath() + "translations.conf");
@@ -369,13 +363,8 @@ void CreateVuFindDatabases(const VuFindSystemType vufind_system_type, DbConnecti
 
             const std::string sql_file = INSTALLER_DATA_DIRECTORY + "/krim_translations.sql";
 
-            if (!ExecUtil::ExecSubcommandAndCaptureStdout(ExecUtil::LocateOrDie("mysql") + " -u " + krim_translations_username + " \"-p"
-                                                              + krim_translations_password + "\" " + krim_translations_database + " < "
-                                                              + sql_file,
-                                                          &error_msg, false))
-            {
-                LOG_ERROR(error_msg);
-            }
+            ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("mysql"), { "-u", krim_translations_username, "-p" + krim_translations_password,
+                                                                  krim_translations_database, "<", sql_file });
         }
     }
 }
