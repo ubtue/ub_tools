@@ -90,7 +90,7 @@ void InsertAuthors(const std::string, const char, MARC::Record * const record, c
         authors.emplace_back(data_to_split);
 
 
-        record->insertField("100", { { 'a', authors[0] }, { '4', "aut" }, { 'e', "VerfasserIn" } });
+        record->insertField("100", { { 'a', authors[0] }, { '4', "aut" }, { 'e', "VerfasserIn" } }, '1');
         for (auto further_author = authors.begin() + 1; further_author != authors.end(); ++further_author)
             record->insertField("700", { { 'a', *further_author }, { '4', "aut" }, { 'e', "VerfasserIn" } });
     }
@@ -341,9 +341,9 @@ MARC::Subfields GetSuperiorWorkDescription(enum OJSITALY_TYPE type, const std::s
                                  { 't', "Rivista di scienze dell'educazione" },
                                  { 'd', "Roma, 1973" },
                                  { 'g', subfield_g_content },
-                                 { 'w', "(DE627)166430072 " },
-                                 { 'w', "(DE600)188494-3" },
-                                 { 'w', "(DE576)014791072" } });
+                                 { 'w', "(DE-627)166430072" },
+                                 { 'w', "(DE-600)188494-3" },
+                                 { 'w', "(DE-576)014791072" } });
     default:
         LOG_ERROR("Invalid OJSItaly type: " + std::to_string(type));
     }
@@ -418,10 +418,11 @@ void ConvertRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_
         // Dummy entries
         new_record->insertField("003", "DE-Tue135");
         new_record->insertField("005", TimeUtil::GetCurrentDateAndTime("%Y%m%d%H%M%S") + ".0");
-        new_record->insertField("007", "cr|||||");
+        new_record->insertField("007", "tu");
         new_record->insertField("084", { { 'a', "1" }, { '2', "ssgn" } });
         new_record->insertField("773", GetSuperiorWorkDescription(ojsitaly_type, Assemble773gContent(*new_record)));
         new_record->insertField("852", { { 'a', "DE-Tue135" } });
+        new_record->insertField("912", { { 'a', "NOMM" } });
         CleanTitles(new_record);
         AddSelectors(new_record);
         marc_writer->write(*new_record);

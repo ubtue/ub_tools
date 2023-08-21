@@ -47,6 +47,7 @@ CREATE TABLE translators (
   filtered_lookfor VARCHAR(100),
   offset VARCHAR(10),
   filtered_offset VARCHAR(10),
+  last_notified DATETIME DEFAULT NULL,
   PRIMARY KEY (translator, translation_target)
 ) DEFAULT CHARSET=utf8mb4;
 
