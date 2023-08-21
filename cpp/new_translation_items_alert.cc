@@ -1,7 +1,6 @@
 /** \file     new_translation_items_alert
- *  \brief    A tool for informing translators about new imported terms
- *
- *
+    \brief    A tool for informing translators about newly imported terms
+
     Copyright (C) 2023, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
@@ -110,7 +109,7 @@ std::string GetCurrentDBTimestamp(DbConnection &db_connection) {
 }
 
 
-void GetNewItems(DbConnection &db_connection, const std::string last_notified, Template::Map * const names_to_values_map) {
+bool GetNewItems(DbConnection &db_connection, const std::string last_notified, Template::Map * const names_to_values_map) {
     names_to_values_map->clear();
 
     std::string vufind_new_items_query("SELECT token FROM vufind_translations WHERE create_timestamp>='" + last_notified + "'"
@@ -132,6 +131,7 @@ void GetNewItems(DbConnection &db_connection, const std::string last_notified, T
         keywords_new_items.emplace_back(db_row["translation"]);
     names_to_values_map->insertArray("keywords_new_items", keywords_new_items);
     names_to_values_map->insertScalar("last_notified", last_notified.substr(0, __builtin_strlen("0000-00-00")));
+    return (not(vufind_new_items.empty() && keywords_new_items.empty()));
 }
 
 
@@ -206,8 +206,8 @@ void NotifyTranslators(const IniFile &ini_file, DbConnection &db_connection, con
         Template::Map names_to_values_map;
         // Hold a time slightly before the actual queries were sent
         const std::string query_time_lower_bound(GetCurrentDBTimestamp(db_connection));
-        GetNewItems(db_connection, last_notified, &names_to_values_map);
-        MailNewItems(user, ini_file, names_to_values_map, debug);
+        if (GetNewItems(db_connection, last_notified, &names_to_values_map))
+            MailNewItems(user, ini_file, names_to_values_map, debug);
         UpdateLastNotifiedTo(&db_connection, user, query_time_lower_bound, debug);
     }
 }
