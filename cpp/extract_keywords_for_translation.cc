@@ -201,13 +201,16 @@ static unsigned no_gnd_code_count;
 
 
 std::string GetPseudoGNDSigil(const IniFile &ini_file) {
-    static std::string pseudo_gnd_sigil(ini_file.getString("Configuration", "pseudo_gnd_sigil"));
+    static const std::string pseudo_gnd_sigil(
+        ini_file.lookup("Configuration", "pseudo_gnd_sigil", nullptr) ? ini_file.getString("Configuration", "pseudo_gnd_sigil") : "");
     return pseudo_gnd_sigil;
 }
 
 
 bool HasPseudoGNDCode(const MARC::Record &record, const IniFile &ini_file, std::string * const pseudo_gnd_code) {
     const std::string pseudo_gnd_sigil(GetPseudoGNDSigil(ini_file));
+    if (pseudo_gnd_sigil.empty())
+        return false;
     pseudo_gnd_code->clear();
     for (const auto &_035_field : record.getTagRange("035")) {
         const MARC::Subfields _035_subfields(_035_field.getSubfields());
