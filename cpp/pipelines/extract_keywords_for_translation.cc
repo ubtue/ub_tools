@@ -6,7 +6,7 @@
  */
 
 /*
-    Copyright (C) 2016-2021 Library of the University of Tübingen
+    Copyright (C) 2016-2023 Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as

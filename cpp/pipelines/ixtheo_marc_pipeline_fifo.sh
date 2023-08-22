@@ -129,6 +129,11 @@ EndPhase || Abort) &
 wait
 
 
+StartPhase "Extract Keywords for Translation"
+(extract_keywords_for_translation Normdaten-"${date}".mrc >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+
+
 StartPhase "Extract Translations and Generate Interface Translation Files"
 (extract_vufind_translations_for_translation \
     "$VUFIND_HOME"/local/tuefind/languages/de.ini `# German terms before all others.` \
@@ -164,7 +169,7 @@ wait
 
 
 StartPhase "Cross Link Articles"
-(add_article_cross_links GesamtTiteldaten-post-phase"$((PHASE-5))"-"${date}".mrc \
+(add_article_cross_links GesamtTiteldaten-post-phase"$((PHASE-6))"-"${date}".mrc \
                          GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
                          article_matches.list >> "${log}" 2>&1 && \
 EndPhase || Abort) &
