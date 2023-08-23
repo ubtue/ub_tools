@@ -126,11 +126,17 @@ StartPhase "Add Missing Cross Links Between Records"
 (add_missing_cross_links GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                          GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
+
+StartPhase "Transfer 880 Authority Data Translations to 750"
+(transfer_880_translations Normdaten-"${date}".mrc \
+                           Normdaten-partially-augmented0-"${date}.mrc" \
+                           >> "${log}" 2>&1 && \
+EndPhase || Abort) &
 wait
 
 
 StartPhase "Extract Keywords for Translation"
-(extract_keywords_for_translation Normdaten-"${date}".mrc >> "${log}" 2>&1 && \
+(extract_keywords_for_translation --insert-only-non-existing Normdaten-partially-augmented0-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 
 
@@ -143,11 +149,6 @@ generate_vufind_translation_files "$VUFIND_HOME"/local/tuefind/languages/ >> "${
 EndPhase || Abort) &
 
 
-StartPhase "Transfer 880 Authority Data Translations to 750"
-(transfer_880_translations Normdaten-"${date}".mrc \
-                           Normdaten-partially-augmented0-"${date}.mrc" \
-                           >> "${log}" 2>&1 && \
-EndPhase || Abort) &
 wait
 
 

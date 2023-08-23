@@ -34,18 +34,20 @@
 #include "IniFile.h"
 #include "MARC.h"
 #include "StringUtil.h"
+#include "TimeUtil.h"
 #include "TranslationUtil.h"
 #include "UBTools.h"
 #include "util.h"
 
 
 [[noreturn]] void Usage() {
-    ::Usage("norm_data_input");
+    ::Usage("[--insert-only-non-existing] norm_data_input");
 }
 
 
 static unsigned keyword_count, translation_count, additional_hits, synonym_count, german_term_count;
 static DbConnection *shared_connection;
+static std::unordered_set<std::string> *ppns_already_present;
 enum Status { RELIABLE, UNRELIABLE, RELIABLE_SYNONYM, UNRELIABLE_SYNONYM };
 const std::string CONF_FILE_PATH(UBTools::GetTuelibPath() + "translations.conf");
 
@@ -167,11 +169,11 @@ void ExtractNonGermanTranslations(const MARC::Record &record,
 
 // Helper function for ExtractTranslations().
 void FlushToDatabase(std::string &insert_statement) {
+    DbTransaction transaction(shared_connection);
     // Remove trailing comma and space:
     insert_statement.resize(insert_statement.size() - 2);
-
     insert_statement += ';';
-    shared_connection->queryOrDie(insert_statement);
+    shared_connection->queryRetryOrDie(insert_statement);
 }
 
 
@@ -229,12 +231,23 @@ std::string IsPriorityEntry(const MARC::Record &record) {
 }
 
 
-bool ExtractTranslationsForASingleRecord(const MARC::Record * const record, const IniFile &ini_file) {
+bool KeywordPPNAlreadyInDatabase(const std::string &ppn) {
+    return (ppns_already_present->find(ppn) == ppns_already_present->end());
+}
+
+
+bool ExtractTranslationsForASingleRecord(const MARC::Record * const record, const IniFile &ini_file,
+                                         const bool insert_only_non_existing = false) {
     // Skip records that are not GND records:
     std::string gnd_code;
     std::string pseudo_gnd_code;
     if (not MARC::GetGNDCode(*record, &gnd_code) and not HasPseudoGNDCode(*record, ini_file, &pseudo_gnd_code))
         return true;
+
+    const std::string ppn(record->getControlNumber());
+    if (insert_only_non_existing and KeywordPPNAlreadyInDatabase(ppn))
+        return true;
+
 
     // Extract all synonyms and translations:
     std::vector<TextLanguageCodeStatusAndOriginTag> text_language_codes_statuses_and_origin_tags;
@@ -249,10 +262,12 @@ bool ExtractTranslationsForASingleRecord(const MARC::Record * const record, cons
     // Remove entries for which authoritative translation were shipped to us from the BSZ:
     // if prev_version_id!=null -> it's a successor
     // if next_version_id!=null -> it has been modified by translation tool (stored proc.)
-    const std::string ppn(record->getControlNumber());
-    shared_connection->queryOrDie("DELETE FROM keyword_translations WHERE ppn=\"" + ppn + "\" AND "
-                                  + "prev_version_id IS NULL AND next_version_id IS NULL AND translator IS NULL AND "
-                                  + GenerateLanguageCodeWhereClause(text_language_codes_statuses_and_origin_tags));
+    {
+        DbTransaction transaction(shared_connection);
+        shared_connection->queryRetryOrDie("DELETE FROM keyword_translations WHERE ppn=\"" + ppn + "\" AND "
+                                           + "prev_version_id IS NULL AND next_version_id IS NULL AND translator IS NULL AND "
+                                           + GenerateLanguageCodeWhereClause(text_language_codes_statuses_and_origin_tags));
+    }
 
     if (not MARC::GetGNDCode(*record, &gnd_code)) {
         ++no_gnd_code_count;
@@ -266,8 +281,8 @@ bool ExtractTranslationsForASingleRecord(const MARC::Record * const record, cons
     }
     std::string gnd_system(StringUtil::Join(gnd_systems, ","));
     const std::string INSERT_STATEMENT_START(
-        "INSERT IGNORE INTO keyword_translations (ppn,gnd_code,language_code,"
-        "translation,status,origin,gnd_system,german_updated, priority_entry) VALUES ");
+        "INSERT IGNORE INTO keyword_translations (ppn, gnd_code, language_code,"
+        " translation, status, origin, gnd_system, german_updated, priority_entry) VALUES ");
     std::string insert_statement(INSERT_STATEMENT_START);
 
     size_t row_counter(0);
@@ -286,12 +301,14 @@ bool ExtractTranslationsForASingleRecord(const MARC::Record * const record, cons
         // Unsure if it worked before due to translator=null not affecting a ukey in mysql
         const std::string CHECK_EXISTING("SELECT ppn FROM keyword_translations WHERE ppn=\"" + ppn + "\" AND language_code=\""
                                          + language_code + "\";");
-        shared_connection->queryOrDie(CHECK_EXISTING);
-        DbResultSet result(shared_connection->getLastResultSet());
-        if (not result.empty()) {
-            continue;
+        {
+            DbTransaction transaction(shared_connection);
+            shared_connection->queryRetryOrDie(CHECK_EXISTING);
+            DbResultSet result(shared_connection->getLastResultSet());
+            if (not result.empty()) {
+                continue;
+            }
         }
-
         insert_statement += "('" + ppn + "', '" + gnd_code + "', '" + language_code + "', '" + translation + "', '" + status + "', '"
                             + origin + "', '" + gnd_system + "', " + (updated_german ? "true" : "false") + ", " + IsPriorityEntry(*record)
                             + "), ";
@@ -308,9 +325,12 @@ bool ExtractTranslationsForASingleRecord(const MARC::Record * const record, cons
 }
 
 
-void ExtractTranslationsForAllRecords(MARC::Reader * const authority_reader, const IniFile &ini_file) {
+void ExtractTranslationsForAllRecords(MARC::Reader * const authority_reader, const IniFile &ini_file,
+                                      const bool insert_only_non_existing = false) {
+    if (insert_only_non_existing) {
+    }
     while (const MARC::Record record = authority_reader->read()) {
-        if (not ExtractTranslationsForASingleRecord(&record, ini_file))
+        if (not ExtractTranslationsForASingleRecord(&record, ini_file, insert_only_non_existing))
             LOG_ERROR("error while extracting translations from \"" + authority_reader->getPath() + "\"");
     }
     std::cerr << "Added " << keyword_count << " keywords to the translation database.\n";
@@ -322,9 +342,26 @@ void ExtractTranslationsForAllRecords(MARC::Reader * const authority_reader, con
 }
 
 
+void GetAllKeywordPPNs(std::unordered_set<std::string> * const keyword_ppns_in_database) {
+    const std::string query("SELECT DISTINCT ppn FROM keyword_translations");
+    shared_connection->queryRetryOrDie(query);
+    DbResultSet result(shared_connection->getLastResultSet());
+    while (const auto row = result.getNextRow())
+        keyword_ppns_in_database->emplace(row["ppn"]);
+}
+
+
 int Main(int argc, char **argv) {
-    if (argc != 2)
+    if (argc < 2 or argc > 3)
         Usage();
+
+    bool insert_only_non_existing(false);
+    if (argc == 3 and std::strcmp(argv[1], "--insert-only-non-existing") == 0) {
+        insert_only_non_existing = true;
+        --argc;
+        ++argv;
+    }
+
 
     std::unique_ptr<MARC::Reader> authority_marc_reader(MARC::Reader::Factory(argv[1], MARC::FileType::BINARY));
     try {
@@ -335,7 +372,13 @@ int Main(int argc, char **argv) {
         DbConnection db_connection(DbConnection::MySQLFactory(sql_database, sql_username, sql_password));
         shared_connection = &db_connection;
 
-        ExtractTranslationsForAllRecords(authority_marc_reader.get(), ini_file);
+        std::unordered_set<std::string> keyword_ppns_in_database;
+        if (insert_only_non_existing) {
+            GetAllKeywordPPNs(&keyword_ppns_in_database);
+            ppns_already_present = &keyword_ppns_in_database;
+        }
+
+        ExtractTranslationsForAllRecords(authority_marc_reader.get(), ini_file, insert_only_non_existing);
     } catch (const std::exception &x) {
         LOG_ERROR("caught exception: " + std::string(x.what()));
     }
