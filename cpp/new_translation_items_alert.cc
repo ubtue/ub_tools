@@ -123,7 +123,7 @@ bool GetNewItems(DbConnection &db_connection, const std::string last_notified, T
 
 
     std::string keywords_new_items_query("SELECT translation FROM keyword_translations WHERE create_timestamp>='" + last_notified
-                                         + +"' AND language_code='ger' AND prev_version_id IS NULL");
+                                         + +"' AND language_code='ger' AND origin='150' AND prev_version_id IS NULL");
     DbResultSet keywords_new_result_set(ExecSqlAndReturnResultsOrDie(keywords_new_items_query, &db_connection));
 
     std::vector<std::string> keywords_new_items;

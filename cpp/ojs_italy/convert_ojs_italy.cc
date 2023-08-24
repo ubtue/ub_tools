@@ -215,8 +215,11 @@ void ExtractRivistaVolumeIssueAndYear(const std::string, const char, MARC::Recor
 
         const std::string year(matched[3]);
         _936_subfields.addSubfield('j', year);
+        record->insertField("264", { { 'c', year } });
+
 
         CreateOrAppendTo936IfPresent(record, _936_subfields);
+
     } else
         LOG_WARNING("Could not extract volume, issue and year from \"" + data + "\"");
 }
