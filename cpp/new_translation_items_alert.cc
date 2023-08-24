@@ -147,6 +147,7 @@ void MailNewItems(const std::string &user, const IniFile &ini_file, const Templa
         std::cerr << "CONTENT:" << mail_content.str();
         return;
     }
+    LOG_INFO("Notifying user " + recipient);
 
     if (unlikely(not EmailSender::SimplerSendEmail("no-reply@ub.uni-tuebingen.de", { recipient }, "New Translation Items",
                                                    mail_content.str(), EmailSender::DO_NOT_SET_PRIORITY, EmailSender::HTML)))
