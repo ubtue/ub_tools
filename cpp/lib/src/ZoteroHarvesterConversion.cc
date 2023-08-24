@@ -1073,7 +1073,7 @@ void RewriteMarcFieldsIf(MARC::Record * const marc_record, const ConversionParam
 
 ThreadSafeRegexMatcher::MatchResult MatchRomanPageOrPageRange(const std::string &pages) {
     static const auto roman_page_range_matcher(ThreadSafeRegexMatcher(
-        "([ivxlcdm]+)(?:[\\W]([ivxlcdm]+))?",
+        "^([ivxlcdm]+)(?:[\\W]([ivxlcdm]+))?$",
         ThreadSafeRegexMatcher::ENABLE_UTF8 | ThreadSafeRegexMatcher::ENABLE_UCP | ThreadSafeRegexMatcher::CASE_INSENSITIVE));
     return roman_page_range_matcher.match(pages);
 }
