@@ -232,7 +232,7 @@ std::string IsPriorityEntry(const MARC::Record &record) {
 
 
 bool KeywordPPNAlreadyInDatabase(const std::string &ppn) {
-    return (ppns_already_present->find(ppn) == ppns_already_present->end());
+    return (ppns_already_present->find(ppn) != ppns_already_present->end());
 }
 
 
