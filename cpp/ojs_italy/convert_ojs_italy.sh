@@ -47,7 +47,7 @@ if [ ! -f ${STUDIA_PATAVINA_ASSOCIATED_AUTHORS} ]; then
 fi
 
 if [ ! -f ${RIVISTA_DI_SCIENCE_ASSOCIATED_AUTHORS} ]; then
-    marc_grep ${RIVISTA_DI_SCIENCE_OUT} '"100a"' no_label | sort | uniq | \
+    marc_grep ${RIVISTA_DI_SCIENCE_OUT} '"100a"' no_label | sort | uniq | tr "'" '’' | \
         xargs -n 1 -I'{}' sh -c 'echo "$@" "'"|"'" $(./swb_author_lookup --sloppy-filter "$@")' _ '{}' \
         > ${RIVISTA_DI_SCIENCE_ASSOCIATED_AUTHORS}
 fi
