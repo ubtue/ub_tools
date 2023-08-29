@@ -15,13 +15,13 @@ tmpfiles+=(${tmp_stdout})
 
 
 STUDIA_PATAVINA_ORIG_IN="daten/Studia_Patavina_1959-62.xml"
-RIVISTA_DI_SCIENCE_ORIG_IN='daten/sample_all.mrc'
+RIVISTA_DI_SCIENCE_ORIG_IN='daten/complete_all.mrc'
 date=$(date '+%y%m%d')
 STUDIA_PATAVINA_OUT="daten/Studia_Patavina_59-62_ubtue_${date}.xml"
-RIVISTA_DI_SCIENCE_OUT="daten/sample_all_converted_${date}.xml"
+RIVISTA_DI_SCIENCE_OUT="daten/complete_all_converted_${date}.xml"
 SAMPLE_LIMIT="5"
 TEST_DB_SAMPLE_DIR="daten/test_db_sample"
-SAMPLE_BASE_NAME="ixtheo_ojsitaly_sample"
+SAMPLE_BASE_NAME="ixtheo_ojsitaly_complete"
 STUDIA_PATAVINA_ASSOCIATED_AUTHORS="daten/studia_patavina_associated_authors.txt"
 RIVISTA_DI_SCIENCE_ASSOCIATED_AUTHORS="daten/rivista_di_science_associated_authors.txt"
 
