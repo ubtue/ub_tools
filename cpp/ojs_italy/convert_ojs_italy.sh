@@ -33,7 +33,10 @@ RIVISTA_DI_SCIENCE_ASSOCIATED_AUTHORS="daten/rivista_di_science_associated_autho
 
 #Some Cleanup
 marc_filter ${RIVISTA_DI_SCIENCE_OUT} ${tmp_stdout} --globally-substitute '100d' '[.]$' '' | sponge  ${RIVISTA_DI_SCIENCE_OUT}
-
+marc_filter ${RIVISTA_DI_SCIENCE_OUT} ${tmp_stdout} --globally-substitute '100a' '[.]$' '' | sponge  ${RIVISTA_DI_SCIENCE_OUT}
+marc_filter ${RIVISTA_DI_SCIENCE_OUT} ${tmp_stdout} --globally-substitute '100a' '[,]$' '' | sponge  ${RIVISTA_DI_SCIENCE_OUT}
+marc_filter ${RIVISTA_DI_SCIENCE_OUT} ${tmp_stdout} --globally-substitute '700a' '[.]$' '' | sponge  ${RIVISTA_DI_SCIENCE_OUT}
+marc_filter ${RIVISTA_DI_SCIENCE_OUT} ${tmp_stdout} --globally-substitute '700a' '[,]$' '' | sponge  ${RIVISTA_DI_SCIENCE_OUT}
 
 #Associate authors
 
@@ -44,9 +47,9 @@ if [ ! -f ${STUDIA_PATAVINA_ASSOCIATED_AUTHORS} ]; then
 fi
 
 if [ ! -f ${RIVISTA_DI_SCIENCE_ASSOCIATED_AUTHORS} ]; then
-    marc_grep ${RIVISTA_DI_SCIENCE_OUT} '"100a"' no_label | \
+    marc_grep ${RIVISTA_DI_SCIENCE_OUT} '"100a"' no_label | sort | uniq | \
         xargs -n 1 -I'{}' sh -c 'echo "$@" "'"|"'" $(./swb_author_lookup --sloppy-filter "$@")' _ '{}' \
-        | sort | uniq > ${RIVISTA_DI_SCIENCE_ASSOCIATED_AUTHORS}
+        > ${RIVISTA_DI_SCIENCE_ASSOCIATED_AUTHORS}
 fi
 
 ./add_author_associations ${STUDIA_PATAVINA_OUT} /tmp/stdout.xml \
