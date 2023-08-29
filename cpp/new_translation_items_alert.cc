@@ -96,8 +96,15 @@ std::string GetAbsoluteTimeForInterval(DbConnection &db_connection, const std::s
 
 
 std::string GetLastNotified(DbConnection &db_connection, const std::string &user) {
-    const std::string last_notified_query("SELECT last_notified FROM translators WHERE translator='" + user + "'");
+    // Make sure we get the non null entry first
+    const std::string last_notified_query("SELECT last_notified FROM translators WHERE translator='" + user
+                                          + "' ORDER BY CASE WHEN last_notified IS NULL THEN 1 ELSE 0 END, last_notified");
     DbResultSet last_notified_result(ExecSqlAndReturnResultsOrDie(last_notified_query, &db_connection));
+    // Make user a translator;
+    if (last_notified_result.empty()) {
+        db_connection.queryOrDie("INSERT INTO translators SET translator='" + user + "', translation_target='vufind'");
+        return GetLastNotified(db_connection, user);
+    }
     return last_notified_result.getNextRow()["last_notified"];
 }
 
@@ -180,8 +187,12 @@ void UpdateLastNotifiedTo(DbConnection * const db_connection, const std::string 
                           const bool debug = false) {
     if (debug)
         return;
+    const std::string target_selection_statement("SELECT translation_target FROM translators WHERE translator='" + user
+                                                 + "' ORDER BY CASE WHEN last_notified IS NULL THEN 1 ELSE 0 END LIMIT 1");
 
-    const std::string update_statement("UPDATE translators SET last_notified ='" + new_last_notified + "' WHERE translator='" + user + "'");
+    DbResultSet target_selection_result(ExecSqlAndReturnResultsOrDie(target_selection_statement, db_connection));
+    const std::string update_statement("UPDATE translators SET last_notified ='" + new_last_notified + "' WHERE translator='" + user
+                                       + "' AND translation_target='" + target_selection_result.getNextRow()["translation_target"]);
     db_connection->queryOrDie(update_statement);
 }
 
