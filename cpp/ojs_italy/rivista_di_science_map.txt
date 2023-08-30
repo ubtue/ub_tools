@@ -5,4 +5,5 @@ TYPE | Revista_science_dell_educatione
 245a | 245a
 245b | 245b (InsertOrForceSubfield)
 300a | XXXx (ExtractRevistaPages)
+700a | 700a (InsertFurtherAuthors))
 773g | XXXx (ExtractRivistaVolumeIssueAndYear)

@@ -96,6 +96,21 @@ void InsertAuthors(const std::string, const char, MARC::Record * const record, c
     }
 }
 
+void InsertFurtherAuthors(const std::string, const char, MARC::Record * const record, const std::string &data) {
+    if (data.length()) {
+        std::vector<std::string> authors;
+        std::string author, further_parts;
+        std::string data_to_split(data);
+        while (StringUtil::SplitOnString(data_to_split, " and ", &author, &further_parts)) {
+            authors.emplace_back(author);
+            data_to_split = further_parts;
+        }
+        authors.emplace_back(data_to_split);
+        for (auto further_author = authors.begin(); further_author != authors.end(); ++further_author)
+            record->insertField("700", { { 'a', *further_author }, { '4', "aut" }, { 'e', "VerfasserIn" } });
+    }
+}
+
 
 void InsertCreationField(const std::string &tag, const char, MARC::Record * const record, const std::string &data) {
     if (data.length()) {
@@ -252,6 +267,7 @@ const std::map<std::string, ConversionFunctor> name_to_functor_map{
     { "InsertField", InsertField },
     { "InsertCreationField", InsertCreationField },
     { "InsertAuthors", InsertAuthors },
+    { "InsertFurtherAuthors", InsertFurtherAuthors },
     { "InsertOrForceSubfield", InsertOrForceSubfield },
     { "InsertOrAppendToSubfield", InsertOrAppendToSubfield },
     { "AppendAuthorFirstName", AppendAuthorFirstName },
@@ -413,10 +429,13 @@ void ConvertRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_
              ++marc_to_marc_mapping) {
             std::string tag(marc_to_marc_mapping->marc_in_tag_and_subfield_.substr(0, 3));
             char subfield_code(marc_to_marc_mapping->marc_in_tag_and_subfield_[3]);
-            if (unlikely(!subfield_code))
-                marc_to_marc_mapping->extraction_function_(new_record, record.getFirstFieldContents(tag));
-            else
-                marc_to_marc_mapping->extraction_function_(new_record, record.getFirstSubfieldValue(tag, subfield_code));
+            if (unlikely(!subfield_code)) {
+                for (const auto &field : record.getTagRange(tag))
+                    marc_to_marc_mapping->extraction_function_(new_record, field.getContents());
+            } else {
+                for (const auto &field : record.getTagRange(tag))
+                    marc_to_marc_mapping->extraction_function_(new_record, field.getFirstSubfieldWithCode(subfield_code));
+            }
         }
         // Dummy entries
         new_record->insertField("003", "DE-Tue135");
