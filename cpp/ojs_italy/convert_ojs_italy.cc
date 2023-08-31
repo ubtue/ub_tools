@@ -225,8 +225,8 @@ void ExtractRivistaVolumeIssueAndYear(const std::string, const char, MARC::Recor
         const std::string volume(matched[1]);
         _936_subfields.addSubfield('d', volume);
 
-        const std::string issue(matched[2]);
-        _936_subfields.addSubfield('e', issue);
+        std::string issue(matched[2]);
+        _936_subfields.addSubfield('e', StringUtil::Map(&issue, '-', '/'));
 
         const std::string year(matched[3]);
         _936_subfields.addSubfield('j', year);
@@ -414,8 +414,8 @@ std::string Assemble773gContent(const MARC::Record &record) {
 
 void AddSelectors(MARC::Record * const record) {
     record->insertFieldAtEnd("935", { { 'a', "itbk" }, { '2', "LOK" } });
-    record->insertFieldAtEnd("935", { { 'a', "aixrk" }, { '2', "LOK" } });
-    record->insertFieldAtEnd("935", { { 'a', "aixzs" }, { '2', "LOK" } });
+    record->insertFieldAtEnd("935", { { 'a', "ixrk" }, { '2', "LOK" } });
+    record->insertFieldAtEnd("935", { { 'a', "ixzs" }, { '2', "LOK" } });
 }
 
 
