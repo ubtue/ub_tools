@@ -77,7 +77,6 @@ marc_augmentor ${RIVISTA_DI_SCIENCE_OUT} /tmp/stdout.xml \
     | sponge ${RIVISTA_DI_SCIENCE_OUT}
 
 
-
 marc_grep ${STUDIA_PATAVINA_OUT} 'if "001"==".*" extract *' traditional \
           > ${STUDIA_PATAVINA_OUT%.xml}.txt
 
