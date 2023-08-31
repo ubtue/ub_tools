@@ -59,6 +59,25 @@ fi
      <(cat ${RIVISTA_DI_SCIENCE_ASSOCIATED_AUTHORS} | grep -P -v '[|]\s*$') \
      | sponge ${RIVISTA_DI_SCIENCE_OUT}
 
+# Fix Popes for RSE
+john_paul='Iohannes Paulus PP$'
+marc_augmentor ${RIVISTA_DI_SCIENCE_OUT} /tmp/stdout.xml \
+     --add-subfield-if '1000:(DE-588)118558064' '100a:'"${john_paul}" \
+     --add-subfield-if '100c:Papst' '100a:'"${john_paul}" \
+     --add-subfield-if '100b:II.' '100a:'"${john_paul}" \
+     --replace-subfield-if-regex '100a:/.*PP$/Johannes Paul/' '100a:'"${john_paul}" \
+    | sponge ${RIVISTA_DI_SCIENCE_OUT}
+
+benedict='Benedictus PP$'
+marc_augmentor ${RIVISTA_DI_SCIENCE_OUT} /tmp/stdout.xml \
+     --add-subfield-if '1000:(DE-588)118598546' '100a:'"${benedict}" \
+     --add-subfield-if '100c:Papst' '100a:'"${benedict}" \
+     --add-subfield-if '100b:XVI.' '100a:'"${benedict}" \
+     --replace-subfield-if-regex '100a:/.*PP$/Benedikt/' '100a:'"${benedict}" \
+    | sponge ${RIVISTA_DI_SCIENCE_OUT}
+
+
+
 marc_grep ${STUDIA_PATAVINA_OUT} 'if "001"==".*" extract *' traditional \
           > ${STUDIA_PATAVINA_OUT%.xml}.txt
 
