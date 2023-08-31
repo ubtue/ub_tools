@@ -241,15 +241,17 @@ void ExtractRivistaVolumeIssueAndYear(const std::string, const char, MARC::Recor
 
 
 void ExtractRevistaPages(const std::string, const char, MARC::Record * const record, const std::string &data) {
-    const std::string page_str("(?:P|pp)[.]\\s+(\\d+)-(\\d+)");
+    const std::string page_str("(?:P|pp)[.]\\s+(\\d+)(?:-(\\d+))?");
     static ThreadSafeRegexMatcher matcher((ThreadSafeRegexMatcher(page_str)));
     const auto matched(matcher.match(data));
 
     if (matched) {
         MARC::Subfields _936_subfields;
         const std::string start_page(matched[1]);
-        const std::string end_page(matched[2]);
-        _936_subfields.addSubfield('h', start_page + "-" + end_page);
+        std::string end_page;
+        if (matched.size() > 2)
+            end_page = matched[2];
+        _936_subfields.addSubfield('h', start_page + (not end_page.empty() ? "-" + end_page : ""));
         CreateOrAppendTo936IfPresent(record, _936_subfields);
     } else
         LOG_WARNING("Could not extract pages from \"" + data + "\"");
