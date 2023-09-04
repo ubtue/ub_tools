@@ -192,7 +192,7 @@ void UpdateLastNotifiedTo(DbConnection * const db_connection, const std::string 
 
     DbResultSet target_selection_result(ExecSqlAndReturnResultsOrDie(target_selection_statement, db_connection));
     const std::string update_statement("UPDATE translators SET last_notified ='" + new_last_notified + "' WHERE translator='" + user
-                                       + "' AND translation_target='" + target_selection_result.getNextRow()["translation_target"]);
+                                       + "' AND translation_target='" + target_selection_result.getNextRow()["translation_target"] + "'");
     db_connection->queryOrDie(update_statement);
 }
 
