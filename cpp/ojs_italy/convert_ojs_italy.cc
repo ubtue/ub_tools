@@ -225,8 +225,8 @@ void ExtractRivistaVolumeIssueAndYear(const std::string, const char, MARC::Recor
         const std::string volume(matched[1]);
         _936_subfields.addSubfield('d', volume);
 
-        const std::string issue(matched[2]);
-        _936_subfields.addSubfield('e', issue);
+        std::string issue(matched[2]);
+        _936_subfields.addSubfield('e', StringUtil::Map(&issue, '-', '/'));
 
         const std::string year(matched[3]);
         _936_subfields.addSubfield('j', year);
@@ -241,18 +241,20 @@ void ExtractRivistaVolumeIssueAndYear(const std::string, const char, MARC::Recor
 
 
 void ExtractRevistaPages(const std::string, const char, MARC::Record * const record, const std::string &data) {
-    const std::string page_str("(?:P|pp)[.]\\s+(\\d+)-(\\d+)");
+    const std::string page_str("(?:P|pp)[.]\\s*(\\d+)(?:-(\\d+))?");
     static ThreadSafeRegexMatcher matcher((ThreadSafeRegexMatcher(page_str)));
     const auto matched(matcher.match(data));
 
     if (matched) {
         MARC::Subfields _936_subfields;
         const std::string start_page(matched[1]);
-        const std::string end_page(matched[2]);
-        _936_subfields.addSubfield('h', start_page + "-" + end_page);
+        std::string end_page;
+        if (matched.size() > 2)
+            end_page = matched[2];
+        _936_subfields.addSubfield('h', start_page + (not end_page.empty() ? "-" + end_page : ""));
         CreateOrAppendTo936IfPresent(record, _936_subfields);
     } else
-        LOG_WARNING("Could not extract pages from \"" + data + "\"");
+        LOG_WARNING("Could not extract pages from \"" + data + "\" for record " + record->getControlNumber());
 }
 
 
@@ -414,8 +416,8 @@ std::string Assemble773gContent(const MARC::Record &record) {
 
 void AddSelectors(MARC::Record * const record) {
     record->insertFieldAtEnd("935", { { 'a', "itbk" }, { '2', "LOK" } });
-    record->insertFieldAtEnd("935", { { 'a', "aixrk" }, { '2', "LOK" } });
-    record->insertFieldAtEnd("935", { { 'a', "aixzs" }, { '2', "LOK" } });
+    record->insertFieldAtEnd("935", { { 'a', "ixrk" }, { '2', "LOK" } });
+    record->insertFieldAtEnd("935", { { 'a', "ixzs" }, { '2', "LOK" } });
 }
 
 

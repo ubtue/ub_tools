@@ -1372,7 +1372,8 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
 
     // Personalized Authors
     // c.f. https://github.com/ubtue/DatenProbleme/issues/1651
-    if (parameters.download_item_.journal_.personalized_authors_ == "J" and marc_record->hasTag("100"))
+    if (parameters.download_item_.journal_.personalized_authors_ == "J" and marc_record->hasTag("100")
+        and (not marc_record->isReviewArticle()))
         marc_record->insertFieldAtEnd("935", { { 'a', "tiep" }, { '2', "LOK" } });
 
     // Book-keeping fields
