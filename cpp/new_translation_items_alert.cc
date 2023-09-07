@@ -177,7 +177,7 @@ std::string GetNotifyThreshold(const IniFile &ini_file, DbConnection &db_connect
 
 
 bool NotifyTimeExceeded(DbConnection &db_connection, const std::string &last_notified, const std::string notify_threshold) {
-    const std::string query("SELECT DATEDIFF('" + notify_threshold + "','" + last_notified + "') <= 0 AS notify_time_exceeded");
+    const std::string query("SELECT DATEDIFF('" + last_notified + "','" + notify_threshold + "') <= 0 AS notify_time_exceeded");
     DbResultSet result(ExecSqlAndReturnResultsOrDie(query, &db_connection));
     return (bool)std::atoi(result.getNextRow()["notify_time_exceeded"].c_str());
 }
