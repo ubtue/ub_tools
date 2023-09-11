@@ -19,6 +19,7 @@
  */
 
 #include <iostream>
+#include <stdio.h>
 #include <nlohmann/json.hpp>
 #include "Downloader.h"
 #include "IssnLookup.h"
@@ -26,7 +27,15 @@
 
 namespace IssnLookup {
 
+std::string TitleNormalization(const std::string &title) {
+    std::string new_title;
 
+    for (const auto &c : title)
+        if (!((int(c) == -62) || (int(c) == -104) || (int(c) == -100)))
+            new_title += c;
+
+    return new_title;
+}
 void ExtractingData(const std::string &issn, const nlohmann::json &issn_info_json, ISSNInfo * const issn_info) {
     const std::string issn_uri("resource/ISSN/" + issn), issn_title_uri("resource/ISSN/" + issn + "#KeyTitle");
     if (issn_info_json.at("@graph").is_structured()) {
@@ -38,9 +47,9 @@ void ExtractingData(const std::string &issn, const nlohmann::json &issn_info_jso
                         if (key == "mainTitle") {
                             if (val.is_structured())
                                 for (const auto &val_item : val)
-                                    issn_info->main_titles_.emplace_back(val_item);
+                                    issn_info->main_titles_.emplace_back(TitleNormalization(val_item));
                             else
-                                issn_info->main_titles_.emplace_back(val);
+                                issn_info->main_titles_.emplace_back(TitleNormalization(val));
                         }
 
                         if (key == "format")
@@ -72,9 +81,9 @@ void ExtractingData(const std::string &issn, const nlohmann::json &issn_info_jso
                         if (key == "name") {
                             if (val.is_structured())
                                 for (const auto &val_item : val)
-                                    issn_info->names_.emplace_back(val_item);
+                                    issn_info->names_.emplace_back(TitleNormalization(val_item));
                             else
-                                issn_info->names_.emplace_back(val);
+                                issn_info->names_.emplace_back(TitleNormalization(val));
                         }
                     }
                 }
