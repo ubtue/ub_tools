@@ -19,7 +19,6 @@
  */
 
 #include <iostream>
-#include <stdio.h>
 #include <nlohmann/json.hpp>
 #include "Downloader.h"
 #include "IssnLookup.h"
