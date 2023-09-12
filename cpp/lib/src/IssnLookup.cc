@@ -22,19 +22,28 @@
 #include <nlohmann/json.hpp>
 #include "Downloader.h"
 #include "IssnLookup.h"
+#include "StringUtil.h"
 
 
 namespace IssnLookup {
 
 std::string TitleNormalization(const std::string &title) {
     std::string new_title;
+    /*
+     * Remove non-readable characters used by the librarian to annotate the unused string/word in the title for some purposes.
+     * The non-readable characters are start string code (FFFFFFC2 and FFFFFF98) and string delimiter code (FFFFFFC2 and FFFFFF9C).
+     * The looping below will remove the special character from the title.
+     */
+    for (const char &c : title) {
+        std::string str_hex_code = StringUtil::ToHexString(unsigned(c));
 
-    for (const auto &c : title)
-        if (!((int(c) == -62) || (int(c) == -104) || (int(c) == -100)))
+        if (!((str_hex_code == "FFFFFFC2") || (str_hex_code == "FFFFFF98") || (str_hex_code == "FFFFFF9C")))
             new_title += c;
+    }
 
     return new_title;
 }
+
 void ExtractingData(const std::string &issn, const nlohmann::json &issn_info_json, ISSNInfo * const issn_info) {
     const std::string issn_uri("resource/ISSN/" + issn), issn_title_uri("resource/ISSN/" + issn + "#KeyTitle");
     if (issn_info_json.at("@graph").is_structured()) {
