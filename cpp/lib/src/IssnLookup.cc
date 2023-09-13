@@ -22,7 +22,6 @@
 #include <nlohmann/json.hpp>
 #include "Downloader.h"
 #include "IssnLookup.h"
-#include "StringUtil.h"
 
 
 namespace IssnLookup {
@@ -35,9 +34,9 @@ std::string TitleNormalization(const std::string &title) {
      * The looping below will remove the special character from the title.
      */
     for (const char &c : title) {
-        std::string str_hex_code = StringUtil::ToHexString(unsigned(c));
+        unsigned str_hex_code = unsigned(c);
 
-        if (!((str_hex_code == "FFFFFFC2") || (str_hex_code == "FFFFFF98") || (str_hex_code == "FFFFFF9C")))
+        if (!((str_hex_code == 0xFFFFFFC2) || (str_hex_code == 0xFFFFFF98) || (str_hex_code == 0xFFFFFF9C)))
             new_title += c;
     }
 
