@@ -26,6 +26,22 @@
 
 namespace IssnLookup {
 
+std::string TitleNormalization(const std::string &title) {
+    std::string new_title;
+    /*
+     * Remove non-readable characters used by the librarian to annotate the unused string/word in the title for some purposes.
+     * The non-readable characters are start string code (FFFFFFC2 and FFFFFF98) and string delimiter code (FFFFFFC2 and FFFFFF9C).
+     * The looping below will remove the special character from the title.
+     */
+    for (const char &c : title) {
+        unsigned str_hex_code = unsigned(c);
+
+        if (!((str_hex_code == 0xFFFFFFC2) || (str_hex_code == 0xFFFFFF98) || (str_hex_code == 0xFFFFFF9C)))
+            new_title += c;
+    }
+
+    return new_title;
+}
 
 void ExtractingData(const std::string &issn, const nlohmann::json &issn_info_json, ISSNInfo * const issn_info) {
     const std::string issn_uri("resource/ISSN/" + issn), issn_title_uri("resource/ISSN/" + issn + "#KeyTitle");
@@ -38,9 +54,9 @@ void ExtractingData(const std::string &issn, const nlohmann::json &issn_info_jso
                         if (key == "mainTitle") {
                             if (val.is_structured())
                                 for (const auto &val_item : val)
-                                    issn_info->main_titles_.emplace_back(val_item);
+                                    issn_info->main_titles_.emplace_back(TitleNormalization(val_item));
                             else
-                                issn_info->main_titles_.emplace_back(val);
+                                issn_info->main_titles_.emplace_back(TitleNormalization(val));
                         }
 
                         if (key == "format")
@@ -72,9 +88,9 @@ void ExtractingData(const std::string &issn, const nlohmann::json &issn_info_jso
                         if (key == "name") {
                             if (val.is_structured())
                                 for (const auto &val_item : val)
-                                    issn_info->names_.emplace_back(val_item);
+                                    issn_info->names_.emplace_back(TitleNormalization(val_item));
                             else
-                                issn_info->names_.emplace_back(val);
+                                issn_info->names_.emplace_back(TitleNormalization(val));
                         }
                     }
                 }
