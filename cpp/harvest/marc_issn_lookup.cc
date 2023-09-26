@@ -490,6 +490,35 @@ void CleanDuplicationOfField773ByTitleSecondPass(MARC::Record * const record, co
     }
 }
 
+void Delete773IfNotExistSubfieldW(MARC::Record * const record) {
+    for (auto field(record->begin()); field != record->end(); ++field) {
+        if (field->getTag() == "773") {
+            if (field->getIndicator1() == '0' && field->getIndicator2() == '8') {
+                const std::string subfield_w(field->getFirstSubfieldWithCode('w'));
+                if (subfield_w.empty()) {
+                    field = record->erase(field);
+                    --field;
+                }
+            }
+        }
+    }
+}
+
+void UpdateBibliographicIf773IsNotExist(MARC::Record * const record) {
+    bool has_773(false);
+    for (auto field(record->begin()); field != record->end(); ++field) {
+        if (field->getTag() == "773") {
+            if (field->getIndicator1() == '0' && field->getIndicator2() == '8') {
+                has_773 = true;
+                break;
+            }
+        }
+    }
+    if (not has_773) {
+        record->setBibliographicLevel(MARC::Record::BibliographicLevel::MONOGRAPH_OR_ITEM);
+    }
+}
+
 void ISSNLookup(char **argv, std::vector<CacheEntry> &journal_cache, std::vector<IssnLookup::ISSNInfo> * const issn_org_cache,
                 DebugInfo * const debug_info, const bool &debug_mode) {
     auto input_file(MARC::Reader::Factory(argv[1]));
@@ -498,50 +527,59 @@ void ISSNLookup(char **argv, std::vector<CacheEntry> &journal_cache, std::vector
 
     while (MARC::Record record = input_file->read()) {
         std::string ppn("");
-        for (auto field(record.begin()); field != record.end(); ++field) {
-            MARC::Subfields subfields(field->getSubfields());
+        for (auto &field : record) {
+            MARC::Subfields subfields(field.getSubfields());
             bool is_issn_in_k10plus(false), is_in_k10plus_but_invalid(false);
-            if (field->getTag() == "001")
-                ppn = field->getContents();
+            if (field.getTag() == "001")
+                ppn = field.getContents();
 
-            if (field->getTag() == "773") {
-                const std::string w_subfield(StringUtil::ASCIIToUpper(field->getFirstSubfieldWithCode('w')));
-                if (not w_subfield.empty()) {
-                    const std::string issn(StringUtil::ASCIIToUpper(field->getFirstSubfieldWithCode('x')));
-                    if (not issn.empty()) {
-                        // data is found or need to check it first
-                        if (debug_info->issns_not_found_.find(issn) == debug_info->issns_not_found_.end()) {
-                            // and invalid
-                            if (invalid_issns_ink10plus.find(issn) == invalid_issns_ink10plus.end()) {
-                                for (const auto &elemt : journal_cache) {
-                                    bool is_in_l =
-                                        (std::find(elemt.issns_.begin(), elemt.issns_.end(), issn) != elemt.issns_.end() ? true : false);
-                                    if ((elemt.preferred_issn_ == issn) || is_in_l) {
-                                        if (elemt.is_valid_) {
-                                            UpdateSubfieldUsingK10(subfields, elemt);
-                                            field->setSubfields(subfields);
+            if (field.getTag() == "773") {
+                const std::string issn(StringUtil::ASCIIToUpper(field.getFirstSubfieldWithCode('x')));
+                if (not issn.empty()) {
+                    // data is found or need to check it first
+                    if (debug_info->issns_not_found_.find(issn) == debug_info->issns_not_found_.end()) {
+                        // and invalid
+                        if (invalid_issns_ink10plus.find(issn) == invalid_issns_ink10plus.end()) {
+                            for (const auto &elemt : journal_cache) {
+                                bool is_in_l =
+                                    (std::find(elemt.issns_.begin(), elemt.issns_.end(), issn) != elemt.issns_.end() ? true : false);
+                                if ((elemt.preferred_issn_ == issn) || is_in_l) {
+                                    if (elemt.is_valid_) {
+                                        UpdateSubfieldUsingK10(subfields, elemt);
+                                        field.setSubfields(subfields);
 
-                                            if (debug_mode)
-                                                debug_info->ppns_use_k10_.insert(std::make_pair(ppn, issn));
+                                        if (debug_mode)
+                                            debug_info->ppns_use_k10_.insert(std::make_pair(ppn, issn));
 
-                                        } else {
-                                            is_in_k10plus_but_invalid = true;
-                                            invalid_issns_ink10plus.insert(issn);
-                                        }
-                                        // issn is found in k10, ignoring wheather it is if valid or not
-                                        is_issn_in_k10plus = true;
-                                        break;
+                                    } else {
+                                        is_in_k10plus_but_invalid = true;
+                                        invalid_issns_ink10plus.insert(issn);
                                     }
+                                    // issn is found in k10, ignoring wheather it is if valid or not
+                                    is_issn_in_k10plus = true;
+                                    break;
                                 }
-                            } else {
-                                is_in_k10plus_but_invalid = true;
                             }
-                            if (not is_issn_in_k10plus || is_in_k10plus_but_invalid) {
-                                IssnLookup::ISSNInfo issn_info;
-                                if (IsInISSNInfoCache(issn, *issn_org_cache, &issn_info)) {
-                                    // issn is in the issn info cache already
+                        } else {
+                            is_in_k10plus_but_invalid = true;
+                        }
+                        if (not is_issn_in_k10plus || is_in_k10plus_but_invalid) {
+                            IssnLookup::ISSNInfo issn_info;
+                            if (IsInISSNInfoCache(issn, *issn_org_cache, &issn_info)) {
+                                // issn is in the issn info cache already
+                                UpdateSubfieldUsingISSNOrg(subfields, issn_info);
+                                field.setSubfields(subfields);
+                                if (debug_mode) {
+                                    (is_in_k10plus_but_invalid
+                                         ? debug_info->ppns_with_issn_in_k10_but_invalid_.insert(std::make_pair(ppn, issn))
+                                         : debug_info->ppns_use_issn_org_.insert(std::make_pair(ppn, issn)));
+                                }
+
+                            } else {
+                                if (IssnLookup::GetISSNInfo(issn, &issn_info)) {
+                                    issn_org_cache->emplace_back(issn_info);
                                     UpdateSubfieldUsingISSNOrg(subfields, issn_info);
-                                    field->setSubfields(subfields);
+                                    field.setSubfields(subfields);
                                     if (debug_mode) {
                                         (is_in_k10plus_but_invalid
                                              ? debug_info->ppns_with_issn_in_k10_but_invalid_.insert(std::make_pair(ppn, issn))
@@ -549,39 +587,24 @@ void ISSNLookup(char **argv, std::vector<CacheEntry> &journal_cache, std::vector
                                     }
 
                                 } else {
-                                    if (IssnLookup::GetISSNInfo(issn, &issn_info)) {
-                                        issn_org_cache->emplace_back(issn_info);
-                                        UpdateSubfieldUsingISSNOrg(subfields, issn_info);
-                                        field->setSubfields(subfields);
-                                        if (debug_mode) {
-                                            (is_in_k10plus_but_invalid
-                                                 ? debug_info->ppns_with_issn_in_k10_but_invalid_.insert(std::make_pair(ppn, issn))
-                                                 : debug_info->ppns_use_issn_org_.insert(std::make_pair(ppn, issn)));
-                                        }
-
-                                    } else {
-                                        // issn was not found
-                                        if (debug_mode) {
-                                            debug_info->issns_not_found_.insert(issn);
-                                            debug_info->ppns_with_issn_not_recognized_.insert(std::make_pair(ppn, issn));
-                                        }
+                                    // issn was not found
+                                    if (debug_mode) {
+                                        debug_info->issns_not_found_.insert(issn);
+                                        debug_info->ppns_with_issn_not_recognized_.insert(std::make_pair(ppn, issn));
                                     }
                                 }
                             }
                         }
                     }
-                } else {
-                    // if w subfield is empty then remove this 773 from record and
-                    // set the bibliographic level to
-                    record.erase(field);
-                    record.setBibliographicLevel(MARC::Record::BibliographicLevel::MONOGRAPH_OR_ITEM);
                 }
             }
         }
         std::vector<TitleInfo773> found_title_info_cache;
+        Delete773IfNotExistSubfieldW(&record);
         CleanDuplicationOfField773ByISSN(&record);
         CleanDuplicationOfField773ByTitle(&record, &found_title_info_cache);
         CleanDuplicationOfField773ByTitleSecondPass(&record, found_title_info_cache);
+        UpdateBibliographicIf773IsNotExist(&record);
         output_file->write(record);
     }
 }
