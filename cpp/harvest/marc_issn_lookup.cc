@@ -504,7 +504,7 @@ void Delete773IfNotExistSubfieldW(MARC::Record * const record) {
     }
 }
 
-void UpdateBibliographicIf773IsNotExist(MARC::Record * const record) {
+void UpdateBibliographicIf773DoesNotExist(MARC::Record * const record) {
     bool has_773(false);
     for (auto field(record->begin()); field != record->end(); ++field) {
         if (field->getTag() == "773") {
@@ -604,7 +604,7 @@ void ISSNLookup(char **argv, std::vector<CacheEntry> &journal_cache, std::vector
         CleanDuplicationOfField773ByISSN(&record);
         CleanDuplicationOfField773ByTitle(&record, &found_title_info_cache);
         CleanDuplicationOfField773ByTitleSecondPass(&record, found_title_info_cache);
-        UpdateBibliographicIf773IsNotExist(&record);
+        UpdateBibliographicIf773DoesNotExist(&record);
         output_file->write(record);
     }
 }
