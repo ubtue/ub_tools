@@ -29,9 +29,8 @@ namespace IssnLookup {
 std::string TitleNormalization(const std::string &title) {
     std::string new_title;
     /*
-     * Remove non-readable characters used by the librarian to annotate the unused string/word in the title for some purposes.
+     * Remove non-readable characters used by the librarian to annotate the unused string/word in the title to mark non-filing characters.
      * The non-readable characters are start string code (FFFFFFC2 and FFFFFF98) and string delimiter code (FFFFFFC2 and FFFFFF9C).
-     * The looping below will remove the special character from the title.
      */
     for (const char &c : title) {
         unsigned str_hex_code = unsigned(c);
