@@ -141,9 +141,17 @@ void InsertLanguage(MARC::Record * const record, const std::string &data) {
     record->insertField("041", { { 'a', language_code } });
 }
 
+
 void InsertVolume(MARC::Record * const record, const std::string &data) {
     if (not data.empty())
         record->insertField("VOL", { { 'a', data } });
+}
+
+void InsertKeywords(MARC::Record * const record, const std::string &data) {
+    if (not data.empty()) {
+        for (const auto &keyword : StringUtil::Split(data, ';', '\\', true))
+            record->insertField("650", { { 'a', keyword } });
+    }
 }
 
 
@@ -156,6 +164,7 @@ std::string TestValidPseudoPPNPrefix(const std::string &prefix) {
 
 using column_names_to_offsets_map = std::map<std::string, unsigned>;
 static column_names_to_offsets_map column_names_to_offsets;
+
 
 void GenerateColumnOffsetMap(const std::string &columns_line) {
     std::vector<std::string> column_names;
@@ -172,6 +181,11 @@ unsigned GetColumnOffset(const std::string &column_name) {
     } catch (const std::exception) {
         LOG_ERROR("Invalid column \"" + column_name + "\"");
     }
+}
+
+
+bool HasColumn(const std::string &column_name) {
+    return column_names_to_offsets.find(StringUtil::ASCIIToLower(column_name)) != column_names_to_offsets.end();
 }
 
 
@@ -201,9 +215,13 @@ int Main(int argc, char **argv) {
         InsertLanguage(new_record, line[GetColumnOffset("LANG")]);
         InsertCreationDates(new_record, line[GetColumnOffset("EPUB")]);
         InsertURL(new_record, line[GetColumnOffset("URL")]);
-        InsertReferenceHint(new_record, line[GetColumnOffset("ZIELSTICHWORT")]);
+        if (HasColumn("ZIELSTICHWORT"))
+            InsertReferenceHint(new_record, line[GetColumnOffset("ZIELSTICHWORT")]);
+        if (HasColumn("VOL"))
+            InsertVolume(new_record, line[GetColumnOffset("VOL")]);
+        if (HasColumn("SUBJECT-DG"))
+            InsertKeywords(new_record, line[GetColumnOffset("SUBJECT-DG")]);
         new_record->insertField("TYP", { { 'a', pseudo_ppn_prefix } });
-        InsertVolume(new_record, line[GetColumnOffset("VOL")]);
         marc_writer->write(*new_record);
         ++generated_records;
     }
