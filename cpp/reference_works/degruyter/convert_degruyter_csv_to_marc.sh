@@ -29,7 +29,7 @@ tmpfiles+=(${tmp_file1})
 tmpfiles+=(${tmp_file2})
 ./convert_degruyter_csv_to_marc ${pseudo_ppn_prefix} <(cat ${csv_file} | \
     sed -re 's/,+$//g') ${tmp_file1}
-./clean_and_convert_degruyter_refworks.sh ${tmp_file1} ${tmp_file2}
+./clean_and_convert_degruyter_refworks.sh ${pseudo_ppn_prefix} ${tmp_file1} ${tmp_file2}
 authors_file=${AUTHORS_DIRECTORY}/authors_${pseudo_ppn_prefix}.txt
 if [ ! -r ${authors_file} ]; then
     echo "Generating authors file: ${authors_file}"

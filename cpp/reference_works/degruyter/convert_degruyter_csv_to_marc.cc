@@ -154,6 +154,11 @@ void InsertKeywords(MARC::Record * const record, const std::string &data) {
     }
 }
 
+void InsertBookpartID(MARC::Record * const record, const std::string &data) {
+    if (not data.empty()) {
+        record->insertField("BPI", { { 'a', data } });
+    }
+}
 
 std::string TestValidPseudoPPNPrefix(const std::string &prefix) {
     if (prefix.length() > 6)
@@ -170,16 +175,20 @@ void GenerateColumnOffsetMap(const std::string &columns_line) {
     std::vector<std::string> column_names;
     StringUtil::Split(columns_line, ',', &column_names);
     unsigned offset(0);
-    for (const auto &column_name : column_names)
-        column_names_to_offsets.emplace(StringUtil::ASCIIToLower(column_name), offset++);
+    for (const auto &column_name : column_names) {
+        column_names_to_offsets.emplace(StringUtil::ASCIIToLower(column_name), offset);
+        LOG_INFO("INSERTED COLUMN " + StringUtil::ASCIIToLower(column_name) + ": " + std::to_string(offset));
+        ++offset;
+    }
 }
 
 
 unsigned GetColumnOffset(const std::string &column_name) {
+    const std::string column_name_lowercased(StringUtil::ASCIIToLower(column_name));
     try {
-        return column_names_to_offsets.at(StringUtil::ASCIIToLower(column_name));
+        return column_names_to_offsets.at(column_name_lowercased);
     } catch (const std::exception) {
-        LOG_ERROR("Invalid column \"" + column_name + "\"");
+        LOG_ERROR("Invalid column \"" + column_name_lowercased + "\"");
     }
 }
 
@@ -206,13 +215,32 @@ int Main(int argc, char **argv) {
     unsigned generated_records(0);
 
     for (const auto &line : lines) {
-        MARC::Record *new_record = CreateNewRecord(pseudo_ppn_prefix, line[GetColumnOffset("BOOKPARTID")]);
+        MARC::Record *new_record = CreateNewRecord(pseudo_ppn_prefix);
+        if (HasColumn("BOOKPARTID"))
+            InsertBookpartID(new_record, line[GetColumnOffset("BOOKPARTID")]);
         new_record->insertField("005", TimeUtil::GetCurrentDateAndTime("%Y%m%d%H%M%S") + ".0");
         new_record->insertField("007", "cr|||||");
-        InsertAuthors(new_record, line[GetColumnOffset("AUTHOR1")], line[GetColumnOffset("AUTHOR-ETAL")]);
-        InsertTitle(new_record, line[GetColumnOffset("TITLE")]);
-        InsertDOI(new_record, line[GetColumnOffset("DOI")]);
-        InsertLanguage(new_record, line[GetColumnOffset("LANG")]);
+        if (HasColumn("AUTHOR1") and HasColumn("AUTHOR-ETAL"))
+            InsertAuthors(new_record, line[GetColumnOffset("AUTHOR1")], line[GetColumnOffset("AUTHOR-ETAL")]);
+        else
+            LOG_WARNING("Either author1 or author-etal missing for " + pseudo_ppn_prefix);
+        if (HasColumn("TITLE"))
+            InsertTitle(new_record, line[GetColumnOffset("TITLE")]);
+        else if (HasColumn("BOOK-TITLE"))
+            InsertTitle(new_record, line[GetColumnOffset("BOOK-TITLE")]);
+        else
+            LOG_ERROR("No title for " + new_record->getControlNumber());
+
+        if (HasColumn("DOI"))
+            InsertDOI(new_record, line[GetColumnOffset("DOI")]);
+        else
+            LOG_WARNING("No DOI for " + new_record->getControlNumber());
+
+        if (HasColumn("LANG"))
+            InsertLanguage(new_record, line[GetColumnOffset("LANG")]);
+        else
+            LOG_WARNING("No lang for " + new_record->getControlNumber());
+
         InsertCreationDates(new_record, line[GetColumnOffset("EPUB")]);
         InsertURL(new_record, line[GetColumnOffset("URL")]);
         if (HasColumn("ZIELSTICHWORT"))
