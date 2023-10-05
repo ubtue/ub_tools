@@ -40,24 +40,6 @@
 #include "util.h"
 
 
-enum column_name {
-    LANG,
-    BOOKPARTID,
-    URL,
-    TYPE,
-    TITLE,
-    BOOKTITLE,
-    VOL_TITLE,
-    VOL,
-    ISBN,
-    DOI,
-    PPUB,
-    EPUB,
-    AUTHOR1,
-    AUTHOR_ETAL,
-    ZIELSTICHWORT
-};
-
 namespace {
 
 [[noreturn]] void Usage() {
@@ -172,6 +154,27 @@ std::string TestValidPseudoPPNPrefix(const std::string &prefix) {
 }
 
 
+using column_names_to_offsets_map = std::map<std::string, unsigned>;
+static column_names_to_offsets_map column_names_to_offsets;
+
+void GenerateColumnOffsetMap(const std::string &columns_line) {
+    std::vector<std::string> column_names;
+    StringUtil::Split(columns_line, ',', &column_names);
+    unsigned offset(0);
+    for (const auto &column_name : column_names)
+        column_names_to_offsets.emplace(StringUtil::ASCIIToLower(column_name), offset++);
+}
+
+
+unsigned GetColumnOffset(const std::string &column_name) {
+    try {
+        return column_names_to_offsets.at(StringUtil::ASCIIToLower(column_name));
+    } catch (const std::exception) {
+        LOG_ERROR("Invalid column \"" + column_name + "\"");
+    }
+}
+
+
 } // end unnamed namespace
 
 
@@ -182,22 +185,25 @@ int Main(int argc, char **argv) {
     const std::string pseudo_ppn_prefix(TestValidPseudoPPNPrefix(argv[1]));
     std::vector<std::vector<std::string>> lines;
     GetCSVEntries(argv[2], &lines);
+    GenerateColumnOffsetMap(StringUtil::Join(lines[0], ','));
+    lines.erase(lines.begin());
+
     std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(argv[3]));
     unsigned generated_records(0);
 
-    for (auto &line : lines) {
-        MARC::Record *new_record = CreateNewRecord(pseudo_ppn_prefix, line[BOOKPARTID]);
+    for (const auto &line : lines) {
+        MARC::Record *new_record = CreateNewRecord(pseudo_ppn_prefix, line[GetColumnOffset("BOOKPARTID")]);
         new_record->insertField("005", TimeUtil::GetCurrentDateAndTime("%Y%m%d%H%M%S") + ".0");
         new_record->insertField("007", "cr|||||");
-        InsertAuthors(new_record, line[AUTHOR1], line[AUTHOR_ETAL]);
-        InsertTitle(new_record, line[TITLE]);
-        InsertDOI(new_record, line[DOI]);
-        InsertLanguage(new_record, line[LANG]);
-        InsertCreationDates(new_record, line[EPUB]);
-        InsertURL(new_record, line[URL]);
-        InsertReferenceHint(new_record, line[ZIELSTICHWORT]);
+        InsertAuthors(new_record, line[GetColumnOffset("AUTHOR1")], line[GetColumnOffset("AUTHOR-ETAL")]);
+        InsertTitle(new_record, line[GetColumnOffset("TITLE")]);
+        InsertDOI(new_record, line[GetColumnOffset("DOI")]);
+        InsertLanguage(new_record, line[GetColumnOffset("LANG")]);
+        InsertCreationDates(new_record, line[GetColumnOffset("EPUB")]);
+        InsertURL(new_record, line[GetColumnOffset("URL")]);
+        InsertReferenceHint(new_record, line[GetColumnOffset("ZIELSTICHWORT")]);
         new_record->insertField("TYP", { { 'a', pseudo_ppn_prefix } });
-        InsertVolume(new_record, line[VOL]);
+        InsertVolume(new_record, line[GetColumnOffset("VOL")]);
         marc_writer->write(*new_record);
         ++generated_records;
     }
