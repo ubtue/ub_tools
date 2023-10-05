@@ -58,29 +58,29 @@ enum column_name {
     ZIELSTICHWORT
 };
 
-const std::string PSEUDO_PPN_PREFIX("EBR");
-
 namespace {
 
 [[noreturn]] void Usage() {
-    ::Usage("ezw.csv marc_output");
+    ::Usage("pseudo_ppn_prefix, degruyter_refwork.csv marc_output");
 }
 
 
-std::string GetPPN(const std::string &csv_ppn = "") {
+std::string GetPPN(const std::string &pseudo_ppn_prefix, const std::string &csv_ppn = "") {
     static unsigned pseudo_ppn_index(0);
     if (not csv_ppn.empty())
         return csv_ppn;
 
+    const unsigned complete_ppn_length(10);
     std::ostringstream pseudo_ppn;
-    pseudo_ppn << PSEUDO_PPN_PREFIX << std::setfill('0') << std::setw(7) << ++pseudo_ppn_index;
+    pseudo_ppn << pseudo_ppn_prefix << std::setfill('0') << std::setw(complete_ppn_length - pseudo_ppn_prefix.length())
+               << ++pseudo_ppn_index;
     return pseudo_ppn.str();
 }
 
 
-MARC::Record *CreateNewRecord(const std::string &ppn = "") {
+MARC::Record *CreateNewRecord(const std::string &prefix, const std::string &ppn = "") {
     return new MARC::Record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::SERIAL_COMPONENT_PART,
-                            GetPPN(ppn));
+                            GetPPN(prefix, ppn));
 }
 
 
@@ -165,20 +165,28 @@ void InsertVolume(MARC::Record * const record, const std::string &data) {
 }
 
 
+std::string TestValidPseudoPPNPrefix(const std::string &prefix) {
+    if (prefix.length() > 6)
+        LOG_ERROR("prefix is too long (>6)");
+    return prefix;
+}
+
+
 } // end unnamed namespace
 
 
 int Main(int argc, char **argv) {
-    if (argc != 3)
+    if (argc != 4)
         Usage();
 
+    const std::string pseudo_ppn_prefix(TestValidPseudoPPNPrefix(argv[1]));
     std::vector<std::vector<std::string>> lines;
-    GetCSVEntries(argv[1], &lines);
-    std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(argv[2]));
+    GetCSVEntries(argv[2], &lines);
+    std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(argv[3]));
     unsigned generated_records(0);
 
     for (auto &line : lines) {
-        MARC::Record *new_record = CreateNewRecord(line[BOOKPARTID]);
+        MARC::Record *new_record = CreateNewRecord(pseudo_ppn_prefix, line[BOOKPARTID]);
         new_record->insertField("005", TimeUtil::GetCurrentDateAndTime("%Y%m%d%H%M%S") + ".0");
         new_record->insertField("007", "cr|||||");
         InsertAuthors(new_record, line[AUTHOR1], line[AUTHOR_ETAL]);
@@ -188,7 +196,7 @@ int Main(int argc, char **argv) {
         InsertCreationDates(new_record, line[EPUB]);
         InsertURL(new_record, line[URL]);
         InsertReferenceHint(new_record, line[ZIELSTICHWORT]);
-        new_record->insertField("TYP", { { 'a', PSEUDO_PPN_PREFIX } });
+        new_record->insertField("TYP", { { 'a', pseudo_ppn_prefix } });
         InsertVolume(new_record, line[VOL]);
         marc_writer->write(*new_record);
         ++generated_records;
