@@ -241,8 +241,14 @@ int Main(int argc, char **argv) {
         else
             LOG_WARNING("No lang for " + new_record->getControlNumber());
 
-        InsertCreationDates(new_record, line[GetColumnOffset("EPUB")]);
-        InsertURL(new_record, line[GetColumnOffset("URL")]);
+        if (HasColumn("EPUB"))
+            InsertCreationDates(new_record, line[GetColumnOffset("EPUB")]);
+        else
+            LOG_WARNING("No EPUB for " + new_record->getControlNumber());
+        if (HasColumn("URL"))
+            InsertURL(new_record, line[GetColumnOffset("URL")]);
+        else
+            LOG_WARNING("No URL for " + new_record->getControlNumber());
         if (HasColumn("ZIELSTICHWORT"))
             InsertReferenceHint(new_record, line[GetColumnOffset("ZIELSTICHWORT")]);
         if (HasColumn("VOL"))

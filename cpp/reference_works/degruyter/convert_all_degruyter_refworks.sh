@@ -19,18 +19,18 @@ trap RemoveTempFiles EXIT
 tmpfiles=()
 
 function ConvertExcelToCSV {
-  input_dir="$1"
-  output_dir="$2"
+  local input_dir="$1"
+  local output_dir="$2"
   libreoffice --headless \
   --convert-to csv:"Text - txt - csv (StarCalc)":44,34,UTF8,1,,0,false,true,false,false,false,-1 \
   --outdir ${output_dir} ${input_dir}/*.xlsx
 }
 
 
-tmp_dir_template="degruyter_refworks_XXXXXX"
-tmp_dir=$(mktemp --directory -t ${tmp_dir_template})
 input_dir="$1"
 output_dir="$2"
+tmp_dir_template="degruyter_refworks_XXXXXX"
+tmp_dir=$(mktemp --directory -t ${tmp_dir_template})
 
 ConvertExcelToCSV ${input_dir} ${tmp_dir}
 
@@ -43,10 +43,11 @@ for refwork in ${REFWORKS}; do
     if [ ${refwork} == "BIBHERM" ]; then
         refwork=BHM
     fi
+    converted_file=ixtheo_${refwork}_$(date +'%y%m%d').xml
     ./convert_degruyter_csv_to_marc.sh \
-        $(echo ${refwork} | awk '{print tolower($0)}')  \
+        $(echo ${refwork} | awk '{print toupper($0)}')  \
         ${refwork_csv_file} \
-        ${output_dir}/ixtheo_${refwork}$_$(date +'%y%m%d').xml
+        "${output_dir}/${converted_file}"
     tmpfiles+=(${refwork_csv_file})
+    echo mv ${tmp_dir}/${converted_file%.xml}* ${output_dir}
 done
-

@@ -97,7 +97,8 @@ marc_out="$3"
 tmpfiles=()
 GenerateTmpFiles
 #    marc_filter ${marc_in} ${marc_out} --drop '001:EBR' \
-    marc_filter ${marc_in} ${tmpfiles[0]} --drop '001:'${journal_prefix} \
+#    marc_filter ${marc_in} ${tmpfiles[0]} --drop '001:'${journal_prefix} \
+    marc_filter ${marc_in} ${tmpfiles[0]} \
         --remove-fields '856u:^https://www.degruyter.com/document/cover/dbid/ebr/product_pages$' \
         --remove-fields '856u:^https://doi.org/10.1515/ebr$' \
         --remove-fields '003:.*' \
