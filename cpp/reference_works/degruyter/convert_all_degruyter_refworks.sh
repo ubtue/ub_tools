@@ -49,5 +49,4 @@ for refwork in ${REFWORKS}; do
         ${refwork_csv_file} \
         "${output_dir}/${converted_file}"
     tmpfiles+=(${refwork_csv_file})
-    echo mv ${tmp_dir}/${converted_file%.xml}* ${output_dir}
 done
