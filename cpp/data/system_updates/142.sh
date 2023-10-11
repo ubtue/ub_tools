@@ -1,5 +1,27 @@
-DELIMITER $$
-DROP PROCEDURE IF EXISTS insert_vufind_translation_entry $$
+#!/bin/bash
+set -o nounset -o pipefail
+
+function test_mysql_access {
+sudo mysql <<MYSQL
+   USE mysql;
+MYSQL
+echo $?
+}
+
+
+function get_target_database {
+    if [ ${TUEFIND_FLAVOUR} == "ixtheo" ]; then
+        echo "ixtheo"
+    else if [ ${TUEFIND_FLAVOUR} == "krimdok" ]; then
+        echo "krim_translations"
+       fi
+    fi
+}
+
+
+read -r -d '' UPDATE_PROCEDURE <<-MYSQL
+DELIMITER //
+DROP PROCEDURE IF EXISTS insert_vufind_translation_entry //
 CREATE PROCEDURE insert_vufind_translation_entry(IN in_token VARCHAR(191), IN in_language_code CHAR(4), IN in_translation VARCHAR(1024), IN in_translator VARCHAR(50))
 SQL SECURITY INVOKER
 BEGIN
@@ -33,12 +55,10 @@ SET @new_record_id := LAST_INSERT_ID();
 
 UPDATE vufind_translations SET next_version_id=@new_record_id WHERE id=@old_record_id;
 COMMIT;
-END $$
-DELIMITER ;
+END //
 
 
-DELIMITER $$
-DROP PROCEDURE IF EXISTS insert_keyword_translation_entry $$
+DROP PROCEDURE IF EXISTS insert_keyword_translation_entry //
 CREATE PROCEDURE insert_keyword_translation_entry(IN in_ppn CHAR(10), IN in_gnd_code CHAR(10), IN in_language_code CHAR(10), IN in_translation VARCHAR(1024), IN in_translator VARCHAR(30))
 SQL SECURITY INVOKER
 BEGIN
@@ -72,5 +92,19 @@ SET @new_record_id := LAST_INSERT_ID();
 
 UPDATE keyword_translations SET next_version_id=@new_record_id WHERE id=@old_record_id;
 COMMIT;
-END $$
+END //
 DELIMITER ;
+MYSQL
+
+#############################################################
+result=$(test_mysql_access)
+if [ $result == 0 ]; then
+    sudo mysql --verbose --verbose $(get_target_database) < <(printf "%s" "${UPDATE_PROCEDURE}")
+else
+    read -p "Enter MySQL root password" root_password
+    export MYSQL_PWD="${root_password}"
+    mysql --verbose --verbose -u root  \
+       $(get_target_database) \
+       < <(printf "%s" "${UPDATE_PROCEDURE}")
+fi
+echo "Finished..."
