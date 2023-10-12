@@ -14,10 +14,10 @@ function get_target_database {
         echo "ixtheo"
     else if [ ${TUEFIND_FLAVOUR} == "krimdok" ]; then
         echo "krim_translations"
-       fi
     else
         echo "TUEFIND_FLAVOUR not set - skipping execution"
         exit 0
+        fi
     fi
 }
 
