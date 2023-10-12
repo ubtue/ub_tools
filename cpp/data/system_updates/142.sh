@@ -97,6 +97,11 @@ DELIMITER ;
 MYSQL
 
 #############################################################
+if [ ${EUID} -ne 0 ]; then
+    echo "$0 must be run as root"
+    exit 1
+fi
+
 result=$(test_mysql_access)
 if [ $result == 0 ]; then
     sudo mysql --verbose --verbose $(get_target_database) < <(printf "%s" "${UPDATE_PROCEDURE}")
