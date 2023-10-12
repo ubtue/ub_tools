@@ -15,6 +15,9 @@ function get_target_database {
     else if [ ${TUEFIND_FLAVOUR} == "krimdok" ]; then
         echo "krim_translations"
        fi
+    else
+        echo "TUEFIND_FLAVOUR not set - skipping execution"
+        exit 0
     fi
 }
 
@@ -106,7 +109,7 @@ result=$(test_mysql_access)
 if [ $result == 0 ]; then
     sudo mysql --verbose --verbose $(get_target_database) < <(printf "%s" "${UPDATE_PROCEDURE}")
 else
-    read -p "Enter MySQL root password" root_password
+    read -p "Enter MySQL root password: " -s root_password
     export MYSQL_PWD="${root_password}"
     mysql --verbose --verbose -u root  \
        $(get_target_database) \
