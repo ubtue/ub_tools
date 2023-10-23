@@ -27,6 +27,7 @@
 #include "RegexMatcher.h"
 #include "Sqlite3DbConnection.h"
 #include "StringUtil.h"
+#include "TimeUtil.h"
 #include "UBTools.h"
 #include "UrlUtil.h"
 #include "VuFind.h"
@@ -214,6 +215,19 @@ const std::string DbConnection::DEFAULT_CONFIG_FILE_PATH(UBTools::GetTuelibPath(
 void DbConnection::queryOrDie(const std::string &query_statement) {
     if (not query(query_statement))
         LOG_ERROR("in DbConnection::queryOrDie: \"" + query_statement + "\" failed: " + getLastErrorMessage());
+}
+
+void DbConnection::queryRetryOrDie(const std::string &query_statement) {
+    if (query(query_statement))
+        return;
+
+    for (int i = 0; i < 3; i++) {
+        LOG_WARNING("Retry executing statement");
+        TimeUtil::Millisleep(1000);
+        if (query(query_statement))
+            return;
+    }
+    queryOrDie(query_statement);
 }
 
 

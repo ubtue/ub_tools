@@ -5,7 +5,7 @@
  */
 
 /*
-    Copyright (C) 2016-2019 Library of the University of Tübingen
+    Copyright (C) 2016-2023 Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -67,10 +67,9 @@ void Usage() {
 
 // Extract some translation specific information like language and primary or synonym type
 void ExtractSubfield9Info(const std::vector<std::string> &_9Subfields, std::string * const language, std::string * const type,
-                          std::string * const macs_tag, std::string * const subfield_g_translation) {
+                          std::string * const subfield_g_translation) {
     const std::string language_prefix("L:");
     const std::string ixtheo_type_prefix("Z:");
-    const std::string macs_tag_prefix("v:");
     const std::string translation_prefix("g:");
 
     for (const auto &_9Subfield : _9Subfields) {
@@ -81,9 +80,6 @@ void ExtractSubfield9Info(const std::vector<std::string> &_9Subfields, std::stri
         } else if (StringUtil::StartsWith(_9Subfield, ixtheo_type_prefix)) {
             *type = _9Subfield;
             StringUtil::ExtractHead(type, ixtheo_type_prefix);
-        } else if (StringUtil::StartsWith(_9Subfield, macs_tag_prefix)) {
-            *macs_tag = _9Subfield;
-            StringUtil::ExtractHead(macs_tag, macs_tag_prefix);
         } else if (StringUtil::StartsWith(_9Subfield, translation_prefix)) {
             *subfield_g_translation = _9Subfield;
             StringUtil::ExtractHead(subfield_g_translation, translation_prefix);
@@ -104,15 +100,15 @@ void ExtractOneTranslation(const MARC::Subfields &all_subfields, const std::stri
 
     std::string language;
     std::string translation_type;
-    std::string macs_tag;
     std::string subfield_g_translation;
 
-    ExtractSubfield9Info(_9Subfields, &language, &translation_type, &macs_tag, &subfield_g_translation);
+    ExtractSubfield9Info(_9Subfields, &language, &translation_type, &subfield_g_translation);
     if (not subfield_g_translation.empty())
         translation_vector.emplace_back("(" + subfield_g_translation + ")");
 
-    // Skip entry if we do not have IxTheo or MACS Mapping
-    if (StringUtil::Join(translation_origin, ' ') != "IxTheo" and (not StringUtil::StartsWith(macs_tag, "MACS")))
+    // Skip entry if we do not have IxTheo or MACS (=lcsh and ram) translations
+    const auto translation_origin_joined(StringUtil::Join(translation_origin, ' '));
+    if (translation_origin_joined != "IxTheo" and translation_origin_joined != "ram" and translation_origin_joined != "lcsh")
         return;
 
     if (translation_origin.size() == 1) {

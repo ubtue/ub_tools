@@ -148,6 +148,17 @@ struct CacheEntry {
                 else
                     preferred_title_ = "";
             }
+
+            if (field.getTag() == "776") {
+                if (field.getIndicator1() == '0' and field.getIndicator2() == '8') {
+                    if (not field.getFirstSubfieldWithCode('x').empty()) {
+                        if (preferred_issn_.empty())
+                            preferred_issn_ = StringUtil::ASCIIToUpper(field.getFirstSubfieldWithCode('x'));
+
+                        InsertIssnIfNotExist(StringUtil::ASCIIToUpper(field.getFirstSubfieldWithCode('x')), &issns_);
+                    }
+                }
+            }
         }
     }
 };
@@ -479,6 +490,35 @@ void CleanDuplicationOfField773ByTitleSecondPass(MARC::Record * const record, co
     }
 }
 
+void Delete773IfNotExistSubfieldW(MARC::Record * const record) {
+    for (auto field(record->begin()); field != record->end(); ++field) {
+        if (field->getTag() == "773") {
+            if (field->getIndicator1() == '0' && field->getIndicator2() == '8') {
+                const std::string subfield_w(field->getFirstSubfieldWithCode('w'));
+                if (subfield_w.empty()) {
+                    field = record->erase(field);
+                    --field;
+                }
+            }
+        }
+    }
+}
+
+void UpdateBibliographicIf773DoesNotExist(MARC::Record * const record) {
+    bool has_773(false);
+    for (auto field(record->begin()); field != record->end(); ++field) {
+        if (field->getTag() == "773") {
+            if (field->getIndicator1() == '0' && field->getIndicator2() == '8') {
+                has_773 = true;
+                break;
+            }
+        }
+    }
+    if (not has_773) {
+        record->setBibliographicLevel(MARC::Record::BibliographicLevel::MONOGRAPH_OR_ITEM);
+    }
+}
+
 void ISSNLookup(char **argv, std::vector<CacheEntry> &journal_cache, std::vector<IssnLookup::ISSNInfo> * const issn_org_cache,
                 DebugInfo * const debug_info, const bool &debug_mode) {
     auto input_file(MARC::Reader::Factory(argv[1]));
@@ -560,9 +600,11 @@ void ISSNLookup(char **argv, std::vector<CacheEntry> &journal_cache, std::vector
             }
         }
         std::vector<TitleInfo773> found_title_info_cache;
+        Delete773IfNotExistSubfieldW(&record);
         CleanDuplicationOfField773ByISSN(&record);
         CleanDuplicationOfField773ByTitle(&record, &found_title_info_cache);
         CleanDuplicationOfField773ByTitleSecondPass(&record, found_title_info_cache);
+        UpdateBibliographicIf773DoesNotExist(&record);
         output_file->write(record);
     }
 }

@@ -60,10 +60,9 @@ void PopulateTables(ControlNumberGuesser * const control_number_guesser, MARC::R
         } else
             control_number_guesser->insertTitle(title, control_number);
 
-        std::string year, volume, issue;
-        BSZUtil::ExtractYearVolumeIssue(record, &year, &volume, &issue);
-        if (not year.empty())
-            control_number_guesser->insertYear(year, control_number);
+        const auto issue_info(BSZUtil::ExtractYearVolumeIssue(record));
+        if (not issue_info.year_.empty())
+            control_number_guesser->insertYear(issue_info.year_, control_number);
 
         for (const auto &doi : record.getDOIs())
             control_number_guesser->insertDOI(doi, control_number);

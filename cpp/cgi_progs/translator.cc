@@ -346,7 +346,9 @@ void GetVuFindTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, co
 
     const std::string search_pattern(lookfor.size() <= LOOKFOR_PREFIX_LIMIT ? "LIKE '" + lookfor + "%'" : "LIKE '%" + lookfor + "%'");
     const std::string token_where_clause(lookfor.empty() ? "WHERE next_version_id IS NULL"
-                                                         : "WHERE next_version_id IS NULL AND token " + search_pattern);
+                                                         : "WHERE next_version_id IS NULL AND \
+                                                            (token "
+                                                               + search_pattern + " OR translation " + search_pattern + ")");
     const std::string token_query("SELECT token FROM vufind_translations " + token_where_clause + " ORDER BY token");
     const std::string query(
         "WITH vufind_newest AS (SELECT * FROM vufind_translations WHERE next_version_id IS NULL) "

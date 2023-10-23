@@ -86,13 +86,21 @@ EndPhase || Abort) &
 wait
 
 
+StartPhase "Rewrite Authors and Standardized Keywords from Authority Data"
+make_named_pipe --buffer-size=$FIFO_BUFFER_SIZE GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1
+(rewrite_keywords_and_authors_from_authority_data GesamtTiteldaten-post-phase"$((PHASE-2))"-"${date}".mrc \
+                                                  Normdaten-"${date}".mrc \
+                                                  GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+
+
 StartPhase "Filter out Self-referential 856 Fields" \
            "\n\tRemove Sorting Chars From Title Subfields" \
            "\n\tRemove blmsh Subject Heading Terms" \
            "\n\tFix Local Keyword Capitalisations" \
            "\n\tStandardise German B.C. Year References"
 (marc_filter \
-     GesamtTiteldaten-post-phase"$((PHASE-2))"-"${date}".mrc GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
+     GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
     --remove-fields '856u:ixtheo\.de' \
     --remove-fields 'LOK:086630(.*)\x{1F}x' `# Remove internal bibliographic comments` \
     --filter-chars 130a:240a:245a '@' \
@@ -102,20 +110,14 @@ StartPhase "Filter out Self-referential 856 Fields" \
     --replace-strings 600a:610a:630a:648a:650a:650x:651a:655a /usr/local/var/lib/tuelib/keyword_normalisation.map \
     --replace 100a:700a /usr/local/var/lib/tuelib/author_normalisation.map \
     --globally-substitute 260b:264b:773d /usr/local/var/lib/tuelib/publisher_normalisation.map \
-    --replace 245a "^L' (.*)" "L'\\1" `# Replace "L' arbe" with "L'arbe" etc.` \
     --replace 100a:700a "^\\s+(.*)" "\\1" `# Replace " van Blerk, Nico" with "van Blerk, Nico" etc.` \
-    --replace 100d:689d:700d "v(\\d+)\\s?-\\s?v(\\d+)" "\\1 v.Chr.-\\2 v.Chr" \
-    --replace 100d:689d:700d "v(\\d+)\\s?-\\s?(\\d+)" "\\1 v.Chr.-\\2" \
-    --replace 100d:689d:700d "v(\\d+)" "\\1 v. Chr." \
+    --replace 100d:700d "v(\\d+)\\s?-\\s?v(\\d+)" "\\1 v.Chr.-\\2 v.Chr" \
+    --replace 100d:700d "v(\\d+)\\s?-\\s?(\\d+)" "\\1 v.Chr.-\\2" \
+    --replace 100d:700d "v(\\d+)" "\\1 v. Chr." \
+    --replace 689a "(.*)\\s+(\\d+)\\s?v. Chr.\\s?-\\s?(\\d+)\\s?v. Chr" "\\1 v\\2-v\\3" \
+    --replace 689a "(.*)\\s+(\\d+)\\s?v. Chr.\\s?-\\s?(\\d+)" "\\1 v\\2-\\3" \
+    --replace 689a "(.*)\\s+(\\d+)\\s?-\\s?(\\d+)\\s*v.\\s?Chr" "\\1 v\\2-v\\3" \
 >> "${log}" 2>&1 && \
-EndPhase || Abort) &
-wait
-
-
-StartPhase "Rewrite Authors and Standardized Keywords from Authority Data"
-(rewrite_keywords_and_authors_from_authority_data GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
-                                                  Normdaten-"${date}".mrc \
-                                                  GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
 
@@ -124,7 +126,18 @@ StartPhase "Add Missing Cross Links Between Records"
 (add_missing_cross_links GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                          GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
+
+StartPhase "Transfer 880 Authority Data Translations to 750"
+(transfer_880_translations Normdaten-"${date}".mrc \
+                           Normdaten-partially-augmented0-"${date}.mrc" \
+                           >> "${log}" 2>&1 && \
+EndPhase || Abort) &
 wait
+
+
+StartPhase "Extract Keywords for Translation"
+(extract_keywords_for_translation --insert-only-non-existing Normdaten-partially-augmented0-"${date}".mrc >> "${log}" 2>&1 && \
+EndPhase || Abort) &
 
 
 StartPhase "Extract Translations and Generate Interface Translation Files"
@@ -136,11 +149,6 @@ generate_vufind_translation_files "$VUFIND_HOME"/local/tuefind/languages/ >> "${
 EndPhase || Abort) &
 
 
-StartPhase "Transfer 880 Authority Data Translations to 750"
-(transfer_880_translations Normdaten-"${date}".mrc \
-                           Normdaten-partially-augmented0-"${date}.mrc" \
-                           >> "${log}" 2>&1 && \
-EndPhase || Abort) &
 wait
 
 
@@ -162,7 +170,7 @@ wait
 
 
 StartPhase "Cross Link Articles"
-(add_article_cross_links GesamtTiteldaten-post-phase"$((PHASE-5))"-"${date}".mrc \
+(add_article_cross_links GesamtTiteldaten-post-phase"$((PHASE-6))"-"${date}".mrc \
                          GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
                          article_matches.list >> "${log}" 2>&1 && \
 EndPhase || Abort) &
