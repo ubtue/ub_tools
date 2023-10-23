@@ -22,12 +22,12 @@ ColorEcho "installing/updating ub_tools dependencies..."
 
 apt-get --yes update
 
-# install additional libraries for docker environment 
+# install additional libraries for docker environment
 apt-get --yes install sudo wget
 
 # install software-properties-common for apt-add-repository
 apt-get --yes install software-properties-common
-wget -qO - https://artifacts.elastic.co/GPG-KEY-elasticsearch | sudo apt-key add -
+wget -qO - https://artifacts.elastic.co/GPG-KEY-elasticsearch | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/elasticsearch.gpg
 apt-add-repository --yes --update 'deb https://artifacts.elastic.co/packages/8.x/apt stable main'
 apt-add-repository --yes --update 'ppa:alex-p/tesseract-ocr5'
 
