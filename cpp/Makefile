@@ -42,7 +42,7 @@ install: regular_install data_install
 	$(MAKE) -C elasticsearch install
 	$(MAKE) -C cgi_progs install
 	$(MAKE) -C data_exports install
-	$(MAKE) -C dspace
+	$(MAKE) -C dspace install
 	$(MAKE) -C harvest install
 	$(MAKE) -C marc_tools install
 	$(MAKE) -C merge_tools install

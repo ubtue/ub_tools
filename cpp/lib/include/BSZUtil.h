@@ -67,7 +67,15 @@ void ExtractArchiveMembers(const std::string &archive_name, std::vector<std::str
                            const std::string &optional_suffix = "");
 
 
-void ExtractYearVolumeIssue(const MARC::Record &record, std::string * const year, std::string * const volume, std::string * const issue);
+struct IssueInfo {
+    std::string year_;
+    std::string volume_;
+    std::string issue_;
+    std::string month_;
+    std::string pages_;
+};
+
+IssueInfo ExtractYearVolumeIssue(const MARC::Record &record);
 
 
 /** \brief Attempts to extract a K10+ PPN from a subfield.

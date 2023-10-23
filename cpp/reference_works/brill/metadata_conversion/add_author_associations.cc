@@ -50,7 +50,8 @@ void AugmentMarc(MARC::Reader * const marc_reader, MARC::Writer * const marc_wri
                 const std::string author(author_subfields.getFirstSubfieldWithCode('a'));
                 if (author.empty())
                     continue;
-                author_subfields.appendSubfield('4', "aut");
+                if (not author_subfields.hasSubfield('4'))
+                    author_subfields.appendSubfield('4', "aut");
                 const auto association(associations.find(author));
                 if (association == associations.end()) {
                     // Make sure $4aut is set

@@ -40,47 +40,29 @@
 #include "util.h"
 
 
-enum column_name {
-    LANG,
-    BOOKPARTID,
-    URL,
-    TYPE,
-    TITLE,
-    BOOKTITLE,
-    VOL_TITLE,
-    VOL,
-    ISBN,
-    DOI,
-    PPUB,
-    EPUB,
-    AUTHOR1,
-    AUTHOR_ETAL,
-    ZIELSTICHWORT
-};
-
-const std::string PSEUDO_PPN_PREFIX("EBR");
-
 namespace {
 
 [[noreturn]] void Usage() {
-    ::Usage("ezw.csv marc_output");
+    ::Usage("pseudo_ppn_prefix, degruyter_refwork.csv marc_output");
 }
 
 
-std::string GetPPN(const std::string &csv_ppn = "") {
+std::string GetPPN(const std::string &pseudo_ppn_prefix, const std::string &csv_ppn = "") {
     static unsigned pseudo_ppn_index(0);
     if (not csv_ppn.empty())
         return csv_ppn;
 
+    const unsigned complete_ppn_length(10);
     std::ostringstream pseudo_ppn;
-    pseudo_ppn << PSEUDO_PPN_PREFIX << std::setfill('0') << std::setw(7) << ++pseudo_ppn_index;
+    pseudo_ppn << pseudo_ppn_prefix << std::setfill('0') << std::setw(complete_ppn_length - pseudo_ppn_prefix.length())
+               << ++pseudo_ppn_index;
     return pseudo_ppn.str();
 }
 
 
-MARC::Record *CreateNewRecord(const std::string &ppn = "") {
+MARC::Record *CreateNewRecord(const std::string &prefix, const std::string &ppn = "") {
     return new MARC::Record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::SERIAL_COMPONENT_PART,
-                            GetPPN(ppn));
+                            GetPPN(prefix, ppn));
 }
 
 
@@ -159,9 +141,60 @@ void InsertLanguage(MARC::Record * const record, const std::string &data) {
     record->insertField("041", { { 'a', language_code } });
 }
 
+
 void InsertVolume(MARC::Record * const record, const std::string &data) {
     if (not data.empty())
         record->insertField("VOL", { { 'a', data } });
+}
+
+void InsertKeywords(MARC::Record * const record, const std::string &data) {
+    if (not data.empty()) {
+        for (const auto &keyword : StringUtil::Split(data, ';', '\\', true))
+            record->insertField("650", { { 'a', keyword } });
+    }
+}
+
+void InsertBookpartID(MARC::Record * const record, const std::string &data) {
+    if (not data.empty()) {
+        record->insertField("BPI", { { 'a', data } });
+    }
+}
+
+std::string TestValidPseudoPPNPrefix(const std::string &prefix) {
+    if (prefix.length() > 6)
+        LOG_ERROR("prefix is too long (>6)");
+    return prefix;
+}
+
+
+using column_names_to_offsets_map = std::map<std::string, unsigned>;
+static column_names_to_offsets_map column_names_to_offsets;
+
+
+void GenerateColumnOffsetMap(const std::string &columns_line) {
+    std::vector<std::string> column_names;
+    StringUtil::Split(columns_line, ',', &column_names);
+    unsigned offset(0);
+    for (const auto &column_name : column_names) {
+        column_names_to_offsets.emplace(StringUtil::ASCIIToLower(column_name), offset);
+        LOG_INFO("INSERTED COLUMN " + StringUtil::ASCIIToLower(column_name) + ": " + std::to_string(offset));
+        ++offset;
+    }
+}
+
+
+unsigned GetColumnOffset(const std::string &column_name) {
+    const std::string column_name_lowercased(StringUtil::ASCIIToLower(column_name));
+    try {
+        return column_names_to_offsets.at(column_name_lowercased);
+    } catch (const std::exception) {
+        LOG_ERROR("Invalid column \"" + column_name_lowercased + "\"");
+    }
+}
+
+
+bool HasColumn(const std::string &column_name) {
+    return column_names_to_offsets.find(StringUtil::ASCIIToLower(column_name)) != column_names_to_offsets.end();
 }
 
 
@@ -169,27 +202,60 @@ void InsertVolume(MARC::Record * const record, const std::string &data) {
 
 
 int Main(int argc, char **argv) {
-    if (argc != 3)
+    if (argc != 4)
         Usage();
 
+    const std::string pseudo_ppn_prefix(TestValidPseudoPPNPrefix(argv[1]));
     std::vector<std::vector<std::string>> lines;
-    GetCSVEntries(argv[1], &lines);
-    std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(argv[2]));
+    GetCSVEntries(argv[2], &lines);
+    GenerateColumnOffsetMap(StringUtil::Join(lines[0], ','));
+    lines.erase(lines.begin());
+
+    std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(argv[3]));
     unsigned generated_records(0);
 
-    for (auto &line : lines) {
-        MARC::Record *new_record = CreateNewRecord(line[BOOKPARTID]);
+    for (const auto &line : lines) {
+        MARC::Record *new_record = CreateNewRecord(pseudo_ppn_prefix);
+        if (HasColumn("BOOKPARTID"))
+            InsertBookpartID(new_record, line[GetColumnOffset("BOOKPARTID")]);
         new_record->insertField("005", TimeUtil::GetCurrentDateAndTime("%Y%m%d%H%M%S") + ".0");
         new_record->insertField("007", "cr|||||");
-        InsertAuthors(new_record, line[AUTHOR1], line[AUTHOR_ETAL]);
-        InsertTitle(new_record, line[TITLE]);
-        InsertDOI(new_record, line[DOI]);
-        InsertLanguage(new_record, line[LANG]);
-        InsertCreationDates(new_record, line[EPUB]);
-        InsertURL(new_record, line[URL]);
-        InsertReferenceHint(new_record, line[ZIELSTICHWORT]);
-        new_record->insertField("TYP", { { 'a', PSEUDO_PPN_PREFIX } });
-        InsertVolume(new_record, line[VOL]);
+        if (HasColumn("AUTHOR1") and HasColumn("AUTHOR-ETAL"))
+            InsertAuthors(new_record, line[GetColumnOffset("AUTHOR1")], line[GetColumnOffset("AUTHOR-ETAL")]);
+        else
+            LOG_WARNING("Either author1 or author-etal missing for " + pseudo_ppn_prefix);
+        if (HasColumn("TITLE"))
+            InsertTitle(new_record, line[GetColumnOffset("TITLE")]);
+        else if (HasColumn("BOOK-TITLE"))
+            InsertTitle(new_record, line[GetColumnOffset("BOOK-TITLE")]);
+        else
+            LOG_ERROR("No title for " + new_record->getControlNumber());
+
+        if (HasColumn("DOI"))
+            InsertDOI(new_record, line[GetColumnOffset("DOI")]);
+        else
+            LOG_WARNING("No DOI for " + new_record->getControlNumber());
+
+        if (HasColumn("LANG"))
+            InsertLanguage(new_record, line[GetColumnOffset("LANG")]);
+        else
+            LOG_WARNING("No lang for " + new_record->getControlNumber());
+
+        if (HasColumn("EPUB"))
+            InsertCreationDates(new_record, line[GetColumnOffset("EPUB")]);
+        else
+            LOG_WARNING("No EPUB for " + new_record->getControlNumber());
+        if (HasColumn("URL"))
+            InsertURL(new_record, line[GetColumnOffset("URL")]);
+        else
+            LOG_WARNING("No URL for " + new_record->getControlNumber());
+        if (HasColumn("ZIELSTICHWORT"))
+            InsertReferenceHint(new_record, line[GetColumnOffset("ZIELSTICHWORT")]);
+        if (HasColumn("VOL"))
+            InsertVolume(new_record, line[GetColumnOffset("VOL")]);
+        if (HasColumn("SUBJECT-DG"))
+            InsertKeywords(new_record, line[GetColumnOffset("SUBJECT-DG")]);
+        new_record->insertField("TYP", { { 'a', pseudo_ppn_prefix } });
         marc_writer->write(*new_record);
         ++generated_records;
     }

@@ -153,10 +153,11 @@ void ConvertAuthors(const CORE::Work &work, MARC::Record * const record, const s
 }
 
 
-// \return True if a title was found, else false.
 void ConvertTitle(const CORE::Work &work, MARC::Record * const record) {
     std::string title(work.getTitle());
+    title = RegexMatcher::ReplaceAll("(\r?\n)", title, " ");
     title = RegexMatcher::ReplaceAll("\\s+/\\s+", title, "/");
+    title = RegexMatcher::ReplaceAll("\\s{2,}", title, " ");
     title = CORE::ReplaceFaultyEntities(title);
     record->insertField("245", { { 'a', title } }, /* indicator 1 = */ '1', /* indicator 2 = */ '0');
 }
@@ -273,6 +274,7 @@ void ConvertJSONToMARC(const std::vector<CORE::Work> &works, MARC::Writer * cons
         new_record.insertField("084", { { 'a', "2,1" }, { '2', "ssgn" } });
         new_record.insertField("591", 'a', "Metadaten maschinell erstellt (TUKRIM)");
         new_record.insertField("852", 'a', project_sigil);
+        new_record.insertField("912", 'a', "NOMM");
         if (is_article)
             ConvertYear(work, &new_record);
         ConvertDOI(work, &new_record);

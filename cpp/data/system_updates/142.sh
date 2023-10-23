@@ -1,63 +1,30 @@
--- The default collating sequence is a Swedish one.  This leads to aliasing problems for characters with
--- diacritical marks => we need to override it and use utf8mb4_bin.
+#!/bin/bash
+set -o nounset -o pipefail
 
-CREATE TABLE vufind_translations (
-  id INT NOT NULL AUTO_INCREMENT,
-  token VARCHAR(191) NOT NULL,
-  language_code CHAR(4) NOT NULL,
-  translation VARCHAR(1024) NOT NULL,
-  translator VARCHAR(50),
-  create_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-  prev_version_id INT DEFAULT NULL,
-  next_version_id INT DEFAULT NULL,
-  PRIMARY KEY (id),
-  KEY vufind_translations_idx_token (token),
-  KEY vufind_translations_idx_language_code (language_code)
-) DEFAULT CHARSET=utf8mb4;
+function test_mysql_access {
+sudo mysql <<MYSQL
+   USE mysql;
+MYSQL
+echo $?
+}
 
 
-CREATE TABLE keyword_translations (
-  id INT NOT NULL AUTO_INCREMENT,
-  ppn CHAR(10) NOT NULL,
-  gnd_code CHAR(10) NOT NULL,
-  language_code CHAR(4) NOT NULL,
-  translation VARCHAR(1024) NOT NULL,
-  status ENUM('reliable_synonym', 'reliable', 'unreliable', 'unreliable_synonym', 'replaced', 'replaced_synonym',
-              'new', 'new_synonym', 'macs') NOT NULL,
-  origin CHAR(3) NOT NULL,
-  gnd_system VARCHAR(30),
-  translator VARCHAR(50),
-  german_updated TINYINT(1),
-  priority_entry TINYINT(1),
-  create_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-  prev_version_id INT DEFAULT NULL,
-  next_version_id INT DEFAULT NULL,
-  PRIMARY KEY (id),
-  KEY keyword_translations_idx_ppn (ppn),
-  KEY keyword_translations_idx_language_code (language_code),
-  KEY keyword_translations_idx_translation (translation(30)),
-  KEY keyword_translations_idx_gnd_code (gnd_code),
-  KEY keyword_translations_idx_status (status),
-  KEY keyword_translations_idx_prev_version_id (prev_version_id),
-  KEY keyword_translations_idx_next_version_id (next_version_id),
-  KEY keyword_translations_idx_origin (origin)
-) DEFAULT CHARSET=utf8mb4;
-
-CREATE TABLE translators (
-  translator VARCHAR(30) NOT NULL,
-  translation_target VARCHAR(20) NOT NULL,
-  lookfor VARCHAR(100),
-  filtered_lookfor VARCHAR(100),
-  offset VARCHAR(10),
-  filtered_offset VARCHAR(10),
-  last_notified DATETIME DEFAULT NULL,
-  PRIMARY KEY (translator, translation_target)
-) DEFAULT CHARSET=utf8mb4;
+function get_target_database {
+    if [ ${TUEFIND_FLAVOUR} == "ixtheo" ]; then
+        echo "ixtheo"
+    else if [ ${TUEFIND_FLAVOUR} == "krimdok" ]; then
+        echo "krim_translations"
+    else
+        echo "TUEFIND_FLAVOUR not set - skipping execution"
+        exit 0
+        fi
+    fi
+}
 
 
-
-DELIMITER $$
-DROP PROCEDURE IF EXISTS insert_vufind_translation_entry $$
+read -r -d '' UPDATE_PROCEDURE <<-MYSQL
+DELIMITER //
+DROP PROCEDURE IF EXISTS insert_vufind_translation_entry //
 CREATE PROCEDURE insert_vufind_translation_entry(IN in_token VARCHAR(191), IN in_language_code CHAR(4), IN in_translation VARCHAR(1024), IN in_translator VARCHAR(50))
 SQL SECURITY INVOKER
 BEGIN
@@ -91,12 +58,10 @@ SET @new_record_id := LAST_INSERT_ID();
 
 UPDATE vufind_translations SET next_version_id=@new_record_id WHERE id=@old_record_id;
 COMMIT;
-END $$
-DELIMITER ;
+END //
 
 
-DELIMITER $$
-DROP PROCEDURE IF EXISTS insert_keyword_translation_entry $$
+DROP PROCEDURE IF EXISTS insert_keyword_translation_entry //
 CREATE PROCEDURE insert_keyword_translation_entry(IN in_ppn CHAR(10), IN in_gnd_code CHAR(10), IN in_language_code CHAR(10), IN in_translation VARCHAR(1024), IN in_translator VARCHAR(30))
 SQL SECURITY INVOKER
 BEGIN
@@ -130,5 +95,24 @@ SET @new_record_id := LAST_INSERT_ID();
 
 UPDATE keyword_translations SET next_version_id=@new_record_id WHERE id=@old_record_id;
 COMMIT;
-END $$
+END //
 DELIMITER ;
+MYSQL
+
+#############################################################
+if [ ${EUID} -ne 0 ]; then
+    echo "$0 must be run as root"
+    exit 1
+fi
+
+result=$(test_mysql_access)
+if [ $result == 0 ]; then
+    sudo mysql --verbose --verbose $(get_target_database) < <(printf "%s" "${UPDATE_PROCEDURE}")
+else
+    read -p "Enter MySQL root password: " -s root_password
+    export MYSQL_PWD="${root_password}"
+    mysql --verbose --verbose -u root  \
+       $(get_target_database) \
+       < <(printf "%s" "${UPDATE_PROCEDURE}")
+fi
+echo "Finished..."
