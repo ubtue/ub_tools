@@ -20,6 +20,7 @@
 #include <algorithm>
 #include <iostream>
 #include <map>
+#include <random>
 #include <stdexcept>
 #include <vector>
 #include <cstdio>
@@ -357,7 +358,9 @@ int Main(int argc, char **argv) {
         ProcessNoDownloadRecords(only_open_access, marc_reader.get(), marc_writer.get(), &download_record_offsets_and_urls);
 
         // Try to prevent clumps of URL's from the same server:
-        std::random_shuffle(download_record_offsets_and_urls.begin(), download_record_offsets_and_urls.end());
+        std::random_device rd;
+        std::mt19937 g(rd());
+        std::shuffle(download_record_offsets_and_urls.begin(), download_record_offsets_and_urls.end(), g);
 
         ProcessDownloadRecords(marc_reader.get(), marc_writer.get(), pdf_extraction_timeout, download_record_offsets_and_urls,
                                process_count_low_watermark, process_count_high_watermark, store_pdfs_as_html, use_separate_entries_per_url,

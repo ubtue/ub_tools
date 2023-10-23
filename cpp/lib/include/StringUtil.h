@@ -2406,7 +2406,7 @@ inline bool IsProperPrefixOfIgnoreCase(const std::string &prefix_candidate, cons
 /** \class StringEqual
  *  \brief Binary functor that returns true if two std::strings are equal.
  */
-class StringEqual : public std::binary_function<std::string, std::string, bool> {
+class StringEqual {
 public:
     bool operator()(const std::string &s1, const std::string &s2) const { return s1 == s2; }
 };
@@ -2415,7 +2415,7 @@ public:
 /** \class StringCaseEqual
  *  \brief Binary functor that returns true if two std::strings are equal independent of case.
  */
-class StringCaseEqual : public std::binary_function<std::string, std::string, bool> {
+class StringCaseEqual {
 public:
     bool operator()(const std::string &s1, const std::string &s2) const { return ::strcasecmp(s1.c_str(), s2.c_str()) == 0; }
 };
