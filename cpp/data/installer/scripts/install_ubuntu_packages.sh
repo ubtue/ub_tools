@@ -80,10 +80,12 @@ fi
 #---------------------------------- TUEFIND ---------------------------------#
 if [[ $1 == "ixtheo" || $1 == "krimdok" ]]; then
     ColorEcho "installing/updating tuefind dependencies..."
+    # 22.04 usually only allows 8.1, but we want to use 8.2 due to longer support period
+    add-apt-repository --yes --update ppa:ondrej/php
     apt-get --quiet --yes install \
         composer npm node-grunt-cli \
-        php php-curl php-gd php-intl php-json php-ldap php-mbstring php-mysql php-pear php-soap php-xml \
-        libapache2-mod-php
+        php8.2 php8.2-curl php8.2-gd php8.2-intl php8.2-ldap php8.2-mbstring php8.2-mysql php8.2-soap php8.2-xml \
+        libapache2-mod-php8.2
 
     a2enmod rewrite
     a2enmod ssl
