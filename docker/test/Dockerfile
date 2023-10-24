@@ -1,4 +1,4 @@
-FROM ubuntu:focal
+FROM ubuntu:jammy
 LABEL maintainer="Mario Trojan <mario.trojan@uni-tuebingen.de>"
 
 # Dummy startup to keep container running

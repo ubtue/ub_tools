@@ -1,4 +1,4 @@
-FROM ubuntu:focal
+FROM ubuntu:jammy
 
 # compile Tesseract4 based on Ubuntu 18.04
 # see https://github.com/tesseract-ocr/tesseract/wiki/Compiling
