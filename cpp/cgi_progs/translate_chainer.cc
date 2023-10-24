@@ -76,7 +76,6 @@ struct Translation {
 
 
 const std::string NO_GND_CODE("0");
-const std::string NO_ORIGIN("");
 
 
 void ParseGetMissingLine(const std::string &line, Translation * const translation) {

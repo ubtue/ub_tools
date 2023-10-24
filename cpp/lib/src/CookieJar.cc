@@ -119,7 +119,7 @@ bool CookieJar::Cookie::setDomain(const std::string &domain, const std::string &
 namespace {
 
 
-class MatchCookieAttributeName : public std::unary_function<std::string, bool> {
+class MatchCookieAttributeName {
     std::string attribute_name_;
 
 public:

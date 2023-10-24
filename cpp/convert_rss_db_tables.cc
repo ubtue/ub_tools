@@ -41,7 +41,6 @@ struct FeedInfo {
 
 public:
     FeedInfo() = default;
-    FeedInfo(const FeedInfo &rhs) = default;
     FeedInfo(const std::string &id, const std::set<std::string> &subsystem_types): id_(id), subsystem_types_(subsystem_types) { }
     inline bool isCompatibleWith(const std::string &subsystem_type) const {
         return subsystem_types_.find(subsystem_type) != subsystem_types_.cend();

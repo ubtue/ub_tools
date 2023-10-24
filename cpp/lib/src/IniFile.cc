@@ -875,7 +875,7 @@ std::vector<std::string> IniFile::getSectionEntryNames(const std::string &sectio
 
 namespace {
 
-class StartsWith : public std::unary_function<std::string, bool> {
+class StartsWith {
     std::string start_text_;
 
 public:

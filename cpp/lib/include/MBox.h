@@ -38,7 +38,6 @@ public:
 
     public:
         BodyPart() = default;
-        BodyPart(const BodyPart &other) = default;
         BodyPart(const std::vector<std::pair<std::string, std::string>> &mime_headers, const std::string &body)
             : mime_headers_(mime_headers), body_(body) { }
 
@@ -84,7 +83,6 @@ public:
 
     private:
         Message() = default;
-        Message(const Message &rhs) = default;
         Message(const time_t reception_time, const std::string &original_host, const std::string &sender, const std::string &subject,
                 const int priority, const std::string &message_body, const std::vector<BodyPart> &body_parts)
             : reception_time_(reception_time), original_host_(original_host), sender_(sender), subject_(subject), priority_(priority),

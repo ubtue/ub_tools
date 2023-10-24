@@ -44,7 +44,6 @@ namespace {
 
 const std::string CONF_FILE_PATH(UBTools::GetTuelibPath() + "translations.conf");
 const int ENTRIES_PER_PAGE(30);
-const std::string NO_GND_CODE("-1");
 const std::string LANGUAGES_SECTION("Languages");
 const std::string TRANSLATION_LANGUAGES_SECTION("TranslationLanguages");
 const std::string ADDITIONAL_VIEW_LANGUAGES("AdditionalViewLanguages");
