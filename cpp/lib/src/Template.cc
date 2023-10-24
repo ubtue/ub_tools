@@ -864,8 +864,8 @@ void ExpandTemplate(std::istream &input, std::ostream &output, const Map &names_
             }
             ProcessEndOfSyntax("variable expansion", &scanner);
         } else if (token == TemplateScanner::FUNCTION_NAME) {
-            ParseFunctionCall(&scanner, names_to_values_map, scopes, scanner.getLastFunction(), output,
-                              /* emit_output = */ Skipping(scopes));
+            if (not Skipping(scopes))
+                ParseFunctionCall(&scanner, names_to_values_map, scopes, scanner.getLastFunction(), output, /*emit output*/ true);
             ProcessEndOfSyntax("function call", &scanner);
         }
     }
