@@ -314,7 +314,7 @@ std::string HttpHeader::getMediaType() const {
 namespace {
 
 
-class LanguageMatch : public std::unary_function<const std::string &, bool> {
+class LanguageMatch {
     std::string language_to_match_;
 
 public:

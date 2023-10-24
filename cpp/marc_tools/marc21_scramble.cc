@@ -20,6 +20,7 @@
 #include <algorithm>
 #include <iostream>
 #include <map>
+#include <random>
 #include <stdexcept>
 #include <unordered_map>
 #include <vector>
@@ -75,7 +76,9 @@ int Main(int argc, char *argv[]) {
     for (const auto &control_number_and_offset : control_number_to_offset_map)
         control_numbers.emplace_back(control_number_and_offset.first);
 
-    std::random_shuffle(control_numbers.begin(), control_numbers.end());
+    std::random_device rd;
+    std::mt19937 g(rd());
+    std::shuffle(control_numbers.begin(), control_numbers.end(), g);
 
     WriteRecords(marc_reader.get(), marc_writer.get(), control_numbers, control_number_to_offset_map);
 
