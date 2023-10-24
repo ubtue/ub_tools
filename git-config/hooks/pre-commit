@@ -21,7 +21,7 @@ for ADDED_FILE in $ADDED_FILES; do
             ADDED_FILE_PATH="$GIT_ROOT/$ADDED_FILE"
             # "-style=file" has the effect of searching up the directory tree until a file named ".clang-format" is found and then using it.
             echo "pre-commit: Optimizing code style for $ADDED_FILE"
-            clang-format-12 -style=file -i "$ADDED_FILE_PATH"
+            clang-format -style=file -i "$ADDED_FILE_PATH"
             git add "$ADDED_FILE_PATH"
         fi
     fi

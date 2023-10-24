@@ -254,7 +254,6 @@ struct UserInfo {
 
 public:
     UserInfo() = default;
-    UserInfo(const UserInfo &other) = default;
     UserInfo(const std::string &user_id, const std::string &first_name, const std::string &last_name, const std::string &email,
              const std::string &rss_feed_last_notification, const std::string &language_code)
         : user_id_(user_id), first_name_(first_name), last_name_(last_name), email_(email),

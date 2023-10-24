@@ -1186,11 +1186,8 @@ std::string &ReplaceString(const std::string &old_text, const std::string &new_t
     if (not global)
         return *s;
 
-    std::string::size_type total_string_length(s->length());
-    while ((old_text_start_pos = s->find(old_text, old_text_start_pos + new_text_length)) != std::string::npos) {
+    while ((old_text_start_pos = s->find(old_text, old_text_start_pos + new_text_length)) != std::string::npos)
         s->replace(old_text_start_pos, old_text_length, new_text);
-        total_string_length += new_text_length - old_text_length;
-    }
 
     return *s;
 }
@@ -2114,25 +2111,6 @@ std::string LongestCommonSubstring(const std::string &s1, const std::string &s2)
     }
 
     return longest_common_substring;
-}
-
-
-std::string Md5(const std::string &s) {
-    char cryptographic_hash[MD5_DIGEST_LENGTH];
-    MD5(reinterpret_cast<const unsigned char *>(s.c_str()), s.length(), reinterpret_cast<unsigned char *>(cryptographic_hash));
-
-    return std::string(cryptographic_hash, MD5_DIGEST_LENGTH);
-}
-
-
-uint64_t Md5As64Bits(const std::string &s) {
-    uint64_t cryptographic_hash[MD5_DIGEST_LENGTH / sizeof(uint64_t)];
-    MD5(reinterpret_cast<const unsigned char *>(s.c_str()), s.length(), reinterpret_cast<unsigned char *>(cryptographic_hash));
-
-    uint64_t folded_hash(cryptographic_hash[0]);
-    for (unsigned i(1); i < (MD5_DIGEST_LENGTH / sizeof(uint64_t)); ++i)
-        folded_hash ^= cryptographic_hash[i];
-    return folded_hash;
 }
 
 

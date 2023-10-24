@@ -1,4 +1,7 @@
 #!/bin/bash
+
+export JAVA_TOOL_OPTIONS="-Dfile.encoding=UTF8"
+
 if [[ $# > 1 ]]; then
     echo "usage: $0 [system_type]"
     echo "          ixtheo|krimdok: Also install specific dependencies"
@@ -24,16 +27,16 @@ apt-get --yes install sudo wget
 
 # install software-properties-common for apt-add-repository
 apt-get --yes install software-properties-common
-wget -qO - https://artifacts.elastic.co/GPG-KEY-elasticsearch | sudo apt-key add -
+wget -qO - https://artifacts.elastic.co/GPG-KEY-elasticsearch | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/elasticsearch.gpg
 apt-add-repository --yes --update 'deb https://artifacts.elastic.co/packages/8.x/apt stable main'
 apt-add-repository --yes --update 'ppa:alex-p/tesseract-ocr5'
 
 
 # main installation
 apt-get --quiet --yes --allow-unauthenticated install \
-        ant apache2 apparmor-utils ca-certificates cifs-utils clang clang-format-12 cron curl gcc git imagemagick incron jq libarchive-dev \
+        ant apache2 apparmor-utils ca-certificates cifs-utils clang clang-format cron curl gcc git imagemagick incron jq libarchive-dev \
         libcurl4-gnutls-dev libdb-dev liblept5 libleptonica-dev liblz4-tool libmagic-dev libmysqlclient-dev \
-        libpcre3-dev libpq-dev libsqlite3-dev libssl-dev libstemmer-dev libtesseract-dev libwebp6 libxerces-c-dev \
+        libpcre3-dev libpq-dev libsqlite3-dev libssl-dev libstemmer-dev libtesseract-dev libwebp7 libxerces-c-dev \
         libxml2-dev libxml2-utils locales-all make mawk mutt nlohmann-json3-dev openjdk-11-jdk p7zip-full poppler-utils postgresql-client \
         tesseract-ocr tesseract-ocr-all rsync sqlite3 tcl-expect-dev tidy unzip \
         uuid-dev xsltproc libsystemd-dev
@@ -77,10 +80,12 @@ fi
 #---------------------------------- TUEFIND ---------------------------------#
 if [[ $1 == "ixtheo" || $1 == "krimdok" ]]; then
     ColorEcho "installing/updating tuefind dependencies..."
+    # 22.04 usually only allows 8.1, but we want to use 8.2 due to longer support period
+    add-apt-repository --yes --update ppa:ondrej/php
     apt-get --quiet --yes install \
         composer npm node-grunt-cli \
-        php php-curl php-gd php-intl php-json php-ldap php-mbstring php-mysql php-pear php-soap php-xml \
-        libapache2-mod-php
+        php8.2 php8.2-curl php8.2-gd php8.2-intl php8.2-ldap php8.2-mbstring php8.2-mysql php8.2-soap php8.2-xml \
+        libapache2-mod-php8.2
 
     a2enmod rewrite
     a2enmod ssl
