@@ -122,7 +122,6 @@ rsync --archive --recursive "$CONFIG_FILE_DIR/" /mnt/zram
 # Copy jars to zram
 rsync --archive --include='*.jar' --exclude='*' "$VUFIND_SOLRMARC_HOME" /mnt/zram/import
 rsync --archive "$VUFIND_SOLRMARC_HOME"/lib /mnt/zram/import
-rsync --archive "$VUFIND_SOLRMARC_HOME"/bin /mnt/zram/import
 rsync --archive "$VUFIND_SOLRMARC_HOME"/lib_local /mnt/zram/import
 rsync --archive "$VUFIND_SOLRMARC_HOME"/index_java /mnt/zram/import
 
