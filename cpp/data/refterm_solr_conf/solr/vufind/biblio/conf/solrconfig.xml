@@ -617,6 +617,7 @@
     <lst name="defaults">
       <str name="qt">standard</str>
       <str name="q">solrpingquery</str>
+      <str name="df">id</str>
       <str name="echoParams">all</str>
     </lst>
   </requestHandler>
@@ -682,9 +683,6 @@
        in Solr's conf/xslt directory.  Changes to xslt files are checked for
        every xsltCacheLifetimeSeconds.
    -->
-  <queryResponseWriter name="xslt" class="org.apache.solr.response.XSLTResponseWriter">
-    <int name="xsltCacheLifetimeSeconds">5</int>
-  </queryResponseWriter>
 
   <transformer class="de.uni_tuebingen.ub.ixTheo.MultiLanguageDocTransformerFactory" name="multiLanguageDocTransformer">
     <bool name="enabled">true</bool>
