@@ -32,15 +32,18 @@
        that you fully re-index after changing this setting as it can
        affect both how text is indexed and queried.
     -->
-  <luceneMatchVersion>8.11.1</luceneMatchVersion>
+  <luceneMatchVersion>9.1.1</luceneMatchVersion>
+
+  <!-- Use the classic schema style by default for VuFind -->
+  <schemaFactory class="ClassicIndexSchemaFactory"/>
 
   <!-- Used to specify an alternate directory to hold all index data
        other than the default ./data under the Solr home.
        If replication is in use, this should match the replication configuration. -->
   <dataDir>${solr.solr.home:./solr}/biblio</dataDir>
 
-  <lib dir="/usr/local/vufind/solr/vendor/contrib/analysis-extras/lib" regex=".*\.jar" />
-  <lib dir="/usr/local/vufind/solr/vendor/contrib/analysis-extras/lucene-libs" regex=".*\.jar" />
+  <lib dir="/usr/local/vufind/import/lib" regex="marc4j.*\.jar" />
+  <lib dir="/usr/local/vufind/solr/vendor/modules/analysis-extras/lib" regex=".*\.jar" />
   <lib dir="/usr/local/vufind/solr/vufind/jars" regex=".*\.jar" />
 
   <indexConfig>
@@ -89,19 +92,7 @@
 
   </indexConfig>
 
-  <!--  Enables JMX if and only if an existing MBeanServer is found, use
-        this if you want to configure JMX through JVM parameters. Remove
-        this to disable exposing Solr configuration and statistics to JMX.
-
-        If you want to connect to a particular server, specify the agentId
-        e.g. <jmx agentId="myAgent" />
-
-        If you want to start a new MBeanServer, specify the serviceUrl
-        e.g <jmx serviceurl="service:jmx:rmi:///jndi/rmi://localhost:9999/solr" />
-
-        For more details see http://wiki.apache.org/solr/SolrJmx
-  -->
-  <jmx />
+  
 
   <!-- the default high-performance update handler -->
   <updateHandler class="solr.DirectUpdateHandler2">
@@ -166,26 +157,33 @@
     <maxBooleanClauses>1024</maxBooleanClauses>
 
 
-    <!-- Cache used by SolrIndexSearcher for filters (DocSets),
-         unordered sets of *all* documents that match a query.
-         When a new searcher is opened, its caches may be prepopulated
-         or "autowarmed" using data from caches in the old searcher.
-         autowarmCount is the number of items to prepopulate.  For LRUCache,
-         the autowarmed items will be the most recently accessed items.
+    <!-- Filter Cache
+
+         Cache used by SolrIndexSearcher for filters (DocSets),
+         unordered sets of *all* documents that match a query.  When a
+         new searcher is opened, its caches may be prepopulated or
+         "autowarmed" using data from caches in the old searcher.
+         autowarmCount is the number of items to prepopulate. For
+         CaffeineCache, the autowarmed items will be the most recently
+         accessed items.
+
        Parameters:
-         class - the SolrCache implementation (currently only LRUCache)
+           class - the SolrCache implementation (CaffeineCache by default)
          size - the maximum number of entries in the cache
          initialSize - the initial capacity (number of entries) of
-           the cache.  (seel java.util.HashMap)
+               the cache.  (see java.util.HashMap)
          autowarmCount - the number of entries to prepopulate from
-           and old cache.
+               an old cache.
+           maxRamMB - the maximum amount of RAM (in MB) that this cache is allowed
+                      to occupy. Note that when this option is specified, the size
+                      and initialSize parameters are ignored.
          -->
 
     <!-- VuFind uses the default Solr settings for filterCache, which should produce a high
          hit rate. You can carefully adjust the filterCache and check the hit ratio in
          admin>plugins>stats -->
     <filterCache
-      class="solr.FastLRUCache"
+      class="solr.search.CaffeineCache"
       size="512"
       initialSize="512"
       autowarmCount="256"/>
@@ -194,7 +192,7 @@
          document ids (DocList) based on a query, a sort, and the range
          of documents requested.  -->
     <queryResultCache
-      class="solr.LRUCache"
+      class="solr.search.CaffeineCache"
       size="512"
       initialSize="512"
       autowarmCount="256"/>
@@ -202,7 +200,7 @@
   <!-- documentCache caches Lucene Document objects (the stored fields for each document).
        Since Lucene internal document ids are transient, this cache will not be autowarmed.  -->
     <documentCache
-      class="solr.LRUCache"
+      class="solr.search.CaffeineCache"
       size="16384"
       initialSize="16384"/>
 
@@ -213,21 +211,6 @@
     text fields.
     -->
     <enableLazyFieldLoading>true</enableLazyFieldLoading>
-
-    <!-- Example of a generic cache.  These caches may be accessed by name
-         through SolrIndexSearcher.getCache(),cacheLookup(), and cacheInsert().
-         The purpose is to enable easy caching of user/application level data.
-         The regenerator argument should be specified as an implementation
-         of solr.search.CacheRegenerator if autowarming is desired.  -->
-    <!--
-    <cache name="myUserCache"
-      class="solr.LRUCache"
-      size="4096"
-      initialSize="1024"
-      autowarmCount="1024"
-      regenerator="org.mycompany.mypackage.MyRegenerator"
-      />
-    -->
 
    <!-- An optimization that attempts to use a filter to satisfy a search.
          If the requested sort does not include score, then the filterCache
@@ -303,6 +286,7 @@
   <requestDispatcher handleSelect="true" >
     <!--Make sure your system has some authentication before enabling remote streaming!  -->
     <requestParsers enableRemoteStreaming="true"
+                    enableStreamBody="true"
                     multipartUploadLimitInKB="2048000"
                     formdataUploadLimitInKB="2048"/>
 
@@ -493,7 +477,7 @@
   <queryConverter name="queryConverter" class="org.apache.solr.spelling.SpellingQueryConverter"/>
 
   <!-- Search component for extracting terms (useful for sitemap generation) -->
-  <searchComponent name="term" class="org.apache.solr.handler.component.TermsComponent">
+  <searchComponent name="terms" class="solr.TermsComponent">
   </searchComponent>
 
   <!--
@@ -513,9 +497,8 @@
 
    -->
 
-
 <!-- We would like to use a special faceting component  that is able to a customized prefix sorting -->
-  <searchComponent name="facet"     class="de.uni_tuebingen.ub.ixTheo.handler.component.FacetPrefixSortComponent" />
+  <searchComponent name="facet" class="de.uni_tuebingen.ub.ixTheo.handler.component.FacetPrefixSortComponent" />
 
   <requestHandler name="/search" class="org.apache.solr.handler.component.SearchHandler">
     <lst name="defaults">
@@ -550,9 +533,9 @@
   </requestHandler>
 
   <!-- Request handler to extract terms (useful for sitemap generation) -->
-  <requestHandler name="/term" class="org.apache.solr.handler.component.SearchHandler">
+  <requestHandler name="/terms" class="solr.SearchHandler" startup="lazy">
     <arr name="components">
-      <str>term</str>
+      <str>terms</str>
     </arr>
   </requestHandler>
 
@@ -635,7 +618,6 @@
       <str name="qt">standard</str>
       <str name="q">solrpingquery</str>
       <str name="echoParams">all</str>
-      <str name="df">id</str>
     </lst>
   </requestHandler>
 

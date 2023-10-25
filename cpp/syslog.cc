@@ -34,39 +34,9 @@ namespace {
 
 [[noreturn]] void Usage() {
     ::Usage(
-        "[--facility=facility] [--message-prefix=prefix [--also-log-to-stderr] log_level log_message\n"
+        "[--message-prefix=prefix] [--also-log-to-stderr] log_level log_message\n"
         "where \"facility\" must be one of AUTH, AUTHPRIV, DAEMON, LOCAL0..LOCAL7 or USER. (LOCAL0 is the default.) \n"
         "and \"log_level\" must be be one of EMERG, ALERT, CRIT, ERR, WARNING, NOTICE, INFO or DEBUG.\n");
-}
-
-
-int StringToFacility(const std::string &facility_as_string) {
-    if (facility_as_string == "AUTH")
-        return LOG_AUTH;
-    if (facility_as_string == "AUTHPRIV")
-        return LOG_AUTHPRIV;
-    if (facility_as_string == "DAEMON")
-        return LOG_DAEMON;
-    if (facility_as_string == "LOCAL0")
-        return LOG_LOCAL0;
-    if (facility_as_string == "LOCAL1")
-        return LOG_LOCAL1;
-    if (facility_as_string == "LOCAL2")
-        return LOG_LOCAL2;
-    if (facility_as_string == "LOCAL3")
-        return LOG_LOCAL3;
-    if (facility_as_string == "LOCAL4")
-        return LOG_LOCAL4;
-    if (facility_as_string == "LOCAL5")
-        return LOG_LOCAL5;
-    if (facility_as_string == "LOCAL6")
-        return LOG_LOCAL6;
-    if (facility_as_string == "LOCAL7")
-        return LOG_LOCAL7;
-    if (facility_as_string == "USER")
-        return LOG_USER;
-
-    LOG_ERROR("\"" + facility_as_string + "\" is not a valid facility!");
 }
 
 
@@ -96,14 +66,8 @@ SysLog::LogLevel StringToLogLevel(const std::string &level_as_string) {
 
 
 int Main(int argc, char *argv[]) {
-    if (argc < 3 or argc > 6)
+    if (argc < 2 or argc > 5)
         Usage();
-
-    int facility(LOG_LOCAL0);
-    if (StringUtil::StartsWith(argv[1], "--facility=")) {
-        facility = StringToFacility(argv[1] + __builtin_strlen("--facility="));
-        --argc, ++argv;
-    }
 
     std::string message_prefix;
     if (StringUtil::StartsWith(argv[1], "--message-prefix=")) {

@@ -124,7 +124,6 @@ public:
         }
     }
     Article() = default;
-    Article(const Article &other) = default;
 
     /** \return True if the current entry represents a more recent article than "other".  If the entry is in the same issue
         we use the page numbers as an arbitrary tie breaker. */

@@ -29,8 +29,8 @@ import org.apache.solr.common.params.SolrParams;
 import org.apache.solr.common.util.NamedList;
 import org.apache.solr.common.util.SimpleOrderedMap;
 import org.apache.solr.handler.component.*;
-import org.apache.commons.lang.LocaleUtils;
-import org.apache.commons.lang.*;
+import org.apache.commons.lang3.LocaleUtils;
+import org.apache.commons.lang3.*;
 
 import java.io.IOException;
 import java.util.*;

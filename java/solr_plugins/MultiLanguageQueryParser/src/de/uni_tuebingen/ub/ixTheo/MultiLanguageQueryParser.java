@@ -5,7 +5,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import org.apache.commons.lang.ArrayUtils;
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery;
@@ -433,17 +433,28 @@ public class MultiLanguageQueryParser extends QParser {
     private Query processSynonymQuery(final SynonymQuery queryCandidate) {
         List<Term> synonymTerms = queryCandidate.getTerms();
         List<Term> rewrittenSynonymTerms = new ArrayList<Term>();
+        String fieldName = "";
 
         for (Term synonymTerm : synonymTerms) {
             final String field = synonymTerm.field();
             final String newFieldName = field + "_" + lang;
-            if (schema.getFieldOrNull(newFieldName) != null)
+            if (schema.getFieldOrNull(newFieldName) != null){
               rewrittenSynonymTerms.add(new Term(newFieldName, synonymTerm.text()));
-            else
+              fieldName = newFieldName;}
+            else{
               rewrittenSynonymTerms.add(new Term(field, synonymTerm.text()));
+              fieldName = field;
+            }
         }
-        Term[] rewrittenSynonymArray = new Term[rewrittenSynonymTerms.size()];
-        return new SynonymQuery(rewrittenSynonymTerms.toArray(rewrittenSynonymArray));
+        // Term[] rewrittenSynonymArray = new Term[rewrittenSynonymTerms.size()];
+
+        SynonymQuery.Builder synonymQueryBuilder = new  SynonymQuery.Builder(fieldName);
+
+        for(Term term : rewrittenSynonymTerms)
+            synonymQueryBuilder.addTerm(term);
+
+        // return SynonymQuery(rewrittenSynonymTerms.toArray(rewrittenSynonymArray));
+        return synonymQueryBuilder.build();
     }
 
 

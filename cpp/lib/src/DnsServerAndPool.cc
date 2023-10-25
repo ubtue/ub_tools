@@ -62,7 +62,7 @@ namespace {
 #endif
 
 
-class QueryIdMatch : public std::unary_function<DnsServer::OutstandingRequest, bool> {
+class QueryIdMatch {
     uint16_t query_id_to_match_;
 
 public:

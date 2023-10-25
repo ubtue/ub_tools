@@ -5,6 +5,7 @@
 # compile cpp installer
 # run it
 
+
 # make sure we are on ubuntu
 if [ -e /etc/debian_version ]; then
     #print ubuntu version
