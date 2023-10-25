@@ -160,6 +160,14 @@ void InsertBookpartID(MARC::Record * const record, const std::string &data) {
     }
 }
 
+
+void InsertEnglishTitle(MARC::Record * const record, const std::string &data) {
+    if (not data.empty()) {
+        if (not record->addSubfield("245", 'b', " = " + data))
+            LOG_ERROR("Missing title field for record " + record->getControlNumber());
+    }
+}
+
 std::string TestValidPseudoPPNPrefix(const std::string &prefix) {
     if (prefix.length() > 6)
         LOG_ERROR("prefix is too long (>6)");
@@ -255,6 +263,8 @@ int Main(int argc, char **argv) {
             InsertVolume(new_record, line[GetColumnOffset("VOL")]);
         if (HasColumn("SUBJECT-DG"))
             InsertKeywords(new_record, line[GetColumnOffset("SUBJECT-DG")]);
+        if (HasColumn("ENGTITLE"))
+            InsertEnglishTitle(new_record, line[GetColumnOffset("ENGTITLE")]);
         new_record->insertField("TYP", { { 'a', pseudo_ppn_prefix } });
         marc_writer->write(*new_record);
         ++generated_records;
