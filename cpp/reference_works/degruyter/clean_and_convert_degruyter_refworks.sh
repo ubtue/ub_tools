@@ -69,16 +69,16 @@ UBREL_superior=$(printf "%s" '773i:Enthalten in\037tReligion and urbanity online
                             '\037w(DE-627)1735471887')
 
 RMO_superior=$(printf "%s" '773i:Enthalten in\037tReligious Minorities Online' \
-                            '\037dBerlin : De Gruyter, XXXX' \
-                            '\037gXXXX' \
+                            '\037dBerlin : De Gruyter, 2023' \
+                            '\037g2023' \
                             '\037hOnline-Ressource' \
-                            '\037w(DE-627)XXXXXXXXX')
+                            '\037w(DE-627)1795825812')
 
 TILLO_superior=$(printf "%s" '773i:Enthalten in\037tTillich online' \
                             '\037dBerlin : De Gruyter, XXXX' \
-                            '\037gXXXX' \
+                            '\037g2021' \
                             '\037hOnline-Ressource' \
-                            '\037w(DE-627)XXXXXX')
+                            '\037w(DE-627)1684970830')
 
 IBW_superior=$(printf "%s" '773i:Enthalten in\037tImages of the Biblical world online' \
                             '\037dBerlin : De Gruyter, 2014' \
@@ -141,7 +141,7 @@ GenerateTmpFiles
         --insert-field '003:DE-Tue135' \
         --insert-field '005:'$(date +'%Y%m%d%H%M%S')'.0' \
         --insert-field '007:cr|||||' \
-        --insert-field '084a:0\0372ssgn' \
+        --insert-field-if '084a:0\0372ssgn' '001:^(EJCRO|UBREL|RMO).*' \
         --insert-field '084a:1\0372ssgn' \
         --insert-field '852a:DE-Tue135' \
         --insert-field '935c:uwlx' \
@@ -157,7 +157,9 @@ GenerateTmpFiles
         --insert-field-if "${TILLO_superior}" '001:TILLO.*' \
         --insert-field-if "${IBW_superior}" '001:IBW.*' \
         --insert-field-if "${RMO_superior}" '001:RMO.*' \
-        --insert-field-if "935a:BIIN" '001:.*'
+        --insert-field-if "935a:BIIN" '001:^(EBR|BHM|TRE|IBW).*' \
+        --insert-field-if '1000:(DE-588)121069494$aSchwank, Benedikt$4aut$eVerfasserIn' '001:IBW.*' \
+        --replace-subfield-if-regex '245a:/\s+\/\s+/\//g' '245a:\s+/\s+'
 
     cat ${tmpfiles[4]} | xmlstarlet tr xsl/adjust_year.xsl  \
         |  xmlstarlet tr xsl/fix_leader.xsl \
