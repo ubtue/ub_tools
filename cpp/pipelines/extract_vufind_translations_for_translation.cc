@@ -30,7 +30,9 @@
 #include "DbConnection.h"
 #include "DbResultSet.h"
 #include "DbRow.h"
+#include "FileUtil.h"
 #include "IniFile.h"
+#include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "TranslationUtil.h"
 #include "UBTools.h"
@@ -108,21 +110,17 @@ int Main(int argc, char **argv) {
 
     for (int arg_no(1); arg_no < argc; ++arg_no) {
         // Get the 2-letter language code from the filename.  We expect filenames of the form "xx.ini" or
-        // "some_path/xx.ini":
+        // xx-yy.ini ofer "some_path/xx(-yy)?.ini
         const std::string ini_filename(argv[arg_no]);
-        if (unlikely(not StringUtil::EndsWith(ini_filename, ".ini")))
-            logger->error("expected filename \"" + ini_filename + "\" to end in \".ini\"!");
-        std::string two_letter_code;
-        if (ini_filename.length() == 6)
-            two_letter_code = ini_filename.substr(0, 2);
-        else {
-            const std::string::size_type last_slash_pos(ini_filename.rfind('/'));
-            if (unlikely(last_slash_pos == std::string::npos or (last_slash_pos + 6 + 1 != ini_filename.length())))
-                logger->error("INI filename does not match expected pattern: \"" + ini_filename + "\"!");
-            two_letter_code = ini_filename.substr(last_slash_pos + 1, 2);
-        }
+        if (unlikely(FileUtil::GetExtension(ini_filename) != "ini"))
+            LOG_ERROR("expected filename \"" + ini_filename + "\" to end in \".ini\"!");
 
-        const std::string german_3letter_code(TranslationUtil::MapInternational2LetterCodeToGerman3Or4LetterCode(two_letter_code));
+        std::string two_letter_scheme(FileUtil::GetFilenameWithoutExtensionOrDie(FileUtil::GetBasename(ini_filename)));
+        static ThreadSafeRegexMatcher expected_pattern_matcher("[a-z]{2}(-[a-z]{2})?");
+        if (not expected_pattern_matcher.match(two_letter_scheme))
+            LOG_ERROR("INI filename does not match expected pattern: \"" + ini_filename + "\"!");
+
+        const std::string german_3letter_code(TranslationUtil::MapInternational2LetterCodeToGerman3Or4LetterCode(two_letter_scheme));
 
         std::unordered_map<std::string, std::pair<unsigned, std::string>> keys_to_line_no_and_translation_map;
         TranslationUtil::ReadIniFile(ini_filename, &keys_to_line_no_and_translation_map);
