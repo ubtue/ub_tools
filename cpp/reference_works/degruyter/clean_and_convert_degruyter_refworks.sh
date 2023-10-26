@@ -62,7 +62,7 @@ EJCRO_superior=$(printf "%s" '773i:Enthalten in\037tEncyclopedia of Jewish-Chris
                             '\037hOnline-Ressource' \
                             '\037w(DE-627)1015234194')
 
-UBREL_superior=$(printf "%s" '773i:Enthalten in\037tReligion and urbanity online' \
+URBREL_superior=$(printf "%s" '773i:Enthalten in\037tReligion and urbanity online' \
                             '\037dBerlin : De Gruyter, 2020' \
                             '\037g2020' \
                             '\037hOnline-Ressource' \
@@ -141,7 +141,7 @@ GenerateTmpFiles
         --insert-field '003:DE-Tue135' \
         --insert-field '005:'$(date +'%Y%m%d%H%M%S')'.0' \
         --insert-field '007:cr|||||' \
-        --insert-field-if '084a:0\0372ssgn' '001:^(EJCRO|UBREL|RMO).*' \
+        --insert-field-if '084a:0\0372ssgn' '001:^(EJCRO|URBREL|RMO).*' \
         --insert-field '084a:1\0372ssgn' \
         --insert-field '852a:DE-Tue135' \
         --insert-field '935c:uwlx' \
@@ -153,7 +153,7 @@ GenerateTmpFiles
         --insert-field-if "${BHM_superior}" '001:BHM.*' \
         --insert-field-if "${TRE_superior}" '001:TRE.*' \
         --insert-field-if "${EJCRO_superior}" '001:EJCRO.*' \
-        --insert-field-if "${UBREL_superior}" '001:UBREL.*' \
+        --insert-field-if "${URBREL_superior}" '001:URBREL.*' \
         --insert-field-if "${TILLO_superior}" '001:TILLO.*' \
         --insert-field-if "${IBW_superior}" '001:IBW.*' \
         --insert-field-if "${RMO_superior}" '001:RMO.*' \
