@@ -14,6 +14,9 @@
             </xsl:choose>
         </xsl:attribute>
     </xsl:template>
+    <xsl:template match="marc:datafield[@tag='700']/@ind1">
+        <xsl:attribute name="{name()}">1</xsl:attribute>
+    </xsl:template>
     <xsl:template match="marc:datafield[@tag='773']/@ind2">
         <xsl:attribute name="{name()}">8</xsl:attribute>
     </xsl:template>
