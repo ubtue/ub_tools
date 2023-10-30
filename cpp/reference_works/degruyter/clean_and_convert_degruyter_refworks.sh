@@ -158,7 +158,7 @@ GenerateTmpFiles
         --insert-field-if "${IBW_superior}" '001:IBW.*' \
         --insert-field-if "${RMO_superior}" '001:RMO.*' \
         --insert-field-if "935a:BIIN" '001:^(EBR|BHM|TRE|IBW).*' \
-        --insert-field-if '7000:(DE-588)121069494$aSchwank, Benedikt$4aut$eVerfasserIn' '001:IBW.*' \
+        --insert-field-if '1000:(DE-588)121069494$aSchwank, Benedikt$4aut$eVerfasserIn' '001:IBW.*' \
         --replace-subfield-if-regex '245a:/\s+\/\s+/\//g' '245a:\s+/\s+' \
         --add-subfield-if '041a:ger' '001:IBW.*'
 
