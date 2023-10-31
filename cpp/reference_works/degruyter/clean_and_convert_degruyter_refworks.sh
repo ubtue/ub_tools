@@ -149,6 +149,7 @@ GenerateTmpFiles
         --insert-field '936j:XXX' \
         --insert-field '935a:lxgr\0372LOK' \
         --insert-field 'ELCa:1' \
+        --insert-field '912a:NOMM' \
         --insert-field-if "${EBR_superior}" '001:EBR.*' \
         --insert-field-if "${BHM_superior}" '001:BHM.*' \
         --insert-field-if "${TRE_superior}" '001:TRE.*' \
@@ -158,7 +159,7 @@ GenerateTmpFiles
         --insert-field-if "${IBW_superior}" '001:IBW.*' \
         --insert-field-if "${RMO_superior}" '001:RMO.*' \
         --insert-field-if "935a:BIIN" '001:^(EBR|BHM|TRE|IBW).*' \
-        --insert-field-if '1000:(DE-588)121069494$aSchwank, Benedikt$4aut$eVerfasserIn' '001:IBW.*' \
+        --insert-field-if '1000:(DE-588)121069494\037aSchwank, Benedikt\0374aut\037eVerfasserIn' '001:IBW.*' \
         --replace-subfield-if-regex '245a:/\s+\/\s+/\//g' '245a:\s+/\s+' \
         --add-subfield-if '041a:ger' '001:IBW.*'
 
