@@ -14,10 +14,10 @@ ln --symbolic /dev/stdout ${tmp_stdout}
 tmpfiles+=(${tmp_stdout})
 
 
-STUDIA_PATAVINA_ORIG_IN="daten/Studia_Patavina_1959-62.xml"
+STUDIA_PATAVINA_ORIG_IN="daten/studia_patavina_complete/studia_patavina_complete.xml"
 RIVISTA_DI_SCIENCE_ORIG_IN='daten/complete_all.mrc'
 date=$(date '+%y%m%d')
-STUDIA_PATAVINA_OUT="daten/Studia_Patavina_59-62_ubtue_${date}.xml"
+STUDIA_PATAVINA_OUT="daten/studia_patavina_complete/studia_patavina_complete_ubtue_${date}.xml"
 RIVISTA_DI_SCIENCE_OUT="daten/complete_all_converted_${date}.xml"
 SAMPLE_LIMIT="5"
 TEST_DB_SAMPLE_DIR="daten/test_db_sample"
