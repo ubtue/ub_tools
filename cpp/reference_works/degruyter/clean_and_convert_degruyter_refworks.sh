@@ -162,9 +162,7 @@ GenerateTmpFiles
         --insert-field-if '1000:(DE-588)121069494\037aSchwank, Benedikt\0374aut\037eVerfasserIn' '001:IBW.*' \
         --replace-subfield-if-regex '245a:/\s+\/\s+/\//g' '245a:\s+/\s+' \
         --add-subfield-if '041a:ger' '001:IBW.*' \
-        --replace-subfield-if-regex '936d:/^0(\d)/\1/' '936d:^0.*' \
-        --replace-subfield-if-regex '773g:/^volume:0(.*)/volume:\1/' '773g:^volume:0.*' \
-        --replace-subfield-if-regex '773g:/^0(\d[(].*[)])/volume:\1/' '773g:^0[(].*[)]'
+        --replace-subfield-if-regex 'VOLa:/^0(\d)/\1/' 'VOLa:^0.*'
 
     cat ${tmpfiles[4]} | xmlstarlet tr xsl/adjust_year.xsl  \
         |  xmlstarlet tr xsl/fix_leader.xsl \
