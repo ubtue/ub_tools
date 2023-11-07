@@ -1,7 +1,16 @@
 # Python 3 module
 # -*- coding: utf-8 -*-
-import paramiko
-import os
+
+'''
+Author  S. Lolong (steven.lolong@uni-tuebingen.de)
+Year    2023
+
+Most of the sftp client library used paramiko library.
+Since, not all sftp client library features will be used is better to create own sftp client library with the essential features and use paramiko.
+'''
+
+from paramiko import (SSHClient, AutoAddPolicy)
+from os import (path)
 import util
 
 class SFTPConnection:  
@@ -16,7 +25,7 @@ class SFTPConnection:
     self._host = hostname
     self._username = username
     self._password = password
-    self._ssh_client = paramiko.SSHClient()
+    self._ssh_client = SSHClient()
 
     if port is not None:
       self._port = port
@@ -33,7 +42,7 @@ class SFTPConnection:
     util.Info(f"Connecting to {self._host}")
 
     try:
-      self._ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+      self._ssh_client.set_missing_host_key_policy(AutoAddPolicy())
       self._ssh_client.connect(hostname=self._host, port=self._port, username=self._username, password=self._password, look_for_keys=False, timeout=120)
     except Exception as excp:
       util.Error(f"Failed to connect to SFTP server! ({excp})")
@@ -71,7 +80,7 @@ class SFTPConnection:
 
   def uploadFile(self, local_file_path, remote_file_path=None):
     if remote_file_path is None:
-      remote_file_path = os.path.basename(local_file_path)
+      remote_file_path = path.basename(local_file_path)
 
     util.Info(f"uploading file {local_file_path} to {self._host}:{remote_file_path}")
     
