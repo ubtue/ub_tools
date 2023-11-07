@@ -1,4 +1,6 @@
 #!/bin/bash
+# Convert data from OJS Italy
+# For Studia patavina identify records that are already present in IxTheo and remove them from the final file
 
 function RemoveTempFiles {
    for tmpfile in ${tmpfiles[@]}; do
@@ -7,6 +9,8 @@ function RemoveTempFiles {
 }
 
 trap RemoveTempFiles EXIT
+
+
 
 tmpfiles=()
 tmp_stdout="/tmp/stdout.xml"
@@ -17,7 +21,8 @@ tmpfiles+=(${tmp_stdout})
 STUDIA_PATAVINA_ORIG_IN="daten/studia_patavina_complete/studia_patavina_complete.xml"
 RIVISTA_DI_SCIENCE_ORIG_IN='daten/complete_all.mrc'
 date=$(date '+%y%m%d')
-STUDIA_PATAVINA_OUT="daten/studia_patavina_complete/studia_patavina_complete_ubtue_${date}.xml"
+STUDIA_PATAVINA_OUT="daten/studia_patavina_complete/studia_patavina_complete_filtered_ubtue_${date}.xml"
+STUDIA_PATAVINA_FULL="${STUDIA_PATAVINA_OUT/_filtered/}"
 RIVISTA_DI_SCIENCE_OUT="daten/complete_all_converted_${date}.xml"
 SAMPLE_LIMIT="5"
 TEST_DB_SAMPLE_DIR="daten/test_db_sample"
@@ -25,6 +30,13 @@ SAMPLE_BASE_NAME="ixtheo_ojsitaly_complete"
 STUDIA_PATAVINA_ASSOCIATED_AUTHORS="daten/studia_patavina_associated_authors.txt"
 RIVISTA_DI_SCIENCE_ASSOCIATED_AUTHORS="daten/rivista_di_science_associated_authors.txt"
 
+
+if [ $# != 1 ]; then
+    echo "Usage: $0 ixtheo_solr_host_and_port"
+    exit 1
+fi
+
+solr_host_and_port="$1"
 
 ./convert_ojs_italy ${STUDIA_PATAVINA_ORIG_IN} studia_patavina_map.txt \
                     ${STUDIA_PATAVINA_OUT}
@@ -76,7 +88,16 @@ marc_augmentor ${RIVISTA_DI_SCIENCE_OUT} /tmp/stdout.xml \
      --replace-subfield-if-regex '100a:/.*PP$/Benedikt/' '100a:'"${benedict}" \
     | sponge ${RIVISTA_DI_SCIENCE_OUT}
 
+# Remove clearly associable records that are already present in IxTheo
+cp --archive --verbose ${STUDIA_PATAVINA_OUT} ${STUDIA_PATAVINA_FULL}
+marc_grep ${STUDIA_PATAVINA_FULL} \
+    'if "001"!="('$(./detect_existing_studia_patavina_records.sh ${solr_host_and_port} \
+         ${STUDIA_PATAVINA_FULL} | paste --serial --delimiter='|')')" extract *' \
+    marc_xml > /tmp/stdout.xml \
+    | sponge ${STUDIA_PATAVINA_OUT}
 
+
+# Generate txt representation
 marc_grep ${STUDIA_PATAVINA_OUT} 'if "001"==".*" extract *' traditional \
           > ${STUDIA_PATAVINA_OUT%.xml}.txt
 
@@ -86,5 +107,3 @@ marc_grep ${RIVISTA_DI_SCIENCE_OUT} 'if "001"==".*" extract *' traditional \
 #Generate Samples
 marc_convert --limit ${SAMPLE_LIMIT} ${STUDIA_PATAVINA_OUT} ${TEST_DB_SAMPLE_DIR}/${SAMPLE_BASE_NAME}_${date}_001.xml
 marc_convert --limit ${SAMPLE_LIMIT} ${RIVISTA_DI_SCIENCE_OUT} ${TEST_DB_SAMPLE_DIR}/${SAMPLE_BASE_NAME}_${date}_002.xml
-
-
