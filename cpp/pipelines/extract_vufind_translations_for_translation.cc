@@ -110,7 +110,7 @@ int Main(int argc, char **argv) {
 
     for (int arg_no(1); arg_no < argc; ++arg_no) {
         // Get the 2-letter language code from the filename.  We expect filenames of the form "xx.ini" or
-        // xx-yy.ini ofer "some_path/xx(-yy)?.ini
+        // xx-yy.ini or "some_path/xx(-yy)?.ini
         const std::string ini_filename(argv[arg_no]);
         if (unlikely(FileUtil::GetExtension(ini_filename) != "ini"))
             LOG_ERROR("expected filename \"" + ini_filename + "\" to end in \".ini\"!");
