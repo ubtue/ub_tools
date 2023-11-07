@@ -70,9 +70,9 @@ DECLARE EXIT HANDLER FOR SQLEXCEPTION
           @p3 = MYSQL_ERRNO,
           @p4 = SCHEMA_NAME,
           @p5 = TABLE_NAME;
-          SELECT @p1, @p2, @p3, @p4, @p5;
+          SET @fullerror = CONCAT("ERROR: ", @p1, "|",  @p2, "|", @p3, "|",  @p4, "|", @p5);
           ROLLBACK;
-          SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'ERROR: statement could not be processed';
+          SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = @fullerror;
     END;
 
 START TRANSACTION;
@@ -109,9 +109,9 @@ DECLARE EXIT HANDLER FOR SQLEXCEPTION
           @p3 = MYSQL_ERRNO,
           @p4 = SCHEMA_NAME,
           @p5 = TABLE_NAME;
-          SELECT @p1, @p2, @p3, @p4, @p5;
+          SET @fullerror = CONCAT("ERROR: ", @p1, "|",  @p2, "|", @p3, "|",  @p4, "|", @p5);
           ROLLBACK;
-          SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'ERROR: statement could not be processed';
+          SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = @fullerror;
     END;
 
 START TRANSACTION;
