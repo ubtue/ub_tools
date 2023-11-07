@@ -1,7 +1,7 @@
 # Python 3 module
 # -*- coding: utf-8 -*-
 
-from sftp_connection import SFTPServerClient
+from sftp_connection import SFTPConnection
 import os
 import re
 import time
@@ -27,7 +27,7 @@ def GetFTPConnection():
     except Exception as e:
         util.Error("failed to read config file! (" + str(e) + ")")
 
-    return SFTPServerClient(ftp_host, ftp_user, ftp_passwd)
+    return SFTPConnection(ftp_host, ftp_user, ftp_passwd)
 
 
 # Returns a list of files found in the "directory" directory on an FTP server that match "filename_regex"

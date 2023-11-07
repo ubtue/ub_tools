@@ -4,7 +4,7 @@ import paramiko
 import os
 import util
 
-class SFTPServerClient:  
+class SFTPConnection:  
   _host = ""
   _username = ""
   _password = ""
@@ -99,13 +99,3 @@ class SFTPServerClient:
     stdout,stderr= self._sftp.exec_command(command)
     util.Info(stdout.readlines())
     util.Info(stderr.readlines())
-
-
-# def Main():
-#   test1 = SFTPServerClient("vdata.bsz-bw.de", "swb", "AdPV-S!")
-#   print(test1.listDirectory("/swb/krimdok"))
-#   test1.downloadFile("/swb/krimdok/SA-MARC-krimdok-231025.tar.gz", "/tmp/test.tar.gz")
-# try:
-#   Main()
-# except Exception as e:
-#   print(e)
