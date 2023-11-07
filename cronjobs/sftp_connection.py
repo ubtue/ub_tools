@@ -31,7 +31,7 @@ class SFTPConnection:
 
   def _connect(self):
     util.Info(f"Connecting to {self._host}")
-    
+
     try:
       self._ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
       self._ssh_client.connect(hostname=self._host, port=self._port, username=self._username, password=self._password, look_for_keys=False, timeout=120)
@@ -61,7 +61,7 @@ class SFTPConnection:
     if local_file_path is None:
       local_file_path = remote_file_path
 
-    util.Info(f"downloading file from {remote_file_path} to {local_file_path}")
+    util.Info(f"downloading file from {self._host}:{remote_file_path} to {local_file_path}")
     
     try:
       self._sftp.get(remote_file_path, local_file_path)
@@ -73,7 +73,7 @@ class SFTPConnection:
     if remote_file_path is None:
       remote_file_path = os.path.basename(local_file_path)
 
-    util.Info(f"uploading file {local_file_path} to {remote_file_path}")
+    util.Info(f"uploading file {local_file_path} to {self._host}:{remote_file_path}")
     
     try:
       self._sftp.put(local_file_path, remote_file_path)
@@ -84,7 +84,7 @@ class SFTPConnection:
   def renameFile(self, remote_file_name_old, remote_file_name_new):
     try:
       self._sftp.rename(remote_file_name_old, remote_file_name_new)
-    except Exception as excp:
+    except IOError as excp:
       util.Error(f"failed to rename file {remote_file_name_old} to {remote_file_name_new}! ({excp})")
       
 
