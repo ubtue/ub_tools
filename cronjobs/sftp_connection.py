@@ -50,7 +50,7 @@ class SFTPConnection:
   def listDirectory(self, remote_dir_path='.'):
     sftp_client = self._sftp.open_sftp()
     try:
-      return f"list of files {sftp_client.listdir(path=remote_dir_path)}"
+      return sftp_client.listdir(path=remote_dir_path)
     except Exception as excp:
       util.Error(f"failed to list directory ({excp})")
 
