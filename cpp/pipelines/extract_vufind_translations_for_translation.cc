@@ -116,7 +116,7 @@ int Main(int argc, char **argv) {
             LOG_ERROR("expected filename \"" + ini_filename + "\" to end in \".ini\"!");
 
         std::string two_letter_scheme(FileUtil::GetFilenameWithoutExtensionOrDie(FileUtil::GetBasename(ini_filename)));
-        static ThreadSafeRegexMatcher expected_pattern_matcher("[a-z]{2}(-[a-z]{2})?");
+        static ThreadSafeRegexMatcher expected_pattern_matcher("^[a-z]{2}(-[a-z]{2})?$");
         if (not expected_pattern_matcher.match(two_letter_scheme))
             LOG_ERROR("INI filename does not match expected pattern: \"" + ini_filename + "\"!");
 
