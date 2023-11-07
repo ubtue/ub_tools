@@ -53,13 +53,14 @@ std::string GetId(DbConnection * const connection, const std::string &german_tex
 
 
 const std::map<std::string, std::string> international_2letter_code_to_german_3or4letter_code{
-    { "af", "afr" }, { "an", "arg" }, { "ar", "ara" }, { "bg", "bul" }, { "br", "bre" }, { "ca", "cat" }, { "cs", "cze" },
-    { "cy", "cym" }, { "da", "dan" }, { "de", "deu" }, { "el", "gre" }, { "en", "eng" }, { "es", "spa" }, { "et", "est" },
-    { "eu", "eus" }, { "fi", "fin" }, { "fr", "fra" }, { "ga", "gaa" }, { "gl", "glg" }, { "he", "heb" }, { "ht", "hat" },
-    { "hr", "hrv" }, { "hu", "hun" }, { "id", "ind" }, { "is", "ice" }, { "it", "ita" }, { "la", "lat" }, { "lv", "lav" },
-    { "lt", "lit" }, { "ms", "msa" }, { "mt", "mlt" }, { "nl", "nld" }, { "no", "nor" }, { "oc", "oci" }, { "pl", "pol" },
-    { "pt", "por" }, { "ro", "rum" }, { "ru", "rus" }, { "sk", "slo" }, { "sl", "slv" }, { "so", "som" }, { "sq", "sqi" },
-    { "sr", "srp" }, { "sv", "swe" }, { "sw", "swa" }, { "tl", "tgl" }, { "tr", "tur" }, { "uk", "ukr" }, { "vi", "vie" },
+    { "af", "afr" },  { "an", "arg" },    { "ar", "ara" }, { "bg", "bul" }, { "br", "bre" }, { "ca", "cat" }, { "cs", "cze" },
+    { "cy", "cym" },  { "da", "dan" },    { "de", "deu" }, { "el", "gre" }, { "en", "eng" }, { "es", "spa" }, { "et", "est" },
+    { "eu", "eus" },  { "fi", "fin" },    { "fr", "fra" }, { "ga", "gaa" }, { "gl", "glg" }, { "he", "heb" }, { "ht", "hat" },
+    { "hr", "hrv" },  { "hu", "hun" },    { "id", "ind" }, { "is", "ice" }, { "it", "ita" }, { "la", "lat" }, { "lv", "lav" },
+    { "lt", "lit" },  { "ms", "msa" },    { "mt", "mlt" }, { "nl", "nld" }, { "no", "nor" }, { "oc", "oci" }, { "pl", "pol" },
+    { "pt", "por" },  { "ro", "rum" },    { "ru", "rus" }, { "sk", "slo" }, { "sl", "slv" }, { "so", "som" }, { "sq", "sqi" },
+    { "sr", "srp" },  { "sv", "swe" },    { "sw", "swa" }, { "tl", "tgl" }, { "tr", "tur" }, { "uk", "ukr" }, { "vi", "vie" },
+    { "zh", "hant" }, { "zh-cn", "hans" }
 };
 
 
