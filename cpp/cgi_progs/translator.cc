@@ -109,7 +109,7 @@ const std::string AssembleTermIdentifiers(const std::string &category, const std
                                           const std::string &gnd_code = "", const std::string &translation = "") {
     return std::string(" category=\"" + UrlUtil::UrlEncode(category) + "\" index=\"" + UrlUtil::UrlEncode(index) + "\" language_code=\""
                        + UrlUtil::UrlEncode(language_code) + "\" gnd_code=\"" + gnd_code + "\" comparable=\"" + HtmlUtil::HtmlEscape(index)
-                       + "\" translation=\"" + translation + "\" ");
+                       + "\" translation=\"" + HtmlUtil::HtmlEscape(translation) + "\" ");
 }
 
 

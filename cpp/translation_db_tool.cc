@@ -26,6 +26,7 @@
 #include "DbConnection.h"
 #include "DbResultSet.h"
 #include "DbRow.h"
+#include "HtmlUtil.h"
 #include "IniFile.h"
 #include "MiscUtil.h"
 #include "SqlUtil.h"
@@ -44,19 +45,6 @@ void Usage() {
     std::cerr << "       update token language_code text translator\n";
     std::cerr << "       update ppn gnd_code language_code text translator\n";
     std::exit(EXIT_FAILURE);
-}
-
-
-// Replaces a comma with "\," and a slash with "\\".
-std::string EscapeCommasAndBackslashes(const std::string &text) {
-    std::string escaped_text;
-    for (const auto ch : text) {
-        if (unlikely(ch == ',' or ch == '\\'))
-            escaped_text += '\\';
-        escaped_text += ch;
-    }
-
-    return escaped_text;
 }
 
 
@@ -83,9 +71,8 @@ unsigned GetMissing(DbConnection * const connection, const std::string &table_na
     const bool has_gnd_code(column_names.find("gnd_code") != column_names.cend());
 
     while ((row = result_set.getNextRow()))
-        std::cout << EscapeCommasAndBackslashes(row[table_key_name]) << ',' << keys_result_set.size() << ',' << row["language_code"] << ','
-                  << EscapeCommasAndBackslashes(row["translation"]) << ',' << category << (has_gnd_code ? "," + row["gnd_code"] : "")
-                  << '\n';
+        std::cout << row[table_key_name] << ',' << keys_result_set.size() << ',' << row["language_code"] << ','
+                  << HtmlUtil::HtmlEscape(row["translation"]) << ',' << category << (has_gnd_code ? "," + row["gnd_code"] : "") << '\n';
 
     return result_set.size();
 }
@@ -120,9 +107,8 @@ unsigned GetExisting(DbConnection * const connection, const std::string &table_n
     const bool has_gnd_code(column_names.find("gnd_code") != column_names.cend());
 
     while (const DbRow row = result_set.getNextRow())
-        std::cout << EscapeCommasAndBackslashes(row[table_key_name]) << ',' << count << ',' << row["language_code"] << ','
-                  << EscapeCommasAndBackslashes(row["translation"]) << ',' << category << (has_gnd_code ? "," + row["gnd_code"] : "")
-                  << '\n';
+        std::cout << row[table_key_name] << ',' << count << ',' << row["language_code"] << ',' << HtmlUtil::HtmlEscape(row["translation"])
+                  << ',' << category << (has_gnd_code ? "," + row["gnd_code"] : "") << '\n';
 
     return result_set.size();
 }
@@ -160,9 +146,9 @@ unsigned GetTranslationHistory(DbConnection * const connection, const std::strin
             first_elem = false;
         else
             std::cout << ",";
-        std::cout << "{\"timestamp\":\"" << EscapeCommasAndBackslashes(row["create_timestamp"]) << "\","
-                  << "\"translator\":\"" << EscapeCommasAndBackslashes(row["translator"]) << "\","
-                  << "\"translation\":\"" << EscapeCommasAndBackslashes(row["translation"]) << "\"}" << '\n';
+        std::cout << "{\"timestamp\":\"" << row["create_timestamp"] << "\","
+                  << "\"translator\":\"" << row["translator"] << "\","
+                  << "\"translation\":\"" << HtmlUtil::HtmlEscape(row["translation"]) << "\"}" << '\n';
     }
     std::cout << "]}" << std::endl;
 
