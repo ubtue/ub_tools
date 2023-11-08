@@ -141,14 +141,15 @@ GenerateTmpFiles
         --insert-field '003:DE-Tue135' \
         --insert-field '005:'$(date +'%Y%m%d%H%M%S')'.0' \
         --insert-field '007:cr|||||' \
-        --insert-field-if '084a:0\0372ssgn' '001:^(EJCRO|URBREL|RMO).*' \
-        --insert-field '084a:1\0372ssgn' \
+        --insert-field-if '084a:1\0372ssgn' '001:^(?!(EJCRO|URBREL|RMO).*)' \
+        --insert-field-if '084a:0\037a1\0372ssgn' '001:^(EJCRO|URBREL|RMO).*' \
         --insert-field '852a:DE-Tue135' \
         --insert-field '935c:uwlx' \
         --insert-field '935a:mteo' \
         --insert-field '936j:XXX' \
         --insert-field '935a:lxgr\0372LOK' \
         --insert-field 'ELCa:1' \
+        --insert-field '912a:NOMM' \
         --insert-field-if "${EBR_superior}" '001:EBR.*' \
         --insert-field-if "${BHM_superior}" '001:BHM.*' \
         --insert-field-if "${TRE_superior}" '001:TRE.*' \
@@ -158,8 +159,12 @@ GenerateTmpFiles
         --insert-field-if "${IBW_superior}" '001:IBW.*' \
         --insert-field-if "${RMO_superior}" '001:RMO.*' \
         --insert-field-if "935a:BIIN" '001:^(EBR|BHM|TRE|IBW).*' \
-        --insert-field-if '1000:(DE-588)121069494$aSchwank, Benedikt$4aut$eVerfasserIn' '001:IBW.*' \
-        --replace-subfield-if-regex '245a:/\s+\/\s+/\//g' '245a:\s+/\s+'
+        --insert-field-if '1000:(DE-588)121069494\037aSchwank, Benedikt\0374aut\037eVerfasserIn' '001:IBW.*' \
+        --replace-subfield-if-regex '245a:/\s+\/\s+/\//g' '245a:\s+/\s+' \
+        --add-subfield-if '041a:ger' '001:IBW.*' \
+        --replace-subfield-if-regex 'VOLa:/^0(\d)/\1/' 'VOLa:^0.*' \
+        --replace-subfield-if-regex '856z:/.*/LF/' '001:^(URBREL|RMO).*'
+
 
     cat ${tmpfiles[4]} | xmlstarlet tr xsl/adjust_year.xsl  \
         |  xmlstarlet tr xsl/fix_leader.xsl \

@@ -174,7 +174,8 @@ void AppendAuthorFirstName(const std::string, const char, MARC::Record * const r
 }
 
 void ExtractStudiaPatavinaVolumeYearAndPages(const std::string, const char, MARC::Record * const record, const std::string &data) {
-    const std::string component_matcher_str("Vol[.]\\s+(\\d+)[(](\\d{4})[)](\\d+),\\s*(\\d+)-(\\d+)\\s*p.");
+    const std::string component_matcher_str(
+        "[Vv]ol[.]\\s+(\\d+)[(](\\d{4})[)](\\d+(?:[-]\\d+)?)\\s*,\\s*(?:p[.]\\s*)?(\\d+)-(\\d+)\\s*(?:\\s*p[.])?");
     static ThreadSafeRegexMatcher matcher((ThreadSafeRegexMatcher(component_matcher_str)));
     const auto matched(matcher.match(data));
 

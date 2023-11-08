@@ -46,7 +46,7 @@ for refwork in ${REFWORKS}; do
     if [ ${refwork} == "BIBHERM" ]; then
         refwork=BHM
     fi
-    converted_file=ixtheo_${refwork}_$(date +'%y%m%d').xml
+    converted_file=ixtheo_${refwork}_$(date +'%y%m%d')_001.xml
     ./convert_degruyter_csv_to_marc.sh \
         $(echo ${refwork} | awk '{print toupper($0)}')  \
         "${refwork_csv_file}" \
