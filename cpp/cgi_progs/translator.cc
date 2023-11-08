@@ -107,9 +107,9 @@ const std::string GetTranslatorOrEmptyString() {
 
 const std::string AssembleTermIdentifiers(const std::string &category, const std::string &index, const std::string &language_code,
                                           const std::string &gnd_code = "", const std::string &translation = "") {
-    return std::string(" category=\"" + UrlUtil::UrlEncode(category) + "\" index=\"" + UrlUtil::UrlEncode(index) + "\" language_code=\""
-                       + UrlUtil::UrlEncode(language_code) + "\" gnd_code=\"" + gnd_code + "\" comparable=\"" + HtmlUtil::HtmlEscape(index)
-                       + "\" translation=\"" + HtmlUtil::HtmlEscape(translation) + "\" ");
+    return std::string(" category=\"" + (category) + "\" index=\"" + HtmlUtil::HtmlEscape(index) + "\" language_code=\""
+                       + HtmlUtil::HtmlEscape(language_code) + "\" gnd_code=\"" + gnd_code + "\" comparable=\""
+                       + HtmlUtil::HtmlEscape(index) + "\" translation=\"" + HtmlUtil::HtmlEscape(translation) + "\" ");
 }
 
 
