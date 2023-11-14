@@ -18,12 +18,20 @@ def FoundNewBSZDataFile(link_filename):
     return old_timestamp < file_creation_time
 
 
-def GetFTPConnection():
+def GetFTPConnection(credential_type=None):
+    ftp_host   = ""
+    ftp_user   = ""
+    ftp_passwd = ""
     try:
         bsz_config = util.LoadConfigFile(util.default_config_file_dir + "BSZ.conf")
-        ftp_host   = bsz_config.get("FTP", "host")
-        ftp_user   = bsz_config.get("FTP", "username")
-        ftp_passwd = bsz_config.get("FTP", "password")
+        if credential_type != None :
+            ftp_host   = bsz_config.get(credential_type, "host")
+            ftp_user   = bsz_config.get(credential_type, "username")
+            ftp_passwd = bsz_config.get(credential_type, "password")
+        else:
+            ftp_host   = bsz_config.get("SFTP_Download", "host")
+            ftp_user   = bsz_config.get("SFTP_Download", "username")
+            ftp_passwd = bsz_config.get("SFTP_Download", "password")
     except Exception as e:
         util.Error("failed to read config file! (" + str(e) + ")")
 
