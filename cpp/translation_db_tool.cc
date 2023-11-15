@@ -26,7 +26,9 @@
 #include "DbConnection.h"
 #include "DbResultSet.h"
 #include "DbRow.h"
+#include "HtmlUtil.h"
 #include "IniFile.h"
+#include "JSON.h"
 #include "MiscUtil.h"
 #include "SqlUtil.h"
 #include "TranslationUtil.h"
@@ -44,19 +46,6 @@ void Usage() {
     std::cerr << "       update token language_code text translator\n";
     std::cerr << "       update ppn gnd_code language_code text translator\n";
     std::exit(EXIT_FAILURE);
-}
-
-
-// Replaces a comma with "\," and a slash with "\\".
-std::string EscapeCommasAndBackslashes(const std::string &text) {
-    std::string escaped_text;
-    for (const auto ch : text) {
-        if (unlikely(ch == ',' or ch == '\\'))
-            escaped_text += '\\';
-        escaped_text += ch;
-    }
-
-    return escaped_text;
 }
 
 
@@ -83,9 +72,8 @@ unsigned GetMissing(DbConnection * const connection, const std::string &table_na
     const bool has_gnd_code(column_names.find("gnd_code") != column_names.cend());
 
     while ((row = result_set.getNextRow()))
-        std::cout << EscapeCommasAndBackslashes(row[table_key_name]) << ',' << keys_result_set.size() << ',' << row["language_code"] << ','
-                  << EscapeCommasAndBackslashes(row["translation"]) << ',' << category << (has_gnd_code ? "," + row["gnd_code"] : "")
-                  << '\n';
+        std::cout << row[table_key_name] << ',' << keys_result_set.size() << ',' << row["language_code"] << ','
+                  << HtmlUtil::HtmlEscape(row["translation"]) << ',' << category << (has_gnd_code ? "," + row["gnd_code"] : "") << '\n';
 
     return result_set.size();
 }
@@ -120,9 +108,8 @@ unsigned GetExisting(DbConnection * const connection, const std::string &table_n
     const bool has_gnd_code(column_names.find("gnd_code") != column_names.cend());
 
     while (const DbRow row = result_set.getNextRow())
-        std::cout << EscapeCommasAndBackslashes(row[table_key_name]) << ',' << count << ',' << row["language_code"] << ','
-                  << EscapeCommasAndBackslashes(row["translation"]) << ',' << category << (has_gnd_code ? "," + row["gnd_code"] : "")
-                  << '\n';
+        std::cout << row[table_key_name] << ',' << count << ',' << row["language_code"] << ',' << HtmlUtil::HtmlEscape(row["translation"])
+                  << ',' << category << (has_gnd_code ? "," + row["gnd_code"] : "") << '\n';
 
     return result_set.size();
 }
@@ -141,8 +128,8 @@ unsigned GetExistingKeywordTranslations(DbConnection * const connection, const s
 unsigned GetTranslationHistory(DbConnection * const connection, const std::string &table_name, const std::string &index,
                                const std::string &language_code) {
     if (table_name == "vufind_translations") {
-        connection->queryOrDie("SELECT create_timestamp, translator, translation FROM vufind_translations WHERE token='"
-                               + UrlUtil::UrlDecode(index) + "' AND language_code='" + language_code + "' ORDER BY create_timestamp DESC;");
+        connection->queryOrDie("SELECT create_timestamp, translator, translation FROM vufind_translations WHERE token='" + index
+                               + "' AND language_code='" + language_code + "' ORDER BY create_timestamp DESC;");
     } else if (table_name == "keyword_translations") {
         connection->queryOrDie("SELECT create_timestamp, translator, translation FROM keyword_translations WHERE ppn='" + index
                                + "' AND language_code='" + language_code + "' ORDER BY create_timestamp DESC;");
@@ -160,9 +147,9 @@ unsigned GetTranslationHistory(DbConnection * const connection, const std::strin
             first_elem = false;
         else
             std::cout << ",";
-        std::cout << "{\"timestamp\":\"" << EscapeCommasAndBackslashes(row["create_timestamp"]) << "\","
-                  << "\"translator\":\"" << EscapeCommasAndBackslashes(row["translator"]) << "\","
-                  << "\"translation\":\"" << EscapeCommasAndBackslashes(row["translation"]) << "\"}" << '\n';
+        std::cout << "{\"timestamp\":\"" << row["create_timestamp"] << "\","
+                  << "\"translator\":\"" << row["translator"] << "\","
+                  << "\"translation\":\"" << JSON::EscapeString(HtmlUtil::HtmlEscape(row["translation"])) << "\"}" << '\n';
     }
     std::cout << "]}" << std::endl;
 
@@ -172,8 +159,8 @@ unsigned GetTranslationHistory(DbConnection * const connection, const std::strin
 
 void UpdateIntoVuFindTranslations(DbConnection * const connection, const std::string &token, const std::string &language_code,
                                   const std::string &text, const std::string &translator) {
-    connection->queryOrDie("CALL insert_vufind_translation_entry('" + UrlUtil::UrlDecode(token) + "','" + language_code + "','"
-                           + connection->escapeString(text) + "','" + translator + "');");
+    connection->queryOrDie("CALL insert_vufind_translation_entry('" + token + "','" + language_code + "','" + connection->escapeString(text)
+                           + "','" + translator + "');");
 }
 
 
@@ -190,14 +177,13 @@ void InsertIntoVuFindTranslations(DbConnection * const connection, const std::st
     unsigned existing_translations_count(
         connection->countOrDie("SELECT COUNT(*) AS count FROM vufind_translations WHERE "
                                "token=\""
-                                   + UrlUtil::UrlDecode(token) + "\" AND language_code=\"" + language_code + "\"",
+                                   + token + "\" AND language_code=\"" + language_code + "\"",
                                "count"));
     if (unlikely(existing_translations_count))
         UpdateIntoVuFindTranslations(connection, token, language_code, text, translator);
     else
-        connection->queryOrDie("INSERT INTO vufind_translations SET token=\"" + UrlUtil::UrlDecode(token) + "\",language_code=\""
-                               + language_code + "\",translation=\"" + connection->escapeString(text) + "\",translator=\"" + translator
-                               + "\";");
+        connection->queryOrDie("INSERT INTO vufind_translations SET token=\"" + token + "\",language_code=\"" + language_code
+                               + "\",translation=\"" + connection->escapeString(text) + "\",translator=\"" + translator + "\";");
     transaction.commit();
 }
 
