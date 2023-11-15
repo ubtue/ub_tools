@@ -9,6 +9,7 @@ fi
 
 function RemoveTempFiles {
    for tmpfile in ${tmpfiles[@]}; do
+       echo "Try to remove ${tmpfile}"
        rm ${tmpfile}
    done
    rmdir ${tmp_dir}
@@ -24,6 +25,8 @@ function ConvertExcelToCSV {
   libreoffice --headless \
   --convert-to csv:"Text - txt - csv (StarCalc)":44,34,UTF8,1,,0,false,true,false,false,false,-1 \
   --outdir ${output_dir} ${input_dir}/*.xlsx
+  # Remove files with empty tables
+  find ${output_dir} -type f -size -5c -delete
 }
 
 
@@ -46,7 +49,7 @@ for refwork in ${REFWORKS}; do
     converted_file=ixtheo_${refwork}_$(date +'%y%m%d').xml
     ./convert_degruyter_csv_to_marc.sh \
         $(echo ${refwork} | awk '{print toupper($0)}')  \
-        ${refwork_csv_file} \
+        "${refwork_csv_file}" \
         "${output_dir}/${converted_file}"
     tmpfiles+=(${refwork_csv_file})
 done

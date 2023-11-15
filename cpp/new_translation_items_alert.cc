@@ -41,10 +41,11 @@ const std::string CONF_FILE_PATH(UBTools::GetTuelibPath() + "translations.conf")
 const std::string NEW_ITEM_NOTIFICATION_SECTION("NewItemNotifications");
 const std::string TRANSLATION_LANGUAGES_SECTION("TranslationLanguages");
 const std::string EMAIL_SECTION("Email");
+static std::string translator_url("https://ixtheo.de/cgi-bin/translator");
 
 [[noreturn]] void Usage() {
     ::Usage(
-        "[--debug]\n"
+        "[--debug] translator_url\n"
         "Debug suppresses sending of Emails and updating of the last_notified_timestamp");
 }
 
@@ -116,6 +117,15 @@ std::string GetCurrentDBTimestamp(DbConnection &db_connection) {
 }
 
 
+void SetTranslatorURL(const std::string &new_translator_url) {
+    translator_url = new_translator_url;
+}
+
+std::string GetTranslatorURL() {
+    return translator_url;
+}
+
+
 bool GetNewItems(DbConnection &db_connection, const std::string last_notified, Template::Map * const names_to_values_map) {
     names_to_values_map->clear();
 
@@ -138,6 +148,7 @@ bool GetNewItems(DbConnection &db_connection, const std::string last_notified, T
         keywords_new_items.emplace_back(db_row["translation"]);
     names_to_values_map->insertArray("keywords_new_items", keywords_new_items);
     names_to_values_map->insertScalar("last_notified", last_notified.substr(0, __builtin_strlen("0000-00-00")));
+    names_to_values_map->insertScalar("translator_url", GetTranslatorURL());
     return (not(vufind_new_items.empty() && keywords_new_items.empty()));
 }
 
@@ -230,11 +241,16 @@ void NotifyTranslators(const IniFile &ini_file, DbConnection &db_connection, con
 
 int Main(int argc, char **argv) {
     bool debug(false);
-    if (argc > 2)
+    if (argc < 2)
         Usage();
-    if (argc == 2 and std::strcmp("--debug", argv[1]) == 0)
+    if (argc > 3)
+        Usage();
+    if (argc == 3 and std::strcmp("--debug", argv[1]) == 0) {
         debug = true;
+        ++argv, --argc;
+    }
 
+    SetTranslatorURL(argv[1]);
     const IniFile ini_file(CONF_FILE_PATH);
     const std::string sql_database(ini_file.getString("Database", "sql_database"));
     const std::string sql_username(ini_file.getString("Database", "sql_username"));
