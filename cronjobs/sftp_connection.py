@@ -11,9 +11,10 @@ Since, not all sftp client library features will be used is better to create own
 
 from paramiko import (SSHClient, AutoAddPolicy)
 from os import (path)
+from abstract_ftp import AbstractFTP
 import util
 
-class SFTPConnection:  
+class SFTPConnection(AbstractFTP):  
   _host = ""
   _username = ""
   _password = ""
@@ -34,7 +35,7 @@ class SFTPConnection:
     self._sftp =  self._ssh_client.open_sftp()
 
     
-  def getSFTP(self):
+  def getFTP(self):
     return self._sftp
   
 
@@ -101,9 +102,3 @@ class SFTPConnection:
     self._ssh_client.close()
     util.Info(f"{self._username} is disconnected to server {self._host}:{self._port}")
    
-     
-  def executeCommand(self, command):
-    stdout,stderr= self._ssh_client.exec_command(command)
-    util.Info(stdout.readlines())
-    util.Info(stderr.readlines())
-

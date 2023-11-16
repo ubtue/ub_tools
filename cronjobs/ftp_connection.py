@@ -1,20 +1,26 @@
 # Python 3 module
 # -*- coding: utf-8 -*-
 from ftplib import FTP
+from abstract_ftp import AbstractFTP
 import os
 import util
 
 
-class FTPConnection:
+class FTPConnection(AbstractFTP):
     _host = ""
     _username = ""
     _password = ""
     _ftp = None
+    _port = 21 
 
-    def __init__(self, host, username, password):
+    def __init__(self, host, username, password, port=None):
         self._host = host
         self._username = username
         self._password = password
+
+        if port is not None:
+            self._port = port
+
         self._connect()
         self._login()
 
@@ -23,7 +29,8 @@ class FTPConnection:
 
     def _connect(self):
         try:
-            self._ftp = FTP(host=self._host, timeout=120)
+            self._ftp = FTP()
+            self._ftp.connect(self._host, self._port, 120)
         except Exception as e:
             util.Error("failed to connect to FTP server! (" + str(e) + ")")
 
@@ -42,9 +49,9 @@ class FTPConnection:
         except Exception as e:
             util.Error(error_message + " (" + str(e) + ")")
 
-    def listDirectory(self):
+    def listDirectory(self, remote_dir_path='.'):
         try:
-            return self._ftp.nlst()
+            return self._ftp.nlst(remote_dir_path)
         except Exception as e:
             util.Error("failed to list directory (" + str(e) + ")")
 
@@ -87,3 +94,7 @@ class FTPConnection:
                 util.Error(error_message)
         except Exception as e:
             util.Error(error_message + " (" + str(e) + ")")
+
+    def disconnect(self):
+        self._ftp.close()
+        util.Info(f"{self._username} is disconnected to server {self._host}:{self._port}")
