@@ -33,3 +33,7 @@ class AbstractFTP(ABC):
   @abstractclassmethod
   def renameFile(self, remote_file_name_old, remote_file_name_new):
     pass
+
+  @abstractclassmethod
+  def disconnect(self):
+    pass
