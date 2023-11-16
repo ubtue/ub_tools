@@ -75,7 +75,7 @@ DeriveLineEnding: true
 DerivePointerAlignment: true
 DisableFormat:   false
 EmptyLineAfterAccessModifier: Never
-EmptyLineBeforeAccessModifier: false
+EmptyLineBeforeAccessModifier: Always
 ExperimentalAutoDetectBinPacking: false
 PackConstructorInitializers: NextLine
 BasedOnStyle:    ''
