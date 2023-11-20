@@ -49,8 +49,8 @@ readonly HARVESTER_CONFIG_FILE="/usr/local/var/lib/tuelib/zotero-enhancement-map
 
 readonly DEST_DIR_LOCAL_TEST="/mnt/ZE020110/FID-Projekte/Default_Test/"
 readonly DEST_DIR_LOCAL_LIVE="/mnt/ZE020110/FID-Projekte/Default/"
-readonly DEST_DIR_REMOTE_TEST="/pub/UBTuebingen_Default_Test/"
-readonly DEST_DIR_REMOTE_LIVE="/pub/UBTuebingen_Default/"
+readonly DEST_DIR_REMOTE_TEST="/2001/Default_Test/input/"
+readonly DEST_DIR_REMOTE_LIVE="/2001/Default/input/"
 
 
 

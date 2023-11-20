@@ -28,4 +28,4 @@ echo "Converting to MRC"
 nacjd convert_json_to_marc "$DOWNLOAD_FILE" "$CONVERT_FILE"
 
 #echo "Upload to BSZ"
-#upload_to_bsz_ftp_server.py "$CONVERT_FILE" /pub/UBTuebingen_Default_Test/
+#upload_to_bsz_ftp_server.py "$CONVERT_FILE" /2001/Default_Test/input/

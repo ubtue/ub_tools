@@ -186,7 +186,7 @@ def Main():
 
     SetupWorkDirectory()
     OUTPUT_FILENAME_PREFIX: str = "bnb-" + datetime.datetime.now().strftime("%y%m%d") + "-"
-    FTP_UPLOAD_DIRECTORY: str = "pub/UBTuebingen_BNB"
+    FTP_UPLOAD_DIRECTORY: str = "/2001/BNB/input"
 
     if dryrun == True:
         list_no = dryrun_list_no
