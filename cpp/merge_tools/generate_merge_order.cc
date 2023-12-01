@@ -115,12 +115,24 @@ inline bool IsMtexDeletionList(const std::string &filename) {
 }
 
 
-bool MtexComparator(const std::string &filename1, const std::string &filename2) {
-    if (IsMtexDeletionList(filename1) and IsMtexDeletionList(filename2))
+inline bool IsKrexDeletionList(const std::string &filename) {
+    return StringUtil::StartsWith(filename, "LOEKXP_k-");
+}
+
+
+inline bool IsMtexOrKrexDeletionList(const std::string &filename) {
+    return (IsMtexDeletionList(filename) or IsKrexDeletionList(filename));
+}
+
+
+bool MtexKrexComparator(const std::string &filename1, const std::string &filename2) {
+    // Since Mtex will only occur for IxTheo & Krex will only occur for KrimDok,
+    // we can use the same comparator logic
+    if (IsMtexOrKrexDeletionList(filename1) and IsMtexOrKrexDeletionList(filename2))
         return BSZUtil::ExtractDateFromFilenameOrDie(filename1) < BSZUtil::ExtractDateFromFilenameOrDie(filename2);
-    if (IsMtexDeletionList(filename1))
+    if (IsMtexOrKrexDeletionList(filename1))
         return false;
-    if (IsMtexDeletionList(filename2))
+    if (IsMtexOrKrexDeletionList(filename2))
         return true;
     return FileComparator(filename1, filename2);
 }
@@ -170,7 +182,7 @@ int Main(int argc, char * /*argv*/[]) {
         LOG_ERROR("no matches found for \"" + file_pcre + "\"!");
 
     std::sort(file_list.begin(), file_list.end(), FileComparator);
-    std::stable_sort(file_list.begin(), file_list.end(), MtexComparator); // mtex deletion list must go last
+    std::stable_sort(file_list.begin(), file_list.end(), MtexKrexComparator); // mtex/krex deletion lists must go last
 
     // Throw away older files before our "reference" complete dump or pseudo complete dump:
     const auto reference_dump(FindMostRecentCompleteOrPseudoCompleteDump(file_list));
