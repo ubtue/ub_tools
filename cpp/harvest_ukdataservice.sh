@@ -14,4 +14,4 @@ oai_pmh_harvester --path-to-dups-database="${DUPS_DATABASE}" \
                   "${METADATA_PREFIX}" "${HARVEST_SET_OR_IDENTIFIER}" "${CONTROL_NUMBER_PREFIX}" \
                   "${OUTPUT_FILENAME}" "${TIME_LIMIT_PER_REQUEST}"
 
-upload_to_bsz_ftp_server.py "$MARC_OUTPUT" /pub/UBTuebingen_Default/
+upload_to_bsz_ftp_server.py "$MARC_OUTPUT" /2001/Default/input/

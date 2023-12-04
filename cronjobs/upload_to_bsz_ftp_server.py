@@ -20,7 +20,7 @@ def Main():
     remote_file_name = os.path.basename(local_file_path)
     remote_file_name_tmp = remote_file_name + ".tmp"
 
-    ftp = bsz_util.GetFTPConnection()
+    ftp = bsz_util.GetFTPConnection("SFTP_Upload")
     ftp.changeDirectory(remote_folder_path)
     ftp.uploadFile(local_file_path, remote_file_name_tmp)
     ftp.renameFile(remote_file_name_tmp, remote_file_name)

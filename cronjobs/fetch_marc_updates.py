@@ -11,27 +11,27 @@ directory_on_ftp_server = /ixtheo
 
 [Differenzabzug]
 filename_pattern = ^(?:TA-MARC-ixtheo|SA-MARC-ixtheo_o|TA-MARC-ixtheo_o)-(\d\d\d\d\d\d).tar.gz$
-directory_on_ftp_server = /ixtheo
+directory_on_ftp_server = /swb/ixtheo
 
 [Hinweisabzug]
 filename_pattern = ^SA-MARC-ixtheo_hinweis-(\d\d\d\d\d\d).tar.gz$
-directory_on_ftp_server = /ixtheo
+directory_on_ftp_server = /swb/ixtheo
 
 [Normdatendifferenzabzug]
 filename_pattern = ^(?:WA-MARCcomb)-(\d\d\d\d\d\d).tar.gz$
-directory_on_ftp_server = /sekkor
+directory_on_ftp_server = /swb/sekkor
 
 [Loeschlisten]
 filename_pattern = ^LOEKXP-(\d\d\d\d\d\d)$
-directory_on_ftp_server = /sekkor
+directory_on_ftp_server = /swb/sekkor
 
 [Loeschlisten2]
 filename_pattern = ^LOEKXP_m-(\d\d\d\d\d\d)$
-directory_on_ftp_server = /ixtheo
+directory_on_ftp_server = /swb/ixtheo
 
 [Errors]
 filename_pattern = ^Errors_ixtheo_(\d\d\d\d\d\d)$
-directory_on_ftp_server = /ixtheo
+directory_on_ftp_server = /swb/ixtheo
 
 [Kumulierte Abzuege]
 output_directory = /usr/local/ub_tools/bsz_daten_cumulated
