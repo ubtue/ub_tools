@@ -3,5 +3,4 @@ set -o errexit
 
 # install paramiko library as a dependency of sftp
 
-pip install paramiko
-
+apt-get --yes install python3-paramiko
