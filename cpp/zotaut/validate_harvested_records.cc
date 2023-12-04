@@ -363,9 +363,6 @@ bool RecordIsNonArticle(const MARC::Record &record) {
 
 bool RecordIsOnlineFirstOrEarlyView(const MARC::Record &record) {
     // Skip if volume and issue are missing or invalid
-    // but do not declare a record OF if pages are present, this indicates a different error
-    if (not record.getFirstSubfieldValue("936", 'h').empty())
-        return false;
     const auto volume_and_issue(record.getSubfieldValues("936", "ed"));
     return volume_and_issue.empty() or (std::find(volume_and_issue.begin(), volume_and_issue.end(), "n/a") != volume_and_issue.end());
 }
