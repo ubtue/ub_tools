@@ -66,7 +66,7 @@ std::string ShiftDateToTenDaysAfter(const std::string &cutoff_date) {
 
 
 inline bool IsLocalDeletionList(const std::string &filename) {
-    static ThreadSafeRegexMatcher local_deletion_list_matcher("LOEKXP_(k|m)");
+    static ThreadSafeRegexMatcher local_deletion_list_matcher("^LOEKXP_(k|m)");
     return local_deletion_list_matcher.match(filename);
 }
 
