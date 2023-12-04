@@ -24,6 +24,7 @@
 #include "BSZUtil.h"
 #include "FileUtil.h"
 #include "IniFile.h"
+#include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "UBTools.h"
 #include "util.h"
@@ -64,18 +65,9 @@ std::string ShiftDateToTenDaysAfter(const std::string &cutoff_date) {
 }
 
 
-inline bool IsMtexDeletionList(const std::string &filename) {
-    return StringUtil::StartsWith(filename, "LOEKXP_m-");
-}
-
-
-inline bool IsKrexDeletionList(const std::string &filename) {
-    return StringUtil::StartsWith(filename, "LOEKXP_k-");
-}
-
-
-inline bool IsMtexOrKrexDeletionList(const std::string &filename) {
-    return (IsMtexDeletionList(filename) or IsKrexDeletionList(filename));
+inline bool IsLocalDeletionList(const std::string &filename) {
+    static ThreadSafeRegexMatcher local_deletion_list_matcher("LOEKXP_(k|m)");
+    return local_deletion_list_matcher.match(filename);
 }
 
 
@@ -109,15 +101,12 @@ bool FileComparator(const std::string &filename1, const std::string &filename2) 
     if (filename2[0] == 'L' and filename1[0] != 'L')
         return false;
 
-    // For IxTheo, LOEKXP_m and LOEKXP are delivered on different dates.
-    // For KrimDok, LOEKXP_k and LOEKXP might be delivered the same date.
-    // Normally the sequence should not play a role in that case,
-    // but since we have to decide for a sequence anyway, the more specific
-    // lists are more important and should therefore be used last in the sequence.
+    // Allow regular & local deletion list on the same day.
+    // (note that the actual sequence will be influenced by LocalDeletionListComparator later)
     if (filename1[0] == 'L' and filename2[0] == 'L') {
-        if (IsMtexOrKrexDeletionList(filename1) and not IsMtexOrKrexDeletionList(filename2))
+        if (IsLocalDeletionList(filename1) and not IsLocalDeletionList(filename2))
             return false;
-        else if (IsMtexOrKrexDeletionList(filename2) and not IsMtexOrKrexDeletionList(filename1))
+        else if (IsLocalDeletionList(filename2) and not IsLocalDeletionList(filename1))
             return true;
     }
 
@@ -137,14 +126,12 @@ bool FileComparator(const std::string &filename1, const std::string &filename2) 
 }
 
 
-bool MtexKrexComparator(const std::string &filename1, const std::string &filename2) {
-    // Since Mtex will only occur for IxTheo & Krex will only occur for KrimDok,
-    // we can use the same comparator logic
-    if (IsMtexOrKrexDeletionList(filename1) and IsMtexOrKrexDeletionList(filename2))
+bool LocalDeletionListComparator(const std::string &filename1, const std::string &filename2) {
+    if (IsLocalDeletionList(filename1) and IsLocalDeletionList(filename2))
         return BSZUtil::ExtractDateFromFilenameOrDie(filename1) < BSZUtil::ExtractDateFromFilenameOrDie(filename2);
-    if (IsMtexOrKrexDeletionList(filename1))
+    if (IsLocalDeletionList(filename1))
         return false;
-    if (IsMtexOrKrexDeletionList(filename2))
+    if (IsLocalDeletionList(filename2))
         return true;
     return FileComparator(filename1, filename2);
 }
@@ -194,7 +181,7 @@ int Main(int argc, char * /*argv*/[]) {
         LOG_ERROR("no matches found for \"" + file_pcre + "\"!");
 
     std::sort(file_list.begin(), file_list.end(), FileComparator);
-    std::stable_sort(file_list.begin(), file_list.end(), MtexKrexComparator); // mtex/krex deletion lists must go last
+    std::stable_sort(file_list.begin(), file_list.end(), LocalDeletionListComparator); // local deletion lists must go last
 
     // Throw away older files before our "reference" complete dump or pseudo complete dump:
     const auto reference_dump(FindMostRecentCompleteOrPseudoCompleteDump(file_list));
