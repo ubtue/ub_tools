@@ -64,6 +64,21 @@ std::string ShiftDateToTenDaysAfter(const std::string &cutoff_date) {
 }
 
 
+inline bool IsMtexDeletionList(const std::string &filename) {
+    return StringUtil::StartsWith(filename, "LOEKXP_m-");
+}
+
+
+inline bool IsKrexDeletionList(const std::string &filename) {
+    return StringUtil::StartsWith(filename, "LOEKXP_k-");
+}
+
+
+inline bool IsMtexOrKrexDeletionList(const std::string &filename) {
+    return (IsMtexDeletionList(filename) or IsKrexDeletionList(filename));
+}
+
+
 bool FileComparator(const std::string &filename1, const std::string &filename2) {
     auto date1(BSZUtil::ExtractDateFromFilenameOrDie(filename1));
     if (StringUtil::Contains(filename1, "sekkor"))
@@ -94,6 +109,18 @@ bool FileComparator(const std::string &filename1, const std::string &filename2) 
     if (filename2[0] == 'L' and filename1[0] != 'L')
         return false;
 
+    // For IxTheo, LOEKXP_m and LOEKXP are delivered on different dates.
+    // For KrimDok, LOEKXP_k and LOEKXP might be delivered the same date.
+    // Normally the sequence should not play a role in that case,
+    // but since we have to decide for a sequence anyway, the more specific
+    // lists are more important and should therefore be used last in the sequence.
+    if (filename1[0] == 'L' and filename2[0] == 'L') {
+        if (IsMtexOrKrexDeletionList(filename1) and not IsMtexOrKrexDeletionList(filename2))
+            return false;
+        else if (IsMtexOrKrexDeletionList(filename2) and not IsMtexOrKrexDeletionList(filename1))
+            return true;
+    }
+
     // Sekkor updates come before anything else:
     if (StringUtil::Contains(filename1, "sekkor") and not StringUtil::Contains(filename2, "sekkor"))
         return true;
@@ -107,21 +134,6 @@ bool FileComparator(const std::string &filename1, const std::string &filename2) 
         return false;
 
     LOG_ERROR("don't know how to compare \"" + filename1 + "\" with \"" + filename2 + "\"!");
-}
-
-
-inline bool IsMtexDeletionList(const std::string &filename) {
-    return StringUtil::StartsWith(filename, "LOEKXP_m-");
-}
-
-
-inline bool IsKrexDeletionList(const std::string &filename) {
-    return StringUtil::StartsWith(filename, "LOEKXP_k-");
-}
-
-
-inline bool IsMtexOrKrexDeletionList(const std::string &filename) {
-    return (IsMtexDeletionList(filename) or IsKrexDeletionList(filename));
 }
 
 
