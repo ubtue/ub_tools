@@ -448,6 +448,7 @@ void ConvertRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_
         new_record->insertField("773", GetSuperiorWorkDescription(ojsitaly_type, Assemble773gContent(*new_record)));
         new_record->insertField("852", { { 'a', "DE-Tue135" } });
         new_record->insertField("912", { { 'a', "NOMM" } });
+        new_record->insertField("935", { { 'a', "mteo" } });
         CleanTitles(new_record);
         AddSelectors(new_record);
         marc_writer->write(*new_record);

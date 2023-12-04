@@ -107,8 +107,10 @@ bool ContainsAtLeastOnePossibleReview(const std::set<std::string> &ppns,
                                       const std::unordered_map<std::string, RecordInfo> &ppns_to_infos_map) {
     for (const auto &ppn : ppns) {
         const auto ppn_and_record_info(ppns_to_infos_map.find(ppn));
-        if (unlikely(ppn_and_record_info == ppns_to_infos_map.cend()))
-            LOG_ERROR("PPN " + ppn + " is missing in ppns_to_infos_map! (2)");
+        if (unlikely(ppn_and_record_info == ppns_to_infos_map.cend())) {
+            LOG_WARNING("PPN " + ppn + " is missing in ppns_to_infos_map! (2)");
+            continue;
+        }
         if (ppn_and_record_info->second.may_be_a_review_)
             return true;
     }
@@ -123,14 +125,18 @@ bool HasAtLeastOneCommonDOI(const std::set<std::string> &ppns, const std::unorde
 
     auto ppn(ppns.cbegin());
     auto ppn_and_record_info(ppns_to_infos_map.find(*ppn));
-    if (unlikely(ppn_and_record_info == ppns_to_infos_map.cend()))
-        LOG_ERROR("PPN " + *ppn + " is missing in ppns_to_infos_map! (3)");
+    if (unlikely(ppn_and_record_info == ppns_to_infos_map.cend())) {
+        LOG_WARNING("PPN " + *ppn + " is missing in ppns_to_infos_map! (3)");
+        return false;
+    }
     std::set<std::string> shared_dois(ppn_and_record_info->second.dois_);
 
     for (++ppn; ppn != ppns.cend(); ++ppn) {
         ppn_and_record_info = ppns_to_infos_map.find(*ppn);
-        if (unlikely(ppn_and_record_info == ppns_to_infos_map.cend()))
-            LOG_ERROR("PPN " + *ppn + " is missing in ppns_to_infos_map! (4)");
+        if (unlikely(ppn_and_record_info == ppns_to_infos_map.cend())) {
+            LOG_WARNING("PPN " + *ppn + " is missing in ppns_to_infos_map! (4)");
+            continue;
+        }
         shared_dois = MiscUtil::Intersect(shared_dois, ppn_and_record_info->second.dois_);
     }
 
@@ -144,15 +150,19 @@ bool IsConsistentSet(const std::set<std::string> &ppns, const std::unordered_map
 
     auto ppn(ppns.cbegin());
     auto ppn_and_record_info(ppns_to_infos_map.find(*ppn));
-    if (unlikely(ppn_and_record_info == ppns_to_infos_map.cend()))
-        LOG_ERROR("PPN " + *ppn + " is missing in ppns_to_infos_map! (5)");
+    if (unlikely(ppn_and_record_info == ppns_to_infos_map.cend())) {
+        LOG_WARNING("PPN " + *ppn + " is missing in ppns_to_infos_map! (5)");
+        return false;
+    }
     std::string year(ppn_and_record_info->second.year_), volume(ppn_and_record_info->second.volume_),
         issue(ppn_and_record_info->second.issue_);
 
     for (++ppn; ppn != ppns.cend(); ++ppn) {
         ppn_and_record_info = ppns_to_infos_map.find(*ppn);
-        if (unlikely(ppn_and_record_info == ppns_to_infos_map.cend()))
-            LOG_ERROR("PPN " + *ppn + " is missing in ppns_to_infos_map! (6)");
+        if (unlikely(ppn_and_record_info == ppns_to_infos_map.cend())) {
+            LOG_WARNING("PPN " + *ppn + " is missing in ppns_to_infos_map! (6)");
+            return false;
+        }
         if (ppn_and_record_info->second.year_ != year or ppn_and_record_info->second.volume_ != volume
             or ppn_and_record_info->second.issue_ != issue)
             return false;
@@ -248,8 +258,10 @@ bool AugmentRecord(MARC::Record * const record, const std::set<std::string> &dup
         if (cross_link_ppn != record->getControlNumber()
             and existing_cross_references.find(cross_link_ppn) == existing_cross_references.cend()) {
             const auto ppn_and_record_info(ppns_to_infos_map.find(cross_link_ppn));
-            if (unlikely(ppn_and_record_info == ppns_to_infos_map.cend()))
-                LOG_ERROR("did not find a record info record for PPN \"" + cross_link_ppn + "\"!");
+            if (unlikely(ppn_and_record_info == ppns_to_infos_map.cend())) {
+                LOG_WARNING("did not find a record info record for PPN \"" + cross_link_ppn + "\"!");
+                continue;
+            }
             const bool is_electronic(ppn_and_record_info->second.is_electronic_);
             record->insertField("776", { { 'i', "Erscheint auch als" },
                                          { 'n', (is_electronic ? "elektronische Ausgabe" : "Druckausgabe") },
