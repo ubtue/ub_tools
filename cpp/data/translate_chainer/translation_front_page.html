@@ -111,9 +111,16 @@
     });
 
 
+    function EncodeHtmlEntities(data) {{
+        return data.replace(/[\u00A0-\u9999<>\&]/g, i => '&#'+i.charCodeAt(0)+';');
+    }
+
+
     function EventSourceChangeStyle(eventData){{
         if(IsJsonString(eventData) === true){{
             let objData = JSON.parse(eventData);
+            // Make sure we prevent interpreting <> as tag and lose it because the browser autocloses it
+            objData.translation = EncodeHtmlEntities(objData.translation);
             $('td').each(function(){{
                 if($(this).attr('comparable') == objData.index && $(this).attr('gnd_code') == objData.gnd_code && $(this).attr('language_code') == objData.language_code){{
                     $(this).html(objData.translation);
