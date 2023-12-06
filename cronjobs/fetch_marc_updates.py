@@ -206,7 +206,7 @@ def Main():
         downloaded_at_least_some_new_titles = True
         util.Remove("/usr/local/var/lib/tuelib/local_data.sq3") # Must be the same path as in LocalDataDB.cc
     all_downloaded_files += DownloadData(config, "Differenzabzug", ftp, download_cutoff_date, msg)
-    if all_downloaded_files is not []:
+    if all_downloaded_files:
         downloaded_at_least_some_new_titles = True
     all_downloaded_files += DownloadData(config, "Loeschlisten", ftp, download_cutoff_date, msg)
     if config.has_section("Loeschlisten2"):
