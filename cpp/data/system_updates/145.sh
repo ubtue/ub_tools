@@ -15,7 +15,7 @@ cp --archive --verbose /usr/local/ub_tools/cpp/solr_restart_error_notification.s
 vufind_service_file=/etc/systemd/system/vufind.service
 
 
-if [ ! -f ${vufind_service_file} ];
+if [ ! -f ${vufind_service_file} ]; then
     echo "Could not find vufind.service file - skipping further installation"
     exit 0
 fi
