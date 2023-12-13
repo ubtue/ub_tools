@@ -555,6 +555,13 @@ void InstallUBTools(const bool make_install, DbConnection * const db_connection_
         SystemdUtil::EnableUnit("boot_notification");
     }
 
+
+    // Install error notification service:
+    if (SystemdUtil::IsAvailable()) {
+        Echo("install error notification") SystemdUtil::InstallUnit(UB_TOOLS_DIRECTORY + "/cpp/data/installer/boot_notification.service");
+        SystemdUtil::EnableUnit("error_notification");
+    }
+
     Echo("ub_tools installed successfully");
 }
 

@@ -1,0 +1,10 @@
+#Based on https://www.baeldung.com/linux/systemd-service-fail-notification (231211)
+[Unit]
+Description=Send Systemd Notifications to Email
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/error_notification.sh %i
+
+[Install]
+WantedBy=multi-user.target
