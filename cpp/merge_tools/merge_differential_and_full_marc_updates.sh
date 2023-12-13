@@ -63,11 +63,20 @@ fi
 email_address=$1
 
 # Must be the same path as in fetch_marc_updates.py and, if applicable, trigger_pipeline_script.sh
-MUTEX_FILE=/usr/local/var/tmp/bsz_download_happened
-if [ ! -e $MUTEX_FILE ]; then
+DOWNLOAD_MUTEX_FILE=/usr/local/var/tmp/bsz_download_happened
+FETCH_UPDATES_RUN_MUTEX_FILE=/usr/local/var/tmp/fetch_updates_run
+if [ ! -e $DOWNLOAD_MUTEX_FILE ] && [ ! -e $FETCH_UPDATES_RUN_MUTEX_FILE ]; then
     no_problems_found=0
     send_email --recipients="$email_address" --subject="Mutex file not found on $(hostname)" \
-               --message-body="$MUTEX_FILE"' is missing => new data was probably not downloaded!'
+               --message-body="$DOWNLOAD_MUTEX_FILE"' is missing => new data was probably not downloaded!'
+    exit 0
+fi
+
+
+if [ -e $FETCH_UPDATES_RUN_MUTEX_FILE ]; then
+    echo "fetch_marc_updates was run but apparently there was no new data"
+    rm --force $FETCH_UPDATES_RUN_MUTEX_FILE
+    no_problems_found=0
     exit 0
 fi
 
@@ -84,7 +93,7 @@ fi
 target_filename=Complete-MARC-$(date +%y%m%d).tar.gz
 if [[ -e $target_filename ]]; then
     echo "Nothing to do: ${target_filename} already exists."
-    rm --force $MUTEX_FILE
+    rm --force $DOWNLOAD_MUTEX_FILE
     exit 0
 fi
 
@@ -157,5 +166,5 @@ else
 fi
 
 
-rm --force $MUTEX_FILE
+rm --force $DOWNLOAD_MUTEX_FILE
 no_problems_found=0

@@ -47,6 +47,10 @@ import tempfile
 import traceback
 import util
 
+# Must be the same path as in the merge script and in trigger_pipeline_script.sh
+DOWNLOAD_HAPPENED_MUTEX="/usr/local/var/tmp/bsz_download_happened"
+FETCH_UPDATES_RUN_MUTEX="/usr/local/var/tmp/fetch_updates_run"
+
 
 # Returns "yymmdd_string" incremented by one day unless it equals "000000" (= minus infinity).
 def IncrementStringDate(yymmdd_string):
@@ -179,6 +183,11 @@ def ShiftDateToTenDaysBefore(date_to_shift):
     date = datetime.datetime.strptime(date_to_shift, "%y%m%d")
     return datetime.datetime.strftime(date - datetime.timedelta(days=10), "%y%m%d")
 
+def CleanStaleMutexFiles():
+    for mutex_file in [ DOWNLOAD_HAPPENED_MUTEX, FETCH_UPDATES_RUN_MUTEX ]:
+        if os.path.exists(mutex_file):
+            os.remove(mutex_file)
+
 
 def Main():
     if len(sys.argv) != 2:
@@ -191,6 +200,7 @@ def Main():
         config = util.LoadConfigFile()
     except Exception as e:
         util.Error("failed to read config file! (" + str(e) + ")")
+    CleanStaleMutexFiles()
 
     ftp = bsz_util.GetFTPConnection()
     msg = []
@@ -230,7 +240,9 @@ def Main():
     AddToCumulativeCollection(all_downloaded_files, config)
     CleanUpCumulativeCollection(config)
     if downloaded_at_least_some_new_titles:
-        util.Touch("/usr/local/var/tmp/bsz_download_happened") # Must be the same path as in the merge script and in trigger_pipeline_script.sh
+        util.Touch(DOWNLOAD_HAPPENED_MUTEX)
+    else:
+        util.Touch(FETCH_UPDATES_RUN_MUTEX)
     util.SendEmail("BSZ File Update", ''.join(msg), priority=5)
 
 
