@@ -10,12 +10,9 @@ if [ ! IsSystemDSystem ]; then
     exit 0;
 fi
 
-cp --archive --verbose /usr/local/ub_tools/cpp/data/installer/error_notification.service /usr/local/lib/systemd/system/
-cp --archive --verbose /usr/local/ub_tools/cpp/error_notification.sh /usr/local/bin
-systemctl enable error_notification
+cp --archive --verbose /usr/local/ub_tools/cpp/solr_restart_error_notification.sh /usr/local/bin
 
-vufind_service_file=/usr/local/lib/systemd/system/vufind.service
-
+vufind_service_file=/etc/systemd/system/vufind.service
 
 if grep --silent "Restart=on-failure" ${vufind_service_file}; then
     echo "Restart command seems already present - skipping installation"
@@ -23,8 +20,8 @@ if grep --silent "Restart=on-failure" ${vufind_service_file}; then
 fi
 
 sed --in-place --regexp-extended --expression '/^ExecStart=/a\' \
-    --expression 'Restart=on-failure\nOnFailure=error_notification.service' \
+    --expression 'Restart=on-failure\nExecStopPost=/usr/local/bin/solr_restart_error_notification.sh %N' \
     ${vufind_service_file}
 
 systemctl daemon-reload
-
+systemctl restart vufind

@@ -4,6 +4,8 @@ After=network.target
 [Service]
 Type=forking
 ExecStart=/bin/sh -l -c 'SOLR_HEAP={solr_heap} /usr/local/vufind/solr.sh start' -x
+Restart=on-failure
+ExecStopPost=/usr/local/bin/solr_restart_error_notification.sh %N
 PIDFile=/usr/local/vufind/solr/vendor/bin/solr-8983.pid
 ExecStop=/bin/sh -l -c '/usr/local/vufind/solr.sh stop' -x
 SuccessExitStatus=0
