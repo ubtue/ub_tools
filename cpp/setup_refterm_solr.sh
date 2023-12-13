@@ -6,7 +6,7 @@ export VUFIND_SOLRMARC_HOME="$VUFIND_HOME/import/"
 export UB_TOOLS_HOME="/usr/local/ub_tools/"
 export CONFIG_FILE_DIR="$UB_TOOLS_HOME/cpp/data/refterm_solr_conf"
 export LOGDIR="/mnt/zram/solr/vufind/logs/"
-ZRAM_DISK_SIZE=2147483648 # Has to be in bytes in oder to compare the set value.
+ZRAM_DISK_SIZE=3221225472  # Has to be in bytes in oder to compare the set value.
 
 
 export SOLR_BIN="$VUFIND_HOME"/solr/vendor/bin/
