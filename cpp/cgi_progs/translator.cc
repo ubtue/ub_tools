@@ -54,6 +54,7 @@ const std::string ALL_SUPPORTED_LANGUAGES("all");
 const std::string SYNONYM_COLUMN_DESCRIPTOR("syn");
 const std::string TOKEN_COLUMN_DESCRIPTOR("token");
 const std::string MACS_COLUMN_DESCRIPTOR("macs");
+const std::string WIKIDATA_COLUMN_DESCRIPTOR("wikidata");
 const int NO_INDEX(-1);
 const unsigned int LOOKFOR_PREFIX_LIMIT(3);
 
@@ -124,7 +125,8 @@ std::string CreateEditableRowEntry(const std::string &token, const std::string &
 
 
 void GetDisplayLanguages(std::vector<std::string> * const display_languages, const std::vector<std::string> &translation_languages,
-                         const std::vector<std::string> &additional_view_languages, enum Category category, const bool show_macs_col) {
+                         const std::vector<std::string> &additional_view_languages, enum Category category,
+                         const bool show_macs_col = false, const bool show_wikidata_col = false) {
     display_languages->clear();
 
     if (category == VUFIND)
@@ -141,6 +143,9 @@ void GetDisplayLanguages(std::vector<std::string> * const display_languages, con
     if (category == KEYWORDS) {
         if (show_macs_col)
             display_languages->emplace_back(MACS_COLUMN_DESCRIPTOR);
+
+        if (show_wikidata_col)
+            display_languages->emplace_back(WIKIDATA_COLUMN_DESCRIPTOR);
 
         display_languages->emplace(std::find(display_languages->begin(), display_languages->end(), "ger") + 1, SYNONYM_COLUMN_DESCRIPTOR);
     }
@@ -182,9 +187,9 @@ std::string GetGNDLink(const std::string &gnd_code) {
 
 std::string CreateNonEditableHintEntry(const std::string &value, const std::string gnd_code, const bool use_subject_link = false,
                                        const std::string background_color = "lightgrey") {
-    return "<td style=\"background-color:" + background_color + "\"><a href = \"" + GetSearchBaseLink(use_subject_link)
-           + UrlUtil::UrlEncode(HtmlUtil::HtmlEscape(ReplaceAngleBracketsByOrdinaryBrackets(value))) + "\" target=\"_blank\">"
-           + HtmlUtil::HtmlEscape(value) + "</a>" + GetGNDLink(gnd_code) + "</td>";
+    return "<td style=\"background-color:" + background_color + "\"  gnd_code=\"" + gnd_code + "\"><a href = \""
+           + GetSearchBaseLink(use_subject_link) + UrlUtil::UrlEncode(HtmlUtil::HtmlEscape(ReplaceAngleBracketsByOrdinaryBrackets(value)))
+           + "\" target=\"_blank\">" + HtmlUtil::HtmlEscape(value) + "</a>" + GetGNDLink(gnd_code) + "</td>";
 }
 
 
@@ -224,6 +229,15 @@ void GetMACSTranslationsForGNDCode(DbConnection &db_connection, const std::strin
 }
 
 
+/*void AssembleWikidataInformationForGNDCode([[maybe_unused]] DbConnection &db_connection, const std::string &gnd_code,
+                                       [[maybe_unused]] std::vector<std::string> * const translations) {
+
+
+
+
+}*/
+
+
 int GetColumnIndexForColumnHeading(const std::vector<std::string> &column_headings, const std::vector<std::string> &row_values,
                                    const std::string &heading) {
     auto heading_pos(std::find(column_headings.cbegin(), column_headings.cend(), heading));
@@ -246,7 +260,12 @@ bool IsEmptyEntryWithoutTranslator(const std::string &entry) {
 
 
 bool IsMacsColumnVisible(const IniFile &ini_file) {
-    return ini_file.getBool(CONFIGURATION_SECTION, "show_macs_col");
+    return ini_file.getBool(CONFIGURATION_SECTION, "show_macs_col", "false");
+}
+
+
+bool IsWikidataColumnVisible(const IniFile &ini_file) {
+    return ini_file.getBool(CONFIGURATION_SECTION, "show_wikidata_col", "true");
 }
 
 
@@ -370,7 +389,7 @@ void GetVuFindTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, co
 
     std::vector<std::string> language_codes(GetLanguageCodes(db_connection));
     std::vector<std::string> display_languages;
-    GetDisplayLanguages(&display_languages, translator_languages, additional_view_languages, VUFIND, false);
+    GetDisplayLanguages(&display_languages, translator_languages, additional_view_languages, VUFIND);
     *headline = "<th>" + StringUtil::Join(display_languages, "</th><th>") + "</th>";
     if (result_set.empty())
         return;
@@ -458,7 +477,7 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
                                                   const std::vector<std::string> &translator_languages,
                                                   const std::vector<std::string> &additional_view_languages,
                                                   const bool use_untranslated_filter, const std::string &lang_untranslated,
-                                                  const bool show_macs_col, const bool use_subject_link) {
+                                                  const bool show_macs_col, const bool use_subject_link, const bool show_wikidata_col) {
     rows->clear();
 
     // For short strings make a prefix search, otherwise search substring
@@ -494,7 +513,7 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
     std::vector<std::string> language_codes(GetLanguageCodes(db_connection));
 
     std::vector<std::string> display_languages;
-    GetDisplayLanguages(&display_languages, translator_languages, additional_view_languages, KEYWORDS, show_macs_col);
+    GetDisplayLanguages(&display_languages, translator_languages, additional_view_languages, KEYWORDS, show_macs_col, show_wikidata_col);
     *headline = "<th>" + StringUtil::Join(display_languages, "</th><th>") + "</th>";
     if (result_set.empty())
         return;
@@ -541,6 +560,16 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
                 if (macs_index == NO_INDEX)
                     continue;
                 row_values[macs_index] = CreateNonEditableSynonymEntry(macs_translations, "<br/>");
+            }
+
+
+            // Insert Wikidata translations
+            if (show_wikidata_col) {
+                int wikidata_index(GetColumnIndexForColumnHeading(display_languages, row_values, WIKIDATA_COLUMN_DESCRIPTOR));
+                if (wikidata_index == NO_INDEX)
+                    continue;
+                row_values[wikidata_index] =
+                    "<td style=\"background-color:lightgrey\" class=\"hint_entry\"  gnd_code=\"" + gnd_code + "\"></td>";
             }
         }
 
@@ -684,7 +713,8 @@ bool GetNumberOfUntranslatedByLanguage(DbConnection &db_connection, enum Categor
 void ShowFrontPage(DbConnection &db_connection, const std::string &lookfor, const std::string &offset, const std::string &target,
                    const std::string translator, const std::vector<std::string> &translator_languages,
                    const std::vector<std::string> &additional_view_languages, const bool filter_untranslated,
-                   const std::string &lang_untranslated, const bool show_macs_col, const bool use_subject_link) {
+                   const std::string &lang_untranslated, const bool show_macs_col, const bool use_subject_link,
+                   const bool show_wikidata_col) {
     Template::Map names_to_values_map;
     std::vector<std::string> rows;
     std::string headline;
@@ -702,7 +732,7 @@ void ShowFrontPage(DbConnection &db_connection, const std::string &lookfor, cons
     else if (target == "keywords")
         GetKeyWordTranslationsAsHTMLRowsFromDatabase(db_connection, lookfor, offset, &rows, &headline, translator_languages,
                                                      additional_view_languages, filter_untranslated, lang_untranslated, show_macs_col,
-                                                     use_subject_link);
+                                                     use_subject_link, show_wikidata_col);
     else
         ShowErrorPageAndDie("Error - Invalid Target", "No valid target selected");
 
@@ -899,6 +929,7 @@ int Main(int argc, char *argv[]) {
     }
 
     bool show_macs_col = IsMacsColumnVisible(ini_file);
+    bool show_wikidata_col = IsWikidataColumnVisible(ini_file);
     bool use_subject_link = IsUseSubjectSearchLink(ini_file);
 
     // Read in the views for the respective users
@@ -927,7 +958,7 @@ int Main(int argc, char *argv[]) {
     else if (save_action == "restore")
         RestoreUserState(db_connection, translator, translation_target, &lookfor, &offset, filter_untranslated);
     ShowFrontPage(db_connection, lookfor, offset, translation_target, translator, translator_languages, additional_view_languages,
-                  filter_untranslated, lang_untranslated, show_macs_col, use_subject_link);
+                  filter_untranslated, lang_untranslated, show_macs_col, use_subject_link, show_wikidata_col);
 
     return EXIT_SUCCESS;
 }
