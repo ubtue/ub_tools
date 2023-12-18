@@ -134,6 +134,8 @@ void ExtractNonGermanTranslations(const MARC::Record &record,
     for (const auto &_750_field : record.getTagRange("750")) {
         const MARC::Subfields _750_subfields(_750_field.getSubfields());
         std::vector<std::string> _9_subfields(_750_subfields.extractSubfields('9'));
+        if (_9_subfields.empty())
+            continue;
         std::string language_code;
         for (const auto &_9_subfield : _9_subfields) {
             if (StringUtil::StartsWith(_9_subfield, "L:"))
@@ -145,11 +147,6 @@ void ExtractNonGermanTranslations(const MARC::Record &record,
                 language_code = "eng";
             else if (_750_2 == "ram")
                 language_code = "fra";
-            else if (_750_2 == "embne")
-                language_code = "spa";
-            else if (_750_2 == "nsbncf")
-                language_code = "ita";
-
             if (not language_code.empty())
                 ++additional_hits;
         }
@@ -330,6 +327,8 @@ bool ExtractTranslationsForASingleRecord(const MARC::Record * const record, cons
 
 void ExtractTranslationsForAllRecords(MARC::Reader * const authority_reader, const IniFile &ini_file,
                                       const bool insert_only_non_existing = false) {
+    if (insert_only_non_existing) {
+    }
     while (const MARC::Record record = authority_reader->read()) {
         if (not ExtractTranslationsForASingleRecord(&record, ini_file, insert_only_non_existing))
             LOG_ERROR("error while extracting translations from \"" + authority_reader->getPath() + "\"");
@@ -337,7 +336,7 @@ void ExtractTranslationsForAllRecords(MARC::Reader * const authority_reader, con
     std::cerr << "Added " << keyword_count << " keywords to the translation database.\n";
     std::cerr << "Found " << german_term_count << " german terms.\n";
     std::cerr << "Found " << translation_count << " translations in the norm data. (" << additional_hits
-              << " due to 'ram', 'lcsh', 'embne' and 'nsbncf' entries.)\n";
+              << " due to 'ram' and 'lcsh' entries.)\n";
     std::cerr << "Found " << synonym_count << " synonym entries.\n";
     std::cerr << no_gnd_code_count << " authority records had no GND code.\n";
 }
