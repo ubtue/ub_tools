@@ -494,7 +494,7 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
         "FROM keywords_newest AS k INNER JOIN keywords_newest AS l ON k.language_code='ger' AND "
         "k.status='reliable' AND k.ppn=l.ppn AND l.status!='reliable_synonym' AND l.status != "
         "'unreliable_synonym'"
-        + search_clause + " ORDER BY k.translation");
+        + search_clause + " ORDER BY k.translation, k.ppn");
 
     const std::string create_keywords_ger_sorted("CREATE TEMPORARY TABLE keywords_ger_sorted AS (" + query + ")");
     db_connection.queryOrDie(create_keywords_ger_sorted);
