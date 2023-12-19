@@ -29,8 +29,11 @@
 #include <utility>
 #include <vector>
 #include <cstdlib>
+#include <nlohmann/json.hpp>
 #include "Compiler.h"
 #include "DbConnection.h"
+#include "Downloader.h"
+#include "FileUtil.h"
 #include "IniFile.h"
 #include "MARC.h"
 #include "StringUtil.h"
@@ -48,7 +51,7 @@
 static unsigned keyword_count, translation_count, additional_hits, synonym_count, german_term_count;
 static DbConnection *shared_connection;
 static std::unordered_set<std::string> *ppns_already_present;
-enum Status { RELIABLE, UNRELIABLE, RELIABLE_SYNONYM, UNRELIABLE_SYNONYM };
+enum Status { RELIABLE, UNRELIABLE, UNRELIABLE_CAT2, RELIABLE_SYNONYM, UNRELIABLE_SYNONYM };
 const std::string CONF_FILE_PATH(UBTools::GetTuelibPath() + "translations.conf");
 
 
@@ -58,6 +61,8 @@ std::string StatusToString(const Status status) {
         return "reliable";
     case UNRELIABLE:
         return "unreliable";
+    case UNRELIABLE_CAT2:
+        return "unreliable_cat2";
     case RELIABLE_SYNONYM:
         return "reliable_synonym";
     case UNRELIABLE_SYNONYM:
@@ -68,11 +73,12 @@ std::string StatusToString(const Status status) {
 }
 
 
-using TextLanguageCodeStatusAndOriginTag = std::tuple<std::string, std::string, Status, std::string, bool>;
+using TextLanguageCodeWikiIDStatusAndOriginTag = std::tuple<std::string, std::string, std::string, Status, std::string, bool>;
 
 
-void ExtractGermanTerms(const MARC::Record &record,
-                        std::vector<TextLanguageCodeStatusAndOriginTag> * const text_language_codes_statuses_and_origin_tags) {
+void ExtractGermanTerms(
+    const MARC::Record &record,
+    std::vector<TextLanguageCodeWikiIDStatusAndOriginTag> * const text_language_codes_wiki_ids_statuses_and_origin_tags) {
     bool updated_german(false);
     for (const auto &_150_field : record.getTagRange("150")) {
         const MARC::Subfields _150_subfields(_150_field.getSubfields());
@@ -96,23 +102,24 @@ void ExtractGermanTerms(const MARC::Record &record,
                 }
             }
 
-            text_language_codes_statuses_and_origin_tags->emplace_back(
-                complete_keyword_phrase, TranslationUtil::MapGermanLanguageCodesToFake3LetterEnglishLanguagesCodes("deu"), RELIABLE, "150",
-                updated_german);
+            text_language_codes_wiki_ids_statuses_and_origin_tags->emplace_back(
+                complete_keyword_phrase, TranslationUtil::MapGermanLanguageCodesToFake3LetterEnglishLanguagesCodes("deu"), "", RELIABLE,
+                "150", updated_german);
             ++german_term_count;
         }
     }
 }
 
 
-void ExtractGermanSynonyms(const MARC::Record &record,
-                           std::vector<TextLanguageCodeStatusAndOriginTag> * const text_language_codes_statuses_and_origin_tags) {
+void ExtractGermanSynonyms(
+    const MARC::Record &record,
+    std::vector<TextLanguageCodeWikiIDStatusAndOriginTag> * const text_language_codes_wiki_ids_statuses_and_origin_tags) {
     for (const auto &_450_field : record.getTagRange("450")) {
         const MARC::Subfields _450_subfields(_450_field.getSubfields());
         if (_450_subfields.hasSubfield('a')) {
-            text_language_codes_statuses_and_origin_tags->emplace_back(
+            text_language_codes_wiki_ids_statuses_and_origin_tags->emplace_back(
                 _450_subfields.getFirstSubfieldWithCode('a'),
-                TranslationUtil::MapGermanLanguageCodesToFake3LetterEnglishLanguagesCodes("deu"), RELIABLE_SYNONYM, "450",
+                TranslationUtil::MapGermanLanguageCodesToFake3LetterEnglishLanguagesCodes("deu"), "", RELIABLE_SYNONYM, "450",
                 false /*updated_german*/);
             ++synonym_count;
         }
@@ -129,8 +136,9 @@ bool IsSynonym(const MARC::Subfields &_750_subfields) {
 }
 
 
-void ExtractNonGermanTranslations(const MARC::Record &record,
-                                  std::vector<TextLanguageCodeStatusAndOriginTag> * const text_language_codes_statuses_and_origin_tags) {
+void ExtractNonGermanTranslations(
+    const MARC::Record &record,
+    std::vector<TextLanguageCodeWikiIDStatusAndOriginTag> * const text_language_codes_wiki_ids_statuses_and_origin_tags) {
     for (const auto &_750_field : record.getTagRange("750")) {
         const MARC::Subfields _750_subfields(_750_field.getSubfields());
         std::vector<std::string> _9_subfields(_750_subfields.extractSubfields('9'));
@@ -163,9 +171,46 @@ void ExtractNonGermanTranslations(const MARC::Record &record,
             else
                 status = is_synonym ? UNRELIABLE_SYNONYM : UNRELIABLE;
             ++translation_count;
-            text_language_codes_statuses_and_origin_tags->emplace_back(_750_subfields.getFirstSubfieldWithCode('a'), language_code, status,
-                                                                       "750", false);
+            text_language_codes_wiki_ids_statuses_and_origin_tags->emplace_back(_750_subfields.getFirstSubfieldWithCode('a'), language_code,
+                                                                                "", status, "750", false);
         }
+    }
+}
+
+
+std::string GetWikidataUrlQuery(const std::string &gnd_code) {
+    return std::string()
+           + R"(https://query.wikidata.org/sparql?query=PREFIX%20schema%3A%20%3Chttp%3A%2F%2Fschema.org%2F%3E%0ASELECT%20DISTINCT)"
+           + R"(%20%3Fitem%20%3Ftitle%20%3Flang%20%20WHERE%20%7B%0A%20%20%20%20%3Fitem%20wdt%3AP227%20%22)" + gnd_code
+           + R"(%22%20.%0A%20%20%20%20%20%20%5B%20schema%3Aabout%20%3Fitem%20%3B%20schema%3Aname%20%3Ftitle%3B%20schema%3AinLanguage)"
+           + R"(%20%3Flang%3B%20%5D%20.%0A%20%20%20%20FILTER%20(%3Flang%20IN%20(%22en%22%2C%22de%22%2C%22fr%22%2C%22ru%22%2C%22pl%22)"
+           + R"(%2C%22es%22%2C%22pt%22%2C%22it%22%2C%22gr%22))%0A%7D%0A)";
+}
+
+
+void ExtractWikidataTranslations(
+    const MARC::Record &record,
+    std::vector<TextLanguageCodeWikiIDStatusAndOriginTag> * const text_language_codes_wiki_ids_statuses_and_origin_tags) {
+    std::string gnd_code;
+    MARC::GetGNDCode(record, &gnd_code);
+    const std::string query_url(GetWikidataUrlQuery(gnd_code));
+    Downloader::Params params;
+    params.additional_headers_ = { "Accept: application/sparql-results+json" };
+    Downloader downloader(Url(query_url), params);
+    if (downloader.getResponseCode() != 200) {
+        LOG_WARNING("Could not download Wikidata Translations for GND \"" + gnd_code + "\"");
+        return;
+    }
+    nlohmann::json wikidata_json(nlohmann::json::parse(downloader.getMessageBody()));
+
+    for (const auto &result : wikidata_json["results"]["bindings"]) {
+        const std::string translation(result["title"]["value"]);
+        const std::string wiki_id(FileUtil::GetLastPathComponent(result["item"]["value"]));
+        const std::string language_code(TranslationUtil::MapInternational2LetterCodeToGerman3Or4LetterCode(result["lang"]["value"]));
+        std::cerr << "WIKI ID: " << wiki_id << ": " << translation << " (" << language_code << ")\n";
+        // text_language_codes_wiki_ids_statuses_and_origin_tags.emplace_back(
+        text_language_codes_wiki_ids_statuses_and_origin_tags->emplace_back(translation, language_code, wiki_id, UNRELIABLE_CAT2, "WIKI",
+                                                                            false);
     }
 }
 
@@ -182,12 +227,12 @@ void FlushToDatabase(std::string &insert_statement) {
 
 // Returns a string that looks like "(language_code='deu' OR language_code='eng')" etc.
 std::string GenerateLanguageCodeWhereClause(
-    const std::vector<TextLanguageCodeStatusAndOriginTag> &text_language_codes_statuses_and_origin_tags) {
+    const std::vector<TextLanguageCodeWikiIDStatusAndOriginTag> &text_language_codes_wiki_ids_statuses_and_origin_tags) {
     std::string partial_where_clause;
 
     partial_where_clause += '(';
     std::set<std::string> already_seen;
-    for (const auto &text_language_code_status_and_origin : text_language_codes_statuses_and_origin_tags) {
+    for (const auto &text_language_code_status_and_origin : text_language_codes_wiki_ids_statuses_and_origin_tags) {
         const std::string &language_code(std::get<1>(text_language_code_status_and_origin));
         if (already_seen.find(language_code) == already_seen.cend()) {
             already_seen.insert(language_code);
@@ -253,11 +298,12 @@ bool ExtractTranslationsForASingleRecord(const MARC::Record * const record, cons
 
 
     // Extract all synonyms and translations:
-    std::vector<TextLanguageCodeStatusAndOriginTag> text_language_codes_statuses_and_origin_tags;
-    ExtractGermanTerms(*record, &text_language_codes_statuses_and_origin_tags);
-    ExtractGermanSynonyms(*record, &text_language_codes_statuses_and_origin_tags);
-    ExtractNonGermanTranslations(*record, &text_language_codes_statuses_and_origin_tags);
-    if (text_language_codes_statuses_and_origin_tags.empty())
+    std::vector<TextLanguageCodeWikiIDStatusAndOriginTag> text_language_codes_wiki_ids_statuses_and_origin_tags;
+    ExtractGermanTerms(*record, &text_language_codes_wiki_ids_statuses_and_origin_tags);
+    ExtractGermanSynonyms(*record, &text_language_codes_wiki_ids_statuses_and_origin_tags);
+    ExtractNonGermanTranslations(*record, &text_language_codes_wiki_ids_statuses_and_origin_tags);
+    ExtractWikidataTranslations(*record, &text_language_codes_wiki_ids_statuses_and_origin_tags);
+    if (text_language_codes_wiki_ids_statuses_and_origin_tags.empty())
         return true;
 
     ++keyword_count;
@@ -269,7 +315,7 @@ bool ExtractTranslationsForASingleRecord(const MARC::Record * const record, cons
         DbTransaction transaction(shared_connection);
         shared_connection->queryRetryOrDie("DELETE FROM keyword_translations WHERE ppn=\"" + ppn + "\" AND "
                                            + "prev_version_id IS NULL AND next_version_id IS NULL AND translator IS NULL AND "
-                                           + GenerateLanguageCodeWhereClause(text_language_codes_statuses_and_origin_tags));
+                                           + GenerateLanguageCodeWhereClause(text_language_codes_wiki_ids_statuses_and_origin_tags));
     }
 
     if (not MARC::GetGNDCode(*record, &gnd_code)) {
@@ -292,12 +338,13 @@ bool ExtractTranslationsForASingleRecord(const MARC::Record * const record, cons
     const size_t MAX_ROW_COUNT(1000);
 
     // Update the database:
-    for (const auto &text_language_code_status_and_origin : text_language_codes_statuses_and_origin_tags) {
+    for (const auto &text_language_code_status_and_origin : text_language_codes_wiki_ids_statuses_and_origin_tags) {
         const std::string language_code(shared_connection->escapeString(std::get<1>(text_language_code_status_and_origin)));
         const std::string translation(shared_connection->escapeString(std::get<0>(text_language_code_status_and_origin)));
-        const std::string status(StatusToString(std::get<2>(text_language_code_status_and_origin)));
-        const std::string &origin(std::get<3>(text_language_code_status_and_origin));
-        const bool updated_german(std::get<4>(text_language_code_status_and_origin));
+        const std::string wiki_id(shared_connection->escapeString(std::get<2>(text_language_code_status_and_origin)));
+        const std::string status(StatusToString(std::get<3>(text_language_code_status_and_origin)));
+        const std::string &origin(std::get<4>(text_language_code_status_and_origin));
+        const bool updated_german(std::get<5>(text_language_code_status_and_origin));
 
         // check if there is an existing entry, insert ignore does not work here
         // any longer due to the deleted unique key for the history functionality.
