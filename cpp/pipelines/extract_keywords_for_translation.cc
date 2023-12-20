@@ -332,7 +332,7 @@ bool ExtractTranslationsForASingleRecord(const MARC::Record * const record, cons
     }
     std::string gnd_system(StringUtil::Join(gnd_systems, ","));
     const std::string INSERT_STATEMENT_START(
-        "INSERT IGNORE INTO keyword_translations (ppn, gnd_code, language_code,"
+        "INSERT IGNORE INTO keyword_translations (ppn, gnd_code, wikidata_id, language_code,"
         " translation, status, origin, gnd_system, german_updated, priority_entry) VALUES ");
     std::string insert_statement(INSERT_STATEMENT_START);
 
@@ -361,9 +361,9 @@ bool ExtractTranslationsForASingleRecord(const MARC::Record * const record, cons
                 continue;
             }
         }
-        insert_statement += "('" + ppn + "', '" + gnd_code + "', '" + language_code + "', '" + translation + "', '" + status + "', '"
-                            + origin + "', '" + gnd_system + "', " + (updated_german ? "true" : "false") + ", " + IsPriorityEntry(*record)
-                            + "), ";
+        insert_statement += "('" + ppn + "', '" + gnd_code + "', '" + wiki_id + "', '" + language_code + "', '" + translation + "', '"
+                            + status + "', '" + origin + "', '" + gnd_system + "', " + (updated_german ? "true" : "false") + ", "
+                            + IsPriorityEntry(*record) + "), ";
         if (++row_counter > MAX_ROW_COUNT) {
             FlushToDatabase(insert_statement);
             insert_statement = INSERT_STATEMENT_START;
