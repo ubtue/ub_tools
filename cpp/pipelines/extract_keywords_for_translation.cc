@@ -206,10 +206,12 @@ void ExtractWikidataTranslations(
     for (const auto &result : wikidata_json["results"]["bindings"]) {
         const std::string translation(result["title"]["value"]);
         const std::string wiki_id(FileUtil::GetLastPathComponent(result["item"]["value"]));
-        const std::string language_code(TranslationUtil::MapInternational2LetterCodeToGerman3Or4LetterCode(result["lang"]["value"]));
+        const std::string language_code(TranslationUtil::MapGermanLanguageCodesToFake3LetterEnglishLanguagesCodes(
+            TranslationUtil::MapInternational2LetterCodeToGerman3Or4LetterCode(result["lang"]["value"])));
         std::cerr << "WIKI ID: " << wiki_id << ": " << translation << " (" << language_code << ")\n";
-        // text_language_codes_wiki_ids_statuses_and_origin_tags.emplace_back(
-        text_language_codes_wiki_ids_statuses_and_origin_tags->emplace_back(translation, language_code, wiki_id, UNRELIABLE_CAT2, "WIKI",
+        if (language_code == "ger")
+            continue;
+        text_language_codes_wiki_ids_statuses_and_origin_tags->emplace_back(translation, language_code, wiki_id, UNRELIABLE_CAT2, "WIK",
                                                                             false);
     }
 }
@@ -349,8 +351,8 @@ bool ExtractTranslationsForASingleRecord(const MARC::Record * const record, cons
         // check if there is an existing entry, insert ignore does not work here
         // any longer due to the deleted unique key for the history functionality.
         // Unsure if it worked before due to translator=null not affecting a ukey in mysql
-        const std::string CHECK_EXISTING("SELECT ppn FROM keyword_translations WHERE ppn=\"" + ppn + "\" AND language_code=\""
-                                         + language_code + "\";");
+        const std::string CHECK_EXISTING("SELECT ppn FROM keyword_translations WHERE ppn='" + ppn + "' AND language_code='" + language_code
+                                         + "' AND (status='" + status + "')");
         {
             DbTransaction transaction(shared_connection);
             shared_connection->queryRetryOrDie(CHECK_EXISTING);
