@@ -25,6 +25,7 @@
 #include <set>
 #include <sstream>
 #include <string>
+#include <tuple>
 #include "DbConnection.h"
 #include "DbResultSet.h"
 #include "DbRow.h"
@@ -168,6 +169,24 @@ std::string CreateNonEditableSynonymEntry(std::vector<std::string> values, const
     return "<td style=\"background-color:lightgrey; font-size:small\">" + StringUtil::Join(values, separator) + "</td>";
 }
 
+using TranslationLangAndWikiID = std::tuple<std::string, std::string, std::string>;
+
+std::string CreateNonEditableWikidataEntry(std::vector<TranslationLangAndWikiID> wikidata_translations) {
+    if (wikidata_translations.empty())
+        return "<td style=\"background-color:lightgrey; font-size:small\"></td>";
+
+    std::cerr << "MAIN BRANCH\n";
+
+    const auto wiki_id(std::get<2>(wikidata_translations[0]));
+    std::vector<std::string> translations_and_langs;
+    for (auto &translation_lang_id : wikidata_translations) {
+        translations_and_langs.emplace_back(
+            HtmlUtil::HtmlEscape(std::get<0>(translation_lang_id) + "(" + std::get<1>(translation_lang_id) + ")"));
+    }
+    return "<td style=\"background-color:lightgrey; font-size:small\"><a href=\"wikidata.org/entity/" + wiki_id + "\">"
+           + StringUtil::Join(translations_and_langs, "<br/>") + "</a></td>";
+}
+
 
 std::string ReplaceAngleBracketsByOrdinaryBrackets(const std::string &value) {
     return StringUtil::Map(value, "<>", "()");
@@ -229,13 +248,19 @@ void GetMACSTranslationsForGNDCode(DbConnection &db_connection, const std::strin
 }
 
 
-/*void AssembleWikidataInformationForGNDCode([[maybe_unused]] DbConnection &db_connection, const std::string &gnd_code,
-                                       [[maybe_unused]] std::vector<std::string> * const translations) {
-
-
-
-
-}*/
+void GetWikidataTranslationsForGNDCode(DbConnection &db_connection, const std::string &gnd_code,
+                                       std::vector<TranslationLangAndWikiID> * const translations_langs_and_wiki_id) {
+    translations_langs_and_wiki_id->clear();
+    if (gnd_code == "0")
+        return;
+    const std::string wikidata_query("SELECT translation, language_code, wikidata_id FROM keyword_translations WHERE gnd_code='" + gnd_code + "' "
+                                 "AND status='unreliable_cat2'");
+    DbResultSet result_set(ExecSqlAndReturnResultsOrDie(wikidata_query, &db_connection));
+    if (result_set.empty())
+        return;
+    while (const auto db_row = result_set.getNextRow())
+        translations_langs_and_wiki_id->emplace_back(db_row["translation"], db_row["language_code"], db_row["wikidata_id"]);
+}
 
 
 int GetColumnIndexForColumnHeading(const std::vector<std::string> &column_headings, const std::vector<std::string> &row_values,
@@ -260,12 +285,12 @@ bool IsEmptyEntryWithoutTranslator(const std::string &entry) {
 
 
 bool IsMacsColumnVisible(const IniFile &ini_file) {
-    return ini_file.getBool(CONFIGURATION_SECTION, "show_macs_col", "false");
+    return ini_file.getBool(CONFIGURATION_SECTION, "show_macs_col", false);
 }
 
 
 bool IsWikidataColumnVisible(const IniFile &ini_file) {
-    return ini_file.getBool(CONFIGURATION_SECTION, "show_wikidata_col", "true");
+    return ini_file.getBool(CONFIGURATION_SECTION, "show_wikidata_col", false);
 }
 
 
@@ -565,11 +590,13 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
 
             // Insert Wikidata translations
             if (show_wikidata_col) {
+                std::vector<TranslationLangAndWikiID> wikidata_translations;
+                GetWikidataTranslationsForGNDCode(db_connection, gnd_code, &wikidata_translations);
                 int wikidata_index(GetColumnIndexForColumnHeading(display_languages, row_values, WIKIDATA_COLUMN_DESCRIPTOR));
                 if (wikidata_index == NO_INDEX)
                     continue;
-                row_values[wikidata_index] =
-                    "<td style=\"background-color:lightgrey\" class=\"hint_entry\"  gnd_code=\"" + gnd_code + "\"></td>";
+                row_values[wikidata_index] = CreateNonEditableWikidataEntry(wikidata_translations);
+                // "<td style=\"background-color:lightgrey\" class=\"hint_entry\"  gnd_code=\"" + gnd_code + "\"></td>";
             }
         }
 
