@@ -187,6 +187,17 @@ std::string GetWikidataUrlQuery(const std::string &gnd_code) {
            + R"(%2C%22es%22%2C%22pt%22%2C%22it%22%2C%22gr%22))%0A%7D%0A)";
 }
 
+int GetRetryAfterSeconds(const HttpHeader &http_header) {
+    const std::string retry_after(http_header.getRetryAfter());
+    if (not retry_after.empty() and std::isdigit(retry_after[0]))
+        return StringUtil::ToInt(retry_after);
+    const double diff_time(
+        TimeUtil::DiffStructTm(TimeUtil::StringToStructTm(retry_after, TimeUtil::RFC822_FORMAT), TimeUtil::GetCurrentTimeGMT()));
+    if (diff_time < 0)
+        LOG_ERROR("Invalid Time difference");
+    return std::round(diff_time);
+}
+
 
 void ExtractWikidataTranslations(
     const MARC::Record &record,
@@ -197,9 +208,17 @@ void ExtractWikidataTranslations(
     Downloader::Params params;
     params.additional_headers_ = { "Accept: application/sparql-results+json" };
     Downloader downloader(Url(query_url), params);
-    if (downloader.getResponseCode() != 200) {
-        LOG_WARNING("Could not download Wikidata Translations for GND \"" + gnd_code + "\"");
-        return;
+    unsigned response_code(downloader.getResponseCode());
+    if (response_code != 200) {
+        LOG_WARNING("Could not download Wikidata Translations for GND \"" + gnd_code + "\"(Error Code " + std::to_string(response_code)
+                    + ")");
+        if (response_code == 429) {
+            const unsigned wait_seconds(GetRetryAfterSeconds(downloader.getMessageHeaderObject()));
+            downloader.newUrl(query_url);
+            TimeUtil::Millisleep(wait_seconds * 1000 + 1);
+            if (downloader.getResponseCode() != 200)
+                LOG_ERROR("Failed after retry");
+        }
     }
     nlohmann::json wikidata_json(nlohmann::json::parse(downloader.getMessageBody()));
 
@@ -298,6 +317,8 @@ bool ExtractTranslationsForASingleRecord(const MARC::Record * const record, cons
     if (insert_only_non_existing and KeywordPPNAlreadyInDatabase(ppn))
         return true;
 
+    if (not record->hasTag("150"))
+        return true;
 
     // Extract all synonyms and translations:
     std::vector<TextLanguageCodeWikiIDStatusAndOriginTag> text_language_codes_wiki_ids_statuses_and_origin_tags;
