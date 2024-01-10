@@ -145,7 +145,7 @@ StartPhase "Extract Translations and Generate Interface Translation Files"
     "$VUFIND_HOME"/local/tuefind/languages/de.ini `# German terms before all others.` \
     $(ls -1 "$VUFIND_HOME"/local/tuefind/languages/??.ini | grep -v 'de.ini$') >> "${log}" 2>&1 && \
 generate_vufind_translation_files "$VUFIND_HOME"/local/tuefind/languages/ >> "${log}" 2>&1 && \
-"$VUFIND_HOME"/clean_vufind_cache.sh >> "${log}" 2>&1 && \
+("$VUFIND_HOME"/clean_vufind_cache.sh || true) >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 
 
