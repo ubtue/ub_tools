@@ -56,18 +56,25 @@ def GetPPNsInIndex(index):
 
 def GetPPNsInMarcFile(title_args):
     try:
-       ppns_as_lines = subprocess.run([util.Which("marc_grep"), title_args, r'"001"', "no_label"], stdout=subprocess.PIPE).stdout.decode('utf8')
-       return set(ppns_as_lines.splitlines())
+       ppns_as_lines = subprocess.run([util.Which("marc_grep"), title_args, r'"001"', "no_label"], \
+                                      stdout=subprocess.PIPE, stderr=subprocess.DEVNULL \
+                                     )
+       if ppns_as_lines.returncode != 0:
+           raise ValueError("marc_grep did not execute sucessfully")
+
+       return set(ppns_as_lines.stdout.decode('utf-8').splitlines())
     except Exception as e:
         util.SendEmail("MARC-21 Pipeline", "Failed determine all MARC PPNs from \"" + title_args + "\" [" + str(e) + "]!", priority=1)
         sys.exit(-1)
 
 
 
-def RemoveExcessRecordsFromIndex(marc_file, index):
+def RemoveExcessRecordsFromIndex(index, marc_file):
     index_ppns = GetPPNsInIndex(index)
     marc_file_ppns = GetPPNsInMarcFile(marc_file)
     to_delete =  index_ppns - marc_file_ppns
+    if len(to_delete) == 0:
+        return
     try:
         url = "http://localhost:8983/solr/" + index + "/update?commit=true"
         headers = {"Content-Type": "application/json"}
@@ -79,12 +86,21 @@ def RemoveExcessRecordsFromIndex(marc_file, index):
         util.SendEmail("MARC-21 Pipeline", "Failed to remove excess records from \"" + index + "\" [" + str(e) + "]!", priority=1)
         sys.exit(-1)
 
+def ClearIndexAndImportRecords(script_name, marc_file, log_file_name):
+    ClearSolrIndex(index)
+    util.ExecOrDie(vufind_dir + '/' + script_name, marc_file, log_file_name)
+
+
+def ImportRecordsAndRemoveExcessRecords(script_name, index, marc_file, log_file_name):
+    util.ExecOrDie(vufind_dir + '/' + script_name, marc_file, log_file_name)
+    RemoveExcessRecordsFromIndex(index, marc_file)
+
 
 solrmarc_log_summary = "/tmp/solrmarc_log.summary"
 import_log_summary = "/tmp/import_into_vufind_log.summary"
 
 
-def ImportIntoVuFind(title_pattern, authority_pattern, log_file_name):
+def ImportIntoVuFind(title_pattern, authority_pattern, log_file_name, clear_solr_index):
     vufind_dir = os.getenv("VUFIND_HOME");
     if vufind_dir == None:
         util.Error("VUFIND_HOME not set, cannot start solr import!")
@@ -95,11 +111,12 @@ def ImportIntoVuFind(title_pattern, authority_pattern, log_file_name):
     if len(title_args) != 1:
         util.Error("\"" + title_pattern + "\" matched " + str(len(title_args))
                    + " files! (Should have matched exactly 1 file!)")
-    if clear_solr_index:
-        ClearSolrIndex(title_index)
-    util.ExecOrDie(vufind_dir + "/import-marc.sh", title_args, log_file_name)
+
     if not clear_solr_index:
-        RemoveExcessRecords(title_args, log_file_name)
+        ImportRecordsAndRemoveExcessRecords('import-marc.sh', title_index, title_args, log_file_name)
+    else:
+        ClearIndexAndImportRecords("import-marc.sh", title_args, log_file_name)
+
     OptimizeSolrIndex(title_index)
 
     # import authority data
@@ -108,8 +125,12 @@ def ImportIntoVuFind(title_pattern, authority_pattern, log_file_name):
     if len(authority_args) != 1:
         util.Error("\"" + authority_pattern + "\" matched " + str(len(authority_args))
                    + " files! (Should have matched exactly 1 file!)")
-    ClearSolrIndex(authority_index)
-    util.ExecOrDie(vufind_dir + "/import-marc-auth.sh", authority_args, log_file_name)
+
+    if not clear_solr_index:
+        ImportRecordsAndRemoveExcessRecords('import-marc-auth.sh', authority_index, authority_args, log_file_name)
+    else:
+        ClearIndexAndImportRecords("import-marc.sh", title_args, log_file_name)
+
     OptimizeSolrIndex(authority_index)
     util.ExecOrDie(util.Which("sudo"), ["-u", "solr", "-E", vufind_dir + "/index-alphabetic-browse.sh"], log_file_name)
 
@@ -120,11 +141,11 @@ def ImportIntoVuFind(title_pattern, authority_pattern, log_file_name):
     util.ExecOrDie("/usr/local/bin/log_rotate", [os.path.dirname(log_file_name), os.path.basename(log_file_name)])
 
 
-def RunPipelineAndImportIntoSolr(pipeline_script_name, marc_title, conf):
+def RunPipelineAndImportIntoSolr(pipeline_script_name, marc_title, conf, clear_solr_index):
     log_file_name = util.MakeLogFileName(pipeline_script_name, util.GetLogDirectory())
     util.ExecOrDie(pipeline_script_name, [ marc_title ], log_file_name)
     log_file_name = util.MakeLogFileName("import_into_vufind", util.GetLogDirectory())
-    ImportIntoVuFind(conf.get("FileNames", "title_marc_data"), conf.get("FileNames", "authority_marc_data"), log_file_name)
+    ImportIntoVuFind(conf.get("FileNames", "title_marc_data"), conf.get("FileNames", "authority_marc_data"), log_file_name, clear_solr_index)
 
     # Write timestamp file for last successful Solr import:
     with open(os.open('/usr/local/vufind/public/last_solr_import', os.O_CREAT | os.O_WRONLY, 0o644), 'w') as output:
