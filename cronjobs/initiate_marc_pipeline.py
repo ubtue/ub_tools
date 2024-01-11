@@ -144,7 +144,7 @@ def ImportIntoVuFind(title_pattern, authority_pattern, log_file_name, clear_solr
     if not clear_solr_index:
         ImportRecordsAndRemoveExcessRecords('import-marc-auth.sh', authority_index, authority_args, log_file_name)
     else:
-        ClearIndexAndImportRecords("import-marc.sh", title_args, log_file_name)
+        ClearIndexAndImportRecords("import-marc-auth.sh", authority_args, log_file_name)
 
     OptimizeSolrIndex(authority_index)
     util.ExecOrDie(util.Which("sudo"), ["-u", "solr", "-E", vufind_dir + "/index-alphabetic-browse.sh"], log_file_name)
