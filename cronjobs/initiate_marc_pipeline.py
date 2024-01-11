@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 import datetime
 import glob
+import itertools
 import json
 import urllib.request, urllib.error, urllib.parse
 import os
@@ -10,6 +11,7 @@ import subprocess
 import time
 import traceback
 import util
+from itertools import islice
 
 # Clear the index to do away with old data that might remain otherwise
 # Since no commit is executed here we avoid the empty index problem
@@ -68,6 +70,18 @@ def GetPPNsInMarcFile(title_args):
         sys.exit(-1)
 
 
+# Remove and replace by call to itertools.batched after update to python 3.12
+# c.f. https://stackoverflow.com/questions/312443/how-do-i-split-a-list-into-equally-sized-chunks/74120449#74120449 (241011)
+def batched(iterable, n):
+    "Batch data into tuples of length n. The last batch may be shorter."
+    # batched('ABCDEFG', 3) --> ABC DEF G
+    it = iter(iterable)
+    while True:
+        batch = tuple(islice(it, n))
+        if not batch:
+            return
+        yield batch
+
 
 def RemoveExcessRecordsFromIndex(index, marc_file):
     index_ppns = GetPPNsInIndex(index)
@@ -76,12 +90,13 @@ def RemoveExcessRecordsFromIndex(index, marc_file):
     if len(to_delete) == 0:
         return
     try:
-        url = "http://localhost:8983/solr/" + index + "/update?commit=true"
-        headers = {"Content-Type": "application/json"}
-        values = r'{ "delete" : { "query" : "filter(id:(' +  ' '.join(to_delete) + r'))" } }'
-        data = values.encode('utf-8')
-        request = urllib.request.Request(url, data, headers)
-        urllib.request.urlopen(request, timeout=300)
+        for to_delete_batch in batched(to_delete, 10000):
+            url = "http://localhost:8983/solr/" + index + "/update?commit=true"
+            headers = {"Content-Type": "application/json"}
+            values = r'{ "delete" : { "query" : "filter(id:(' +  ' '.join(to_delete_batch) + r'))" } }'
+            data = values.encode('utf-8')
+            request = urllib.request.Request(url, data, headers)
+            urllib.request.urlopen(request, timeout=300)
     except Exception as e:
         util.SendEmail("MARC-21 Pipeline", "Failed to remove excess records from \"" + index + "\" [" + str(e) + "]!", priority=1)
         sys.exit(-1)
