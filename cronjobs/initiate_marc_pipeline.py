@@ -43,7 +43,7 @@ def OptimizeSolrIndex(index):
 
 def GetPPNsInIndex(index):
    try:
-      url = "http://localhost:8983/solr/biblio/export"
+      url = "http://localhost:8983/solr/" + index + "/export"
       values = r'q=id:*&sort=id+desc&fl=id'
       data = values.encode('utf-8')
       request = urllib.request.Request(url, data)
