@@ -56,9 +56,9 @@ def GetPPNsInIndex(index):
         sys.exit(-1)
 
 
-def GetPPNsInMarcFile(title_args):
+def GetPPNsInMarcFile(marc_file):
     try:
-       ppns_as_lines = subprocess.run([util.Which("marc_grep"), title_args, r'"001"', "no_label"], \
+       ppns_as_lines = subprocess.run([util.Which("marc_grep"), marc_file, r'"001"', "no_label"], \
                                       stdout=subprocess.PIPE, stderr=subprocess.DEVNULL \
                                      )
        if ppns_as_lines.returncode != 0:
@@ -66,7 +66,7 @@ def GetPPNsInMarcFile(title_args):
 
        return set(ppns_as_lines.stdout.decode('utf-8').splitlines())
     except Exception as e:
-        util.SendEmail("MARC-21 Pipeline", "Failed determine all MARC PPNs from \"" + title_args + "\" [" + str(e) + "]!", priority=1)
+        util.SendEmail("MARC-21 Pipeline", "Failed determine all MARC PPNs from \"" + marc_file + "\" [" + str(e) + "]!", priority=1)
         sys.exit(-1)
 
 
@@ -103,11 +103,11 @@ def RemoveExcessRecordsFromIndex(index, marc_file):
 
 def ClearIndexAndImportRecords(vufind_dir, script_name, marc_file, log_file_name):
     ClearSolrIndex(index)
-    util.ExecOrDie(vufind_dir + '/' + script_name, marc_file, log_file_name)
+    util.ExecOrDie(vufind_dir + '/' + script_name, [ marc_file ], log_file_name)
 
 
 def ImportRecordsAndRemoveExcessRecords(vufind_dir, script_name, index, marc_file, log_file_name):
-    util.ExecOrDie(vufind_dir + '/' + script_name, marc_file, log_file_name)
+    util.ExecOrDie(vufind_dir + '/' + script_name, [ marc_file ], log_file_name)
     RemoveExcessRecordsFromIndex(index, marc_file)
 
 
@@ -128,9 +128,9 @@ def ImportIntoVuFind(title_pattern, authority_pattern, log_file_name, clear_solr
                    + " files! (Should have matched exactly 1 file!)")
 
     if not clear_solr_index:
-        ImportRecordsAndRemoveExcessRecords(vufind_dir, 'import-marc.sh', title_index, title_args, log_file_name)
+        ImportRecordsAndRemoveExcessRecords(vufind_dir, 'import-marc.sh', title_index, title_args[0], log_file_name)
     else:
-        ClearIndexAndImportRecords(vufind_dir, 'import-marc.sh', title_args, log_file_name)
+        ClearIndexAndImportRecords(vufind_dir, 'import-marc.sh', title_args[0], log_file_name)
 
     OptimizeSolrIndex(title_index)
 
@@ -142,9 +142,9 @@ def ImportIntoVuFind(title_pattern, authority_pattern, log_file_name, clear_solr
                    + " files! (Should have matched exactly 1 file!)")
 
     if not clear_solr_index:
-        ImportRecordsAndRemoveExcessRecords(vufind_dir, 'import-marc-auth.sh', authority_index, authority_args, log_file_name)
+        ImportRecordsAndRemoveExcessRecords(vufind_dir, 'import-marc-auth.sh', authority_index, authority_args[0], log_file_name)
     else:
-        ClearIndexAndImportRecords(vufind_dir, 'import-marc-auth.sh', authority_args, log_file_name)
+        ClearIndexAndImportRecords(vufind_dir, 'import-marc-auth.sh', authority_args[0], log_file_name)
 
     OptimizeSolrIndex(authority_index)
     util.ExecOrDie(util.Which("sudo"), ["-u", "solr", "-E", vufind_dir + "/index-alphabetic-browse.sh"], log_file_name)
