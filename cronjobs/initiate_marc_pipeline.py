@@ -101,12 +101,12 @@ def RemoveExcessRecordsFromIndex(index, marc_file):
         util.SendEmail("MARC-21 Pipeline", "Failed to remove excess records from \"" + index + "\" [" + str(e) + "]!", priority=1)
         sys.exit(-1)
 
-def ClearIndexAndImportRecords(script_name, marc_file, log_file_name):
+def ClearIndexAndImportRecords(vufind_dir, script_name, marc_file, log_file_name):
     ClearSolrIndex(index)
     util.ExecOrDie(vufind_dir + '/' + script_name, marc_file, log_file_name)
 
 
-def ImportRecordsAndRemoveExcessRecords(script_name, index, marc_file, log_file_name):
+def ImportRecordsAndRemoveExcessRecords(vufind_dir, script_name, index, marc_file, log_file_name):
     util.ExecOrDie(vufind_dir + '/' + script_name, marc_file, log_file_name)
     RemoveExcessRecordsFromIndex(index, marc_file)
 
@@ -128,9 +128,9 @@ def ImportIntoVuFind(title_pattern, authority_pattern, log_file_name, clear_solr
                    + " files! (Should have matched exactly 1 file!)")
 
     if not clear_solr_index:
-        ImportRecordsAndRemoveExcessRecords('import-marc.sh', title_index, title_args, log_file_name)
+        ImportRecordsAndRemoveExcessRecords(vufind_dir, 'import-marc.sh', title_index, title_args, log_file_name)
     else:
-        ClearIndexAndImportRecords("import-marc.sh", title_args, log_file_name)
+        ClearIndexAndImportRecords(vufind_dir, 'import-marc.sh', title_args, log_file_name)
 
     OptimizeSolrIndex(title_index)
 
@@ -142,9 +142,9 @@ def ImportIntoVuFind(title_pattern, authority_pattern, log_file_name, clear_solr
                    + " files! (Should have matched exactly 1 file!)")
 
     if not clear_solr_index:
-        ImportRecordsAndRemoveExcessRecords('import-marc-auth.sh', authority_index, authority_args, log_file_name)
+        ImportRecordsAndRemoveExcessRecords(vufind_dir, 'import-marc-auth.sh', authority_index, authority_args, log_file_name)
     else:
-        ClearIndexAndImportRecords("import-marc-auth.sh", authority_args, log_file_name)
+        ClearIndexAndImportRecords(vufind_dir, 'import-marc-auth.sh', authority_args, log_file_name)
 
     OptimizeSolrIndex(authority_index)
     util.ExecOrDie(util.Which("sudo"), ["-u", "solr", "-E", vufind_dir + "/index-alphabetic-browse.sh"], log_file_name)
