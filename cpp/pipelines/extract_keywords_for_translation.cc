@@ -23,8 +23,10 @@
 */
 
 #include <iostream>
+#include <span>
 #include <string>
 #include <tuple>
+#include <unordered_map>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -44,13 +46,15 @@
 
 
 [[noreturn]] void Usage() {
-    ::Usage("[--insert-only-non-existing] norm_data_input");
+    ::Usage("[--insert-only-non-existing] [--download-full-wikidata] norm_data_input");
 }
 
 
 static unsigned keyword_count, translation_count, additional_hits, synonym_count, german_term_count;
 static DbConnection *shared_connection;
 static std::unordered_set<std::string> *ppns_already_present;
+// static bool download_full_wikidata(false);
+// static bool insert_only_non_existing(false);
 enum Status { RELIABLE, UNRELIABLE, UNRELIABLE_CAT2, RELIABLE_SYNONYM, UNRELIABLE_SYNONYM };
 const std::string CONF_FILE_PATH(UBTools::GetTuelibPath() + "translations.conf");
 
@@ -187,6 +191,23 @@ std::string GetWikidataUrlQuery(const std::string &gnd_code) {
            + R"(%2C%22es%22%2C%22pt%22%2C%22it%22%2C%22gr%22))%0A%7D%0A)";
 }
 
+
+std::string GetWikidataPostQuery(const std::span<std::string> &gnd_codes, const std::vector<std::string> languages) {
+    std::vector<std::string> quoted_gnds;
+    std::transform(gnd_codes.begin(), gnd_codes.end(), std::back_inserter(quoted_gnds), [](const std::string &s) { return '"' + s + '"'; });
+    const std::string joined_gnds(StringUtil::Join(quoted_gnds, " "));
+    std::vector<std::string> quoted_langs;
+    std::transform(languages.begin(), languages.end(), std::back_inserter(quoted_langs),
+                   [](const std::string &s) { return '"' + s + '"'; });
+    const std::string joined_langs(StringUtil::Join(quoted_langs, ", "));
+
+    return std::string() + R"(query=PREFIX schema: <http://schema.org/>)" + R"(SELECT DISTINCT ?item ?title ?lang ?gnd WHERE {)"
+           + R"(VALUES ?gnd {)" + joined_gnds + "}" + R"(?item wdt:P227 ?gnd .)"
+           + R"([ schema:about ?item ; schema:name ?title; schema:inLanguage ?lang; ] .)" + R"(FILTER (?lang IN ()" + joined_langs + R"()))"
+           + R"(})" + R"(ORDER BY ?gnd ?lang)";
+}
+
+
 int GetRetryAfterSeconds(const HttpHeader &http_header) {
     const std::string retry_after(http_header.getRetryAfter());
     if (not retry_after.empty() and std::isdigit(retry_after[0]))
@@ -199,11 +220,7 @@ int GetRetryAfterSeconds(const HttpHeader &http_header) {
 }
 
 
-void ExtractWikidataTranslations(
-    const MARC::Record &record,
-    std::vector<TextLanguageCodeWikiIDStatusAndOriginTag> * const text_language_codes_wiki_ids_statuses_and_origin_tags) {
-    std::string gnd_code;
-    MARC::GetGNDCode(record, &gnd_code);
+void DownloadSingleWikidataTranslation(const std::string &gnd_code, std::string * const results) {
     const std::string query_url(GetWikidataUrlQuery(gnd_code));
     Downloader::Params params;
     params.additional_headers_ = { "Accept: application/sparql-results+json" };
@@ -220,7 +237,53 @@ void ExtractWikidataTranslations(
                 LOG_ERROR("Failed after retry");
         }
     }
-    nlohmann::json wikidata_json(nlohmann::json::parse(downloader.getMessageBody()));
+    *results = downloader.getMessageBody();
+}
+
+
+void DownloadWikidataTranslations(const std::string &query, std::string * const results) {
+    Downloader::Params params;
+    params.additional_headers_ = { "Accept: application/sparql-results+json" };
+    Downloader downloader(params);
+    const Url wikidata_url("https://query.wikidata.org/sparql");
+    downloader.postData(wikidata_url, query);
+    unsigned response_code(downloader.getResponseCode());
+    if (response_code != 200) {
+        LOG_WARNING("Could not download Wikidata Translations for query \"" + query + "\"(Error Code " + std::to_string(response_code)
+                    + ")");
+        if (response_code == 429) {
+            const unsigned wait_seconds(GetRetryAfterSeconds(downloader.getMessageHeaderObject()));
+            downloader.postData(wikidata_url, query);
+            TimeUtil::Millisleep(wait_seconds * 1000 + 1);
+            response_code = downloader.getResponseCode();
+            if (response_code != 200)
+                LOG_ERROR("Failed to download Wikidata Translations for query \"" + query + "\"(Error Code "
+                          + std::to_string(response_code));
+        }
+    }
+    *results = downloader.getMessageBody();
+}
+
+/*void GetWikidataTranslations(const std::string &gnd_code, std::string * const results) {
+    if (download_full_wikidata)
+
+
+
+
+
+
+
+}*/
+
+
+void ExtractWikidataTranslations(
+    const MARC::Record &record,
+    std::vector<TextLanguageCodeWikiIDStatusAndOriginTag> * const text_language_codes_wiki_ids_statuses_and_origin_tags) {
+    std::string gnd_code;
+    MARC::GetGNDCode(record, &gnd_code);
+    // nlohmann::json wikidata_json(nlohmann::json::parse(downloader.getMessageBody()));
+    std::string results;
+    nlohmann::json wikidata_json(nlohmann::json::parse(results));
 
     for (const auto &result : wikidata_json["results"]["bindings"]) {
         const std::string translation(result["title"]["value"]);
@@ -398,8 +461,75 @@ bool ExtractTranslationsForASingleRecord(const MARC::Record * const record, cons
 }
 
 
+void GetAllSubjectKeywordsGNDs(MARC::Reader * const authority_reader, std::unordered_set<std::string> * const all_subject_keyword_gnds) {
+    while (const MARC::Record record = authority_reader->read()) {
+        if (not record.hasTag("150"))
+            continue;
+        std::string gnd_code;
+        MARC::GetGNDCode(record, &gnd_code);
+        if (gnd_code.empty())
+            continue;
+        all_subject_keyword_gnds->emplace(gnd_code);
+    }
+    authority_reader->rewind();
+}
+
+
+struct WikidataTranslation {
+    std::string translation_;
+    std::string language_;
+    std::string wiki_id_;
+
+public:
+    WikidataTranslation(const std::string &translation, const std::string &language, const std::string wiki_id)
+        : translation_(translation), language_(language), wiki_id_(wiki_id) { }
+};
+
+
+typedef std::unordered_multimap<std::string, WikidataTranslation> wikidata_translation_lookup_table;
+
+void AddWikidataTranslationsToLookupTable(const std::string batch_results, wikidata_translation_lookup_table * const wikidata_info) {
+    nlohmann::json wikidata_json(nlohmann::json::parse(batch_results));
+    for (const auto &result : wikidata_json["results"]["bindings"]) {
+        const std::string gnd_code(result["gnd"]["value"]);
+        const std::string translation(result["title"]["value"]);
+        const std::string lang(result["lang"]["value"]);
+        const std::string wiki_id(FileUtil::GetLastPathComponent(result["item"]["value"]));
+        if (StringUtil::StartsWith(translation, "Category:"))
+            continue;
+        wikidata_info->emplace(gnd_code, WikidataTranslation(translation, lang, wiki_id));
+    }
+}
+
+
 void ExtractTranslationsForAllRecords(MARC::Reader * const authority_reader, const IniFile &ini_file,
-                                      const bool insert_only_non_existing = false) {
+                                      const bool insert_only_non_existing = false, const bool download_full_wikidata = false) {
+    if (download_full_wikidata) {
+        std::unordered_set<std::string> all_subject_keywords_gnds_set;
+        GetAllSubjectKeywordsGNDs(authority_reader, &all_subject_keywords_gnds_set);
+        unsigned batch_size(100);
+        std::vector<std::string> all_subject_keywords_gnds_vector;
+        std::copy(all_subject_keywords_gnds_set.begin(), all_subject_keywords_gnds_set.end(),
+                  std::back_inserter(all_subject_keywords_gnds_vector));
+        auto all_subject_keywords_gnds(std::span(all_subject_keywords_gnds_vector.begin(), all_subject_keywords_gnds_vector.end()));
+        const unsigned all_iterations(std::ceil(all_subject_keywords_gnds.size() / batch_size));
+        wikidata_translation_lookup_table wikidata_info;
+        for (unsigned iteration = 0; iteration <= all_iterations; ++iteration) {
+            auto gnd_batch(all_subject_keywords_gnds.subspan(batch_size * iteration,
+                                                             (iteration == all_iterations) ? std::dynamic_extent : batch_size));
+            const auto joined_gnds(StringUtil::Join(gnd_batch.begin(), gnd_batch.end(), "\n"));
+            std::string batch_results;
+            DownloadWikidataTranslations(GetWikidataPostQuery(gnd_batch, { "en", "de" }), &batch_results);
+            std::cout << batch_results << '\n';
+            AddWikidataTranslationsToLookupTable(batch_results, &wikidata_info);
+            break;
+        }
+        for (const auto &[key, value] : wikidata_info)
+            std::cout << key << ": " << value.translation_ << "| " << value.language_ << "| " << value.wiki_id_ << '\n';
+    }
+
+    std::exit(EXIT_SUCCESS);
+
     while (const MARC::Record record = authority_reader->read()) {
         if (not ExtractTranslationsForASingleRecord(&record, ini_file, insert_only_non_existing))
             LOG_ERROR("error while extracting translations from \"" + authority_reader->getPath() + "\"");
@@ -413,7 +543,7 @@ void ExtractTranslationsForAllRecords(MARC::Reader * const authority_reader, con
 }
 
 
-void GetAllKeywordPPNs(std::unordered_set<std::string> * const keyword_ppns_in_database) {
+void GetAllKeywordPPNsFromDatabase(std::unordered_set<std::string> * const keyword_ppns_in_database) {
     const std::string query("SELECT DISTINCT ppn FROM keyword_translations");
     shared_connection->queryRetryOrDie(query);
     DbResultSet result(shared_connection->getLastResultSet());
@@ -423,12 +553,20 @@ void GetAllKeywordPPNs(std::unordered_set<std::string> * const keyword_ppns_in_d
 
 
 int Main(int argc, char **argv) {
-    if (argc < 2 or argc > 3)
+    if (argc < 2 or argc > 4)
         Usage();
 
+
     bool insert_only_non_existing(false);
-    if (argc == 3 and std::strcmp(argv[1], "--insert-only-non-existing") == 0) {
+    if (argc >= 3 and std::strcmp(argv[1], "--insert-only-non-existing") == 0) {
         insert_only_non_existing = true;
+        --argc;
+        ++argv;
+    }
+
+    bool download_full_wikidata(false);
+    if (argc == 3 and std::strcmp(argv[1], "--download-full-wikidata") == 0) {
+        download_full_wikidata = true;
         --argc;
         ++argv;
     }
@@ -445,11 +583,25 @@ int Main(int argc, char **argv) {
 
         std::unordered_set<std::string> keyword_ppns_in_database;
         if (insert_only_non_existing) {
-            GetAllKeywordPPNs(&keyword_ppns_in_database);
+            GetAllKeywordPPNsFromDatabase(&keyword_ppns_in_database);
             ppns_already_present = &keyword_ppns_in_database;
         }
 
-        ExtractTranslationsForAllRecords(authority_marc_reader.get(), ini_file, insert_only_non_existing);
+        if (not download_full_wikidata and keyword_ppns_in_database.size() < 5000) {
+            LOG_INFO(
+                "Few items in DB => expected number of single Wikidata queries too high \
+                      - forcing download-full-wikidata");
+            download_full_wikidata = true;
+        }
+
+        if (not download_full_wikidata and not insert_only_non_existing) {
+            LOG_INFO(
+                "insert-only-not-existing missing => expected number of single Wikidata queries too high \
+                     - forcing donwload-full-wikidata");
+            download_full_wikidata = true;
+        }
+
+        ExtractTranslationsForAllRecords(authority_marc_reader.get(), ini_file, insert_only_non_existing, download_full_wikidata);
     } catch (const std::exception &x) {
         LOG_ERROR("caught exception: " + std::string(x.what()));
     }
