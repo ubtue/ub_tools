@@ -55,6 +55,7 @@ static DbConnection *shared_connection;
 static std::unordered_set<std::string> *ppns_already_present;
 enum Status { RELIABLE, UNRELIABLE, UNRELIABLE_CAT2, RELIABLE_SYNONYM, UNRELIABLE_SYNONYM };
 const std::string CONF_FILE_PATH(UBTools::GetTuelibPath() + "translations.conf");
+const unsigned WIKIDATA_FULL_DOWNLOAD_BATCH_SIZE(1000);
 
 
 struct WikidataTranslation {
@@ -277,7 +278,7 @@ void DownloadWikidataTranslations(const std::string &query, std::string * const 
 
 
 std::vector<std::string> GetAllTranslatorLanguages() {
-    return { "en", "de" };
+    return { "en", "de", "fr", "pt", "pl", "es" };
 }
 
 
@@ -320,7 +321,7 @@ void GetWikidataTranslationsForASingleRecord(const std::string &gnd_code, wikida
 void GetAllWikidataTranslations(MARC::Reader * const authority_reader, wikidata_translation_lookup_table * const wikidata_translations) {
     std::unordered_set<std::string> all_subject_keywords_gnds_set;
     GetAllSubjectKeywordsGNDs(authority_reader, &all_subject_keywords_gnds_set);
-    unsigned batch_size(100);
+    const unsigned batch_size(WIKIDATA_FULL_DOWNLOAD_BATCH_SIZE);
     std::vector<std::string> all_subject_keywords_gnds_vector;
     std::copy(all_subject_keywords_gnds_set.begin(), all_subject_keywords_gnds_set.end(),
               std::back_inserter(all_subject_keywords_gnds_vector));
@@ -347,13 +348,24 @@ void ExtractWikidataTranslations(
     wikidata_translation_lookup_table * const wikidata_translations) {
     std::string gnd_code;
     MARC::GetGNDCode(record, &gnd_code);
-    const auto all_wikidata_translations_for_gnd(wikidata_translations->equal_range(gnd_code));
-    for (auto it = all_wikidata_translations_for_gnd.first; it != all_wikidata_translations_for_gnd.second; ++it) {
-        WikidataTranslation one_wikidata_translation(it->second);
-        const std::string translation(one_wikidata_translation.translation_);
-        const std::string wiki_id(FileUtil::GetLastPathComponent(one_wikidata_translation.wiki_id_));
+    auto all_wikidata_translations_for_gnd_range(wikidata_translations->equal_range(gnd_code));
+    std::unordered_multimap<std::string, WikidataTranslation> all_wikidata_translations_for_gnd;
+    std::set<std::string> languages_seen;
+    // In some cases we have several translations, so skip all but the first
+    std::copy_if(all_wikidata_translations_for_gnd_range.first, all_wikidata_translations_for_gnd_range.second,
+                 std::inserter(all_wikidata_translations_for_gnd, all_wikidata_translations_for_gnd.end()),
+                 [&languages_seen](std::pair<std::string, WikidataTranslation> gnd_and_wikidata_translation) {
+                     const auto lang(gnd_and_wikidata_translation.second.language_);
+                     if (languages_seen.contains(lang))
+                         return false;
+                     languages_seen.emplace(lang);
+                     return true;
+                 });
+    for (const auto &one_wikidata_translation : all_wikidata_translations_for_gnd) {
+        const std::string translation(one_wikidata_translation.second.translation_);
+        const std::string wiki_id(FileUtil::GetLastPathComponent(one_wikidata_translation.second.wiki_id_));
         const std::string language_code(TranslationUtil::MapGermanLanguageCodesToFake3LetterEnglishLanguagesCodes(
-            TranslationUtil::MapInternational2LetterCodeToGerman3Or4LetterCode(one_wikidata_translation.language_)));
+            TranslationUtil::MapInternational2LetterCodeToGerman3Or4LetterCode(one_wikidata_translation.second.language_)));
         std::cerr << "WIKI ID: " << wiki_id << ": " << translation << " (" << language_code << ")\n";
         if (language_code == "ger")
             continue;
@@ -536,7 +548,7 @@ void ExtractTranslationsForAllRecords(MARC::Reader * const authority_reader, con
         GetAllWikidataTranslations(authority_reader, &wikidata_translations);
     }
 
-    std::exit(EXIT_SUCCESS);
+    // std::exit(EXIT_SUCCESS);
 
     while (const MARC::Record record = authority_reader->read()) {
         if (not ExtractTranslationsForASingleRecord(&record, ini_file, &wikidata_translations, insert_only_non_existing,
