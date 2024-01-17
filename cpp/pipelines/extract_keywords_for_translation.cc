@@ -53,10 +53,21 @@
 static unsigned keyword_count, translation_count, additional_hits, synonym_count, german_term_count;
 static DbConnection *shared_connection;
 static std::unordered_set<std::string> *ppns_already_present;
-// static bool download_full_wikidata(false);
-// static bool insert_only_non_existing(false);
 enum Status { RELIABLE, UNRELIABLE, UNRELIABLE_CAT2, RELIABLE_SYNONYM, UNRELIABLE_SYNONYM };
 const std::string CONF_FILE_PATH(UBTools::GetTuelibPath() + "translations.conf");
+
+
+struct WikidataTranslation {
+    std::string translation_;
+    std::string language_;
+    std::string wiki_id_;
+
+public:
+    WikidataTranslation(const std::string &translation, const std::string &language, const std::string wiki_id)
+        : translation_(translation), language_(language), wiki_id_(wiki_id) { }
+};
+
+typedef std::unordered_multimap<std::string, WikidataTranslation> wikidata_translation_lookup_table;
 
 
 std::string StatusToString(const Status status) {
@@ -264,32 +275,85 @@ void DownloadWikidataTranslations(const std::string &query, std::string * const 
     *results = downloader.getMessageBody();
 }
 
-/*void GetWikidataTranslations(const std::string &gnd_code, std::string * const results) {
-    if (download_full_wikidata)
+
+std::vector<std::string> GetAllTranslatorLanguages() {
+    return { "en", "de" };
+}
 
 
+void AddWikidataTranslationsToLookupTable(const std::string batch_results, wikidata_translation_lookup_table * const wikidata_info) {
+    nlohmann::json wikidata_json(nlohmann::json::parse(batch_results));
+    for (const auto &result : wikidata_json["results"]["bindings"]) {
+        const std::string gnd_code(result["gnd"]["value"]);
+        const std::string translation(result["title"]["value"]);
+        const std::string lang(result["lang"]["value"]);
+        const std::string wiki_id(FileUtil::GetLastPathComponent(result["item"]["value"]));
+        if (StringUtil::StartsWith(translation, "Category:"))
+            continue;
+        wikidata_info->emplace(gnd_code, WikidataTranslation(translation, lang, wiki_id));
+    }
+}
 
 
+void GetAllSubjectKeywordsGNDs(MARC::Reader * const authority_reader, std::unordered_set<std::string> * const all_subject_keyword_gnds) {
+    while (const MARC::Record record = authority_reader->read()) {
+        if (not record.hasTag("150"))
+            continue;
+        std::string gnd_code;
+        MARC::GetGNDCode(record, &gnd_code);
+        if (gnd_code.empty())
+            continue;
+        all_subject_keyword_gnds->emplace(gnd_code);
+    }
+    authority_reader->rewind();
+}
 
 
+void GetWikidataTranslationsForASingleRecord(const std::string &gnd_code, wikidata_translation_lookup_table * const wikidata_translations) {
+    std::string results;
+    std::vector<std::string> gnd_codes({ gnd_code });
+    DownloadWikidataTranslations(GetWikidataPostQuery(std::span{ gnd_codes }, GetAllTranslatorLanguages()), &results);
+    AddWikidataTranslationsToLookupTable(results, wikidata_translations);
+}
 
-}*/
+
+void GetAllWikidataTranslations(MARC::Reader * const authority_reader, wikidata_translation_lookup_table * const wikidata_translations) {
+    std::unordered_set<std::string> all_subject_keywords_gnds_set;
+    GetAllSubjectKeywordsGNDs(authority_reader, &all_subject_keywords_gnds_set);
+    unsigned batch_size(100);
+    std::vector<std::string> all_subject_keywords_gnds_vector;
+    std::copy(all_subject_keywords_gnds_set.begin(), all_subject_keywords_gnds_set.end(),
+              std::back_inserter(all_subject_keywords_gnds_vector));
+    auto all_subject_keywords_gnds(std::span(all_subject_keywords_gnds_vector.begin(), all_subject_keywords_gnds_vector.end()));
+    const unsigned all_iterations(std::ceil(all_subject_keywords_gnds.size() / batch_size));
+    for (unsigned iteration = 0; iteration <= all_iterations; ++iteration) {
+        auto gnd_batch(
+            all_subject_keywords_gnds.subspan(batch_size * iteration, (iteration == all_iterations) ? std::dynamic_extent : batch_size));
+        const auto joined_gnds(StringUtil::Join(gnd_batch.begin(), gnd_batch.end(), "\n"));
+        std::string batch_results;
+        DownloadWikidataTranslations(GetWikidataPostQuery(gnd_batch, GetAllTranslatorLanguages()), &batch_results);
+        std::cout << batch_results << '\n';
+        AddWikidataTranslationsToLookupTable(batch_results, wikidata_translations);
+        break;
+    }
+    for (const auto &[key, value] : *wikidata_translations)
+        std::cout << key << ": " << value.translation_ << "| " << value.language_ << "| " << value.wiki_id_ << '\n';
+}
 
 
 void ExtractWikidataTranslations(
     const MARC::Record &record,
-    std::vector<TextLanguageCodeWikiIDStatusAndOriginTag> * const text_language_codes_wiki_ids_statuses_and_origin_tags) {
+    std::vector<TextLanguageCodeWikiIDStatusAndOriginTag> * const text_language_codes_wiki_ids_statuses_and_origin_tags,
+    wikidata_translation_lookup_table * const wikidata_translations) {
     std::string gnd_code;
     MARC::GetGNDCode(record, &gnd_code);
-    // nlohmann::json wikidata_json(nlohmann::json::parse(downloader.getMessageBody()));
-    std::string results;
-    nlohmann::json wikidata_json(nlohmann::json::parse(results));
-
-    for (const auto &result : wikidata_json["results"]["bindings"]) {
-        const std::string translation(result["title"]["value"]);
-        const std::string wiki_id(FileUtil::GetLastPathComponent(result["item"]["value"]));
+    const auto all_wikidata_translations_for_gnd(wikidata_translations->equal_range(gnd_code));
+    for (auto it = all_wikidata_translations_for_gnd.first; it != all_wikidata_translations_for_gnd.second; ++it) {
+        WikidataTranslation one_wikidata_translation(it->second);
+        const std::string translation(one_wikidata_translation.translation_);
+        const std::string wiki_id(FileUtil::GetLastPathComponent(one_wikidata_translation.wiki_id_));
         const std::string language_code(TranslationUtil::MapGermanLanguageCodesToFake3LetterEnglishLanguagesCodes(
-            TranslationUtil::MapInternational2LetterCodeToGerman3Or4LetterCode(result["lang"]["value"])));
+            TranslationUtil::MapInternational2LetterCodeToGerman3Or4LetterCode(one_wikidata_translation.language_)));
         std::cerr << "WIKI ID: " << wiki_id << ": " << translation << " (" << language_code << ")\n";
         if (language_code == "ger")
             continue;
@@ -369,7 +433,8 @@ bool KeywordPPNAlreadyInDatabase(const std::string &ppn) {
 
 
 bool ExtractTranslationsForASingleRecord(const MARC::Record * const record, const IniFile &ini_file,
-                                         const bool insert_only_non_existing = false) {
+                                         wikidata_translation_lookup_table * const wikidata_translations,
+                                         const bool insert_only_non_existing = false, const bool download_full_wikidata = false) {
     // Skip records that are not GND records:
     std::string gnd_code;
     std::string pseudo_gnd_code;
@@ -383,12 +448,15 @@ bool ExtractTranslationsForASingleRecord(const MARC::Record * const record, cons
     if (not record->hasTag("150"))
         return true;
 
+    if (not download_full_wikidata)
+        GetWikidataTranslationsForASingleRecord(gnd_code, wikidata_translations);
+
     // Extract all synonyms and translations:
     std::vector<TextLanguageCodeWikiIDStatusAndOriginTag> text_language_codes_wiki_ids_statuses_and_origin_tags;
     ExtractGermanTerms(*record, &text_language_codes_wiki_ids_statuses_and_origin_tags);
     ExtractGermanSynonyms(*record, &text_language_codes_wiki_ids_statuses_and_origin_tags);
     ExtractNonGermanTranslations(*record, &text_language_codes_wiki_ids_statuses_and_origin_tags);
-    ExtractWikidataTranslations(*record, &text_language_codes_wiki_ids_statuses_and_origin_tags);
+    ExtractWikidataTranslations(*record, &text_language_codes_wiki_ids_statuses_and_origin_tags, wikidata_translations);
     if (text_language_codes_wiki_ids_statuses_and_origin_tags.empty())
         return true;
 
@@ -461,77 +529,18 @@ bool ExtractTranslationsForASingleRecord(const MARC::Record * const record, cons
 }
 
 
-void GetAllSubjectKeywordsGNDs(MARC::Reader * const authority_reader, std::unordered_set<std::string> * const all_subject_keyword_gnds) {
-    while (const MARC::Record record = authority_reader->read()) {
-        if (not record.hasTag("150"))
-            continue;
-        std::string gnd_code;
-        MARC::GetGNDCode(record, &gnd_code);
-        if (gnd_code.empty())
-            continue;
-        all_subject_keyword_gnds->emplace(gnd_code);
-    }
-    authority_reader->rewind();
-}
-
-
-struct WikidataTranslation {
-    std::string translation_;
-    std::string language_;
-    std::string wiki_id_;
-
-public:
-    WikidataTranslation(const std::string &translation, const std::string &language, const std::string wiki_id)
-        : translation_(translation), language_(language), wiki_id_(wiki_id) { }
-};
-
-
-typedef std::unordered_multimap<std::string, WikidataTranslation> wikidata_translation_lookup_table;
-
-void AddWikidataTranslationsToLookupTable(const std::string batch_results, wikidata_translation_lookup_table * const wikidata_info) {
-    nlohmann::json wikidata_json(nlohmann::json::parse(batch_results));
-    for (const auto &result : wikidata_json["results"]["bindings"]) {
-        const std::string gnd_code(result["gnd"]["value"]);
-        const std::string translation(result["title"]["value"]);
-        const std::string lang(result["lang"]["value"]);
-        const std::string wiki_id(FileUtil::GetLastPathComponent(result["item"]["value"]));
-        if (StringUtil::StartsWith(translation, "Category:"))
-            continue;
-        wikidata_info->emplace(gnd_code, WikidataTranslation(translation, lang, wiki_id));
-    }
-}
-
-
 void ExtractTranslationsForAllRecords(MARC::Reader * const authority_reader, const IniFile &ini_file,
                                       const bool insert_only_non_existing = false, const bool download_full_wikidata = false) {
+    wikidata_translation_lookup_table wikidata_translations;
     if (download_full_wikidata) {
-        std::unordered_set<std::string> all_subject_keywords_gnds_set;
-        GetAllSubjectKeywordsGNDs(authority_reader, &all_subject_keywords_gnds_set);
-        unsigned batch_size(100);
-        std::vector<std::string> all_subject_keywords_gnds_vector;
-        std::copy(all_subject_keywords_gnds_set.begin(), all_subject_keywords_gnds_set.end(),
-                  std::back_inserter(all_subject_keywords_gnds_vector));
-        auto all_subject_keywords_gnds(std::span(all_subject_keywords_gnds_vector.begin(), all_subject_keywords_gnds_vector.end()));
-        const unsigned all_iterations(std::ceil(all_subject_keywords_gnds.size() / batch_size));
-        wikidata_translation_lookup_table wikidata_info;
-        for (unsigned iteration = 0; iteration <= all_iterations; ++iteration) {
-            auto gnd_batch(all_subject_keywords_gnds.subspan(batch_size * iteration,
-                                                             (iteration == all_iterations) ? std::dynamic_extent : batch_size));
-            const auto joined_gnds(StringUtil::Join(gnd_batch.begin(), gnd_batch.end(), "\n"));
-            std::string batch_results;
-            DownloadWikidataTranslations(GetWikidataPostQuery(gnd_batch, { "en", "de" }), &batch_results);
-            std::cout << batch_results << '\n';
-            AddWikidataTranslationsToLookupTable(batch_results, &wikidata_info);
-            break;
-        }
-        for (const auto &[key, value] : wikidata_info)
-            std::cout << key << ": " << value.translation_ << "| " << value.language_ << "| " << value.wiki_id_ << '\n';
+        GetAllWikidataTranslations(authority_reader, &wikidata_translations);
     }
 
     std::exit(EXIT_SUCCESS);
 
     while (const MARC::Record record = authority_reader->read()) {
-        if (not ExtractTranslationsForASingleRecord(&record, ini_file, insert_only_non_existing))
+        if (not ExtractTranslationsForASingleRecord(&record, ini_file, &wikidata_translations, insert_only_non_existing,
+                                                    download_full_wikidata))
             LOG_ERROR("error while extracting translations from \"" + authority_reader->getPath() + "\"");
     }
     std::cerr << "Added " << keyword_count << " keywords to the translation database.\n";
