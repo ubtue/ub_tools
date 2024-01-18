@@ -275,7 +275,7 @@ std::vector<std::string> GetAllTranslatorLanguages(const IniFile &ini_file) {
         ini_file.lookup("Languages", "all", &all_translator_languages_entry);
         if (all_translator_languages_entry.empty())
             LOG_ERROR("Could not determine translator languages from IniFile \"" + ini_file.getFilename() + "\"");
-        StringUtil::Split(all_translator_languages_entry, ',', &all_translator_languages);
+        StringUtil::SplitThenTrimWhite(all_translator_languages_entry, ',', &all_translator_languages);
         std::for_each(all_translator_languages.begin(), all_translator_languages.end(), [](std::string &lang) {
             lang = TranslationUtil::MapGerman3Or4LetterCodeToInternational2LetterCode(
                 TranslationUtil::MapFake3LetterEnglishLanguagesCodesToGermanLanguageCodes(lang));
