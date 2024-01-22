@@ -54,9 +54,9 @@ namespace {
 
 
 // Languages to handle
-const unsigned int NUMBER_OF_LANGUAGES(9);
+const unsigned int NUMBER_OF_LANGUAGES(10);
 const std::vector<std::string> languages_to_create{ "en", "fr", "es", "it", "hans", "hant", "pt", "ru", "el" };
-enum Languages { EN, FR, ES, IT, HANS, HANT, PT, RU, EL, LANGUAGES_END };
+enum Languages { EN, FR, ES, IT, HANS, HANT, PT, PL, RU, EL, LANGUAGES_END };
 
 
 void Usage() {
@@ -248,6 +248,8 @@ void ExtractTranslations(MARC::Reader * const marc_reader, const std::string &ge
                     InsertTranslation(term_to_translation_maps[HANT], german_term, *(++translation_vector_it), type);
                 else if (origin_and_language == "IxTheo_por")
                     InsertTranslation(term_to_translation_maps[PT], german_term, *(++translation_vector_it), type);
+                else if (origin_and_language == "IxTheo_pol")
+                    InsertTranslation(term_to_translation_maps[PL], german_term, *(++translation_vector_it), type);
                 else if (origin_and_language == "IxTheo_rus")
                     InsertTranslation(term_to_translation_maps[RU], german_term, *(++translation_vector_it), type);
                 else if (origin_and_language == "IxTheo_gre")
@@ -260,7 +262,8 @@ void ExtractTranslations(MARC::Reader * const marc_reader, const std::string &ge
               << ", ES: " << term_to_translation_maps[ES].size() << ", IT: " << term_to_translation_maps[IT].size()
               << ", HANS: " << term_to_translation_maps[HANS].size() << ", HANT: " << term_to_translation_maps[HANT].size()
               << ", PT: " << term_to_translation_maps[PT].size() << ", RU: " << term_to_translation_maps[RU].size()
-              << ", EL: " << term_to_translation_maps[EL].size() << " in " << count << " records.\n";
+              << ", PL: " << term_to_translation_maps[PL].size() << ", EL: " << term_to_translation_maps[EL].size() << " in " << count
+              << " records.\n";
 }
 
 
