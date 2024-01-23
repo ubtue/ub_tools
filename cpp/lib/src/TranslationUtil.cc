@@ -110,6 +110,12 @@ bool IsValidGerman3Or4LetterCode(const std::string &german_3or4letter_code_candi
 }
 
 
+std::string MapInternational2LetterCodeToFake3LetterEnglishLanguageCode(const std::string &international_2letter_code) {
+    return MapGermanLanguageCodesToFake3LetterEnglishLanguagesCodes(
+        MapInternational2LetterCodeToGerman3Or4LetterCode(international_2letter_code));
+}
+
+
 void ReadIniFile(const std::string &ini_filename,
                  std::unordered_map<std::string, std::pair<unsigned, std::string>> * const token_to_line_no_and_other_map) {
     File input(ini_filename, "r");
