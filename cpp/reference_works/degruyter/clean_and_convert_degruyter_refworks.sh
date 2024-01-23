@@ -163,7 +163,9 @@ GenerateTmpFiles
         --replace-subfield-if-regex '245a:/\s+\/\s+/\//g' '245a:\s+/\s+' \
         --add-subfield-if '041a:ger' '001:IBW.*' \
         --replace-subfield-if-regex 'VOLa:/^0(\d)/\1/' 'VOLa:^0.*' \
-        --replace-subfield-if-regex '856z:/.*/LF/' '001:^(URBREL|RMO).*'
+        --replace-subfield-if-regex '856z:/.*/LF/' '001:^(URBREL|RMO).*' \
+        --insert-field-if '336a:unbewegtes Bild\037bsti\0372rdacontent' '001:IBW.*' \
+        --insert-field-if '336a:Text\037btxt\0372rdacontent' '001:IBW.*' 
 
 
     cat ${tmpfiles[4]} | xmlstarlet tr xsl/adjust_year.xsl  \
