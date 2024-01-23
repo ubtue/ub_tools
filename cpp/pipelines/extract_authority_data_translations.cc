@@ -47,6 +47,7 @@
 #include "Compiler.h"
 #include "MARC.h"
 #include "StringUtil.h"
+#include "TranslationUtil.h"
 #include "util.h"
 
 
@@ -55,7 +56,7 @@ namespace {
 
 // Languages to handle
 const unsigned int NUMBER_OF_LANGUAGES(10);
-const std::vector<std::string> languages_to_create{ "en", "fr", "es", "it", "hans", "hant", "pt", "ru", "el" };
+const std::vector<std::string> languages_to_create{ "en", "fr", "es", "it", "hans", "hant", "pt", "pl", "ru", "el" };
 enum Languages { EN, FR, ES, IT, HANS, HANT, PT, PL, RU, EL, LANGUAGES_END };
 
 
@@ -88,7 +89,7 @@ void ExtractSubfield9Info(const std::vector<std::string> &_9Subfields, std::stri
 }
 
 
-// We would like to determine the translation, the language and the the origin (ram, lcsh, ixtheo)
+// We would like to determine the translation, the language and the the origin (WikiData, GND/MACS, IxTheo)
 void ExtractOneTranslation(const MARC::Subfields &all_subfields, const std::string &translation_subfield_codes,
                            std::pair<std::string, std::string> * const language_translation_pair) {
     language_translation_pair->first = "";
@@ -97,7 +98,6 @@ void ExtractOneTranslation(const MARC::Subfields &all_subfields, const std::stri
     std::vector<std::string> translation_origin(all_subfields.extractSubfields('2'));
     std::vector<std::string> translation_vector(all_subfields.extractSubfields(translation_subfield_codes));
     std::vector<std::string> _9Subfields(all_subfields.extractSubfields('9'));
-
     std::string language;
     std::string translation_type;
     std::string subfield_g_translation;
@@ -106,14 +106,17 @@ void ExtractOneTranslation(const MARC::Subfields &all_subfields, const std::stri
     if (not subfield_g_translation.empty())
         translation_vector.emplace_back("(" + subfield_g_translation + ")");
 
-    // Skip entry if we do not have IxTheo or MACS (=lcsh and ram) translations
+    // Skip entry if we do not have IxTheo or MACS (=lcsh, ram, embne, nsbncf) or WikiData translations
     const auto translation_origin_joined(StringUtil::Join(translation_origin, ' '));
-    if (translation_origin_joined != "IxTheo" and translation_origin_joined != "ram" and translation_origin_joined != "lcsh")
+    const std::set<std::string> admissible_translation_origins({ "IxTheo", "lcsh", "ram", "embne", "nsbncf", "WikiData" });
+    if (admissible_translation_origins.find(translation_origin_joined) == admissible_translation_origins.end())
         return;
 
+    const std::set<std::string> full_info_origins({ "IxTheo", "WikiData" });
     if (translation_origin.size() == 1) {
-        language_translation_pair->first =
-            (translation_origin[0] == "IxTheo") ? translation_origin[0] + "_" + language + "-" + translation_type : translation_origin[0];
+        language_translation_pair->first = (full_info_origins.find(translation_origin[0]) != full_info_origins.end())
+                                               ? translation_origin[0] + "_" + language + "-" + translation_type
+                                               : translation_origin[0];
         language_translation_pair->second = StringUtil::Join(translation_vector, ' ');
     } else
         LOG_ERROR("Incorrect translation origin translation " + StringUtil::Join(translation_vector, ' '));
@@ -132,6 +135,65 @@ void RemoveMACSIfIxTheoPresent(std::vector<std::string> * const translations) {
         if (ram_it != translations->end())
             translations->erase(ram_it, ram_it + 2);
     }
+
+    if (std::find(translations->begin(), translations->end(), "IxTheo_spa-AF") != translations->end()) {
+        auto embne_it(std::find(translations->begin(), translations->end(), "embne"));
+        if (embne_it != translations->end())
+            translations->erase(embne_it, embne_it + 2);
+    }
+
+    if (std::find(translations->begin(), translations->end(), "IxTheo_ita-AF") != translations->end()) {
+        auto nsbncf_it(std::find(translations->begin(), translations->end(), "nsbncf"));
+        if (nsbncf_it != translations->end())
+            translations->erase(nsbncf_it, nsbncf_it + 2);
+    }
+}
+
+
+void RemoveTranslationFromTranslations(std::vector<std::string> * const translations, const std::string &identifier) {
+    auto it(std::find(translations->begin(), translations->end(), identifier));
+    if (it != translations->end())
+        translations->erase(it, it + 2);
+}
+
+bool HasTranslationOfType(std::vector<std::string> * const translations, const std::string type) {
+    return std::find(translations->begin(), translations->end(), type) != translations->end();
+}
+
+
+void RemoveWikiDataIfIxTheoPresent(std::vector<std::string> * const translations) {
+    for (const auto &short_lang : languages_to_create) {
+        const std::string lang((short_lang == "hans" or short_lang == "hant")
+                                   ? short_lang
+                                   : TranslationUtil::MapInternational2LetterCodeToFake3LetterEnglishLanguageCode(short_lang));
+
+        const std::string suffix("-AF");
+        if (std::find(translations->begin(), translations->end(), "Ixtheo_" + lang + suffix) != translations->end())
+            RemoveTranslationFromTranslations(translations, "WikiData_" + lang + suffix);
+    }
+}
+
+
+void RemoveWikiDataIfMACSPresent(std::vector<std::string> * const translations) {
+    const std::set<std::string> gnd_sources({ "lcsh", "ram", "embne", "nsbncd" });
+    for (const auto &gnd_source : gnd_sources) {
+        if (gnd_source == "lcsh" and HasTranslationOfType(translations, gnd_source)) {
+            RemoveTranslationFromTranslations(translations, "WikiData_eng-AF");
+            continue;
+        }
+        if (gnd_source == "ram" and HasTranslationOfType(translations, gnd_source)) {
+            RemoveTranslationFromTranslations(translations, "WikiData_fre-AF");
+            continue;
+        }
+        if (gnd_source == "embne" and HasTranslationOfType(translations, gnd_source)) {
+            RemoveTranslationFromTranslations(translations, "WikiData_spa-AF");
+            continue;
+        }
+        if (gnd_source == "nsbncd" and HasTranslationOfType(translations, gnd_source)) {
+            RemoveTranslationFromTranslations(translations, "WikiData_ita-AF");
+            continue;
+        }
+    }
 }
 
 
@@ -145,6 +207,21 @@ void InsertTranslation(std::map<std::string, std::vector<std::string>> &term_to_
     else
         term_translations.push_back(translation);
     term_to_translations_map[german_term] = term_translations;
+}
+
+
+bool IsTranslationForLanguage(const std::string &lang, const std::string &type) {
+    const std::map<std::string, std::set<std::string>> origins{
+        { "eng", { "IxTheo_eng", "lcsh", "WikiData_eng" } },  { "fre", { "IxTheo_fre", "ram", "WikiData_fre" } },
+        { "spa", { "IxTheo_spa", "embne", "WikiData_spa" } }, { "ita", { "IxTheo_ita", "nsbncf", "WikiData_ita" } },
+        { "hans", { "IxTheo_hans", "WikiData_hans" } },       { "hant", { "IxTheo_hant", "WikiData_hant" } },
+        { "por", { "IxTheo_por", "WikiData_por" } },          { "pol", { "IxTheo_pol", "WikiData_pol" } },
+        { "rus", { "IxTheo_rus", "WikiData_rus" } },          { "gre", { "IxTheo_gre", "WikiData_gre" } }
+    };
+    const auto lang_it(origins.find(lang));
+    if (lang_it == origins.end())
+        LOG_ERROR("Invalid language \"" + lang + "\"");
+    return lang_it->second.find(type) != lang_it->second.end();
 }
 
 
@@ -212,8 +289,11 @@ void ExtractTranslations(MARC::Reader * const marc_reader, const std::string &ge
             if (translations.empty())
                 continue;
 
-            // Make sure we use the more specific IxTheo translations if available
+            // Make sure we use the most specific translation present
+            RemoveWikiDataIfIxTheoPresent(&translations);
+            RemoveWikiDataIfMACSPresent(&translations);
             RemoveMACSIfIxTheoPresent(&translations);
+
             const std::string final_german_term =
                 StringUtil::Join(german_terms, " / ")
                 + (not additional_specifications.empty() ? " " + StringUtil::Join(additional_specifications, ' ') : "");
@@ -234,25 +314,25 @@ void ExtractTranslations(MARC::Reader * const marc_reader, const std::string &ge
                 const std::string origin_and_language = splitType[0];
                 const std::string type = (splitType.size() == 2) ? splitType[1] : "";
 
-                if (origin_and_language == "IxTheo_eng" or origin_and_language == "lcsh")
+                if (IsTranslationForLanguage("eng", origin_and_language))
                     InsertTranslation(term_to_translation_maps[EN], german_term, *(++translation_vector_it), type);
-                else if (origin_and_language == "IxTheo_fre" or origin_and_language == "ram")
+                else if (IsTranslationForLanguage("fre", origin_and_language))
                     InsertTranslation(term_to_translation_maps[FR], german_term, *(++translation_vector_it), type);
-                else if (origin_and_language == "IxTheo_spa")
+                else if (IsTranslationForLanguage("spa", origin_and_language))
                     InsertTranslation(term_to_translation_maps[ES], german_term, *(++translation_vector_it), type);
-                else if (origin_and_language == "IxTheo_ita")
+                else if (IsTranslationForLanguage("ita", origin_and_language))
                     InsertTranslation(term_to_translation_maps[IT], german_term, *(++translation_vector_it), type);
-                else if (origin_and_language == "IxTheo_hans")
+                else if (IsTranslationForLanguage("hans", origin_and_language))
                     InsertTranslation(term_to_translation_maps[HANS], german_term, *(++translation_vector_it), type);
-                else if (origin_and_language == "IxTheo_hant")
+                else if (IsTranslationForLanguage("hant", origin_and_language))
                     InsertTranslation(term_to_translation_maps[HANT], german_term, *(++translation_vector_it), type);
-                else if (origin_and_language == "IxTheo_por")
+                else if (IsTranslationForLanguage("por", origin_and_language))
                     InsertTranslation(term_to_translation_maps[PT], german_term, *(++translation_vector_it), type);
-                else if (origin_and_language == "IxTheo_pol")
+                else if (IsTranslationForLanguage("pol", origin_and_language))
                     InsertTranslation(term_to_translation_maps[PL], german_term, *(++translation_vector_it), type);
-                else if (origin_and_language == "IxTheo_rus")
+                else if (IsTranslationForLanguage("rus", origin_and_language))
                     InsertTranslation(term_to_translation_maps[RU], german_term, *(++translation_vector_it), type);
-                else if (origin_and_language == "IxTheo_gre")
+                else if (IsTranslationForLanguage("gre", origin_and_language))
                     InsertTranslation(term_to_translation_maps[EL], german_term, *(++translation_vector_it), type);
             }
         }
