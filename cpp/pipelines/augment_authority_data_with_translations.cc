@@ -50,6 +50,8 @@ typedef std::tuple<std::string, std::string, std::string, std::string> Translati
 static unsigned record_count(0);
 static unsigned modified_count(0);
 
+const std::string WIKIDATA_STATUS("unreliable_cat2");
+
 
 [[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " authority_data_input authority_data_output\n";
@@ -117,7 +119,7 @@ void InsertTranslation(MARC::Record * const record, const char indicator1, const
     subfields.addSubfield('a', term);
     subfields.addSubfield('9', "L:" + language_code);
     subfields.addSubfield('9', "Z:" + std::string(IsReliableSynonym(status) ? "VW" : "AF"));
-    subfields.addSubfield('2', "IxTheo");
+    subfields.addSubfield('2', status == WIKIDATA_STATUS ? "WikiData" : "IxTheo");
     record->insertField("750", subfields, indicator1, indicator2);
 }
 
