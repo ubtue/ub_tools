@@ -88,14 +88,6 @@
             event.preventDefault();
         });
 
-
-        $(".hint_entry").contextmenu(function(event) {{
-            let gnd_code = GetGNDCode(this);
-            console.log("GND_CODE: " + gnd_code);
-            GetWikidataTranslationsAndPageLinks(this, gnd_code, [ "en", "de" ]);
-            event.preventDefault();
-        });
-
         if (!!window.EventSource)
         {{
             connectEventSource();
@@ -214,43 +206,6 @@
                 alert("Writing to database failed");
             }
         }); // end ajax
-    }
-
-    function GetWikidataTranslationsAndPageLinks (object, gnd_number, languages) {{
-
-        let endpointUrl = 'https://query.wikidata.org/sparql';
-      	let sparqlQuery = "PREFIX schema: <http://schema.org/>" +
-        "SELECT DISTINCT ?item ?title ?lang  WHERE {{" +
-        "    ?item wdt:P227 \"" + gnd_number + "\" ." +
-        "      [ schema:about ?item ; schema:name ?title; schema:inLanguage ?lang; ] ." +
-        "    FILTER (?lang IN (" + languages.map(l => `'${{l}'`).join(',') + "))" +
-        "}";
-
-        let settings = {{
-             headers: {{ Accept: 'application/sparql-results+json' },
-                         data: {{ query: sparqlQuery }
-	           };
-
-          
-	    return $.ajax( endpointUrl, settings ).then( 
-             function( data ) {{
-                 console.log( data ); 
-                 let wikidata_links='';
-                 for (let entry of data['results']['bindings']) {{
-                      for (let key of data['head']['vars']) {{
-                           switch(key) {{
-                                case 'item':
-                                    wikidata_links += '<a href="' + entry[key]['value'] + '">';
-                                    break;
-                                case 'title':
-                                    wikidata_links += entry[key]['value'] + '</a>';
-                                    break;
-                           }
-                      }
-                 }
-                                  $(object).append(wikidata_links);
-             }
-        );
     }
 
 
