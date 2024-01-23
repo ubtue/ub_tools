@@ -175,16 +175,14 @@ std::string CreateNonEditableWikidataEntry(std::vector<TranslationLangAndWikiID>
     if (wikidata_translations.empty())
         return "<td style=\"background-color:lightgrey; font-size:small\"></td>";
 
-    std::cerr << "MAIN BRANCH\n";
-
     const auto wiki_id(std::get<2>(wikidata_translations[0]));
     std::vector<std::string> translations_and_langs;
     for (auto &translation_lang_id : wikidata_translations) {
         translations_and_langs.emplace_back(
             HtmlUtil::HtmlEscape(std::get<0>(translation_lang_id) + "(" + std::get<1>(translation_lang_id) + ")"));
     }
-    return "<td style=\"background-color:lightgrey; font-size:small\"><a href=\"wikidata.org/entity/" + wiki_id + "\">"
-           + StringUtil::Join(translations_and_langs, "<br/>") + "</a></td>";
+    return "<td style=\"background-color:lightgrey; font-size:small\"><a href=\"https://wikidata.org/entity/" + wiki_id
+           + "\" target=\"_blank\">" + StringUtil::Join(translations_and_langs, "<br/>") + "</a></td>";
 }
 
 
@@ -519,7 +517,7 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
         "FROM keywords_newest AS k INNER JOIN keywords_newest AS l ON k.language_code='ger' AND "
         "k.status='reliable' AND k.ppn=l.ppn AND l.status!='reliable_synonym' AND l.status != "
         "'unreliable_synonym'"
-        + search_clause + " ORDER BY k.translation");
+        + search_clause + " ORDER BY k.translation, k.ppn");
 
     const std::string create_keywords_ger_sorted("CREATE TEMPORARY TABLE keywords_ger_sorted AS (" + query + ")");
     db_connection.queryOrDie(create_keywords_ger_sorted);
@@ -596,7 +594,6 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
                 if (wikidata_index == NO_INDEX)
                     continue;
                 row_values[wikidata_index] = CreateNonEditableWikidataEntry(wikidata_translations);
-                // "<td style=\"background-color:lightgrey\" class=\"hint_entry\"  gnd_code=\"" + gnd_code + "\"></td>";
             }
         }
 
