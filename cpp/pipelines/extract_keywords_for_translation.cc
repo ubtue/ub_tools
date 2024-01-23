@@ -55,7 +55,7 @@ static DbConnection *shared_connection;
 static std::unordered_set<std::string> *ppns_already_present;
 enum Status { RELIABLE, UNRELIABLE, UNRELIABLE_CAT2, RELIABLE_SYNONYM, UNRELIABLE_SYNONYM };
 const std::string CONF_FILE_PATH(UBTools::GetTuelibPath() + "translations.conf");
-const unsigned WIKIDATA_FULL_DOWNLOAD_BATCH_SIZE(5000);
+const unsigned WIKIDATA_FULL_DOWNLOAD_BATCH_SIZE(3000);
 
 
 struct WikidataTranslation {
@@ -220,27 +220,6 @@ int GetRetryAfterSeconds(const HttpHeader &http_header) {
         LOG_ERROR("Invalid Time difference");
     return std::round(diff_time);
 }
-
-
-/*void DownloadSingleWikidataTranslation(const std::string &gnd_code, std::string * const results) {
-    const std::string query_url(GetWikidataUrlQuery(gnd_code));
-    Downloader::Params params;
-    params.additional_headers_ = { "Accept: application/sparql-results+json" };
-    Downloader downloader(Url(query_url), params);
-    unsigned response_code(downloader.getResponseCode());
-    if (response_code != 200) {
-        LOG_WARNING("Could not download Wikidata Translations for GND \"" + gnd_code + "\"(Error Code " + std::to_string(response_code)
-                    + ")");
-        if (response_code == 429) {
-            const unsigned wait_seconds(GetRetryAfterSeconds(downloader.getMessageHeaderObject()));
-            downloader.newUrl(query_url);
-            TimeUtil::Millisleep(wait_seconds * 1000 + 1);
-            if (downloader.getResponseCode() != 200)
-                LOG_ERROR("Failed after retry");
-        }
-    }
-    *results = downloader.getMessageBody();
-}*/
 
 
 void DownloadWikidataTranslations(const std::string &query, std::string * const results) {
@@ -521,8 +500,11 @@ bool ExtractTranslationsForASingleRecord(const MARC::Record * const record, cons
         // check if there is an existing entry, insert ignore does not work here
         // any longer due to the deleted unique key for the history functionality.
         // Unsure if it worked before due to translator=null not affecting a ukey in mysql
+        // Also prevent inserting reliable translations if a tranlator bases translation already exists in the database
+        // prevent ambiguous associations when inserting new translations
         const std::string CHECK_EXISTING("SELECT ppn FROM keyword_translations WHERE ppn='" + ppn + "' AND language_code='" + language_code
-                                         + "' AND (status='" + status + "')");
+                                         + "' AND (status='" + status + "'" + (status == StatusToString(RELIABLE) ? " OR status='new'" : "")
+                                         + ")");
         {
             DbTransaction transaction(shared_connection);
             shared_connection->queryRetryOrDie(CHECK_EXISTING);
@@ -609,8 +591,8 @@ int Main(int argc, char **argv) {
         shared_connection = &db_connection;
 
         std::unordered_set<std::string> keyword_ppns_in_database;
+        GetAllKeywordPPNsFromDatabase(&keyword_ppns_in_database);
         if (insert_only_non_existing) {
-            GetAllKeywordPPNsFromDatabase(&keyword_ppns_in_database);
             ppns_already_present = &keyword_ppns_in_database;
         }
 
