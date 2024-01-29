@@ -31,6 +31,7 @@
 #include "JSON.h"
 #include "MiscUtil.h"
 #include "SqlUtil.h"
+#include "StringUtil.h"
 #include "TranslationUtil.h"
 #include "UBTools.h"
 #include "UrlUtil.h"
@@ -45,6 +46,7 @@ void Usage() {
     std::cerr << "       insert ppn gnd_code language_code text translator\n";
     std::cerr << "       update token language_code text translator\n";
     std::cerr << "       update ppn gnd_code language_code text translator\n";
+    std::cerr << "       disable_translation ppn true|false\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -219,6 +221,13 @@ void ValidateKeywordTranslation(DbConnection * const connection, const std::stri
 }
 
 
+void DisableTranslation(DbConnection * const connection, const std::string &ppn, const bool disable) {
+    const std::string query("UPDATE keyword_translations SET translation_disabled='" + std::to_string(disable) + "' "
+                            "WHERE ppn='" + ppn + "'");
+    connection->queryOrDie(query);
+}
+
+
 const std::string CONF_FILE_PATH(UBTools::GetTuelibPath() + "translations.conf");
 
 
@@ -243,6 +252,12 @@ int main(int argc, char *argv[]) {
                 logger->error("\"" + language_code + "\" is not a valid fake 3- or 4-letter english language code!");
             if (not GetMissingVuFindTranslations(&db_connection, language_code))
                 GetMissingKeywordTranslations(&db_connection, language_code);
+        } else if (std::strcmp(argv[1], "disable_translation") == 0) {
+            if (argc != 4)
+                logger->error("\"disable_translation\" requires exactly two arguments: index disabled_flag!");
+            const std::string index_value(argv[2]);
+            const std::string disabled_flag(argv[3]);
+            DisableTranslation(&db_connection, index_value, StringUtil::ASCIIToLower(disabled_flag) == "true" ? true : false);
         } else if (std::strcmp(argv[1], "get_existing") == 0) {
             if (argc != 5)
                 logger->error("\"get_existing\" requires exactly three arguments: language_code category index!");

@@ -56,6 +56,8 @@ const std::string SYNONYM_COLUMN_DESCRIPTOR("syn");
 const std::string TOKEN_COLUMN_DESCRIPTOR("token");
 const std::string MACS_COLUMN_DESCRIPTOR("macs");
 const std::string WIKIDATA_COLUMN_DESCRIPTOR("wikidata");
+const std::string DISABLE_TRANSLATIONS_SECTION("DisableTranslations");
+const std::string DISABLE_TRANSLATION_COLUMN_DESCRIPTOR("disabled");
 const int NO_INDEX(-1);
 const unsigned int LOOKFOR_PREFIX_LIMIT(3);
 
@@ -127,7 +129,8 @@ std::string CreateEditableRowEntry(const std::string &token, const std::string &
 
 void GetDisplayLanguages(std::vector<std::string> * const display_languages, const std::vector<std::string> &translation_languages,
                          const std::vector<std::string> &additional_view_languages, enum Category category,
-                         const bool show_macs_col = false, const bool show_wikidata_col = false) {
+                         const bool show_macs_col = false, const bool show_wikidata_col = false,
+                         const bool show_disable_translations_col = false) {
     display_languages->clear();
 
     if (category == VUFIND)
@@ -147,6 +150,9 @@ void GetDisplayLanguages(std::vector<std::string> * const display_languages, con
 
         if (show_wikidata_col)
             display_languages->emplace_back(WIKIDATA_COLUMN_DESCRIPTOR);
+
+        if (show_disable_translations_col)
+            display_languages->emplace_back(DISABLE_TRANSLATION_COLUMN_DESCRIPTOR);
 
         display_languages->emplace(std::find(display_languages->begin(), display_languages->end(), "ger") + 1, SYNONYM_COLUMN_DESCRIPTOR);
     }
@@ -183,6 +189,11 @@ std::string CreateNonEditableWikidataEntry(std::vector<TranslationLangAndWikiID>
     }
     return "<td style=\"background-color:lightgrey; font-size:small\"><a href=\"https://wikidata.org/entity/" + wiki_id
            + "\" target=\"_blank\">" + StringUtil::Join(translations_and_langs, "<br/>") + "</a></td>";
+}
+
+
+std::string CreateEditableDisableTranslationEntry(const std::string disabled) {
+    return "<td style=\"background-color:lightgrey; font-size:small\">" + disabled + "</td>";
 }
 
 
@@ -317,17 +328,31 @@ bool IsUseSubjectSearchLink(const IniFile &ini_file) {
 }
 
 
+bool TranslatorIsAdministrator(const IniFile &ini_file, const std::string &translator) {
+    std::vector<std::string> administrators;
+    const std::string ini_administrators(ini_file.getString(USER_SECTION, "administrators"));
+    StringUtil::SplitThenTrimWhite(ini_administrators, ',', &administrators);
+    return std::find(administrators.begin(), administrators.end(), translator) != administrators.end();
+}
+
+
+bool IsDisableTranslationColVisible(const IniFile &ini_file, const std::string &translator) {
+    std::vector<std::string> administrators;
+    if (TranslatorIsAdministrator(ini_file, translator))
+        return true;
+    const std::string ini_disable_translations_users(ini_file.getString(DISABLE_TRANSLATIONS_SECTION, "users"));
+    std::vector<std::string> disable_translations_users;
+    StringUtil::SplitThenTrimWhite(ini_disable_translations_users, ',', &disable_translations_users);
+    return std::find(disable_translations_users.begin(), disable_translations_users.end(), translator) != disable_translations_users.end();
+}
+
+
 void GetTranslatorLanguages(const IniFile &ini_file, const std::string &translator, std::vector<std::string> * const translator_languages) {
     // If user is an administrator all languages are open for editing, otherwise only the specified ones
-    const std::string ini_administrators(ini_file.getString(USER_SECTION, "administrators"));
-    std::vector<std::string> administrators;
-    StringUtil::Split(ini_administrators, ',', &administrators, /*n suppress_empty_components = */ true);
-    std::for_each(administrators.begin(), administrators.end(), [](std::string &administrator) { StringUtil::TrimWhite(&administrator); });
     std::string ini_translator_languages;
-    if (std::find(administrators.begin(), administrators.end(), translator) != administrators.end())
-        ini_translator_languages = ini_file.getString(LANGUAGES_SECTION, ALL_SUPPORTED_LANGUAGES);
-    else
-        ini_translator_languages = ini_file.getString(TRANSLATION_LANGUAGES_SECTION, translator);
+    ini_translator_languages = TranslatorIsAdministrator(ini_file, translator)
+                                   ? ini_file.getString(LANGUAGES_SECTION, ALL_SUPPORTED_LANGUAGES)
+                                   : ini_file.getString(TRANSLATION_LANGUAGES_SECTION, translator);
 
     StringUtil::Split(ini_translator_languages, ',', translator_languages, /*n suppress_empty_components = */ true);
     std::for_each(translator_languages->begin(), translator_languages->end(),
@@ -454,7 +479,8 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
                                                   const std::vector<std::string> &translator_languages,
                                                   const std::vector<std::string> &additional_view_languages,
                                                   const bool use_untranslated_filter, const std::string &lang_untranslated,
-                                                  const bool show_macs_col, const bool use_subject_link, const bool show_wikidata_col) {
+                                                  const bool show_macs_col, const bool use_subject_link, const bool show_wikidata_col,
+                                                  const bool show_disable_translation_col) {
     rows->clear();
 
     // For short strings make a prefix search, otherwise search substring
@@ -474,7 +500,8 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
                   "language_code='ger' AND status='reliable' AND ppn NOT IN (SELECT ppn FROM translated_ppns_for_untranslated_filter) "
                   "ORDER BY translation LIMIT " + offset +  ", " + std::to_string(ENTRIES_PER_PAGE) + "),"
              "result_set AS (SELECT * FROM keywords_newest WHERE ppn IN (SELECT * FROM ppns))"
-             "SELECT l.ppn, l.translation, l.language_code, l.gnd_code, l.status, l.translator, l.german_updated, l.priority_entry FROM "
+             "SELECT l.ppn, l.translation, l.language_code, l.gnd_code, l.status, l.translator, l.german_updated, "
+                     "l.priority_entry, l.translation_disabled FROM "
              "result_set AS l INNER JOIN result_set AS k ON k.language_code='ger' AND k.status='reliable' AND "
              "k.ppn=l.ppn AND l.status!='reliable_synonym' AND l.status !='unreliable_synonym' "
              " WHERE l.language_code IN (" + GetQuotedDisplayLanguagesAsString(translator_languages, additional_view_languages) + ", 'ger')");
@@ -484,7 +511,8 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
     std::vector<std::string> language_codes(GetLanguageCodes(db_connection));
 
     std::vector<std::string> display_languages;
-    GetDisplayLanguages(&display_languages, translator_languages, additional_view_languages, KEYWORDS, show_macs_col, show_wikidata_col);
+    GetDisplayLanguages(&display_languages, translator_languages, additional_view_languages, KEYWORDS, show_macs_col, show_wikidata_col,
+                        show_disable_translation_col);
     *headline = "<th>" + StringUtil::Join(display_languages, "</th><th>") + "</th>";
     if (result_set.empty())
         return;
@@ -501,6 +529,7 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
         std::string gnd_code(db_row["gnd_code"]);
         std::string german_updated(db_row["german_updated"]);
         std::string priority_entry(db_row["priority_entry"]);
+        std::string disabled_entry(db_row["translation_disabled"]);
         if (current_ppn != ppn) {
             if (not current_ppn.empty())
                 rows->emplace_back(StringUtil::Join(row_values, ""));
@@ -543,6 +572,15 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
                 if (wikidata_index == NO_INDEX)
                     continue;
                 row_values[wikidata_index] = CreateNonEditableWikidataEntry(wikidata_translations);
+            }
+
+            // Insert Disable Translations Selector
+            if (show_disable_translation_col) {
+                int disabled_translations_index(
+                    GetColumnIndexForColumnHeading(display_languages, row_values, DISABLE_TRANSLATION_COLUMN_DESCRIPTOR));
+                if (disabled_translations_index == NO_INDEX)
+                    continue;
+                row_values[disabled_translations_index] = CreateEditableDisableTranslationEntry(disabled_entry);
             }
         }
 
@@ -683,7 +721,7 @@ void ShowFrontPage(DbConnection &db_connection, const std::string &lookfor, cons
                    const std::string translator, const std::vector<std::string> &translator_languages,
                    const std::vector<std::string> &additional_view_languages, const bool filter_untranslated,
                    const std::string &lang_untranslated, const bool show_macs_col, const bool use_subject_link,
-                   const bool show_wikidata_col) {
+                   const bool show_wikidata_col, const bool show_disable_translation_col) {
     Template::Map names_to_values_map;
     std::vector<std::string> rows;
     std::string headline;
@@ -701,7 +739,7 @@ void ShowFrontPage(DbConnection &db_connection, const std::string &lookfor, cons
     else if (target == "keywords")
         GetKeyWordTranslationsAsHTMLRowsFromDatabase(db_connection, lookfor, offset, &rows, &headline, translator_languages,
                                                      additional_view_languages, filter_untranslated, lang_untranslated, show_macs_col,
-                                                     use_subject_link, show_wikidata_col);
+                                                     use_subject_link, show_wikidata_col, show_disable_translation_col);
     else
         ShowErrorPageAndDie("Error - Invalid Target", "No valid target selected");
 
@@ -900,6 +938,7 @@ int Main(int argc, char *argv[]) {
     bool show_macs_col = IsMacsColumnVisible(ini_file);
     bool show_wikidata_col = IsWikidataColumnVisible(ini_file);
     bool use_subject_link = IsUseSubjectSearchLink(ini_file);
+    bool show_disable_translation_col = IsDisableTranslationColVisible(ini_file, translator);
 
     // Read in the views for the respective users
     std::vector<std::string> translator_languages;
@@ -927,7 +966,7 @@ int Main(int argc, char *argv[]) {
     else if (save_action == "restore")
         RestoreUserState(db_connection, translator, translation_target, &lookfor, &offset, filter_untranslated);
     ShowFrontPage(db_connection, lookfor, offset, translation_target, translator, translator_languages, additional_view_languages,
-                  filter_untranslated, lang_untranslated, show_macs_col, use_subject_link, show_wikidata_col);
+                  filter_untranslated, lang_untranslated, show_macs_col, use_subject_link, show_wikidata_col, show_disable_translation_col);
 
     return EXIT_SUCCESS;
 }

@@ -174,6 +174,18 @@ void GetHistory(const std::multimap<std::string, std::string> &cgi_args, std::st
 }
 
 
+void DisableTranslation(const std::multimap<std::string, std::string> &cgi_args) {
+    std::string index, disabled;
+    index = GetCGIParameterOrDie(cgi_args, "index");
+    disabled = GetCGIParameterOrDie(cgi_args, "disabled");
+    std::string disable_command("/usr/local/bin/translation_db_tool disable_translation " + ExecUtil::EscapeAndQuoteArg(index) + " "
+                                + disabled);
+    std::string output;
+    if (not ExecUtil::ExecSubcommandAndCaptureStdout(disable_command, &output))
+        LOG_ERROR("failed to execute \"" + disable_command + "\" or it returned a non-zero exit code!");
+}
+
+
 int main(int argc, char *argv[]) {
     ::progname = argv[0];
 
@@ -197,6 +209,9 @@ int main(int argc, char *argv[]) {
                 std::string history_result;
                 GetHistory(cgi_args, &history_result);
                 status = "Status: 200 OK\r\n\r\n\r\n" + history_result;
+            } else if (action == "disable_translation") {
+                DisableTranslation(cgi_args);
+                status = "Status: 200 OK\r\n";
             } else
                 LOG_ERROR("Unknown action: " + action + "! Expecting 'insert' or 'update' or 'get_history_for_entry'.");
             std::cout << "Content-Type: text/html; charset=utf-8\r\n\r\n";
