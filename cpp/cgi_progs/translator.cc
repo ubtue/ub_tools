@@ -315,66 +315,34 @@ void GetTranslatorLanguages(const IniFile &ini_file, const std::string &translat
 }
 
 
-std::string GetTranslatedLanguagesCriterion(const std::string &translator, enum Category category, const std::string &language_code) {
-    const IniFile ini_file(CONF_FILE_PATH);
-    std::vector<std::string> translator_languages;
-    GetTranslatorLanguages(ini_file, translator, &translator_languages);
-    bool substitute_language =
-        std::find(translator_languages.begin(), translator_languages.end(), language_code) != translator_languages.end();
-    if (substitute_language)
-        translator_languages = { language_code };
-    std::string criterion("translation IS NOT NULL AND translation <> '' AND language_code IN (");
-    int num_of_languages(0);
-    const std::string group_by_criterion(category == VUFIND ? "token" : "ppn");
-    bool is_first(true);
-    for (const auto &translator_language : translator_languages) {
-        if (translator_language == "ger")
-            continue;
-
-        if (is_first)
-            is_first = false;
-        else
-            criterion += ", ";
-        criterion += "'" + translator_language + "'";
-        ++num_of_languages;
-    }
-    if (substitute_language)
-        criterion += ")";
-    else
-        criterion += ") GROUP BY " + group_by_criterion + " HAVING COUNT(DISTINCT language_code) = " + std::to_string(num_of_languages);
-    return criterion;
+void GetQuotedTranslatorLanguagesAsSet(const std::vector<std::string> &translator_languages, std::set<std::string> * const target) {
+    std::transform(translator_languages.begin(), translator_languages.end(), std::inserter(*target, target->begin()),
+                   [](const std::string &lang) { return "'" + lang + "'"; });
 }
 
 
-void SetupVuFindSortLimit(DbConnection &db_connection, std::string * const create_sort_limit, const std::string &offset,
-                          const bool use_untranslated_filter, const std::string lang_untranslated) {
-    if (use_untranslated_filter) {
-        const std::string translator(GetTranslatorOrEmptyString());
-        if (translator.empty())
-            ShowErrorPageAndDie("Error - No Valid User", "No valid user selected");
+std::string GetQuotedTranslatorLanguagesAsString(const std::vector<std::string> &translator_languages) {
+    std::set<std::string> target;
+    GetQuotedTranslatorLanguagesAsSet(translator_languages, &target);
+    return StringUtil::Join(target, ", ");
+}
 
-        const std::string translated_by_translator(
-            "CREATE TEMPORARY TABLE translated_by_translator (INDEX (token)) AS "
-            "(SELECT DISTINCT token FROM vufind_ger_sorted WHERE "
-            + GetTranslatedLanguagesCriterion(translator, VUFIND, lang_untranslated) + ")");
-        db_connection.queryOrDie(translated_by_translator);
-        const std::string untranslated_by_translator_ger_sorted(
-            "CREATE TEMPORARY TABLE untranslated_by_translator_ger_sorted AS "
-            "(SELECT DISTINCT l.token FROM (SELECT token FROM vufind_ger_sorted "
-            "WHERE language_code='ger' ORDER BY token) AS l "
-            "LEFT JOIN translated_by_translator AS r "
-            "ON l.token=r.token WHERE r.token IS NULL)");
-        db_connection.queryOrDie(untranslated_by_translator_ger_sorted);
-        *create_sort_limit =
-            "CREATE TEMPORARY TABLE vufind_sort_limit AS (SELECT DISTINCT l.token FROM vufind_ger_sorted AS l "
-            "INNER JOIN untranslated_by_translator_ger_sorted AS r USING(token) "
-            "ORDER BY l.token LIMIT "
-            + offset + ", " + std::to_string(ENTRIES_PER_PAGE) + ")";
-    } else
-        *create_sort_limit =
-            "CREATE TEMPORARY TABLE vufind_sort_limit AS (SELECT token FROM vufind_ger_sorted WHERE "
-            "language_code='ger' ORDER BY token LIMIT "
-            + offset + ", " + std::to_string(ENTRIES_PER_PAGE) + ")";
+
+std::string GetTranslatedTokensFilterQuery(const bool filter_untranslated, const std::string &lang_untranslated,
+                                           const std::vector<std::string> &translator_languages) {
+    std::set<std::string> quoted_languages_to_evaluate_set;
+    if (filter_untranslated) {
+        if (lang_untranslated == "all")
+            GetQuotedTranslatorLanguagesAsSet(translator_languages, &quoted_languages_to_evaluate_set);
+        else
+            quoted_languages_to_evaluate_set.emplace("'" + lang_untranslated + "'");
+
+        const std::string languages_to_evaluate(StringUtil::Join(quoted_languages_to_evaluate_set, ", "));
+        return "SELECT token FROM vufind_newest WHERE language_code IN (" + languages_to_evaluate + ") "
+               "GROUP BY (token) HAVING COUNT(DISTINCT language_code)="
+                + std::to_string(quoted_languages_to_evaluate_set.size());
+    }
+    return "SELECT NULL LIMIT 0";
 }
 
 
@@ -385,29 +353,29 @@ void GetVuFindTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, co
                                                  const std::string &lang_untranslated) {
     rows->clear();
 
-    const std::string search_pattern(lookfor.size() <= LOOKFOR_PREFIX_LIMIT ? "LIKE '" + lookfor + "%'" : "LIKE '%" + lookfor + "%'");
-    const std::string token_where_clause(lookfor.empty() ? "WHERE next_version_id IS NULL"
-                                                         : "WHERE next_version_id IS NULL AND \
-                                                            (token "
-                                                               + search_pattern + " OR translation " + search_pattern + ")");
-    const std::string token_query("SELECT token FROM vufind_translations " + token_where_clause + " ORDER BY token");
-    const std::string query(
-        "WITH vufind_newest AS (SELECT * FROM vufind_translations WHERE next_version_id IS NULL) "
-        "SELECT token, translation, language_code, translator FROM vufind_newest "
-        "WHERE token IN (SELECT * FROM ("
-        + token_query + ") as t) ORDER BY token, language_code");
-
-    const std::string create_vufind_ger_sorted("CREATE TEMPORARY TABLE vufind_ger_sorted AS (" + query + ")");
-    db_connection.queryOrDie(create_vufind_ger_sorted);
-
-    std::string create_sort_limit;
-    SetupVuFindSortLimit(db_connection, &create_sort_limit, offset, filter_untranslated, lang_untranslated);
-    db_connection.queryOrDie(create_sort_limit);
+    std::string search_pattern;
+    std::string token_search_clause("next_version_id IS NULL");
+    if (lookfor.empty()) {
+        ;
+    } else if (lookfor.size() <= LOOKFOR_PREFIX_LIMIT) {
+        search_pattern = "LIKE '" + lookfor + "%'";
+        token_search_clause += " AND (token " + search_pattern + ")";
+    } else {
+        search_pattern = "LIKE '%" + lookfor + "%'";
+        token_search_clause += " AND token " + search_pattern + " OR translation " + search_pattern + ")";
+    }
 
 
     const std::string create_result_with_limit(
-        "SELECT  token, translation, language_code, translator FROM vufind_ger_sorted AS v"
-        " INNER JOIN vufind_sort_limit AS u USING (token)");
+            "WITH vufind_newest AS (SELECT * FROM vufind_translations WHERE next_version_id IS NULL),"
+            "translated_tokens_for_untranslated_filter AS (" + GetTranslatedTokensFilterQuery(filter_untranslated, lang_untranslated,
+                 translator_languages) + "), "
+            "tokens AS (SELECT DISTINCT token FROM vufind_translations "
+                 "WHERE " +  token_search_clause + " AND token NOT IN (SELECT token FROM translated_tokens_for_untranslated_filter) "
+                 "ORDER BY token LIMIT " + offset +  ", " + std::to_string(ENTRIES_PER_PAGE) + "),"
+            "result_set AS (SELECT * from vufind_newest WHERE token IN (SELECT * from tokens)) "
+            "SELECT token, translation, language_code, translator FROM result_set");
+
     DbResultSet result_set(ExecSqlAndReturnResultsOrDie(create_result_with_limit, &db_connection));
 
     std::vector<std::string> language_codes(GetLanguageCodes(db_connection));
@@ -451,47 +419,25 @@ void GetVuFindTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, co
             row_values[index] = CreateNonEditableRowEntry(translation);
     }
     rows->emplace_back(StringUtil::Join(row_values, ""));
-    // We may not use a ';' here within a query to prevent mysql from getting out of sync
-    const std::string drop_ger_sorted("DROP TEMPORARY TABLE vufind_ger_sorted");
-    const std::string drop_sort_limit("DROP TEMPORARY TABLE vufind_sort_limit");
-    db_connection.queryOrDie(drop_ger_sorted);
-    db_connection.queryOrDie(drop_sort_limit);
 }
 
 
-void SetupKeyWordSortLimitQuery(DbConnection &db_connection, std::string * const create_sort_limit, const std::string &offset,
-                                const bool use_untranslated_filter, const std::string &lang_untranslated) {
-    // The LIMIT parameter can only work with constants, but we want entries per page to be lines, i.e. german translations in
-    // our table so we have to generate a dynamic limit using temporary tables
+std::string GetTranslatedPPNSFilterQuery(const bool use_untranslated_filter, const std::string &lang_untranslated,
+                                         const std::vector<std::string> &translator_languages) {
+    std::set<std::string> quoted_languages_to_evaluate_set;
     if (use_untranslated_filter) {
-        const std::string translator(GetTranslatorOrEmptyString());
-        if (translator.empty())
-            ShowErrorPageAndDie("Error - No Valid User", "No valid user selected");
+        if (lang_untranslated == "all")
+            GetQuotedTranslatorLanguagesAsSet(translator_languages, &quoted_languages_to_evaluate_set);
+        else
+            quoted_languages_to_evaluate_set.emplace("'" + lang_untranslated + "'");
 
-        const std::string translated_by_translator(
-            "CREATE TEMPORARY TABLE translated_by_translator (INDEX (ppn)) AS "
-            "(SELECT DISTINCT ppn FROM keywords_ger_sorted WHERE "
-            + GetTranslatedLanguagesCriterion(translator, KEYWORDS, lang_untranslated) + ")");
-        db_connection.queryOrDie(translated_by_translator);
-
-        // Get all PPNs that are so far untouched by this translator
-        const std::string untranslated_by_translator_ger_sorted(
-            "CREATE TEMPORARY TABLE untranslated_by_translator_ger_sorted AS "
-            "(SELECT DISTINCT l.ppn FROM (SELECT ppn FROM keywords_ger_sorted "
-            "WHERE language_code='ger' ORDER BY translation) AS l "
-            "LEFT JOIN translated_by_translator AS r "
-            "ON l.ppn=r.ppn WHERE r.ppn IS NULL)");
-        db_connection.queryOrDie(untranslated_by_translator_ger_sorted);
-
-        *create_sort_limit =
-            "CREATE TEMPORARY TABLE sort_limit AS (SELECT DISTINCT ppn FROM "
-            "untranslated_by_translator_ger_sorted LIMIT "
-            + offset + ", " + std::to_string(ENTRIES_PER_PAGE) + ")";
-    } else
-        *create_sort_limit =
-            "CREATE TEMPORARY TABLE sort_limit AS (SELECT ppn FROM keywords_ger_sorted "
-            "WHERE language_code='ger' ORDER BY translation  LIMIT "
-            + offset + ", " + std::to_string(ENTRIES_PER_PAGE) + ")";
+        const std::string languages_to_evaluate(StringUtil::Join(quoted_languages_to_evaluate_set, ", "));
+        return "SELECT ppn FROM keywords_newest WHERE language_code IN (" + languages_to_evaluate + ") AND (translator IS NOT NULL "
+                   "OR status IN ('reliable', 'unreliable_cat2', 'unreliable')) "
+                   "GROUP BY (ppn) HAVING COUNT(DISTINCT language_code)="
+                   + std::to_string(quoted_languages_to_evaluate_set.size());
+    }
+    return "SELECT NULL LIMIT 0";
 }
 
 
@@ -506,30 +452,24 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
     // For short strings make a prefix search, otherwise search substring
     const std::string search_pattern(
         lookfor.size() <= LOOKFOR_PREFIX_LIMIT
-            ? "AND k.translation LIKE '" + lookfor + "%'"
-            : "AND l.ppn IN (SELECT ppn from keyword_translations WHERE next_version_id IS NULL AND translation LIKE '%" + lookfor + "%')");
+            ? "translation LIKE '" + lookfor + "%'"
+            : "ppn IN (SELECT ppn from keyword_translations WHERE next_version_id IS NULL AND translation LIKE '%" + lookfor + "%')");
 
-    const std::string search_clause(lookfor.empty() ? "" : search_pattern);
-
-    const std::string query(
-        "WITH keywords_newest AS (SELECT * FROM keyword_translations WHERE next_version_id IS NULL) "
-        "SELECT l.ppn, l.translation, l.language_code, l.gnd_code, l.status, l.translator, l.german_updated, l.priority_entry "
-        "FROM keywords_newest AS k INNER JOIN keywords_newest AS l ON k.language_code='ger' AND "
-        "k.status='reliable' AND k.ppn=l.ppn AND l.status!='reliable_synonym' AND l.status != "
-        "'unreliable_synonym'"
-        + search_clause + " ORDER BY k.translation, k.ppn");
-
-    const std::string create_keywords_ger_sorted("CREATE TEMPORARY TABLE keywords_ger_sorted AS (" + query + ")");
-    db_connection.queryOrDie(create_keywords_ger_sorted);
-
-    std::string create_sort_limit;
-    SetupKeyWordSortLimitQuery(db_connection, &create_sort_limit, offset, use_untranslated_filter, lang_untranslated);
-    db_connection.queryOrDie(create_sort_limit);
+    const std::string search_clause(lookfor.empty() ? "" : search_pattern + " AND ");
 
     const std::string create_result_with_limit(
-        "SELECT ppn, translation, language_code, gnd_code, status, translator, "
-        "german_updated, priority_entry FROM keywords_ger_sorted AS v INNER JOIN sort_limit AS u USING "
-        "(ppn)");
+             "WITH keywords_newest AS (SELECT * FROM keyword_translations WHERE next_version_id IS NULL),"
+             "translated_ppns_for_untranslated_filter AS ("+ GetTranslatedPPNSFilterQuery(use_untranslated_filter, lang_untranslated,
+                     translator_languages) + "), "
+             "ppns AS (SELECT ppn FROM keyword_translations "
+                  "WHERE " + search_clause +
+                  "language_code='ger' AND status='reliable' AND ppn NOT IN (SELECT ppn FROM translated_ppns_for_untranslated_filter) "
+                  "ORDER BY translation LIMIT " + offset +  ", " + std::to_string(ENTRIES_PER_PAGE) + "),"
+             "result_set AS (SELECT * FROM keywords_newest WHERE ppn IN (SELECT * FROM ppns))"
+             "SELECT l.ppn, l.translation, l.language_code, l.gnd_code, l.status, l.translator, l.german_updated, l.priority_entry FROM "
+             "result_set AS l INNER JOIN result_set AS k ON k.language_code='ger' AND k.status='reliable' AND "
+             "k.ppn=l.ppn AND l.status!='reliable_synonym' AND l.status !='unreliable_synonym' "
+             " WHERE l.language_code IN (" + GetQuotedTranslatorLanguagesAsString(translator_languages) + ")");
 
     DbResultSet result_set(ExecSqlAndReturnResultsOrDie(create_result_with_limit, &db_connection));
 
@@ -630,10 +570,6 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
             row_values[index] = CreateNonEditableRowEntry(translation);
     }
     rows->emplace_back(StringUtil::Join(row_values, ""));
-    const std::string drop_get_sorted("DROP TEMPORARY TABLE keywords_ger_sorted");
-    const std::string drop_sort_limit("DROP TEMPORARY TABLE sort_limit");
-    db_connection.queryOrDie(drop_get_sorted);
-    db_connection.queryOrDie(drop_sort_limit);
 }
 
 
