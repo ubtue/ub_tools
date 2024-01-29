@@ -246,13 +246,33 @@ void GetMACSTranslationsForGNDCode(DbConnection &db_connection, const std::strin
 }
 
 
+void GetQuotedDisplayLanguagesAsSet(const std::vector<std::string> &translator_languages,
+                                    const std::vector<std::string> &additional_view_languages, std::set<std::string> * const target) {
+    for (const auto &languages : { translator_languages, additional_view_languages })
+        std::transform(languages.begin(), languages.end(), std::inserter(*target, target->begin()),
+                       [](const std::string &lang) { return "'" + lang + "'"; });
+}
+
+
+std::string GetQuotedDisplayLanguagesAsString(const std::vector<std::string> &translator_languages,
+                                              const std::vector<std::string> &additional_view_languages) {
+    std::set<std::string> target;
+    GetQuotedDisplayLanguagesAsSet(translator_languages, additional_view_languages, &target);
+    return StringUtil::Join(target, ", ");
+}
+
+
 void GetWikidataTranslationsForGNDCode(DbConnection &db_connection, const std::string &gnd_code,
-                                       std::vector<TranslationLangAndWikiID> * const translations_langs_and_wiki_id) {
+                                       std::vector<TranslationLangAndWikiID> * const translations_langs_and_wiki_id,
+                                       const std::vector<std::string> &translator_languages,
+                                       const std::vector<std::string> &additional_view_languages) {
     translations_langs_and_wiki_id->clear();
     if (gnd_code == "0")
         return;
     const std::string wikidata_query("SELECT translation, language_code, wikidata_id FROM keyword_translations WHERE gnd_code='" + gnd_code + "' "
-                                 "AND status='unreliable_cat2'");
+                                 "AND status='unreliable_cat2' AND language_code IN (" +
+                                 GetQuotedDisplayLanguagesAsString(translator_languages, additional_view_languages) + ")"
+                                 " ORDER BY language_code");
     DbResultSet result_set(ExecSqlAndReturnResultsOrDie(wikidata_query, &db_connection));
     if (result_set.empty())
         return;
@@ -315,25 +335,12 @@ void GetTranslatorLanguages(const IniFile &ini_file, const std::string &translat
 }
 
 
-void GetQuotedTranslatorLanguagesAsSet(const std::vector<std::string> &translator_languages, std::set<std::string> * const target) {
-    std::transform(translator_languages.begin(), translator_languages.end(), std::inserter(*target, target->begin()),
-                   [](const std::string &lang) { return "'" + lang + "'"; });
-}
-
-
-std::string GetQuotedTranslatorLanguagesAsString(const std::vector<std::string> &translator_languages) {
-    std::set<std::string> target;
-    GetQuotedTranslatorLanguagesAsSet(translator_languages, &target);
-    return StringUtil::Join(target, ", ");
-}
-
-
 std::string GetTranslatedTokensFilterQuery(const bool filter_untranslated, const std::string &lang_untranslated,
                                            const std::vector<std::string> &translator_languages) {
     std::set<std::string> quoted_languages_to_evaluate_set;
     if (filter_untranslated) {
         if (lang_untranslated == "all")
-            GetQuotedTranslatorLanguagesAsSet(translator_languages, &quoted_languages_to_evaluate_set);
+            GetQuotedDisplayLanguagesAsSet(translator_languages, {}, &quoted_languages_to_evaluate_set);
         else
             quoted_languages_to_evaluate_set.emplace("'" + lang_untranslated + "'");
 
@@ -374,7 +381,8 @@ void GetVuFindTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, co
                  "WHERE " +  token_search_clause + " AND token NOT IN (SELECT token FROM translated_tokens_for_untranslated_filter) "
                  "ORDER BY token LIMIT " + offset +  ", " + std::to_string(ENTRIES_PER_PAGE) + "),"
             "result_set AS (SELECT * from vufind_newest WHERE token IN (SELECT * from tokens)) "
-            "SELECT token, translation, language_code, translator FROM result_set");
+            "SELECT token, translation, language_code, translator FROM result_set "
+                 "WHERE language_code IN (" + GetQuotedDisplayLanguagesAsString(translator_languages, additional_view_languages) + ", 'ger')");
 
     DbResultSet result_set(ExecSqlAndReturnResultsOrDie(create_result_with_limit, &db_connection));
 
@@ -427,7 +435,7 @@ std::string GetTranslatedPPNSFilterQuery(const bool use_untranslated_filter, con
     std::set<std::string> quoted_languages_to_evaluate_set;
     if (use_untranslated_filter) {
         if (lang_untranslated == "all")
-            GetQuotedTranslatorLanguagesAsSet(translator_languages, &quoted_languages_to_evaluate_set);
+            GetQuotedDisplayLanguagesAsSet(translator_languages, {}, &quoted_languages_to_evaluate_set);
         else
             quoted_languages_to_evaluate_set.emplace("'" + lang_untranslated + "'");
 
@@ -469,7 +477,7 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
              "SELECT l.ppn, l.translation, l.language_code, l.gnd_code, l.status, l.translator, l.german_updated, l.priority_entry FROM "
              "result_set AS l INNER JOIN result_set AS k ON k.language_code='ger' AND k.status='reliable' AND "
              "k.ppn=l.ppn AND l.status!='reliable_synonym' AND l.status !='unreliable_synonym' "
-             " WHERE l.language_code IN (" + GetQuotedTranslatorLanguagesAsString(translator_languages) + ")");
+             " WHERE l.language_code IN (" + GetQuotedDisplayLanguagesAsString(translator_languages, additional_view_languages) + ", 'ger')");
 
     DbResultSet result_set(ExecSqlAndReturnResultsOrDie(create_result_with_limit, &db_connection));
 
@@ -529,7 +537,8 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
             // Insert Wikidata translations
             if (show_wikidata_col) {
                 std::vector<TranslationLangAndWikiID> wikidata_translations;
-                GetWikidataTranslationsForGNDCode(db_connection, gnd_code, &wikidata_translations);
+                GetWikidataTranslationsForGNDCode(db_connection, gnd_code, &wikidata_translations, translator_languages,
+                                                  additional_view_languages);
                 int wikidata_index(GetColumnIndexForColumnHeading(display_languages, row_values, WIKIDATA_COLUMN_DESCRIPTOR));
                 if (wikidata_index == NO_INDEX)
                     continue;
