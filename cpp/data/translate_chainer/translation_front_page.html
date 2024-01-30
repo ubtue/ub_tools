@@ -88,6 +88,15 @@
             event.preventDefault();
         });
 
+
+        $(".disable_translation_checkbox").change(function(event) {{
+               event.cancelBubble = true;
+               event.preventDefault();
+               event.stopPropagation();
+               DisableTranslationInDB(this);
+        });
+
+
         if (!!window.EventSource)
         {{
             connectEventSource();
@@ -169,6 +178,24 @@
 
     function extractLanguageCode(object) {{
         return $(object).closest('table').find('th').eq($(object).index()).text(); //Determine language from the heading
+    }
+
+
+    function DisableTranslationInDB(object) {{
+         var index = $(object).parent().attr("index");
+         var checked = $(object).is(":checked");
+          $.ajax({{
+            type: "PUT",
+            url: "translator_ajax",
+            data: {{
+                index: index,
+                disabled: checked,
+                action: "disable_translation"
+            },
+            error: function (xhr, ajaxOptions, thrownError) {{
+                alert("Writing to database failed");
+            }
+        }); // end ajax
     }
 
 

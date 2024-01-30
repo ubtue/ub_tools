@@ -196,7 +196,7 @@ int main(int argc, char *argv[]) {
         std::multimap<std::string, std::string> env_args;
         env_args.insert(std::make_pair("REMOTE_USER", getTranslatorOrEmptryString()));
 
-        if (cgi_args.size() == 4 or cgi_args.size() == 5 or cgi_args.size() == 6) {
+        if (cgi_args.size() == 3 or cgi_args.size() == 4 or cgi_args.size() == 5 or cgi_args.size() == 6) {
             const std::string action(GetCGIParameterOrDie(cgi_args, "action"));
             std::string status = "Status: 501 Not Implemented";
             if (action == "insert") {
@@ -221,7 +221,8 @@ int main(int argc, char *argv[]) {
             // Inform other users about update
             broadcastToSDBus(cgi_args, env_args);
         } else
-            LOG_ERROR("we should be called w/ either 4 or 5 or 6 CGI arguments! Used " + std::to_string(cgi_args.size()) + " arguments.");
+            LOG_ERROR("we should be called w/ either 3 or 4 or 5 or 6 CGI arguments! Used " + std::to_string(cgi_args.size())
+                      + " arguments.");
     } catch (const std::exception &x) {
         LOG_ERROR("caught exception: " + std::string(x.what()));
     }

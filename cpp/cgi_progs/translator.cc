@@ -192,8 +192,10 @@ std::string CreateNonEditableWikidataEntry(std::vector<TranslationLangAndWikiID>
 }
 
 
-std::string CreateEditableDisableTranslationEntry(const std::string disabled) {
-    return "<td style=\"background-color:lightgrey; font-size:small\">" + disabled + "</td>";
+std::string CreateEditableDisableTranslationEntry(const std::string &ppn, const bool disabled) {
+    return "<td class=\"disable_translation\" index=\"" + HtmlUtil::HtmlEscape(ppn)
+           + "\" style=\"background-color:MediumSpringGreen\"><input type=\"checkbox\" class=\"disable_translation_checkbox\""
+           + (disabled ? " checked=\"checked\"" : "") + "></td>";
 }
 
 
@@ -201,9 +203,11 @@ std::string ReplaceAngleBracketsByOrdinaryBrackets(const std::string &value) {
     return StringUtil::Map(value, "<>", "()");
 }
 
+
 std::string GetSearchBaseLink(const bool use_subject_link) {
     return use_subject_link ? "/Search/Results?type=Subject&lookfor=" : "/Keywordchainsearch/Results?lookfor=";
 }
+
 
 std::string GetGNDLink(const std::string &gnd_code) {
     if (gnd_code == "0")
@@ -212,6 +216,7 @@ std::string GetGNDLink(const std::string &gnd_code) {
     return "<a href=\"http://d-nb.info/gnd/" + HtmlUtil::HtmlEscape(gnd_code) + "\""
           " style=\"float:right\" target=\"_blank\">GND</a>";
 }
+
 
 std::string CreateNonEditableHintEntry(const std::string &value, const std::string gnd_code, const bool use_subject_link = false,
                                        const std::string background_color = "lightgrey") {
@@ -347,6 +352,15 @@ bool IsDisableTranslationColVisible(const IniFile &ini_file, const std::string &
 }
 
 
+bool TranslationDisabledEntryToBool(const std::string &disabled_entry) {
+    if (disabled_entry == "1")
+        return true;
+    if (StringUtil::ASCIIToLower(disabled_entry) == "true")
+        return true;
+    return false;
+}
+
+
 void GetTranslatorLanguages(const IniFile &ini_file, const std::string &translator, std::vector<std::string> * const translator_languages) {
     // If user is an administrator all languages are open for editing, otherwise only the specified ones
     std::string ini_translator_languages;
@@ -474,6 +488,14 @@ std::string GetTranslatedPPNSFilterQuery(const bool use_untranslated_filter, con
 }
 
 
+std::string GetDisabledTranslationsPPNFilterQuery(const bool show_disable_translation_col) {
+    // Suppress display only if this disabled_translations is _not_ editable
+    if (not show_disable_translation_col)
+        return "SELECT DISTINCT ppn FROM keywords_newest WHERE translation_disabled=TRUE";
+    return "SELECT NULL LIMIT 0";
+}
+
+
 void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, const std::string &lookfor, const std::string &offset,
                                                   std::vector<std::string> * const rows, std::string * const headline,
                                                   const std::vector<std::string> &translator_languages,
@@ -493,11 +515,14 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
 
     const std::string create_result_with_limit(
              "WITH keywords_newest AS (SELECT * FROM keyword_translations WHERE next_version_id IS NULL),"
-             "translated_ppns_for_untranslated_filter AS ("+ GetTranslatedPPNSFilterQuery(use_untranslated_filter, lang_untranslated,
+                 // for filter_ppns
+                 "translated_ppns_for_untranslated_filter AS ("+ GetTranslatedPPNSFilterQuery(use_untranslated_filter, lang_untranslated,
                      translator_languages) + "), "
+                 "disabled_translations_filter AS (" + GetDisabledTranslationsPPNFilterQuery(show_disable_translation_col) + "), "
+             "filter_ppns AS (SELECT * FROM translated_ppns_for_untranslated_filter UNION SELECT * FROM disabled_translations_filter), "
              "ppns AS (SELECT ppn FROM keyword_translations "
                   "WHERE " + search_clause +
-                  "language_code='ger' AND status='reliable' AND ppn NOT IN (SELECT ppn FROM translated_ppns_for_untranslated_filter) "
+                  "language_code='ger' AND status='reliable' AND ppn NOT IN (SELECT * FROM filter_ppns) "
                   "ORDER BY translation LIMIT " + offset +  ", " + std::to_string(ENTRIES_PER_PAGE) + "),"
              "result_set AS (SELECT * FROM keywords_newest WHERE ppn IN (SELECT * FROM ppns))"
              "SELECT l.ppn, l.translation, l.language_code, l.gnd_code, l.status, l.translator, l.german_updated, "
@@ -580,7 +605,8 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
                     GetColumnIndexForColumnHeading(display_languages, row_values, DISABLE_TRANSLATION_COLUMN_DESCRIPTOR));
                 if (disabled_translations_index == NO_INDEX)
                     continue;
-                row_values[disabled_translations_index] = CreateEditableDisableTranslationEntry(disabled_entry);
+                row_values[disabled_translations_index] =
+                    CreateEditableDisableTranslationEntry(current_ppn, TranslationDisabledEntryToBool(disabled_entry));
             }
         }
 
