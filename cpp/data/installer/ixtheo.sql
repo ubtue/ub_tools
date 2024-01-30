@@ -31,6 +31,7 @@ CREATE TABLE keyword_translations (
   translator VARCHAR(50),
   german_updated TINYINT(1),
   priority_entry TINYINT(1),
+  translation_disabled TINYINT(1),
   create_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
   prev_version_id INT DEFAULT NULL,
   next_version_id INT DEFAULT NULL,
@@ -41,6 +42,7 @@ CREATE TABLE keyword_translations (
   KEY keyword_translations_idx_translation (translation(30)),
   KEY keyword_translations_idx_gnd_code (gnd_code),
   KEY keyword_translations_idx_status (status),
+  KEY keywprd_translations_idx_translation_disabled (translation_disabled),
   KEY keyword_translations_idx_prev_version_id (prev_version_id),
   KEY keyword_translations_idx_next_version_id (next_version_id),
   KEY keyword_translations_idx_origin (origin)
