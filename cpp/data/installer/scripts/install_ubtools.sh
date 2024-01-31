@@ -36,7 +36,7 @@ cd /tmp
 if [ ! -e ./install_ubuntu_packages.sh ]; then
     apt-get --quiet --yes update
     apt-get --yes install curl
-    curl https://raw.githubusercontent.com/ubtue/ub_tools/master/cpp/data/installer/scripts/install_ubuntu_packages.sh -o ./install_ubuntu_packages.sh
+    curl "https://raw.githubusercontent.com/ubtue/ub_tools/${BRANCH}/cpp/data/installer/scripts/install_ubuntu_packages.sh" -o ./install_ubuntu_packages.sh
     chmod 700 ./install_ubuntu_packages.sh
 fi
 ./install_ubuntu_packages.sh
