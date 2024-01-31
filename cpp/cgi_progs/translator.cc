@@ -687,7 +687,6 @@ unsigned GetNumberOfTranslatedKeywordEntriesForLanguage(DbConnection &db_connect
                GetTranslatedPPNsFilterQuery(true /* constant here */, language, translator_languages)
                + ") "
          "SELECT COUNT(DISTINCT ppn) AS number_translated FROM translated_ppns");
-    LOG_WARNING("PPPP" + query);
     DbResultSet result_set(ExecSqlAndReturnResultsOrDie(query, &db_connection));
     if (result_set.size() != 1)
         LOG_ERROR("Invalid number of rows when querying translated number of entries for Keywords");
@@ -780,15 +779,16 @@ void ShowFrontPage(DbConnection &db_connection, const std::string &lookfor, cons
     std::vector<std::string> translator_languages_foreign;
     std::copy_if(translator_languages.begin(), translator_languages.end(), std::back_inserter(translator_languages_foreign),
                  [](const std::string &lang) { return lang != "ger"; });
-    names_to_values_map.insertArray("translator_languages_foreign", translator_languages_foreign);
 
     int number_untranslated, number_total;
     bool success_number_translated =
         GetNumberOfUntranslatedByLanguage(db_connection, target == "vufind" ? VUFIND : KEYWORDS, lang_untranslated,
                                           translator_languages_foreign, &number_untranslated, &number_total);
-
     names_to_values_map.insertScalar(
         "number_untranslated", success_number_translated ? std::to_string(number_untranslated) + "/" + std::to_string(number_total) : "");
+
+    translator_languages_foreign.emplace(translator_languages_foreign.begin(), "all");
+    names_to_values_map.insertArray("translator_languages_foreign", translator_languages_foreign);
 
     std::ifstream translate_html(UBTools::GetTuelibPath() + "translate_chainer/translation_front_page.html", std::ios::binary);
     Template::ExpandTemplate(translate_html, std::cout, names_to_values_map);
