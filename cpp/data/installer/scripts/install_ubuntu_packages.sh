@@ -81,7 +81,7 @@ fi
 #---------------------------------- TUEFIND ---------------------------------#
 if [[ $1 == "ixtheo" || $1 == "krimdok" ]]; then
     ColorEcho "installing/updating tuefind dependencies..."
-    # 22.04 usually only allows 8.1, but we want to use 8.3 due to longer support period
+    # 22.04 uses 8.1 by default, but we want to use 8.3 due to longer support period
     # Also, we use php-fpm with fcgi instead of libapache2-mod-php to avoid HTTP/2 compatibility issues with mpm_prefork.
     add-apt-repository --yes --update ppa:ondrej/php
     apt-get --quiet --yes install \
@@ -89,6 +89,7 @@ if [[ $1 == "ixtheo" || $1 == "krimdok" ]]; then
         php8.3 php8.3-curl php8.3-gd php8.3-intl php8.3-ldap php8.3-mbstring php8.3-mysql php8.3-soap php8.3-xml \
         php8.3-fpm
 
+    update-alternatives --set php /usr/bin/php8.3
 
     a2dismod mpm_prefork
     a2enmod mpm_event proxy_fcgi http2 rewrite setenvif ssl
