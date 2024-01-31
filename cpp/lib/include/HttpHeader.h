@@ -49,6 +49,7 @@ class HttpHeader {
     std::vector<std::string> cookies_;
     unsigned x_ratelimit_limit_, x_ratelimit_remaining_;
     std::string x_ratelimit_retry_after_;
+    std::string retry_after_;
 
 public:
     HttpHeader()
@@ -98,6 +99,7 @@ public:
     unsigned getXRatelimitLimit() const { return x_ratelimit_limit_; }
     unsigned getXRatelimitRemaining() const { return x_ratelimit_remaining_; }
     std::string getXRatelimitRetryAfter() const { return x_ratelimit_retry_after_; }
+    std::string getRetryAfter() const { return retry_after_; }
 
     /** \brief   Each server might send different time formats depending on its location, so please specify its format. */
     time_t getXRatelimitRetryAfter(const std::string &format) const { return TimeUtil::StringToTimeT(x_ratelimit_retry_after_, format); }

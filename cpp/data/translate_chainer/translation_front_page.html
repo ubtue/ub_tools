@@ -18,7 +18,7 @@
         a, a:visited {{
             text-decoration: none;
             color: Blue; }
-        <!--see http://stackoverflow.com/questions/3915917/make-a-link-use-post-instead-of-get (20170221) -->
+        <!-- /*see http://stackoverflow.com/questions/3915917/make-a-link-use-post-instead-of-get (20170221) */-->
         .inline {{ display: inline; }
 
         .link-button {{
@@ -88,6 +88,15 @@
             event.preventDefault();
         });
 
+
+        $(".disable_translation_checkbox").change(function(event) {{
+               event.cancelBubble = true;
+               event.preventDefault();
+               event.stopPropagation();
+               DisableTranslationInDB(this);
+        });
+
+
         if (!!window.EventSource)
         {{
             connectEventSource();
@@ -110,6 +119,10 @@
         }
     });
 
+
+    function GetGNDCode(object) {{
+       return $(object).attr("gnd_code");
+    }
 
     function EncodeHtmlEntities(data) {{
         return data.replace(/[\u00A0-\u9999<>\&]/g, i => '&#'+i.charCodeAt(0)+';');
@@ -168,6 +181,24 @@
     }
 
 
+    function DisableTranslationInDB(object) {{
+         var index = $(object).parent().attr("index");
+         var checked = $(object).is(":checked");
+          $.ajax({{
+            type: "PUT",
+            url: "translator_ajax",
+            data: {{
+                index: index,
+                disabled: checked,
+                action: "disable_translation"
+            },
+            error: function (xhr, ajaxOptions, thrownError) {{
+                alert("Writing to database failed");
+            }
+        }); // end ajax
+    }
+
+
     function InsertTranslationIntoDB(object) {{
         var index = $(object).attr("index");
         var gnd_code = $(object).attr("gnd_code");
@@ -203,6 +234,7 @@
             }
         }); // end ajax
     }
+
 
     function ConvertJsonHistory(json) {{
         const myArr = json.split("Status: 200 OK");

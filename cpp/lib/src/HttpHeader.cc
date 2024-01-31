@@ -230,6 +230,14 @@ HttpHeader::HttpHeader(const std::string &header) {
             x_ratelimit_retry_after_ = "";
         else
             x_ratelimit_retry_after_ = server_header->substr(25);
+
+        server_header = find_if(lines.begin(), lines.end(), StartsWith("Retry-After:"));
+        if (server_header == lines.end() or server_header->length() <= __builtin_strlen("Retry-After:") + 1)
+            retry_after_ = "";
+        else
+            retry_after_ = server_header->substr(__builtin_strlen("Retry-After:") + 1);
+
+
     } else {
         // Set some default values.  Note that "is_valid_" is false.  We do something really crazy:
         status_code_ = 200;
