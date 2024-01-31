@@ -45,7 +45,6 @@
 #include "FileUtil.h"
 #include "IniFile.h"
 #include "MiscUtil.h"
-#include "RegexMatcher.h"
 #include "Solr.h"
 #include "StringUtil.h"
 #include "SystemdUtil.h"
@@ -107,7 +106,7 @@ std::string VuFindSystemTypeToString(VuFindSystemType vufind_system_type) {
 
 // Detect if OS is running inside docker (e.g. if we might have problems to access systemctl)
 bool IsDockerEnvironment() {
-    return RegexMatcher::Matched("docker", FileUtil::ReadStringFromPseudoFileOrDie("/proc/1/cgroup"));
+    return FileUtil::Exists("/.dockerenv");
 }
 
 
@@ -509,7 +508,7 @@ void InstallUBTools(const bool make_install, DbConnection * const db_connection_
 
     const std::string ZOTERO_ENHANCEMENT_MAPS_DIRECTORY(UBTools::GetTuelibPath() + "zotero-enhancement-maps");
     if (not FileUtil::Exists(ZOTERO_ENHANCEMENT_MAPS_DIRECTORY)) {
-        Echo("Cloning Zetero");
+        Echo("Cloning Zotero");
         const std::string git_url("https://github.com/ubtue/zotero-enhancement-maps.git");
         ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("git"), { "clone", git_url, ZOTERO_ENHANCEMENT_MAPS_DIRECTORY });
     }
