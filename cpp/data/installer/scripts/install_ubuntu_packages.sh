@@ -43,7 +43,7 @@ apt-get --quiet --yes --allow-unauthenticated install \
         uuid-dev xsltproc libsystemd-dev
 
 # Explicitly enable mod_cgi. If we would use `a2enmod cgi`, it would enable mod_cgid, which would fail on apache startup.
-ln -s ../mods-available/cgi.load /etc/apache2/mods-enabled/cgi.load
+a2enmod cgi
 
 # Set java version 11 to be kept manually (to avoid automatic migrations)
 update-alternatives --set java /usr/lib/jvm/java-11-openjdk-amd64/bin/java
@@ -82,14 +82,17 @@ fi
 if [[ $1 == "ixtheo" || $1 == "krimdok" ]]; then
     ColorEcho "installing/updating tuefind dependencies..."
     # 22.04 usually only allows 8.1, but we want to use 8.3 due to longer support period
+    # Also, we use php-fpm with fcgi instead of libapache2-mod-php to avoid HTTP/2 compatibility issues with mpm_prefork.
     add-apt-repository --yes --update ppa:ondrej/php
     apt-get --quiet --yes install \
         composer npm node-grunt-cli \
         php8.3 php8.3-curl php8.3-gd php8.3-intl php8.3-ldap php8.3-mbstring php8.3-mysql php8.3-soap php8.3-xml \
-        libapache2-mod-php8.3
+        php8.3-fpm
 
-    a2enmod rewrite
-    a2enmod ssl
+
+    a2dismod mpm_prefork
+    a2enmod mpm_event proxy_fcgi http2 rewrite setenvif ssl
+    a2enconf php8.3-fpm
     /etc/init.d/apache2 restart
 fi
 

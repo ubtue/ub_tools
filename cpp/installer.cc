@@ -411,8 +411,10 @@ void InstallSoftwareDependencies(const std::string vufind_system_type_string, co
         Echo("Starting systemctl for Apache2 and MySQL");
         std::string apache_unit_name("apache2");
         std::string mysql_unit_name("mysql");
+        std::string php_unit_name("php8.3-fpm");
         SystemdEnableAndRunUnit(apache_unit_name);
         SystemdEnableAndRunUnit(mysql_unit_name);
+        SystemdEnableAndRunUnit(php_unit_name);
     }
 }
 
@@ -694,10 +696,9 @@ void ConfigureApacheUser() {
 
     // systemd will start apache as root
     // but apache will start children as configured in /etc
-    std::string config_filename;
+    std::string config_filename("/etc/apache2/envvars");
 
     AddUserToGroup(username, "www-data");
-    config_filename = "/etc/apache2/envvars";
     ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("sed"),
                         { "-i", "s/export APACHE_RUN_USER=www-data/export APACHE_RUN_USER=" + username + "/", config_filename });
 
@@ -707,6 +708,15 @@ void ConfigureApacheUser() {
     ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("find"),
                         { VUFIND_DIRECTORY + "/local", "-name", "cache", "-exec", "chown", "-R", username + ":" + username, "{}", "+" });
     FileUtil::ChangeOwnerOrDie(UBTools::GetTueFindLogPath(), username, username, /*recursive=*/true);
+
+    // Also change user for php-fpm service
+    config_filename = "/etc/php/8.3/fpm/pool.d/www.conf";
+    ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("sed"), { "-i", "s/user = www-data/user = " + username + "/", config_filename });
+    ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("sed"), { "-i", "s/group = www-data/group = " + username + "/", config_filename });
+    ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("sed"),
+                        { "-i", "s/listen.owner = www-data/listen.owner = " + username + "/", config_filename });
+    ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("sed"),
+                        { "-i", "s/listen.group = www-data/listen.group = " + username + "/", config_filename });
 }
 
 
