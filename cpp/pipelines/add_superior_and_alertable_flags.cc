@@ -94,10 +94,10 @@ void ProcessRecord(MARC::Writer * const marc_writer, const std::unordered_set<st
 
 
 void AddSuperiorFlag(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
-                     const std::unordered_set<std::string> &superior_ppns, const std::string &flavour) {
+                     const std::unordered_set<std::string> &superior_ppns) {
     unsigned modified_count(0);
 
-    Zeder::SimpleZeder zeder(Zeder::IXTHEO, { "eppn", "pppn", "kat" }, { { "kat", flavour } });
+    Zeder::SimpleZeder zeder(Zeder::IXTHEO, { "eppn", "pppn" });
     std::set<std::string> ppns_in_kat;
     for (const auto &journal : zeder) {
         ppns_in_kat.emplace(journal.lookup("pppn"));
@@ -136,7 +136,7 @@ int main(int argc, char **argv) {
         std::unordered_set<std::string> superior_ppns;
         LoadSuperiorPPNs(marc_reader.get(), &superior_ppns);
         marc_reader->rewind();
-        AddSuperiorFlag(marc_reader.get(), marc_writer.get(), superior_ppns, flavour);
+        AddSuperiorFlag(marc_reader.get(), marc_writer.get(), superior_ppns);
     } catch (const std::exception &x) {
         LOG_ERROR("caught exception: " + std::string(x.what()));
     }
