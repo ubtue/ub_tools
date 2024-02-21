@@ -120,8 +120,8 @@ void GenerateBundleEntry(MARC::Writer * const marc_writer, const std::string &bu
     const std::string lang(bundles_config.getString(bundle_name, "lang", ""));
     if (not instances_string.empty())
         StringUtil::SplitThenTrim(instances_string, ",", " \t", &instances);
-    marc_writer->write(GenerateBundleRecord(StringUtil::Map(bundle_name, " ", "_"), bundles_config.getString(bundle_name, "display_name"),
-                                            instances, description, media_type, lang));
+    marc_writer->write(
+        GenerateBundleRecord(bundle_name, bundles_config.getString(bundle_name, "display_name"), instances, description, media_type, lang));
 }
 
 
