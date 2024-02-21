@@ -99,7 +99,7 @@ void AddSuperiorFlag(MARC::Reader * const marc_reader, MARC::Writer * const marc
                      const std::unordered_set<std::string> &superior_ppns) {
     unsigned modified_count(0);
 
-    Zeder::SimpleZeder zeder(Zeder::IXTHEO, { "eppn", "pppn" }, { { "kat", JOURNAL_IS_IN_ACTIVE_EVALUATION } });
+    Zeder::SimpleZeder zeder(Zeder::IXTHEO, { "eppn", "pppn", "kat" }, { { "kat", JOURNAL_IS_IN_ACTIVE_EVALUATION } });
     std::set<std::string> ppns_in_kat;
     for (const auto &journal : zeder) {
         ppns_in_kat.emplace(journal.lookup("pppn"));
