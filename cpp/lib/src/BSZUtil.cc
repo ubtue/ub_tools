@@ -23,6 +23,7 @@
 #include <map>
 #include <memory>
 #include <mutex>
+#include <regex>
 #include <thread>
 #include "Archive.h"
 #include "Downloader.h"
@@ -167,6 +168,46 @@ std::string GetAuthorGNDNumber(const std::string &author, const std::string &aut
     }
 
     return "";
+}
+
+
+std::string GetAllAuthorGNDNumberCandidates(const std::string &author, const std::string &author_lookup_base_url) {
+    static std::mutex fetch_author_gnd_url_to_gnds_cache_mutex;
+    static std::unordered_multimap<std::string, std::string> fetch_author_gnd_url_to_gnds_cache;
+    static std::regex AUTHOR_GND_MATCHER("Link zu diesem Datensatz in der GND:\\s*<[^>]+><a[^>]*>http(?:s)?://d-nb.info/gnd/([0-9X]+)</a>");
+    static std::regex GND_LIST_MATCHER(R"(\(GND\s+/\s+([\dX]+)\))");
+
+    std::set<std::string> gnds;
+    // "author" must be in the lastname,firstname format
+    const std::string lookup_url(author_lookup_base_url + UrlUtil::UrlEncode(author));
+    {
+        std::lock_guard<std::mutex> lock(fetch_author_gnd_url_to_gnds_cache_mutex);
+        const auto match_range(fetch_author_gnd_url_to_gnds_cache.equal_range(lookup_url));
+        std::for_each(match_range.first, match_range.second, [&gnds](const auto &p) { gnds.emplace(p.second); });
+        if (gnds.size())
+            return StringUtil::Join(gnds, " ");
+    }
+
+    Downloader downloader(lookup_url);
+    if (downloader.anErrorOccurred()) {
+        LOG_WARNING("couldn't download author GND results! downloader error: " + downloader.getLastErrorMessage());
+        return "";
+    }
+
+    std::smatch matches;
+    // Unique GND
+    std::regex_search(downloader.getMessageBody(), matches, AUTHOR_GND_MATCHER);
+    if (matches.size()) {
+        fetch_author_gnd_url_to_gnds_cache.emplace(lookup_url, matches[1]);
+        return matches[1];
+    }
+    // Several candidates
+    const std::string html_page(downloader.getMessageBody());
+    auto match_begin(std::sregex_iterator(html_page.begin(), html_page.end(), GND_LIST_MATCHER));
+    auto match_end((std::sregex_iterator()));
+    std::lock_guard<std::mutex> lock(fetch_author_gnd_url_to_gnds_cache_mutex);
+    std::for_each(match_begin, match_end, [&gnds](auto one_match) { gnds.emplace(one_match[1].str()); });
+    return StringUtil::Join(gnds, " ");
 }
 
 
