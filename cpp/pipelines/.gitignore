@@ -39,6 +39,7 @@ krimdok_flag_pda_records
 map_ddc_to_ixtheo_notations
 normalise_urls
 patch_ppns_in_databases
+populate_in_tuebingen_available
 remove_dangling_references
 rewrite_keywords_and_authors_from_authority_data
 transfer_880_translations
