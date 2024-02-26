@@ -1026,8 +1026,7 @@ bool ProcessSerialRecord(const bool verbose, MARC::Record * const record, MARC::
                     std::cout << "Serial " + record->getControlNumber() + ": Found information for sigil " + sigil + "\n";
                 parent_ppn_to_info_map_2619.emplace(record->getControlNumber(), _866a_contents);
             }
-        } else
-            continue;
+        }
     }
 
     return true;
