@@ -98,7 +98,6 @@
 /oai_pmh_harvester
 /oai_pmh_list_formats
 /onix_processor
-/populate_in_tuebingen_available
 /regex_matcher
 /refterm_augmentor
 /remove_leading_bytes
