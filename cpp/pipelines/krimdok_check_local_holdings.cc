@@ -1,4 +1,5 @@
-/** \file    populate_in_tuebingen_available.cc
+/** \file    krimdok_check_local_holdings.cc
+ *           (former name: populate_in_tuebingen_available.cc)
  *  \author  Dr. Johannes Ruscheinski
  *
  *  A tool that adds a new "SIG" field to a MARC record if there are UB or IFK call numbers in a record.
