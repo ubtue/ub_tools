@@ -111,8 +111,7 @@ static unsigned bad_match_count;
 std::string FindSigil(MARC::Record * const record, const MARC::Record::const_iterator &block_start) {
     for (const auto &field : record->findFieldsInLocalBlock("852", block_start, /*indicator1*/ ' ', /*indicator2*/ ' ')) {
         const std::string _852a_contents(field.getFirstSubfieldWithCode('a'));
-        if (StringUtil::StartsWith(_852a_contents, "DE-21"))
-            return _852a_contents;
+        return _852a_contents;
     }
 
     return "";
@@ -991,28 +990,44 @@ void ParseRanges(const std::string &_866a_contents, std::vector<Range> * const r
 
 
 std::unordered_map<std::string, std::vector<Range>> parent_ppn_to_ranges_map;
+std::unordered_map<std::string, std::string> parent_ppn_to_info_map_2619;
 
 
-bool ProcessSerialRecord(MARC::Record * const record, MARC::Writer * const /*output*/, std::string * const /*err_msg*/) {
+bool ProcessSerialRecord(const bool verbose, MARC::Record * const record, MARC::Writer * const /*output*/,
+                         std::string * const /*err_msg*/) {
     if (not record->isSerial())
         return true;
 
     auto local_block_starts(record->findStartOfAllLocalDataBlocks());
     for (const auto &local_block_start : local_block_starts) {
         const std::string sigil(FindSigil(record, local_block_start));
-        if (sigil != "DE-21" and sigil != "DE-21-110")
+
+        if (sigil == "DE-21" or sigil == "DE-21-110") {
+            for (auto &_866_field : record->findFieldsInLocalBlock("866", local_block_start, /*indicator1*/ '3', /*indicator2*/ '0')) {
+                const std::string _866a_contents(_866_field.getFirstSubfieldWithCode('a'));
+                if (unlikely(_866a_contents.empty()))
+                    continue;
+
+                std::vector<Range> ranges;
+                ParseRanges(_866a_contents, &ranges);
+                if (not ranges.empty()) {
+                    if (verbose)
+                        std::cout << "Serial " + record->getControlNumber() + ": Found at least one Range for sigil " + sigil + "\n";
+                    parent_ppn_to_ranges_map.emplace(record->getControlNumber(), ranges);
+                }
+            }
+        } else if (sigil == "DE-2619") {
+            for (auto &_866_field : record->findFieldsInLocalBlock("866", local_block_start, /*indicator1*/ '3', /*indicator2*/ '0')) {
+                const std::string _866a_contents(_866_field.getFirstSubfieldWithCode('a'));
+                if (unlikely(_866a_contents.empty()))
+                    continue;
+
+                if (verbose)
+                    std::cout << "Serial " + record->getControlNumber() + ": Found information for sigil " + sigil + "\n";
+                parent_ppn_to_info_map_2619.emplace(record->getControlNumber(), _866a_contents);
+            }
+        } else
             continue;
-
-        for (auto &_866_field : record->findFieldsInLocalBlock("866", local_block_start, /*indicator1*/ '3', /*indicator2*/ '0')) {
-            const std::string _866a_contents(_866_field.getFirstSubfieldWithCode('a'));
-            if (unlikely(_866a_contents.empty()))
-                continue;
-
-            std::vector<Range> ranges;
-            ParseRanges(_866a_contents, &ranges);
-            if (not ranges.empty())
-                parent_ppn_to_ranges_map.emplace(record->getControlNumber(), ranges);
-        }
     }
 
     return true;
@@ -1074,7 +1089,7 @@ bool Get856URLAndAnchor(const std::string &_856_field_contents, std::string * co
 }
 
 
-bool ProcessRecord(MARC::Record * const record, MARC::Writer * const marc_writer, std::string * const /*err_msg*/) {
+bool ProcessRecord(const bool verbose, MARC::Record * const record, MARC::Writer * const marc_writer, std::string * const /*err_msg*/) {
     std::set<std::string> alread_seen_urls;
     std::vector<std::string> signature_field_contents;
     for (const auto &block_start : record->findStartOfAllLocalDataBlocks()) {
@@ -1085,62 +1100,77 @@ bool ProcessRecord(MARC::Record * const record, MARC::Writer * const marc_writer
         const MARC::Subfields subfields1(_852_field->getSubfields());
         const std::string not_available_subfield(subfields1.getFirstSubfieldWithCode('z'));
         if (not_available_subfield == "Kein Bestand am IfK; Nachweis für KrimDok")
-            goto final_processing;
+            break;
 
         // Only ordered but not actually available?
         if (subfields1.getFirstSubfieldWithCode('m') == "e")
-            goto final_processing;
+            break;
 
         const std::string isil_subfield(subfields1.getFirstSubfieldWithCode('a'));
-        if (isil_subfield != "DE-21" and isil_subfield != "DE-21-110")
-            continue;
-
-        std::string detailed_availability;
-        for (const auto &_866_field : record->findFieldsInLocalBlock("866", block_start, /*indicator1*/ '3', /*indicator2*/ '0')) {
-            const std::string subfield_a(_866_field.getFirstSubfieldWithCode('a'));
-            if (not subfield_a.empty()) {
-                if (not detailed_availability.empty())
-                    detailed_availability += "; ";
-                detailed_availability += subfield_a;
-                const std::string subfield_z(_866_field.getFirstSubfieldWithCode('z'));
-                if (not subfield_z.empty())
-                    detailed_availability += " " + subfield_z;
-            }
-        }
-
-        const std::string institution(isil_subfield == "DE-21" ? "UB: " : "IFK: ");
-
-        // Process item locations:
-        for (++_852_field; _852_field != record->end() and _852_field->getTag() == "LOK" and _852_field->getLocalTag() == "852";
-             ++_852_field) {
-            const MARC::Subfields subfields2(_852_field->getSubfields());
-            const std::string call_number_subfield(subfields2.getFirstSubfieldWithCode('c'));
-            if (not call_number_subfield.empty()) {
-                const std::string institution_and_call_number(institution + call_number_subfield);
-                ++add_sig_count;
-                signature_field_contents.emplace_back(
-                    MARC::Subfields(
-                        { { 'a', institution_and_call_number + (detailed_availability.empty() ? "" : "(" + detailed_availability + ")") } })
-                        .toString());
-            } else { // Look for URL's.
-                for (const auto &_856_field : record->getLocalTagRange("856", block_start, /*indicator1*/ '4', /*indicator2*/ ' ')) {
-                    std::string url, anchor;
-                    if (Get856URLAndAnchor(_856_field.getContents(), &url, &anchor)
-                        and alread_seen_urls.find(url) == alread_seen_urls.cend()) {
-                        alread_seen_urls.insert(url);
-                        signature_field_contents.emplace_back(
-                            MARC::Subfields({ { 'a', "<a href=\"" + url + "\">" + anchor + "</a>" } }).toString());
-                    }
+        if (isil_subfield == "DE-21" or isil_subfield == "DE-21-110") {
+            std::string detailed_availability;
+            for (const auto &_866_field : record->findFieldsInLocalBlock("866", block_start, /*indicator1*/ '3', /*indicator2*/ '0')) {
+                const std::string subfield_a(_866_field.getFirstSubfieldWithCode('a'));
+                if (not subfield_a.empty()) {
+                    if (not detailed_availability.empty())
+                        detailed_availability += "; ";
+                    detailed_availability += subfield_a;
+                    const std::string subfield_z(_866_field.getFirstSubfieldWithCode('z'));
+                    if (not subfield_z.empty())
+                        detailed_availability += " " + subfield_z;
                 }
-                break;
+            }
+
+            const std::string institution(isil_subfield == "DE-21" ? "UB: " : "IFK: ");
+
+            // Process item locations:
+            for (++_852_field; _852_field != record->end() and _852_field->getTag() == "LOK" and _852_field->getLocalTag() == "852";
+                 ++_852_field) {
+                const MARC::Subfields subfields2(_852_field->getSubfields());
+                const std::string call_number_subfield(subfields2.getFirstSubfieldWithCode('c'));
+                if (not call_number_subfield.empty()) {
+                    const std::string institution_and_call_number(institution + call_number_subfield);
+                    ++add_sig_count;
+                    signature_field_contents.emplace_back(
+                        MARC::Subfields({ { 'a', institution_and_call_number
+                                                     + (detailed_availability.empty() ? "" : "(" + detailed_availability + ")") } })
+                            .toString());
+                } else { // Look for URL's.
+                    for (const auto &_856_field : record->getLocalTagRange("856", block_start, /*indicator1*/ '4', /*indicator2*/ ' ')) {
+                        std::string url, anchor;
+                        if (Get856URLAndAnchor(_856_field.getContents(), &url, &anchor)
+                            and alread_seen_urls.find(url) == alread_seen_urls.cend()) {
+                            alread_seen_urls.insert(url);
+                            signature_field_contents.emplace_back(
+                                MARC::Subfields({ { 'a', "<a href=\"" + url + "\">" + anchor + "</a>" } }).toString());
+                        }
+                    }
+                    break;
+                }
+            }
+        } else if (isil_subfield == "DE-2619") {
+            const std::string parent_ppn(record->getParentControlNumber(/* additional_tags=*/{ "776" }));
+            if (parent_ppn.empty())
+                continue;
+            const auto parent_ppn_info(parent_ppn_to_info_map_2619.find(parent_ppn));
+            if (parent_ppn_info != parent_ppn_to_info_map_2619.end()) {
+                static RegexMatcher * const akb_matcher(RegexMatcher::RegexMatcherFactory("Bestand Albert-Krebs-Bibliothek: (.+)"));
+                if (akb_matcher->matched(parent_ppn_info->second)) {
+                    if (verbose)
+                        std::cout << "Adding AKB information for PPN " + record->getControlNumber() + ": " + (*akb_matcher)[1] + "\n";
+                    record->insertField("AKB", { { 'a', (*akb_matcher)[1] } });
+                    ++modified_record_count;
+                }
             }
         }
     }
 
-final_processing:
     if (not signature_field_contents.empty()) {
-        for (const auto &signature_field_content : signature_field_contents)
+        for (const auto &signature_field_content : signature_field_contents) {
+            if (verbose)
+                std::cout << "Adding SIG information for PPN " + record->getControlNumber() + ": " + signature_field_content + "\n";
             record->insertField("SIG", /* indicators */ "  " + signature_field_content);
+        }
         ++modified_record_count;
     } else if (ElectronicArticleIsAvailableInTuebingen(*record)) {
         std::string url, anchor;
@@ -1148,6 +1178,8 @@ final_processing:
         if (_856_field != record->end() and Get856URLAndAnchor(_856_field->getContents(), &url, &anchor)) {
             if (alread_seen_urls.find(url) == alread_seen_urls.cend()) {
                 alread_seen_urls.insert(url);
+                if (verbose)
+                    std::cout << "Adding SIG information for PPN " + record->getControlNumber() + ": " + url + "\n";
                 record->insertField("SIG", { { 'a', "<a href=\"" + url + "\">" + anchor + "</a>" } });
                 ++modified_record_count;
             }
@@ -1171,9 +1203,12 @@ std::string Percentage(const float fraction, const float total) {
 
 
 void PopulateTheInTuebingenAvailableField(const bool verbose, MARC::Reader * const marc_reader, MARC::Writer * const marc_writer) {
+    if (verbose)
+        std::cout << "Processing Serials...\n";
+
     std::string err_msg;
     while (MARC::Record record = marc_reader->read()) {
-        if (not ProcessSerialRecord(&record, marc_writer, &err_msg))
+        if (not ProcessSerialRecord(verbose, &record, marc_writer, &err_msg))
             LOG_ERROR("error while processing serial records: " + err_msg);
     }
 
@@ -1182,12 +1217,13 @@ void PopulateTheInTuebingenAvailableField(const bool verbose, MARC::Reader * con
                   << ") publication ranges.\n";
         std::cout << "Failed to match " << Percentage(bad_match_count, good_match_count + bad_match_count) << " (" << bad_match_count
                   << ") publication ranges.\n";
+        std::cout << "Processing Records...\n";
     }
 
     marc_reader->rewind();
 
     while (MARC::Record record = marc_reader->read()) {
-        if (not ProcessRecord(&record, marc_writer, &err_msg))
+        if (not ProcessRecord(verbose, &record, marc_writer, &err_msg))
             LOG_ERROR("error while processing records: " + err_msg);
     }
 
