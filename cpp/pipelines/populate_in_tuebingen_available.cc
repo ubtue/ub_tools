@@ -45,6 +45,12 @@ namespace {
 }
 
 
+struct SignatureHoldingInfo {
+    std::string signature;
+    std::string holding;
+};
+
+
 class Range {
 public:
     static const unsigned ISSUE_WILDCARD = std::numeric_limits<unsigned>::max();
@@ -990,7 +996,7 @@ void ParseRanges(const std::string &_866a_contents, std::vector<Range> * const r
 
 
 std::unordered_map<std::string, std::vector<Range>> parent_ppn_to_ranges_map;
-std::unordered_map<std::string, std::string> parent_ppn_to_info_map_2619;
+std::unordered_map<std::string, SignatureHoldingInfo> parent_ppn_to_info_map_2619;
 
 
 bool ProcessSerialRecord(const bool verbose, MARC::Record * const record, MARC::Writer * const /*output*/,
@@ -1017,6 +1023,18 @@ bool ProcessSerialRecord(const bool verbose, MARC::Record * const record, MARC::
                 }
             }
         } else if (sigil == "DE-2619") {
+            SignatureHoldingInfo signature_holding_info;
+
+            for (auto &_852_field : record->findFieldsInLocalBlock("852", local_block_start, /*indicator1*/ ' ', /*indicator2*/ '1')) {
+                const std::string _852c_contents(_852_field.getFirstSubfieldWithCode('c'));
+                if (unlikely(_852c_contents.empty()))
+                    continue;
+
+                if (verbose)
+                    std::cout << "Serial " + record->getControlNumber() + ": Found information for sigil " + sigil + "\n";
+                signature_holding_info.signature = _852c_contents;
+            }
+
             for (auto &_866_field : record->findFieldsInLocalBlock("866", local_block_start, /*indicator1*/ '3', /*indicator2*/ '0')) {
                 const std::string _866a_contents(_866_field.getFirstSubfieldWithCode('a'));
                 if (unlikely(_866a_contents.empty()))
@@ -1024,7 +1042,13 @@ bool ProcessSerialRecord(const bool verbose, MARC::Record * const record, MARC::
 
                 if (verbose)
                     std::cout << "Serial " + record->getControlNumber() + ": Found information for sigil " + sigil + "\n";
-                parent_ppn_to_info_map_2619.emplace(record->getControlNumber(), _866a_contents);
+                signature_holding_info.holding = _866a_contents;
+            }
+
+            if (not signature_holding_info.signature.empty() or not signature_holding_info.holding.empty()) {
+                if (verbose)
+                    std::cout << "Serial " + record->getControlNumber() + ": Found signature/holding info for sigil " + sigil + "\n";
+                parent_ppn_to_info_map_2619.emplace(record->getControlNumber(), signature_holding_info);
             }
         }
     }
@@ -1154,10 +1178,17 @@ bool ProcessRecord(const bool verbose, MARC::Record * const record, MARC::Writer
             const auto parent_ppn_info(parent_ppn_to_info_map_2619.find(parent_ppn));
             if (parent_ppn_info != parent_ppn_to_info_map_2619.end()) {
                 static RegexMatcher * const akb_matcher(RegexMatcher::RegexMatcherFactory("Bestand Albert-Krebs-Bibliothek: (.+)"));
-                if (akb_matcher->matched(parent_ppn_info->second)) {
+                if (akb_matcher->matched(parent_ppn_info->second.holding)) {
                     if (verbose)
-                        std::cout << "Adding AKB information for PPN " + record->getControlNumber() + ": " + (*akb_matcher)[1] + "\n";
-                    record->insertField("AKB", { { 'a', (*akb_matcher)[1] } });
+                        std::cout << "Adding AKB information for PPN " + record->getControlNumber() + "\n";
+
+                    MARC::Subfields subfields;
+                    subfields.appendSubfield('a', (*akb_matcher)[1]);
+
+                    if (not parent_ppn_info->second.signature.empty())
+                        subfields.appendSubfield('b', parent_ppn_info->second.signature);
+
+                    record->insertField("AKB", subfields);
                     ++modified_record_count;
                 }
             }
