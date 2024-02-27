@@ -35,6 +35,7 @@ flag_article_collections
 flag_electronic_and_open_access_records
 flag_records_as_available_in_tuebingen
 generate_vufind_translation_files
+krimdok_check_local_holdings
 krimdok_flag_pda_records
 map_ddc_to_ixtheo_notations
 normalise_urls

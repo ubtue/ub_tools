@@ -113,7 +113,7 @@ EndPhase
 
 
 StartPhase "Fill in the \"in_tuebingen_available\" Field"
-populate_in_tuebingen_available --verbose \
+krimdok_check_local_holdings --verbose \
                                 GesamtTiteldaten-post-phase"$((PHASE-2))"-"${date}".mrc \
                                 GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1
 EndPhase
