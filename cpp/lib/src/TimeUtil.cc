@@ -763,39 +763,269 @@ time_t UTCStructTmToTimeT(const struct tm &tm) {
     return retval_candidate < 0 ? BAD_TIME_T : retval_candidate;
 }
 
+static void ConstructTimeZoneAbbreviationMapping(std::map<std::string, float> * const timezone_abbreviation) {
+    timezone_abbreviation->insert(std::make_pair("A", +1));
+    timezone_abbreviation->insert(std::make_pair("ACDT", +10.5));
+    timezone_abbreviation->insert(std::make_pair("ACST", +9.5));
+    timezone_abbreviation->insert(std::make_pair("ACT", -5));
+    timezone_abbreviation->insert(std::make_pair("ACT", +9.5));
+    timezone_abbreviation->insert(std::make_pair("ACWST", +8.75));
+    timezone_abbreviation->insert(std::make_pair("ADT", +4));
+    timezone_abbreviation->insert(std::make_pair("ADT", -3));
+    timezone_abbreviation->insert(std::make_pair("AEDT", +11));
+    timezone_abbreviation->insert(std::make_pair("AEST", +10));
+    timezone_abbreviation->insert(std::make_pair("AET", +10));
+    timezone_abbreviation->insert(std::make_pair("AFT", +4.5));
+    timezone_abbreviation->insert(std::make_pair("AKDT", -8));
+    timezone_abbreviation->insert(std::make_pair("AKST", -9));
+    timezone_abbreviation->insert(std::make_pair("ALMT", +6));
+    timezone_abbreviation->insert(std::make_pair("AMST", -3));
+    timezone_abbreviation->insert(std::make_pair("AMST", +5));
+    timezone_abbreviation->insert(std::make_pair("AMT", -4));
+    timezone_abbreviation->insert(std::make_pair("AMT", +4));
+    timezone_abbreviation->insert(std::make_pair("ANAST", +12));
+    timezone_abbreviation->insert(std::make_pair("ANAT", +12));
+    timezone_abbreviation->insert(std::make_pair("AQTT", +5));
+    timezone_abbreviation->insert(std::make_pair("ART", -3));
+    timezone_abbreviation->insert(std::make_pair("AST", +3));
+    timezone_abbreviation->insert(std::make_pair("AST", -4));
+    timezone_abbreviation->insert(std::make_pair("AT", -4));
+    timezone_abbreviation->insert(std::make_pair("AWDT", +9));
+    timezone_abbreviation->insert(std::make_pair("AWST", +8));
+    timezone_abbreviation->insert(std::make_pair("AZOST", +0));
+    timezone_abbreviation->insert(std::make_pair("AZOT", -1));
+    timezone_abbreviation->insert(std::make_pair("AZST", +5));
+    timezone_abbreviation->insert(std::make_pair("AZT", +4));
+    timezone_abbreviation->insert(std::make_pair("AoE", -12));
+    timezone_abbreviation->insert(std::make_pair("B", +2));
+    timezone_abbreviation->insert(std::make_pair("BNT", +8));
+    timezone_abbreviation->insert(std::make_pair("BOT", -4));
+    timezone_abbreviation->insert(std::make_pair("BRST", -2));
+    timezone_abbreviation->insert(std::make_pair("BRT", -3));
+    timezone_abbreviation->insert(std::make_pair("BST", +6));
+    timezone_abbreviation->insert(std::make_pair("BST", +11));
+    timezone_abbreviation->insert(std::make_pair("BST", +1));
+    timezone_abbreviation->insert(std::make_pair("BTT", +6));
+    timezone_abbreviation->insert(std::make_pair("C", +3));
+    timezone_abbreviation->insert(std::make_pair("CAST", +8));
+    timezone_abbreviation->insert(std::make_pair("CAT", +2));
+    timezone_abbreviation->insert(std::make_pair("CCT", +6.5));
+    timezone_abbreviation->insert(std::make_pair("CDT", -5));
+    timezone_abbreviation->insert(std::make_pair("CDT", -4));
+    timezone_abbreviation->insert(std::make_pair("CEST", +2));
+    timezone_abbreviation->insert(std::make_pair("CET", +1));
+    timezone_abbreviation->insert(std::make_pair("CHADT", +13.75));
+    timezone_abbreviation->insert(std::make_pair("CHAST", +12.75));
+    timezone_abbreviation->insert(std::make_pair("CHOST", +9));
+    timezone_abbreviation->insert(std::make_pair("CHOT", +8));
+    timezone_abbreviation->insert(std::make_pair("CHUT", +10));
+    timezone_abbreviation->insert(std::make_pair("CIDST", -4));
+    timezone_abbreviation->insert(std::make_pair("CIST", -5));
+    timezone_abbreviation->insert(std::make_pair("CKT", -10));
+    timezone_abbreviation->insert(std::make_pair("CLST", -3));
+    timezone_abbreviation->insert(std::make_pair("CLT", -4));
+    timezone_abbreviation->insert(std::make_pair("COT", -5));
+    timezone_abbreviation->insert(std::make_pair("CST", -6));
+    timezone_abbreviation->insert(std::make_pair("CST", +8));
+    timezone_abbreviation->insert(std::make_pair("CST", -5));
+    timezone_abbreviation->insert(std::make_pair("CT", -6));
+    timezone_abbreviation->insert(std::make_pair("CVT", -1));
+    timezone_abbreviation->insert(std::make_pair("CXT", +7));
+    timezone_abbreviation->insert(std::make_pair("ChST", +10));
+    timezone_abbreviation->insert(std::make_pair("D", +4));
+    timezone_abbreviation->insert(std::make_pair("DAVT", +7));
+    timezone_abbreviation->insert(std::make_pair("DDUT", +10));
+    timezone_abbreviation->insert(std::make_pair("E", +5));
+    timezone_abbreviation->insert(std::make_pair("EASST", -5));
+    timezone_abbreviation->insert(std::make_pair("EAST", -6));
+    timezone_abbreviation->insert(std::make_pair("EAT", +3));
+    timezone_abbreviation->insert(std::make_pair("ECT", -5));
+    timezone_abbreviation->insert(std::make_pair("EDT", -4));
+    timezone_abbreviation->insert(std::make_pair("EEST", +3));
+    timezone_abbreviation->insert(std::make_pair("EET", +2));
+    timezone_abbreviation->insert(std::make_pair("EGST", +0));
+    timezone_abbreviation->insert(std::make_pair("EGT", -1));
+    timezone_abbreviation->insert(std::make_pair("EST", -5));
+    timezone_abbreviation->insert(std::make_pair("ET", -5));
+    timezone_abbreviation->insert(std::make_pair("F", +6));
+    timezone_abbreviation->insert(std::make_pair("FET", +3));
+    timezone_abbreviation->insert(std::make_pair("FJST", +13));
+    timezone_abbreviation->insert(std::make_pair("FJT", +12));
+    timezone_abbreviation->insert(std::make_pair("FKST", -3));
+    timezone_abbreviation->insert(std::make_pair("FKT", -4));
+    timezone_abbreviation->insert(std::make_pair("FNT", -2));
+    timezone_abbreviation->insert(std::make_pair("G", +7));
+    timezone_abbreviation->insert(std::make_pair("GALT", -6));
+    timezone_abbreviation->insert(std::make_pair("GAMT", -9));
+    timezone_abbreviation->insert(std::make_pair("GET", +4));
+    timezone_abbreviation->insert(std::make_pair("GFT", -3));
+    timezone_abbreviation->insert(std::make_pair("GILT", +12));
+    timezone_abbreviation->insert(std::make_pair("GMT", +0));
+    timezone_abbreviation->insert(std::make_pair("GST", +4));
+    timezone_abbreviation->insert(std::make_pair("GST", -2));
+    timezone_abbreviation->insert(std::make_pair("GYT", -4));
+    timezone_abbreviation->insert(std::make_pair("H", +8));
+    timezone_abbreviation->insert(std::make_pair("HDT", -9));
+    timezone_abbreviation->insert(std::make_pair("HKT", +8));
+    timezone_abbreviation->insert(std::make_pair("HOVST", +8));
+    timezone_abbreviation->insert(std::make_pair("HOVT", +7));
+    timezone_abbreviation->insert(std::make_pair("HST", -10));
+    timezone_abbreviation->insert(std::make_pair("I", +9));
+    timezone_abbreviation->insert(std::make_pair("ICT", +7));
+    timezone_abbreviation->insert(std::make_pair("IDT", +3));
+    timezone_abbreviation->insert(std::make_pair("IOT", +6));
+    timezone_abbreviation->insert(std::make_pair("IRDT", +4.5));
+    timezone_abbreviation->insert(std::make_pair("IRKST", +9));
+    timezone_abbreviation->insert(std::make_pair("IRKT", +8));
+    timezone_abbreviation->insert(std::make_pair("IRST", +3.5));
+    timezone_abbreviation->insert(std::make_pair("IST", +5.5));
+    timezone_abbreviation->insert(std::make_pair("IST", +1));
+    timezone_abbreviation->insert(std::make_pair("IST", +2));
+    timezone_abbreviation->insert(std::make_pair("JST", +9));
+    timezone_abbreviation->insert(std::make_pair("K", +10));
+    timezone_abbreviation->insert(std::make_pair("KGT", +6));
+    timezone_abbreviation->insert(std::make_pair("KOST", +11));
+    timezone_abbreviation->insert(std::make_pair("KRAST", +8));
+    timezone_abbreviation->insert(std::make_pair("KRAT", +7));
+    timezone_abbreviation->insert(std::make_pair("KST", +9));
+    timezone_abbreviation->insert(std::make_pair("KUYT", +4));
+    timezone_abbreviation->insert(std::make_pair("L", +11));
+    timezone_abbreviation->insert(std::make_pair("LHDT", +11));
+    timezone_abbreviation->insert(std::make_pair("LHST", +10.5));
+    timezone_abbreviation->insert(std::make_pair("LINT", +14));
+    timezone_abbreviation->insert(std::make_pair("M", +12));
+    timezone_abbreviation->insert(std::make_pair("MAGST", +12));
+    timezone_abbreviation->insert(std::make_pair("MAGT", +11));
+    timezone_abbreviation->insert(std::make_pair("MART", -9.5));
+    timezone_abbreviation->insert(std::make_pair("MAWT", +5));
+    timezone_abbreviation->insert(std::make_pair("MDT", -6));
+    timezone_abbreviation->insert(std::make_pair("MHT", +12));
+    timezone_abbreviation->insert(std::make_pair("MMT", +6.5));
+    timezone_abbreviation->insert(std::make_pair("MSD", +4));
+    timezone_abbreviation->insert(std::make_pair("MSK", +3));
+    timezone_abbreviation->insert(std::make_pair("MST", -7));
+    timezone_abbreviation->insert(std::make_pair("MT", -7));
+    timezone_abbreviation->insert(std::make_pair("MUT", +4));
+    timezone_abbreviation->insert(std::make_pair("MVT", +5));
+    timezone_abbreviation->insert(std::make_pair("MYT", +8));
+    timezone_abbreviation->insert(std::make_pair("N", -1));
+    timezone_abbreviation->insert(std::make_pair("NCT", +11));
+    timezone_abbreviation->insert(std::make_pair("NDT", -2.5));
+    timezone_abbreviation->insert(std::make_pair("NFDT", +12));
+    timezone_abbreviation->insert(std::make_pair("NFT", +11));
+    timezone_abbreviation->insert(std::make_pair("NOVST", +7));
+    timezone_abbreviation->insert(std::make_pair("NOVT", +7));
+    timezone_abbreviation->insert(std::make_pair("NPT", +5.75));
+    timezone_abbreviation->insert(std::make_pair("NRT", +12));
+    timezone_abbreviation->insert(std::make_pair("NST", -3.5));
+    timezone_abbreviation->insert(std::make_pair("NUT", -11));
+    timezone_abbreviation->insert(std::make_pair("NZDT", +13));
+    timezone_abbreviation->insert(std::make_pair("NZST", +12));
+    timezone_abbreviation->insert(std::make_pair("O", -2));
+    timezone_abbreviation->insert(std::make_pair("OMSST", +7));
+    timezone_abbreviation->insert(std::make_pair("OMST", +6));
+    timezone_abbreviation->insert(std::make_pair("ORAT", +5));
+    timezone_abbreviation->insert(std::make_pair("P", -3));
+    timezone_abbreviation->insert(std::make_pair("PDT", -7));
+    timezone_abbreviation->insert(std::make_pair("PET", -5));
+    timezone_abbreviation->insert(std::make_pair("PETST", +12));
+    timezone_abbreviation->insert(std::make_pair("PETT", +12));
+    timezone_abbreviation->insert(std::make_pair("PGT", +10));
+    timezone_abbreviation->insert(std::make_pair("PHOT", +13));
+    timezone_abbreviation->insert(std::make_pair("PHT", +8));
+    timezone_abbreviation->insert(std::make_pair("PKT", +5));
+    timezone_abbreviation->insert(std::make_pair("PMDT", -2));
+    timezone_abbreviation->insert(std::make_pair("PMST", -3));
+    timezone_abbreviation->insert(std::make_pair("PONT", +11));
+    timezone_abbreviation->insert(std::make_pair("PST", -8));
+    timezone_abbreviation->insert(std::make_pair("PST", -8));
+    timezone_abbreviation->insert(std::make_pair("PT", -8));
+    timezone_abbreviation->insert(std::make_pair("PWT", +9));
+    timezone_abbreviation->insert(std::make_pair("PYST", -3));
+    timezone_abbreviation->insert(std::make_pair("PYT", -4));
+    timezone_abbreviation->insert(std::make_pair("PYT", +8.5));
+    timezone_abbreviation->insert(std::make_pair("Q", -4));
+    timezone_abbreviation->insert(std::make_pair("QYZT", +6));
+    timezone_abbreviation->insert(std::make_pair("R", -5));
+    timezone_abbreviation->insert(std::make_pair("RET", +4));
+    timezone_abbreviation->insert(std::make_pair("ROTT", -3));
+    timezone_abbreviation->insert(std::make_pair("S", -6));
+    timezone_abbreviation->insert(std::make_pair("SAKT", +11));
+    timezone_abbreviation->insert(std::make_pair("SAMT", +4));
+    timezone_abbreviation->insert(std::make_pair("SAST", +2));
+    timezone_abbreviation->insert(std::make_pair("SBT", +11));
+    timezone_abbreviation->insert(std::make_pair("SCT", +4));
+    timezone_abbreviation->insert(std::make_pair("SGT", +8));
+    timezone_abbreviation->insert(std::make_pair("SRET", +11));
+    timezone_abbreviation->insert(std::make_pair("SRT", -3));
+    timezone_abbreviation->insert(std::make_pair("SST", -11));
+    timezone_abbreviation->insert(std::make_pair("SYOT", +3));
+    timezone_abbreviation->insert(std::make_pair("T", -7));
+    timezone_abbreviation->insert(std::make_pair("TAHT", -10));
+    timezone_abbreviation->insert(std::make_pair("TFT", +5));
+    timezone_abbreviation->insert(std::make_pair("TJT", +5));
+    timezone_abbreviation->insert(std::make_pair("TKT", +13));
+    timezone_abbreviation->insert(std::make_pair("TLT", +9));
+    timezone_abbreviation->insert(std::make_pair("TMT", +5));
+    timezone_abbreviation->insert(std::make_pair("TOST", +14));
+    timezone_abbreviation->insert(std::make_pair("TOT", +13));
+    timezone_abbreviation->insert(std::make_pair("TRT", +3));
+    timezone_abbreviation->insert(std::make_pair("TVT", +12));
+    timezone_abbreviation->insert(std::make_pair("U", -8));
+    timezone_abbreviation->insert(std::make_pair("ULAST", +9));
+    timezone_abbreviation->insert(std::make_pair("ULAT", +8));
+    timezone_abbreviation->insert(std::make_pair("UT", +0));
+    timezone_abbreviation->insert(std::make_pair("UYST", -2));
+    timezone_abbreviation->insert(std::make_pair("UYT", -3));
+    timezone_abbreviation->insert(std::make_pair("UZT", +5));
+    timezone_abbreviation->insert(std::make_pair("V", -9));
+    timezone_abbreviation->insert(std::make_pair("VET", -4));
+    timezone_abbreviation->insert(std::make_pair("VLAST", +11));
+    timezone_abbreviation->insert(std::make_pair("VLAT", +10));
+    timezone_abbreviation->insert(std::make_pair("VOST", +6));
+    timezone_abbreviation->insert(std::make_pair("VUT", +11));
+    timezone_abbreviation->insert(std::make_pair("W", -10));
+    timezone_abbreviation->insert(std::make_pair("WAKT", +12));
+    timezone_abbreviation->insert(std::make_pair("WARST", -3));
+    timezone_abbreviation->insert(std::make_pair("WAST", +2));
+    timezone_abbreviation->insert(std::make_pair("WAT", +1));
+    timezone_abbreviation->insert(std::make_pair("WEST", +1));
+    timezone_abbreviation->insert(std::make_pair("WET", +0));
+    timezone_abbreviation->insert(std::make_pair("WFT", +12));
+    timezone_abbreviation->insert(std::make_pair("WGST", -2));
+    timezone_abbreviation->insert(std::make_pair("WGT", -3));
+    timezone_abbreviation->insert(std::make_pair("WIB", +7));
+    timezone_abbreviation->insert(std::make_pair("WIT", +9));
+    timezone_abbreviation->insert(std::make_pair("WITA", +8));
+    timezone_abbreviation->insert(std::make_pair("WST", +13));
+    timezone_abbreviation->insert(std::make_pair("WST", +1));
+    timezone_abbreviation->insert(std::make_pair("WT", +0));
+    timezone_abbreviation->insert(std::make_pair("X", -11));
+    timezone_abbreviation->insert(std::make_pair("Y", -12));
+    timezone_abbreviation->insert(std::make_pair("YAKST", +10));
+    timezone_abbreviation->insert(std::make_pair("YAKT", +9));
+    timezone_abbreviation->insert(std::make_pair("YAPT", +10));
+    timezone_abbreviation->insert(std::make_pair("YEKST", +6));
+    timezone_abbreviation->insert(std::make_pair("YEKT", +5));
+    timezone_abbreviation->insert(std::make_pair("Z", +0));
+}
 
 // See https://www.rfc-editor.org/rfc/rfc822.txt section 5.1.
 static bool ZoneAdjustment(const std::string &rfc822_zone, time_t * const adjustment) {
-    if (rfc822_zone == "GMT" or rfc822_zone == "UT")
-        *adjustment = 0;
-    else if (rfc822_zone == "EST")
-        *adjustment = +5 * 3600;
-    else if (rfc822_zone == "EDT")
-        *adjustment = +4 * 3600;
-    else if (rfc822_zone == "CST")
-        *adjustment = +6 * 3600;
-    else if (rfc822_zone == "CDT")
-        *adjustment = +5 * 3600;
-    else if (rfc822_zone == "MST")
-        *adjustment = +7 * 3600;
-    else if (rfc822_zone == "MDT")
-        *adjustment = +6 * 3600;
-    else if (rfc822_zone == "PST")
-        *adjustment = +8 * 3600;
-    else if (rfc822_zone == "PDT")
-        *adjustment = +7 * 3600;
-    else if (rfc822_zone == "A")
-        *adjustment = -1 * 3600;
-    else if (rfc822_zone == "M")
-        *adjustment = -12 * 3600;
-    else if (rfc822_zone == "N")
-        *adjustment = +1 * 3600;
-    else if (rfc822_zone == "Y")
-        *adjustment = +12 * 3600;
-    else // Unrecognized tiem zone.
-        return false;
+    std::map<std::string, float> tmz_map;
+    ConstructTimeZoneAbbreviationMapping(&tmz_map);
 
-    return true;
+    // just in case the abbreviation is not found, the adjustment has a value.
+    // this assignment will help to avoid mis-memory allocation which produces signal 11.
+    *adjustment = 0;
+
+    auto tmz_mapping = tmz_map.find(rfc822_zone);
+    if (tmz_mapping != tmz_map.end()) {
+        *adjustment = tmz_mapping->second * 3600;
+        return true;
+    }
+
+    return false;
 }
 
 
