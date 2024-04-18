@@ -764,6 +764,8 @@ time_t UTCStructTmToTimeT(const struct tm &tm) {
 }
 
 static void ConstructTimeZoneAbbreviationMapping(std::map<std::string, float> * const timezone_abbreviation) {
+    // The information was taken from https://www.timeanddate.com/time/zones/
+
     timezone_abbreviation->insert(std::make_pair("A", +1));
     timezone_abbreviation->insert(std::make_pair("ACDT", +10.5));
     timezone_abbreviation->insert(std::make_pair("ACST", +9.5));
