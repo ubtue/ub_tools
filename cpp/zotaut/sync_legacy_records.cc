@@ -49,7 +49,7 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    ::Usage("email_address");
+    ::Usage("[--zotero-conf path] [--harvester-conf path] (--all (Beware - long runtime!!) | journal_name)");
 }
 
 
@@ -176,37 +176,104 @@ void SyncLegacyRecordsForJournal(const LegacyRecordStock &legacy_record_stock, c
 }
 
 
-void SyncLegacyRecords(const IniFile &zotero_conf, const IniFile &harvester_conf) {
+bool DeliveryModeIsNoneOrNewlySyncedEntry(const auto &section) {
+    const auto delivery_mode(static_cast<ZoteroHarvester::Config::UploadOperation>(section.getEnum(
+        "zotero_delivery_mode", ZoteroHarvester::Config::STRING_TO_UPLOAD_OPERATION_MAP, ZoteroHarvester::Config::UploadOperation::NONE)));
+    if (delivery_mode == ZoteroHarvester::Config::UploadOperation::NONE)
+        return true;
+    if (section.getBool("zeder_newly_synced_entry", false))
+        return true;
+    return false;
+}
+
+
+void SyncLegacyRecords(const IniFile &zotero_conf, const IniFile &harvester_conf, const std::string &journal_name = "") {
     LegacyRecordStock legacy_record_stock;
     GetLegacyStockConfig(zotero_conf, &legacy_record_stock);
 
-    for (const auto &section : harvester_conf) {
-        if (section.getSectionName().empty())
-            continue; // global section
-        if (section.find("user_agent") != section.end() or section.find("author_swb_lookup_url") != section.end())
-            continue; // Not a journal section.
+    // Handle all
+    if (journal_name.empty()) {
+        for (const auto &section : harvester_conf) {
+            if (section.getSectionName().empty())
+                continue; // global section
+            if (section.find("user_agent") != section.end() or section.find("author_swb_lookup_url") != section.end())
+                continue; // Not a journal section.
+            if (DeliveryModeIsNoneOrNewlySyncedEntry(section))
+                continue;
 
-        const auto delivery_mode(static_cast<ZoteroHarvester::Config::UploadOperation>(
-            section.getEnum("zotero_delivery_mode", ZoteroHarvester::Config::STRING_TO_UPLOAD_OPERATION_MAP,
-                            ZoteroHarvester::Config::UploadOperation::NONE)));
-        if (delivery_mode == ZoteroHarvester::Config::UploadOperation::NONE)
-            continue;
-        if (section.getBool("zeder_newly_synced_entry", false))
-            continue;
-        SyncLegacyRecordsForJournal(legacy_record_stock, section);
+            SyncLegacyRecordsForJournal(legacy_record_stock, section);
+        }
+        return;
     }
+
+    // Handle one journal
+    for (const auto &section : harvester_conf) {
+        if (section.getSectionName() == journal_name) {
+            if (DeliveryModeIsNoneOrNewlySyncedEntry(section))
+                LOG_WARNING("Configuration Entry for \"" + journal_name +"\" found, but delivery mode is none \
+                            or it is a newly_synced entry - continuing anyway");
+            SyncLegacyRecordsForJournal(legacy_record_stock, section);
+            return;
+        }
+    }
+
+    LOG_ERROR("No section found for \"" + journal_name + "\" - Aborting");
 }
 
 } // end unnamed namespace
 
 
-int Main(int argc, __attribute__((unused)) char *argv[]) {
-    if (argc != 1)
+int Main(int argc, char *argv[]) {
+    if (argc < 2 || argc > 6)
         Usage();
 
-    const IniFile zotero_conf(CONF_FILE_PATH);
-    const IniFile harvester_conf(UBTools::GetTuelibPath() + "zotero-enhancement-maps/zotero_harvester.conf");
-    SyncLegacyRecords(zotero_conf, harvester_conf);
+    bool all_journals(false);
+    std::string zotero_conf_path;
+    std::string harvester_conf_path;
+    std::string journal_name;
+
+    while (argc > 1) {
+        if (std::strcmp(argv[1], "--zotero-conf") == 0) {
+            if (argc < 2)
+                Usage();
+            zotero_conf_path = argv[2];
+            argv += 2;
+            argc -= 2;
+            continue;
+        }
+
+        if (std::strcmp(argv[1], "--harvester-conf") == 0) {
+            if (argc < 2)
+                Usage();
+            harvester_conf_path = argv[2];
+            argv += 2;
+            argc -= 2;
+            continue;
+        }
+
+        if (std::strcmp(argv[1], "--all") == 0) {
+            all_journals = true;
+            ++argv;
+            --argc;
+            break;
+        }
+
+        if (not all_journals and argc == 1)
+            Usage();
+
+        journal_name = argv[1];
+        ++argv;
+        --argc;
+
+        if (argc != 1)
+            Usage();
+    }
+
+    const IniFile zotero_conf(zotero_conf_path.empty() ? CONF_FILE_PATH : zotero_conf_path);
+    const IniFile harvester_conf(harvester_conf_path.empty() ? UBTools::GetTuelibPath() + "zotero-enhancement-maps/zotero_harvester.conf"
+                                                             : harvester_conf_path);
+
+    SyncLegacyRecords(zotero_conf, harvester_conf, all_journals ? "" : journal_name);
 
     return EXIT_SUCCESS;
 }
