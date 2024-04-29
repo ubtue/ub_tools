@@ -30,7 +30,7 @@ CREATE TABLE delivered_marc_records (
     id INT AUTO_INCREMENT PRIMARY KEY,
     hash VARCHAR(40) NOT NULL,
     zeder_journal_id INT(11) UNSIGNED NOT NULL,
-    delivery_state ENUM('automatic', 'manual', 'error', 'ignore', 'reset', 'online_first') DEFAULT 'automatic' NOT NULL,
+    delivery_state ENUM('automatic', 'manual', 'error', 'ignore', 'reset', 'online_first', 'legacy') DEFAULT 'automatic' NOT NULL,
     error_message VARCHAR(1000) DEFAULT NULL,
     delivered_at TIMESTAMP NOT NULL DEFAULT NOW(),
     main_title VARCHAR(1000) NOT NULL,
@@ -48,7 +48,7 @@ CREATE TABLE delivered_marc_records (
 -- (Avoid error "Specified key was too long; max key length is 3072 bytes")
 CREATE TABLE delivered_marc_records_urls (
     record_id INT,
-    url VARCHAR(1000) CHARACTER SET 'utf8' COLLATE 'utf8_bin' NOT NULL,
+    url VARCHAR(1000) CHARACTER SET 'utf8' COLLATE 'utf8_general_ci' NOT NULL,
     CONSTRAINT record_id_and_url PRIMARY KEY (record_id, url),
     CONSTRAINT delivered_marc_records_id FOREIGN KEY (record_id) REFERENCES delivered_marc_records (id) ON DELETE CASCADE ON UPDATE CASCADE,
     INDEX delivered_marc_records_urls_index(url)
