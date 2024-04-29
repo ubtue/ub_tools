@@ -552,7 +552,7 @@ class UploadTracker {
     static constexpr unsigned CONNECTION_POOL_SIZE = 50;
 
 public:
-    enum DeliveryState : unsigned { AUTOMATIC, MANUAL, ERROR, IGNORE, RESET, ONLINE_FIRST };
+    enum DeliveryState : unsigned { AUTOMATIC, MANUAL, ERROR, IGNORE, RESET, ONLINE_FIRST, LEGACY };
     static const std::map<DeliveryState, std::string> DELIVERY_STATE_TO_STRING_MAP;
     static const std::map<std::string, DeliveryState> STRING_TO_DELIVERY_STATE_MAP;
     static const std::set<DeliveryState> DELIVERY_STATES_TO_RETRY;
@@ -601,6 +601,10 @@ public:
     // Returns true on success, false otherwise.
     bool archiveRecord(const MARC::Record &record, const DeliveryState delivery_state, const std::string &error_message = "");
 
+    // Saves entries for DOIs already present in the FID stock
+    bool archiveLegacyEntry(const std::string &zeder_id, const std::string &zeder_instance, const std::string &record_id,
+                            const std::string &main_title, const std::string &legacy_doi);
+
     static std::string GetZederInstanceString(const Zeder::Flavour zeder_flavour);
     static std::string GetZederInstanceString(const std::string &group);
 
@@ -612,6 +616,7 @@ private:
     bool recordAlreadyInDatabase(const std::string &record_hash, const std::set<std::string> &record_urls,
                                  const std::set<DeliveryState> &delivery_states_to_ignore, std::vector<Entry> * const entries,
                                  DbConnection * const db_connection) const;
+    bool legacyEntryAlreadyInDatabase(const std::string &legacy_doi, DbConnection * const db_connection) const;
 };
 
 

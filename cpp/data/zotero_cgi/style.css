@@ -73,6 +73,11 @@ span.dot-record-online-first {
     background-color: black;
 }
 
+span.dot-record-legacy {
+    background-color: lightpink;
+}
+
+
 /* QA template specific */
 div.qa_rule_overridden {
     color: grey;

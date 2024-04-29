@@ -59,6 +59,9 @@ ArchiveType GetArchiveType(const std::string &member_name);
 std::string GetAuthorGNDNumber(const std::string &author, const std::string &author_lookup_base_url);
 
 
+std::string GetAllAuthorGNDNumberCandidates(const std::string &author, const std::string &author_lookup_base_url);
+
+
 // Extracts members from "archive_name" combining those of the same type, e.g. members ending in "a001.raw" and "a002.raw" would
 // be extracted as a single concatenated file whose name ends in "a001.raw".  If "optional_suffix" is not empty it will be appended
 // to each filename.
