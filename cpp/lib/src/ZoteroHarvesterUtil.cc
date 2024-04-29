@@ -341,14 +341,14 @@ public:
 
 
 const std::map<UploadTracker::DeliveryState, std::string> UploadTracker::DELIVERY_STATE_TO_STRING_MAP{
-    { AUTOMATIC, "automatic" }, { MANUAL, "manual" }, { ERROR, "error" },
-    { IGNORE, "ignore" },       { RESET, "reset" },   { ONLINE_FIRST, "online_first" },
+    { AUTOMATIC, "automatic" },       { MANUAL, "manual" }, { ERROR, "error" }, { IGNORE, "ignore" }, { RESET, "reset" },
+    { ONLINE_FIRST, "online_first" }, { LEGACY, "legacy" },
 };
 
 
 const std::map<std::string, UploadTracker::DeliveryState> UploadTracker::STRING_TO_DELIVERY_STATE_MAP{
-    { "automatic", AUTOMATIC }, { "manual", MANUAL }, { "error", ERROR },
-    { "ignore", IGNORE },       { "reset", RESET },   { "online_first", ONLINE_FIRST },
+    { "automatic", AUTOMATIC },       { "manual", MANUAL }, { "error", ERROR }, { "ignore", IGNORE }, { "reset", RESET },
+    { "online_first", ONLINE_FIRST }, { "legacy", LEGACY },
 };
 
 
@@ -602,6 +602,55 @@ std::vector<UploadTracker::Entry> UploadTracker::getEntriesByZederIdAndFlavour(c
                              "ORDER BY dmr.delivered_at, dmr.id ASC");
 
     return GetEntriesFromLastResultSet(&db_connection);
+}
+
+void ConvertDOIToURLs(const std::string doi, std::vector<std::string> * const doi_urls) {
+    std::vector<std::string> prefices({ "https://doi.org", "http://doi.org", "https://dx.doi.org", "http://dx.doi.org" });
+    for (const auto &prefix : prefices)
+        doi_urls->emplace_back(prefix + "/" + doi);
+}
+
+
+bool UploadTracker::legacyEntryAlreadyInDatabase(const std::string &legacy_doi, DbConnection * const db_connection) const {
+    std::vector<std::string> doi_urls;
+    ConvertDOIToURLs(legacy_doi, &doi_urls);
+    for (const auto &doi_url : doi_urls) {
+        if (urlAlreadyInDatabase(doi_url, {} /* delivery_states_to_ignore */, nullptr /*buffer*/, db_connection))
+            return true;
+    }
+
+    return false;
+}
+
+
+bool UploadTracker::archiveLegacyEntry(const std::string &zeder_id, const std::string &zeder_instance, const std::string &record_id,
+                                       const std::string &main_title, const std::string &legacy_doi) {
+    WaitOnSemaphore lock(&connection_pool_semaphore_);
+    DbConnection db_connection(DbConnection::UBToolsFactory());
+
+    if (legacyEntryAlreadyInDatabase(legacy_doi, &db_connection))
+        return false;
+
+    db_connection.queryOrDie("INSERT INTO delivered_marc_records "
+                             "SET zeder_journal_id=(SELECT id FROM zeder_journals WHERE "
+                             "zeder_id=" + db_connection.escapeAndQuoteString(zeder_id) + " "
+                             "AND zeder_instance=" + db_connection.escapeAndQuoteString(zeder_instance) + ")"
+                             ",delivery_state=" + db_connection.escapeAndQuoteString(DELIVERY_STATE_TO_STRING_MAP.at(UploadTracker::DeliveryState::LEGACY)) +
+                             ",hash=" +  db_connection.escapeAndQuoteString(record_id) +
+                             ",record=''"
+                             ",main_title=" + db_connection.escapeAndQuoteString(SqlUtil::TruncateToVarCharMaxIndexLength(main_title)));
+
+    // Fetch the last inserted row's ID to add the URLs
+    db_connection.queryOrDie("SELECT LAST_INSERT_ID() id");
+    auto result_set(db_connection.getLastResultSet());
+    if (result_set.empty())
+        LOG_ERROR("couldn't query last insert id from delivered_marc_records!");
+    const auto last_insert_id(result_set.getNextRow()["id"]);
+
+    db_connection.queryOrDie("INSERT INTO delivered_marc_records_urls SET record_id=" + last_insert_id
+                             + ", url=" + db_connection.escapeAndQuoteString(SqlUtil::TruncateToVarCharMaxIndexLength(legacy_doi)));
+
+    return true;
 }
 
 

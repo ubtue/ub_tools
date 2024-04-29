@@ -39,6 +39,7 @@
             <span class="dot dot-record-ignore" title="This record has been skipped and will be ignored in the future."></span> Ignore
             <span class="dot dot-record-online-first" title="This record is stored in the DB but not delivered and is normally automatically deleted"></span> Online-First
             <span class="dot dot-record-reset" title="This record has been manually reset&#013;and will be harvested again."></span> Reset
+            <span class="dot dot-record-legacy" title="This record was detected to be already present in the FID stock"></span> Legacy
         </p>
         <table id="table_delivered">
             <thead>
@@ -65,6 +66,7 @@
                             {IF delivery_states == "ignore"}<span class="dot dot-record-ignore" title="This record has been skipped ({error_messages})&#013;and will be ignored in the future."></span>{ENDIF}
                             {IF delivery_states == "online_first"}<span class="dot dot-record-online-first" title="This record is online first ({error_messages})&#013;and will be automatically deleted in the future."></span>{ENDIF}
                             {IF delivery_states == "reset"}<span class="dot dot-record-reset" title="This record has been manually reset&#013;and will be harvested again."></span>{ENDIF}
+                            {IF delivery_states == "legacy"}<span class="dot dot-record-legacy" title="This record is already part of the FID stock"></span>{ENDIF}
                         </td>
                         <td>
                             {IF delivery_states == "automatic"}
