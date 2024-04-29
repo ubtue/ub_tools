@@ -8,7 +8,7 @@ package marc4j_check;
 import java.io.InputStream;
 import java.io.FileInputStream;
 import org.marc4j.*;
-import org.marc4j.marc.*;
+import org.marc4j.marc.Record;
 
 /**
  *
