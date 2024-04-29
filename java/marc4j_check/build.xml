@@ -2,6 +2,7 @@
     <property name="src.dir" value="src"/>
     <property name="classes.dir" value="build"/>
     <property name="jar.dir" value="dist"/>
+    <property name="vufind.dir" value="/usr/local/vufind"/>
     <property name="lib.dir" value="/usr/local/ub_tools/java/lib"/>
     <property name="local.jar" value="${jar.dir}/${ant.project.name}.jar"/>
     <property name="dependencies.jar" value="${jar.dir}/dependencies-all.jar"/>
@@ -10,6 +11,7 @@
 
     <path id="classpath">
         <fileset dir="${lib.dir}" includes="**/*.jar"/>
+        <fileset dir="${vufind.dir}/import/lib" includes="**/*.jar"/>
     </path>
 
     <target name="clean">
@@ -19,8 +21,7 @@
 
     <target name="compile">
         <mkdir dir="${classes.dir}"/>
-        <javac srcdir="${src.dir}" destdir="${classes.dir}" classpathref="classpath" debug="true"
-               debuglevel="lines,vars,source" includeantruntime="true"/>
+        <javac srcdir="${src.dir}" destdir="${classes.dir}" classpathref="classpath" debug="true" debuglevel="lines,vars,source" includeantruntime="true"/>
     </target>
 
     <!-- Group all dependencies into a big dependency-all.jar ("fat jar") -->
