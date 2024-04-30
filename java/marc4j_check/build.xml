@@ -3,14 +3,12 @@
     <property name="classes.dir" value="build"/>
     <property name="jar.dir" value="dist"/>
     <property name="vufind.dir" value="/usr/local/vufind"/>
-    <property name="lib.dir" value="/usr/local/ub_tools/java/lib"/>
     <property name="local.jar" value="${jar.dir}/${ant.project.name}.jar"/>
     <property name="dependencies.jar" value="${jar.dir}/dependencies-all.jar"/>
     <property name="dest.jar" value="/usr/local/bin/${ant.project.name}.jar"/>
     <property name="main-class" value="marc4j_check.Main"/>
 
     <path id="classpath">
-        <fileset dir="${lib.dir}" includes="**/*.jar"/>
         <fileset dir="${vufind.dir}/import/lib" includes="**/*.jar"/>
     </path>
 
@@ -28,9 +26,6 @@
     <target name="copy-dependencies">
         <mkdir dir="${jar.dir}" />
         <jar jarfile="${dependencies.jar}">
-            <zipgroupfileset dir="${lib.dir}">
-                <include name="**/*.jar" />
-            </zipgroupfileset>
         </jar>
     </target>
 
