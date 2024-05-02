@@ -2797,7 +2797,7 @@ bool UBTueIsElectronicResource(const Record &marc_record) {
 }
 
 
-bool IsOpenAccess(const Record &marc_record) {
+bool IsOpenAccess(const Record &marc_record, const bool suppress_unpaywall) {
     for (const auto &_856_field : marc_record.getTagRange("856")) {
         const Subfields subfields(_856_field.getSubfields());
         const std::string subfield_z_contents(subfields.getFirstSubfieldWithCode('z'));
@@ -2809,9 +2809,11 @@ bool IsOpenAccess(const Record &marc_record) {
                 return true;
         }
 
-        for (const auto &subfield : subfields) {
-            if (subfield.code_ == 'x' and TextUtil::UTF8ToLower(subfield.value_) == "unpaywall")
-                return true;
+        if (not suppress_unpaywall) {
+            for (const auto &subfield : subfields) {
+                if (subfield.code_ == 'x' and TextUtil::UTF8ToLower(subfield.value_) == "unpaywall")
+                    return true;
+            }
         }
     }
 
