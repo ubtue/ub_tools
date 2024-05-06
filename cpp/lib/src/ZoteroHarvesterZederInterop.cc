@@ -108,6 +108,11 @@ static std::string ResolveHarvesterOperation(const Zeder::Entry &zeder_entry, co
 
 
 std::string ResolveUploadOperation(const Zeder::Entry &zeder_entry, const Zeder::Flavour /*unused*/) {
+    if (zeder_entry.getAttribute("eved", "") == "dis" or zeder_entry.getAttribute("eved", "") == "disNach") {
+        LOG_WARNING("Disabling delivery of \"" + zeder_entry.getAttribute("tit", "") + "\"" + " because it is discontinued");
+        return Config::UPLOAD_OPERATION_TO_STRING_MAP.at(Config::UploadOperation::NONE);
+    }
+
     if (zeder_entry.getAttribute("prodf", "") == "zota")
         return Config::UPLOAD_OPERATION_TO_STRING_MAP.at(Config::UploadOperation::LIVE);
 

@@ -1253,7 +1253,7 @@ bool UBTueIsElectronicResource(const Record &marc_record);
 bool UBTueIsAquisitionRecord(const Record &marc_record);
 
 
-bool IsOpenAccess(const Record &marc_record);
+bool IsOpenAccess(const Record &marc_record, const bool suppress_unpaywall = false);
 
 
 // \warning After a call to this function you may want to rewind the MARC Reader.
