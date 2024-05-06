@@ -740,6 +740,12 @@ std::string GetSWBLookupURL(const ConversionParams &parameters) {
     return parameters.group_params_.author_swb_lookup_url_;
 }
 
+void AddPagesNotOnlineFirst(MetadataRecord * const metadata_record, const ConversionParams &parameters) {
+    const auto &journal_params(parameters.download_item_.journal_);
+    if (journal_params.pages_not_online_first_)
+        metadata_record->pages_not_online_first_ = true;
+}
+
 
 void AugmentMetadataRecord(MetadataRecord * const metadata_record, const ConversionParams &parameters) {
     const auto &journal_params(parameters.download_item_.journal_);
@@ -824,6 +830,7 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Convers
 
     DetectReviews(metadata_record, parameters);
     DetectNotes(metadata_record, parameters);
+    AddPagesNotOnlineFirst(metadata_record, parameters);
 }
 
 
@@ -1402,6 +1409,10 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
 
     // Rewrite fields if
     RewriteMarcFieldsIf(marc_record, parameters);
+
+    // Handle special case in OF handling
+    if (metadata_record.pages_not_online_first_)
+        marc_record->insertField("PNO", { { 'a', "1" } });
 
     // Has to be generated in the very end as it contains the hash of the record
     *marc_record_hash = CalculateMarcRecordHash(*marc_record);
