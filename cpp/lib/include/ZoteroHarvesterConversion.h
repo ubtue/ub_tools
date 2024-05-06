@@ -86,6 +86,7 @@ struct MetadataRecord {
     SSGType ssg_;
     std::vector<std::string> keywords_;
     std::multimap<std::string, std::string> custom_metadata_;
+    bool pages_not_online_first_;
 
 public:
     explicit MetadataRecord(): superior_type_(SuperiorType::INVALID), ssg_(SSGType::INVALID) { }
