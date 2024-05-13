@@ -179,24 +179,20 @@ bool DownloadID(std::ofstream &json_new_titles, const std::string &id, const boo
 }
 
 void GetIDFromLOK(const MARC::Record &record, std::set<std::string> * const parsed_marc_ids) {
-    for (auto field(record.begin()); field != record.end(); ++field) {
-        if (field->getTag() == "LOK") {
-            std::string subfield_0(field->getFirstSubfieldWithCode('0'));
-
-            if (StringUtil::TrimWhite(&subfield_0) == "035") {
-                std::string subfield_a(field->getFirstSubfieldWithCode('a'));
-
-                if (StringUtil::Contains(subfield_a, "(DE-2619)ICPSR")) {
-                    StringUtil::ReplaceString("(DE-2619)ICPSR", "", &subfield_a);
-                    StringUtil::TrimWhite(&subfield_a);
-                    parsed_marc_ids->emplace(subfield_a);
-                    break;
-                } else if (StringUtil::Contains(subfield_a, "ICPSR")) {
-                    StringUtil::ReplaceString("ICPSR", "", &subfield_a);
-                    StringUtil::TrimWhite(&subfield_a);
-                    parsed_marc_ids->emplace(subfield_a);
-                    break;
-                }
+    auto local_block_starts(record.findStartOfAllLocalDataBlocks());
+    for (const auto local_block_start : local_block_starts) {
+        for (const auto &_local_035_field : record.getLocalTagRange("035", local_block_start)) {
+            std::string local_035a_content(_local_035_field.getFirstSubfieldWithCode('a'));
+            if (StringUtil::Contains(local_035a_content, "(DE-2619)ICPSR")) {
+                StringUtil::ReplaceString("(DE-2619)ICPSR", "", &local_035a_content);
+                StringUtil::TrimWhite(&local_035a_content);
+                parsed_marc_ids->emplace(local_035a_content);
+                break;
+            } else if (StringUtil::Contains(local_035a_content, "ICPSR")) {
+                StringUtil::ReplaceString("ICPSR", "", &local_035a_content);
+                StringUtil::TrimWhite(&local_035a_content);
+                parsed_marc_ids->emplace(local_035a_content);
+                break;
             }
         }
     }
