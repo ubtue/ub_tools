@@ -37,7 +37,7 @@ apt-get --quiet --yes --allow-unauthenticated install \
         ant apache2 apparmor-utils ca-certificates cifs-utils clang clang-format cron curl gcc git imagemagick incron jq libarchive-dev \
         libcurl4-gnutls-dev libdb-dev liblept5 libleptonica-dev liblz4-tool libmagic-dev libmysqlclient-dev \
         libpcre3-dev libpq-dev libsqlite3-dev libssl-dev libstemmer-dev libtesseract-dev libwebp7 libxerces-c-dev \
-        libxml2-dev libxml2-utils locales-all make mawk mutt nlohmann-json3-dev openjdk-11-jdk p7zip-full poppler-utils postgresql-client \
+        libxml2-dev libxml2-utils locales-all make mawk mutt nlohmann-json3-dev openjdk-17-jdk p7zip-full poppler-utils postgresql-client \
         python3 python3-paramiko \
         tesseract-ocr tesseract-ocr-all rsync sqlite3 tcl-expect-dev tidy unzip \
         uuid-dev xsltproc libsystemd-dev
@@ -45,9 +45,8 @@ apt-get --quiet --yes --allow-unauthenticated install \
 # Explicitly enable mod_cgi. If we would use `a2enmod cgi`, it would enable mod_cgid, which would fail on apache startup.
 a2enmod cgi
 
-# Set java version 11 to be kept manually (to avoid automatic migrations)
-update-alternatives --set java /usr/lib/jvm/java-11-openjdk-amd64/bin/java
-update-alternatives --set javac /usr/lib/jvm/java-11-openjdk-amd64/bin/javac
+# Set java version 17 to be kept manually (to avoid automatic migrations)
+update-java-alternatives --set java-1.17.0-openjdk-amd64
 
 #Install custom certificates
 mkdir --parents /usr/share/ca-certificates/custom
