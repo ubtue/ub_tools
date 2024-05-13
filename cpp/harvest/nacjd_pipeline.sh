@@ -16,11 +16,10 @@ mkdir -p "$DOWNLOAD_DIR"
 
 # Use empty MRC file as dummy input.
 # On consecutive downloads we want to use the real KrimDok GesamtTiteldaten... file here.
-declare -r GESAMTTITLE_DATEN = "$BSZ_DIR/GesamtTitelDaten-$(date +%y%m%d).mrc"
-# touch "$EMPTY_MRC_FILE"
+declare -r GESAMTTITELDATEN_FILE = "$BSZ_DIR/GesamtTitelDaten-$(date +%y%m%d).mrc"
 
 echo "Downloading data"
-nacjd get_full "$GESAMTTITLE_DATEN" "$DOWNLOAD_FILE"
+nacjd get_full "$GESAMTTITELDATEN_FILE" "$DOWNLOAD_FILE"
 
 echo "Generating statistics (optional)"
 nacjd get_statistics "$DOWNLOAD_FILE"
