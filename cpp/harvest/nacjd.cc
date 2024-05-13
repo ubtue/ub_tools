@@ -47,12 +47,12 @@ namespace {
     ::Usage(
         "[mode] [mode_params]\n"
         "get_full input_file output_file\n"
-        "\t- input_file: MARC21 file that contains also icpsr records (001 or 035a)\n"
+        "\t- input_file: MARC21 file that contains also icpsr records (001 or 035a or LOK|0 035 |a)\n"
         "these records are not processed any more\n"
         "\t- output_file: will contain all icpsr records as JSON not contained in input file.\n"
         "\n"
         "get_by_count input_file output_file number\n"
-        "\t- input_file: contains also icpsr records (001 or 035a)\n"
+        "\t- input_file: contains also icpsr records (001 or 035a or LOK|0 035 |a)\n"
         "these records are not processed any more\n"
         "\t- output_file: contains all icpsr records as JSON not contained in input file.\n"
         "\t- number: number of requests\n"
@@ -178,6 +178,29 @@ bool DownloadID(std::ofstream &json_new_titles, const std::string &id, const boo
     return true;
 }
 
+void GetIDFromLOK(const MARC::Record &record, std::set<std::string> * const parsed_marc_ids) {
+    for (auto field(record.begin()); field != record.end(); ++field) {
+        if (field->getTag() == "LOK") {
+            std::string subfield_0(field->getFirstSubfieldWithCode('0'));
+
+            if (StringUtil::TrimWhite(&subfield_0) == "035") {
+                std::string subfield_a(field->getFirstSubfieldWithCode('a'));
+
+                if (StringUtil::Contains(subfield_a, "(DE-2619)ICPSR")) {
+                    StringUtil::ReplaceString("(DE-2619)ICPSR", "", &subfield_a);
+                    StringUtil::TrimWhite(&subfield_a);
+                    parsed_marc_ids->emplace(subfield_a);
+                    break;
+                } else if (StringUtil::Contains(subfield_a, "ICPSR")) {
+                    StringUtil::ReplaceString("ICPSR", "", &subfield_a);
+                    StringUtil::TrimWhite(&subfield_a);
+                    parsed_marc_ids->emplace(subfield_a);
+                    break;
+                }
+            }
+        }
+    }
+}
 
 void ExtractExistingIDsFromMarc(MARC::Reader * const marc_reader, std::set<std::string> * const parsed_marc_ids) {
     while (MARC::Record record = marc_reader->read()) {
@@ -194,6 +217,8 @@ void ExtractExistingIDsFromMarc(MARC::Reader * const marc_reader, std::set<std::
             StringUtil::TrimWhite(&id_035);
             parsed_marc_ids->emplace(id_035);
         }
+
+        GetIDFromLOK(record, parsed_marc_ids);
     }
 }
 
