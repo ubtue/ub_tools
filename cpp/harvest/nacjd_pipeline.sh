@@ -1,8 +1,8 @@
 #!/bin/bash
 set -o errexit -o nounset
 
-if [ $# != 0 ]; then
-    echo "Usage: $0"
+if [ $# -gt 1 ]; then
+    echo "Usage: $0 [Reference_File]"
     exit 1
 fi
 
@@ -14,11 +14,18 @@ declare -r CONVERT_FILE="$DOWNLOAD_DIR/$BSZ_FILENAME.xml"
 declare -r BSZ_DIR=/usr/local/ub_tools/bsz_daten
 mkdir -p "$DOWNLOAD_DIR"
 
-# Use empty MRC file as dummy input.
-# On consecutive downloads we want to use the real KrimDok GesamtTiteldaten... file here.
-declare -r GESAMTTITELDATEN_FILE = "$BSZ_DIR/GesamtTitelDaten-$(date +%y%m%d).mrc"
+if [ $# = 1 ]; then
+    # On consecutive downloads we want to use the real KrimDok GesamtTiteldaten... file here.
+    declare -r GESAMTTITELDATEN_FILE="$1"
+else
+    # Use empty MRC file as dummy input.
+    declare -r GESAMTTITELDATEN_FILE="$DOWNLOAD_DIR/empty.mrc"
+    touch "$GESAMTTITELDATEN_FILE"
+fi
+
 
 echo "Downloading data"
+echo $GESAMTTITELDATEN_FILE
 nacjd get_full "$GESAMTTITELDATEN_FILE" "$DOWNLOAD_FILE"
 
 echo "Generating statistics (optional)"
