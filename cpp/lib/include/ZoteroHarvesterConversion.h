@@ -89,7 +89,7 @@ struct MetadataRecord {
     bool pages_not_online_first_;
 
 public:
-    explicit MetadataRecord(): superior_type_(SuperiorType::INVALID), ssg_(SSGType::INVALID) { }
+    explicit MetadataRecord(): superior_type_(SuperiorType::INVALID), ssg_(SSGType::INVALID), pages_not_online_first_(false) { }
 
 public:
     std::string toString() const;
