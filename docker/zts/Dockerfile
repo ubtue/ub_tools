@@ -1,4 +1,4 @@
-FROM node:10.7.0
+FROM node:lts
 
 # install npm dependencies
 WORKDIR /app
