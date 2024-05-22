@@ -227,7 +227,7 @@ void DownloadWikidataTranslations(const std::string &query, std::string * const 
     params.additional_headers_ = { "Accept: application/sparql-results+json" };
     Downloader downloader(params);
     const Url wikidata_url("https://query.wikidata.org/sparql");
-    downloader.postData(wikidata_url, query);
+    downloader.postData(wikidata_url, query, Downloader::DEFAULT_TIME_LIMIT * 2);
     unsigned response_code(downloader.getResponseCode());
     if (response_code != 200) {
         LOG_WARNING("Could not download Wikidata Translations for query \"" + query + "\"(Error Code " + std::to_string(response_code)
@@ -240,7 +240,8 @@ void DownloadWikidataTranslations(const std::string &query, std::string * const 
             if (response_code != 200)
                 LOG_ERROR("Failed to download Wikidata Translations for query \"" + query + "\"(Error Code "
                           + std::to_string(response_code));
-        }
+        } else
+            LOG_ERROR("Aborting because of Error Code " + std::to_string(response_code));
     }
     *results = downloader.getMessageBody();
 }
