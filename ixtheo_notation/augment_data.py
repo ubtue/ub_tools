@@ -17,27 +17,41 @@ def GetSolrRecord(solr_host, id):
              id + '&useParams=')
 
 
-
 def GetSolrTitle(solr_record):
-    return pyjq.first('.[].title', solr_record)
+    return pyjq.first('.[].title_fullStr', solr_record)
 
 
 def GetSolrKeywordChains(solr_record):
-    return pyjq.first('.[].key_word_chains_en', solr_record)
+    return pyjq.first('.[].key_word_chain_bag_en', solr_record)
+
+
+def GetSolrAbstract(solr_record):
+    return pyjq.first('.[].abstract', solr_record)
+
+
+def GetIxTheoNotations(solr_record):
+    return pyjq.first('.[].ixtheo_notation', solr_record)
+
 
 
 def AddSolrInformation(solr_host, json_data):
         for item in json_data:
             record = GetSolrRecord(solr_host, item['id'])
             title = GetSolrTitle(record)
-            if title is None:
-                continue
-            item['title'] = title
+            if title is not None:
+                item['title'] = title
 
-            keyword_chains = GetSolrKeywordChains(record)
-            if keyword_chains is None:
-                 continue
-            item['keyword_chains'] = keyword_chains
+            keywords = GetSolrKeywordChains(record)
+            if keywords is not None:
+                item['keywords'] = keywords
+
+            abstract = GetSolrAbstract(record)
+            if abstract is not None:
+                item['abstract'] = abstract
+
+            ixtheo_notation = GetIxTheoNotations(record)
+            if abstract is not None:
+                item['ixtheo_notation'] = ixtheo_notation
 
 
 def Main():
