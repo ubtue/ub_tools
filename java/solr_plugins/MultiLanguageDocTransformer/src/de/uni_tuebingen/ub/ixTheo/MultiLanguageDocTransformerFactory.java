@@ -83,7 +83,9 @@ public class MultiLanguageDocTransformerFactory extends TransformerFactory {
                     RenameFieldTransformer renameFieldTransformer =
                         new RenameFieldTransformer(fieldName + langExtension, fieldName, true /*copy*/);
                     renameFieldTransformer.transform(doc, docid);
-
+                    // Do not transfer the localized fields
+                    for (String lang_suffix : langExtensions)
+                        doc.removeFields(fieldName + lang_suffix);
                 }
             }
         }
