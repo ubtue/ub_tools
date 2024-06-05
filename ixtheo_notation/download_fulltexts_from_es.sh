@@ -68,7 +68,7 @@ while true; do
        | jq ' .sort[]' | tail -n 1)
 
     echo "Last search ID: ${new_last_search_id}"
-    if [[ ${new_last_search_id} == ${last_search_id} ]]; then
+    if [[ -z ${new_last_search_id} ]]; then
         break;
     fi
     echo "Continuing..."
