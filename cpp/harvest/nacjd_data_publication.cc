@@ -128,8 +128,8 @@ MARC::Record WriteAnArticleContent(const NacjdDoc &nacjd_doc) {
     }
 
 
-    new_record.insertField("041", { { 'a', "eng" } });
     new_record.insertField("084", { { 'a', "2,1" }, { '2', "ssgn" } });
+
     if (not authors.empty()) {
         new_record.insertField("100", authors, '1');
     }
