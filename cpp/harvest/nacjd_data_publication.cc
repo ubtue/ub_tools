@@ -69,12 +69,23 @@ MARC::Record WriteAnArticleContent(const NacjdDoc &nacjd_doc) {
     }
     // construct publishing information
     std::vector<MARC::Subfield> publishing_info_773, publishing_info_936;
-    std::string info_773_g(nacjd_doc.volume_ + " (" + nacjd_doc.year_pub_ + "), " + nacjd_doc.i_number_ + ", " + nacjd_doc.page_start_ + "-"
-                           + nacjd_doc.page_end_);
 
     publishing_info_773.emplace_back(MARC::Subfield('i', "In:"));
     publishing_info_773.emplace_back(MARC::Subfield('w', "(DE-267)" + nacjd_doc.ref_id_));
-    publishing_info_773.emplace_back(MARC::Subfield('g', info_773_g));
+    if (!nacjd_doc.volume_.empty() && !nacjd_doc.year_pub_.empty() && !nacjd_doc.i_number_.empty() && !nacjd_doc.page_start_.empty())
+        if (not nacjd_doc.page_end_.empty()) {
+            if ((nacjd_doc.page_end_.compare("-") == 0)) {
+                publishing_info_773.emplace_back(MARC::Subfield(
+                    'g', nacjd_doc.volume_ + " (" + nacjd_doc.year_pub_ + "), " + nacjd_doc.i_number_ + ", " + nacjd_doc.page_start_));
+            } else {
+                publishing_info_773.emplace_back(MARC::Subfield('g', nacjd_doc.volume_ + " (" + nacjd_doc.year_pub_ + "), "
+                                                                         + nacjd_doc.i_number_ + ", " + nacjd_doc.page_start_ + "-"
+                                                                         + nacjd_doc.page_end_));
+            }
+        } else {
+            publishing_info_773.emplace_back(MARC::Subfield(
+                'g', nacjd_doc.volume_ + " (" + nacjd_doc.year_pub_ + "), " + nacjd_doc.i_number_ + ", " + nacjd_doc.page_start_));
+        }
 
     if (not nacjd_doc.journal_.empty())
         publishing_info_773.emplace_back(MARC::Subfield('t', nacjd_doc.journal_));
@@ -89,8 +100,17 @@ MARC::Record WriteAnArticleContent(const NacjdDoc &nacjd_doc) {
     if (not nacjd_doc.i_number_.empty())
         publishing_info_936.emplace_back(MARC::Subfield('e', nacjd_doc.i_number_));
 
-    if (not nacjd_doc.page_start_.empty())
-        publishing_info_936.emplace_back(MARC::Subfield('h', nacjd_doc.page_start_ + "-" + nacjd_doc.page_end_));
+    if (not nacjd_doc.page_start_.empty()) {
+        if (not nacjd_doc.page_end_.empty()) {
+            if (nacjd_doc.page_end_.compare("-") == 0) {
+                publishing_info_936.emplace_back(MARC::Subfield('h', nacjd_doc.page_start_));
+            } else {
+                publishing_info_936.emplace_back(MARC::Subfield('h', nacjd_doc.page_start_ + "-" + nacjd_doc.page_end_));
+            }
+        } else {
+            publishing_info_936.emplace_back(MARC::Subfield('h', nacjd_doc.page_start_));
+        }
+    }
 
     if (not nacjd_doc.year_pub_.empty())
         publishing_info_936.emplace_back(MARC::Subfield('j', nacjd_doc.year_pub_));
@@ -184,9 +204,41 @@ void WriteMarc(const std::string &marc_path, const std::vector<NacjdDoc> &nacjd_
         if (nacjd_doc.ref_id_.empty())
             LOG_ERROR("No ID found on Title: " + nacjd_doc.title_ + ", Sec Title: " + nacjd_doc.sec_title_);
 
+        // please see the list of RIS type here: https://en.wikipedia.org/wiki/RIS_(file_format)#Type_of_reference
+        // Audiovisual
+        if (nacjd_doc.ris_type_.compare("ADVS") == 0) {
+            marc_writer->write(WriteAnArticleContent(nacjd_doc));
+        }
+        // Book
+        if (nacjd_doc.ris_type_.compare("BOOK") == 0) {
+        }
+        // Book section / chapter
+        if (nacjd_doc.ris_type_.compare("CHAP") == 0) {
+        }
+        // Conference Proceedings
+        if (nacjd_doc.ris_type_.compare("CONF") == 0) {
+        }
+        // Web page / electronic citation
+        if (nacjd_doc.ris_type_.compare("ELEC") == 0) {
+        }
+        // Generic
+        if (nacjd_doc.ris_type_.compare("GEN") == 0) {
+        }
         // Journal / Article
         if (nacjd_doc.ris_type_.compare("JOUR") == 0) {
             marc_writer->write(WriteAnArticleContent(nacjd_doc));
+        }
+        // Magazine
+        if (nacjd_doc.ris_type_.compare("MGZN") == 0) {
+        }
+        // Newspaper
+        if (nacjd_doc.ris_type_.compare("NEWS") == 0) {
+        }
+        // Report
+        if (nacjd_doc.ris_type_.compare("RPRT") == 0) {
+        }
+        // Thesis / Dissertation
+        if (nacjd_doc.ris_type_.compare("THES") == 0) {
         }
     }
 }
