@@ -57,113 +57,154 @@ struct NacjdDoc {
 
     std::vector<std::string> authors_split, // AUTHORS_SPLIT
         study_titles_;                      // STUDYTITLE
+
+    const std::vector<MARC::Subfield> ConstructPublishingInfo_773() {
+        std::vector<MARC::Subfield> publishing_info;
+        publishing_info.emplace_back(MARC::Subfield('i', "In:"));
+        publishing_info.emplace_back(MARC::Subfield('w', "(DE-267)" + ref_id_));
+
+        if (!volume_.empty() && !year_pub_.empty() && !i_number_.empty() && !page_start_.empty())
+            if (not page_end_.empty()) {
+                if ((page_end_.compare("-") == 0) && (page_end_.compare("unknown") == 0)) {
+                    publishing_info.emplace_back(MARC::Subfield('g', volume_ + " (" + year_pub_ + "), " + i_number_ + ", " + page_start_));
+                } else {
+                    publishing_info.emplace_back(
+                        MARC::Subfield('g', volume_ + " (" + year_pub_ + "), " + i_number_ + ", " + page_start_ + "-" + page_end_));
+                }
+            } else {
+                publishing_info.emplace_back(MARC::Subfield('g', volume_ + " (" + year_pub_ + "), " + i_number_ + ", " + page_start_));
+            }
+
+
+        if (not journal_.empty())
+            publishing_info.emplace_back(MARC::Subfield('t', journal_));
+
+        if (not issn_.empty())
+            publishing_info.emplace_back(MARC::Subfield('x', issn_));
+
+        return publishing_info;
+    }
+
+    const std::vector<MARC::Subfield> ConstructPublishingInfo_936() {
+        std::vector<MARC::Subfield> publishing_info;
+        if (not volume_.empty())
+            publishing_info.emplace_back(MARC::Subfield('d', volume_));
+
+        if (not i_number_.empty())
+            publishing_info.emplace_back(MARC::Subfield('e', i_number_));
+
+        if (not page_start_.empty()) {
+            if (not page_end_.empty()) {
+                if (page_end_.compare("-") == 0) {
+                    publishing_info.emplace_back(MARC::Subfield('h', page_start_));
+                } else {
+                    publishing_info.emplace_back(MARC::Subfield('h', page_start_ + "-" + page_end_));
+                }
+            } else {
+                publishing_info.emplace_back(MARC::Subfield('h', page_start_));
+            }
+        }
+
+        if (not year_pub_.empty())
+            publishing_info.emplace_back(MARC::Subfield('j', year_pub_));
+
+
+        return publishing_info;
+    }
+
+    void ConvertUrl(MARC::Record * const record) {
+        std::vector<MARC::Subfield> urls;
+        if (not url_.empty()) {
+            urls.emplace_back(MARC::Subfield('a', url_));
+        }
+        if (not url_pdf_.empty()) {
+            urls.emplace_back(MARC::Subfield('a', url_pdf_));
+        }
+        if (not url_abs_.empty()) {
+            urls.emplace_back(MARC::Subfield('a', url_abs_));
+        }
+
+        if (not urls.empty()) {
+            record->insertField("856", urls, '4', ' ');
+        }
+    }
+
+    std::vector<MARC::Subfield> ConstructAuthors() {
+        std::vector<MARC::Subfield> authors;
+        if (not authors_split.empty()) {
+            for (auto author_ : authors_split) {
+                authors.emplace_back(MARC::Subfield('a', author_));
+            }
+        }
+
+        return authors;
+    }
+
+    void ConvertDOI(MARC::Record * const record) {
+        if (not doi_.empty()) {
+            record->insertField("024", { { 'a', doi_ }, { '2', "doi" } }, '7');
+            record->insertField("856", { { 'u', "https://doi.org/" + doi_ }, { 'x', "R" }, { 'z', "LF" } },
+                                /*indicator1 = */ '4',
+                                /*indicator2 = */ '0');
+        }
+    }
+
+    void ConvertISSN(MARC::Record * const record) {
+        if (not issn_.empty()) {
+            record->insertField("022", { { 'a', issn_ } });
+        }
+    }
+
+    void ConvertTitle(MARC::Record * const record) {
+        if (not title_.empty()) {
+            record->insertField("245", { { 'a', title_ } }, '1', '0');
+        } else if (not sec_title_.empty()) {
+            record->insertField("245", { { 'a', sec_title_ } }, '1', '0');
+        }
+    }
+    void ConvertYear(MARC::Record * const record) {
+        if (not year_pub_.empty()) {
+            record->insertField("264", 'c', year_pub_, ' ', '1');
+        }
+    }
 };
 
-MARC::Record WriteAnArticleContent(const NacjdDoc &nacjd_doc) {
-    // construct author_info
-    std::vector<MARC::Subfield> authors;
-    if (not nacjd_doc.authors_split.empty()) {
-        for (auto author_ : nacjd_doc.authors_split) {
-            authors.emplace_back(MARC::Subfield('a', author_));
-        }
-    }
-    // construct publishing information
-    std::vector<MARC::Subfield> publishing_info_773, publishing_info_936;
-
-    publishing_info_773.emplace_back(MARC::Subfield('i', "In:"));
-    publishing_info_773.emplace_back(MARC::Subfield('w', "(DE-267)" + nacjd_doc.ref_id_));
-    if (!nacjd_doc.volume_.empty() && !nacjd_doc.year_pub_.empty() && !nacjd_doc.i_number_.empty() && !nacjd_doc.page_start_.empty())
-        if (not nacjd_doc.page_end_.empty()) {
-            if ((nacjd_doc.page_end_.compare("-") == 0)) {
-                publishing_info_773.emplace_back(MARC::Subfield(
-                    'g', nacjd_doc.volume_ + " (" + nacjd_doc.year_pub_ + "), " + nacjd_doc.i_number_ + ", " + nacjd_doc.page_start_));
-            } else {
-                publishing_info_773.emplace_back(MARC::Subfield('g', nacjd_doc.volume_ + " (" + nacjd_doc.year_pub_ + "), "
-                                                                         + nacjd_doc.i_number_ + ", " + nacjd_doc.page_start_ + "-"
-                                                                         + nacjd_doc.page_end_));
-            }
-        } else {
-            publishing_info_773.emplace_back(MARC::Subfield(
-                'g', nacjd_doc.volume_ + " (" + nacjd_doc.year_pub_ + "), " + nacjd_doc.i_number_ + ", " + nacjd_doc.page_start_));
-        }
-
-    if (not nacjd_doc.journal_.empty())
-        publishing_info_773.emplace_back(MARC::Subfield('t', nacjd_doc.journal_));
-
-    if (not nacjd_doc.issn_.empty())
-        publishing_info_773.emplace_back(MARC::Subfield('x', nacjd_doc.issn_));
-
-
-    if (not nacjd_doc.volume_.empty())
-        publishing_info_936.emplace_back(MARC::Subfield('d', nacjd_doc.volume_));
-
-    if (not nacjd_doc.i_number_.empty())
-        publishing_info_936.emplace_back(MARC::Subfield('e', nacjd_doc.i_number_));
-
-    if (not nacjd_doc.page_start_.empty()) {
-        if (not nacjd_doc.page_end_.empty()) {
-            if (nacjd_doc.page_end_.compare("-") == 0) {
-                publishing_info_936.emplace_back(MARC::Subfield('h', nacjd_doc.page_start_));
-            } else {
-                publishing_info_936.emplace_back(MARC::Subfield('h', nacjd_doc.page_start_ + "-" + nacjd_doc.page_end_));
-            }
-        } else {
-            publishing_info_936.emplace_back(MARC::Subfield('h', nacjd_doc.page_start_));
-        }
-    }
-
-    if (not nacjd_doc.year_pub_.empty())
-        publishing_info_936.emplace_back(MARC::Subfield('j', nacjd_doc.year_pub_));
-
-
-    // construct url_info
-    std::vector<MARC::Subfield> urls;
-    if (not nacjd_doc.url_.empty()) {
-        urls.emplace_back(MARC::Subfield('a', nacjd_doc.url_));
-    }
-    if (not nacjd_doc.url_pdf_.empty()) {
-        urls.emplace_back(MARC::Subfield('a', nacjd_doc.url_pdf_));
-    }
-    if (not nacjd_doc.url_abs_.empty()) {
-        urls.emplace_back(MARC::Subfield('a', nacjd_doc.url_abs_));
-    }
-
-
-    // create a new record
+MARC::Record WriteABookContent(NacjdDoc * const nacjd_doc) {
     MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::MONOGRAPH_OR_ITEM,
-                            "ICPSR" + nacjd_doc.ref_id_);
-
+                            "ICPSR" + nacjd_doc->ref_id_);
 
     new_record.insertControlField("007", "cr||||");
+    new_record.insertField("084", { { 'a', "2,1" }, { '2', "ssgn" } });
+    new_record.insertField("591", 'a', "Metadaten maschinell erstellt (TUKRIM)");
+    new_record.insertField("912", 'a', "NOMM");
 
-    if (not nacjd_doc.issn_.empty()) {
-        new_record.insertField("022", { { 'a', nacjd_doc.issn_ } });
-    }
+    nacjd_doc->ConvertTitle(&new_record);
+    nacjd_doc->ConvertDOI(&new_record);
+    nacjd_doc->ConvertUrl(&new_record);
 
-    if (not nacjd_doc.doi_.empty()) {
-        new_record.insertField("024", { { 'a', nacjd_doc.doi_ }, { '2', "doi" } }, '7');
-        new_record.insertField("856", { { 'u', "https://doi.org/" + nacjd_doc.doi_ }, { 'x', "R" }, { 'z', "LF" } },
-                               /*indicator1 = */ '4',
-                               /*indicator2 = */ '0');
-    }
+    return new_record;
+}
+MARC::Record WriteAnArticleContent(NacjdDoc * const nacjd_doc) {
+    // create a new record
+    // MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::UNDEFINED,
+    //                         "ICPSR" + nacjd_doc.ref_id_);
 
+    MARC::Record new_record("00000naa a22000002  4500");
+
+    new_record.insertControlField("001", "ICPSR" + nacjd_doc->ref_id_);
+    new_record.insertControlField("007", "cr||||");
+
+    nacjd_doc->ConvertISSN(&new_record);
+    nacjd_doc->ConvertDOI(&new_record);
 
     new_record.insertField("084", { { 'a', "2,1" }, { '2', "ssgn" } });
 
-    if (not authors.empty()) {
-        new_record.insertField("100", authors, '1');
-    }
-    if (not nacjd_doc.title_.empty()) {
-        new_record.insertField("245", { { 'a', nacjd_doc.title_ } }, '1', '0');
-    } else if (not nacjd_doc.sec_title_.empty()) {
-        new_record.insertField("245", { { 'a', nacjd_doc.sec_title_ } }, '1', '0');
+    if (not nacjd_doc->ConstructAuthors().empty()) {
+        new_record.insertField("100", nacjd_doc->ConstructAuthors(), '1');
     }
 
-    if (not nacjd_doc.year_pub_.empty()) {
-        new_record.insertField(
-            "264", { { 'a', "[Erscheinungsort nicht ermittelbar]" }, { 'b', "[Verlag nicht ermittelbar]" }, { 'c', nacjd_doc.year_pub_ } },
-            /*indicator1=*/' ', /*indicator2=*/'1');
-    }
+    nacjd_doc->ConvertTitle(&new_record);
+    nacjd_doc->ConvertYear(&new_record);
 
 
     new_record.insertField("655",
@@ -174,13 +215,10 @@ MARC::Record WriteAnArticleContent(const NacjdDoc &nacjd_doc) {
                              { '2', "gnd-content" } },
                            ' ', '7');
 
-    if (not publishing_info_773.empty()) {
-        new_record.insertField("773", publishing_info_773, '0', '8');
+    if (not nacjd_doc->ConstructPublishingInfo_773().empty()) {
+        new_record.insertField("773", nacjd_doc->ConstructPublishingInfo_773(), '0', '8');
     }
-
-    if (not urls.empty()) {
-        new_record.insertField("856", urls, '4', ' ');
-    }
+    nacjd_doc->ConvertUrl(&new_record);
 
     // Disable Match & Merge
     new_record.insertField("912", { { 'a', "NOMM" } });
@@ -189,8 +227,8 @@ MARC::Record WriteAnArticleContent(const NacjdDoc &nacjd_doc) {
     new_record.insertField("935", { { 'a', "nacj" }, { '2', "LOK" } });
     new_record.insertField("935", { { 'a', "foda" }, { '2', "LOK" } });
 
-    if (not publishing_info_936.empty()) {
-        new_record.insertField("936", publishing_info_936, 'u', 'w');
+    if (not nacjd_doc->ConstructPublishingInfo_936().empty()) {
+        new_record.insertField("936", nacjd_doc->ConstructPublishingInfo_936(), 'u', 'w');
     }
 
     return new_record;
@@ -207,10 +245,10 @@ void WriteMarc(const std::string &marc_path, const std::vector<NacjdDoc> &nacjd_
         // please see the list of RIS type here: https://en.wikipedia.org/wiki/RIS_(file_format)#Type_of_reference
         // Audiovisual
         if (nacjd_doc.ris_type_.compare("ADVS") == 0) {
-            marc_writer->write(WriteAnArticleContent(nacjd_doc));
         }
         // Book
         if (nacjd_doc.ris_type_.compare("BOOK") == 0) {
+            marc_writer->write(WriteABookContent(&nacjd_doc));
         }
         // Book section / chapter
         if (nacjd_doc.ris_type_.compare("CHAP") == 0) {
@@ -223,10 +261,11 @@ void WriteMarc(const std::string &marc_path, const std::vector<NacjdDoc> &nacjd_
         }
         // Generic
         if (nacjd_doc.ris_type_.compare("GEN") == 0) {
+            // marc_writer->write(WriteAnGenericContent(nacjd_doc));
         }
         // Journal / Article
         if (nacjd_doc.ris_type_.compare("JOUR") == 0) {
-            marc_writer->write(WriteAnArticleContent(nacjd_doc));
+            marc_writer->write(WriteAnArticleContent(&nacjd_doc));
         }
         // Magazine
         if (nacjd_doc.ris_type_.compare("MGZN") == 0) {
