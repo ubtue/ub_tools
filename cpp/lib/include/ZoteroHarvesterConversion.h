@@ -59,17 +59,19 @@ struct MetadataRecord {
         std::string type_;
         std::string ppn_;
         std::string gnd_number_;
+        std::string orcid_;
 
     public:
         Creator(const std::string &first_name, const std::string &last_name, const std::string &type)
             : first_name_(first_name), last_name_(last_name), type_(type) { }
     };
 
+    using Creators = std::vector<Creator>;
 
     std::string item_type_;
     std::string title_;
     std::string short_title_;
-    std::vector<Creator> creators_;
+    Creators creators_;
     std::string abstract_note_;
     std::string publication_title_;
     std::string volume_;
