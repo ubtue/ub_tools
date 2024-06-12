@@ -14,7 +14,7 @@ def ReadFulltext(file_path):
 
 def GetSolrRecord(solr_host, id):
     return pyjq.all('.response.docs[]', url='http://' +  solr_host + ':8983/solr/biblio/select?fl=*&indent=true&q.op=OR&q=id%3A' + 
-             id + '&useParams=')
+             id + '&lang=en&useParams=')
 
 
 def GetSolrTitle(solr_record):
@@ -22,7 +22,7 @@ def GetSolrTitle(solr_record):
 
 
 def GetSolrKeywordChains(solr_record):
-    return pyjq.first('.[].key_word_chain_bag_en', solr_record)
+    return pyjq.first('.[].key_word_chain_bag', solr_record)
 
 
 def GetSolrAbstract(solr_record):
@@ -33,25 +33,24 @@ def GetIxTheoNotations(solr_record):
     return pyjq.first('.[].ixtheo_notation', solr_record)
 
 
-
 def AddSolrInformation(solr_host, json_data):
-        for item in json_data:
-            record = GetSolrRecord(solr_host, item['id'])
-            title = GetSolrTitle(record)
-            if title is not None:
-                item['title'] = title
+    for item in json_data:
+        record = GetSolrRecord(solr_host, item['id'])
+        title = GetSolrTitle(record)
+        if title is not None:
+            item['title'] = title
 
-            keywords = GetSolrKeywordChains(record)
-            if keywords is not None:
-                item['keywords'] = keywords
+        keywords = GetSolrKeywordChains(record)
+        if keywords is not None:
+            item['keywords'] = keywords
 
-            abstract = GetSolrAbstract(record)
-            if abstract is not None:
-                item['abstract'] = abstract
+        abstract = GetSolrAbstract(record)
+        if abstract is not None:
+            item['abstract'] = abstract
 
-            ixtheo_notation = GetIxTheoNotations(record)
-            if abstract is not None:
-                item['ixtheo_notation'] = ixtheo_notation
+        ixtheo_notation = GetIxTheoNotations(record)
+        if ixtheo_notation is not None:
+            item['ixtheo_notation'] = ixtheo_notation
 
 
 def Main():
@@ -60,7 +59,7 @@ def Main():
        exit(1)
     fulltext_dump_file = sys.argv[1];
     solr_host = sys.argv[2];
-    fulltexts = pyjq.all('.hits.hits[]._source | { id, full_text }', ReadFulltext(fulltext_dump_file))
+    fulltexts = pyjq.all('.[]._source | { id, full_text }', ReadFulltext(fulltext_dump_file))
     AddSolrInformation(solr_host, fulltexts)
     print(json.dumps(fulltexts))
 
