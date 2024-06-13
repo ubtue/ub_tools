@@ -29,16 +29,19 @@ namespace {
 [[noreturn]] void Usage() {
     ::Usage(
         "[mode] [mode_params]\n"
-        "construct input_file output_file\n"
+        "--construct input_file source_file output_file\n"
         "\t- input_file: source of data in JSON format (taken from NACJD website).\n"
+        "\t- source_file: source data needed for augmenting.\n"
         "\t- output_file: will contain all icpsr records as MARC21.\n"
-        "augment input_file source_file  output_file\n"
-        "\t- input_file: data that needed to be augmented."
-        "\t- source_file: source data needed for augmenting."
-        "\t- output_file: the augmented file, this file contain ppn from source_file."
         "\n");
 }
 
+std::string ConstructPPN(std::string const issn, std::map<std::string, std::string> const &issn_cache) {
+    if (issn_cache.find(issn) != issn_cache.end()) {
+        return "(DE-627)" + issn_cache.find(issn)->second;
+    }
+    return "";
+}
 struct NacjdDoc {
     std::string ref_id_, // REF_ID
         title_,          // TITLE
@@ -63,10 +66,9 @@ struct NacjdDoc {
     std::set<std::string> authors_split, // AUTHORS_SPLIT
         study_titles_;                   // STUDYTITLE
 
-    const std::vector<MARC::Subfield> ConstructPublishingInfo_773() {
+    const std::vector<MARC::Subfield> ConstructPublishingInfo_773(std::map<std::string, std::string> const &issn_cache) {
         std::vector<MARC::Subfield> publishing_info;
         publishing_info.emplace_back(MARC::Subfield('i', "In:"));
-        publishing_info.emplace_back(MARC::Subfield('w', "(DE-627)" + ref_id_));
 
         if (!volume_.empty() && !year_pub_.empty() && !i_number_.empty() && !page_start_.empty())
             if (not page_end_.empty()) {
@@ -80,12 +82,16 @@ struct NacjdDoc {
                 publishing_info.emplace_back(MARC::Subfield('g', volume_ + " (" + year_pub_ + "), " + i_number_ + ", " + page_start_));
             }
 
-
         if (not journal_.empty())
             publishing_info.emplace_back(MARC::Subfield('t', journal_));
 
-        if (not issn_.empty())
+        if (not issn_.empty()) {
+            std::string ppn(ConstructPPN(issn_, issn_cache));
+            if (not ppn.empty()) {
+                publishing_info.emplace_back(MARC::Subfield('w', ppn));
+            }
             publishing_info.emplace_back(MARC::Subfield('x', issn_));
+        }
 
         return publishing_info;
     }
@@ -118,27 +124,14 @@ struct NacjdDoc {
     }
 
     void ConvertUrl(MARC::Record * const record) {
-        // using set to avoid redundancy
-        std::set<std::string> urls_temp;
-        std::vector<MARC::Subfield> urls;
-
-
         if (not url_.empty()) {
-            urls_temp.insert(url_);
+            record->insertField("856", { { 'a', url_ } }, '4', ' ');
         }
         if (not url_pdf_.empty()) {
-            urls_temp.insert(url_pdf_);
+            record->insertField("856", { { 'a', url_pdf_ } }, '4', ' ');
         }
         if (not url_abs_.empty()) {
-            urls_temp.insert(url_abs_);
-        }
-
-        if (not urls_temp.empty()) {
-            for (const auto &url : urls_temp) {
-                urls.emplace_back(MARC::Subfield('a', url));
-            }
-
-            record->insertField("856", urls, '4', ' ');
+            record->insertField("856", { { 'a', url_abs_ } }, '4', ' ');
         }
     }
 
@@ -175,9 +168,16 @@ struct NacjdDoc {
             record->insertField("245", { { 'a', sec_title_ } }, '1', '0');
         }
     }
+
     void ConvertYear(MARC::Record * const record) {
         if (not year_pub_.empty()) {
             record->insertField("264", 'c', year_pub_, ' ', '1');
+        }
+    }
+
+    void ConvertRefID(MARC::Record * const record) {
+        if (not ref_id_.empty()) {
+            record->insertField("LOK", { { '0', "035" }, { 'a', ref_id_ } }, ' ', ' ');
         }
     }
 };
@@ -195,13 +195,12 @@ MARC::Record WriteABookContent(NacjdDoc * const nacjd_doc) {
     nacjd_doc->ConvertDOI(&new_record);
     nacjd_doc->ConvertUrl(&new_record);
     nacjd_doc->ConvertYear(&new_record);
+    nacjd_doc->ConvertRefID(&new_record);
 
     return new_record;
 }
-MARC::Record WriteAnArticleContent(NacjdDoc * const nacjd_doc) {
+MARC::Record WriteAJournalContent(NacjdDoc * const nacjd_doc, std::map<std::string, std::string> const &issn_cache) {
     // create a new record
-    // MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::UNDEFINED,
-    //                         "ICPSR" + nacjd_doc.ref_id_);
 
     MARC::Record new_record("00000naa a22000002  4500");
 
@@ -228,9 +227,9 @@ MARC::Record WriteAnArticleContent(NacjdDoc * const nacjd_doc) {
                              { '0', "(DE-576)469182156" },
                              { '2', "gnd-content" } },
                            ' ', '7');
-
-    if (not nacjd_doc->ConstructPublishingInfo_773().empty()) {
-        new_record.insertField("773", nacjd_doc->ConstructPublishingInfo_773(), '0', '8');
+    std::vector<MARC::Subfield> publishing_info(nacjd_doc->ConstructPublishingInfo_773(issn_cache));
+    if (not publishing_info.empty()) {
+        new_record.insertField("773", publishing_info, '0', '8');
     }
     nacjd_doc->ConvertUrl(&new_record);
 
@@ -244,11 +243,12 @@ MARC::Record WriteAnArticleContent(NacjdDoc * const nacjd_doc) {
     if (not nacjd_doc->ConstructPublishingInfo_936().empty()) {
         new_record.insertField("936", nacjd_doc->ConstructPublishingInfo_936(), 'u', 'w');
     }
-
+    nacjd_doc->ConvertRefID(&new_record);
     return new_record;
 }
 
-void WriteMarc(const std::string &marc_path, const std::vector<NacjdDoc> &nacjd_docs) {
+void WriteMarc(const std::string &marc_path, const std::vector<NacjdDoc> &nacjd_docs,
+               std::map<std::string, std::string> const &issn_cache) {
     auto marc_file(MARC::Writer::Factory(marc_path));
     MARC::Writer * const marc_writer(marc_file.get());
 
@@ -279,7 +279,7 @@ void WriteMarc(const std::string &marc_path, const std::vector<NacjdDoc> &nacjd_
         }
         // Journal / Article
         if (nacjd_doc.ris_type_.compare("JOUR") == 0) {
-            marc_writer->write(WriteAnArticleContent(&nacjd_doc));
+            marc_writer->write(WriteAJournalContent(&nacjd_doc, issn_cache));
         }
         // Magazine
         if (nacjd_doc.ris_type_.compare("MGZN") == 0) {
@@ -298,7 +298,7 @@ void WriteMarc(const std::string &marc_path, const std::vector<NacjdDoc> &nacjd_
 
 void ExtractInfoFromNACJD(const std::string &json_path, std::vector<NacjdDoc> * const nacjd_docs) {
     std::ifstream f(json_path, std::ifstream::in);
-    nlohmann::json jdat = nlohmann::json::parse(f);
+    nlohmann::json jdat(nlohmann::json::parse(f));
     const auto docs(jdat.at("searchResults").at("response").at("docs"));
 
     if (not docs.is_structured())
@@ -380,45 +380,14 @@ void BuildISSNCache(std::map<std::string, std::string> * const issn_cache, const
     auto input_file(MARC::Reader::Factory(source_file_name));
 
     while (MARC::Record record = input_file->read()) {
-        std::string tag_001;
-        for (auto &field : record) {
-            if (field.getTag() == "001")
-                tag_001 = field.getContents();
+        std::set<std::string> issns(record.getISSNs());
 
-            if (field.getTag() == "022") {
-                std::string tag_022 = StringUtil::ASCIIToUpper(field.getFirstSubfieldWithCode('a'));
-                if (not tag_022.empty()) {
-                    issn_cache->insert(std::pair(tag_022, "(DE-627)" + tag_001));
-                }
-            }
+        for (auto const &issn : issns) {
+            issn_cache->insert({ StringUtil::ASCIIToUpper(issn), record.getControlNumber() });
         }
     }
 }
 
-void AugmentingPPN(std::map<std::string, std::string> const &issn_cache, std::string const &input_file_name,
-                   std::string const &output_file_name) {
-    auto input_file(MARC::Reader::Factory(input_file_name));
-    auto output_file(MARC::Writer::Factory(output_file_name));
-
-    while (MARC::Record record = input_file->read()) {
-        for (auto &field : record) {
-            MARC::Subfields subfields(field.getSubfields());
-            if (field.getTag() == "773") {
-                const std::string issn(StringUtil::ASCIIToUpper(field.getFirstSubfieldWithCode('x')));
-                // std::map<std::string, std::string>::iterator augment_info = issn_cache.find(issn);
-
-                if (issn_cache.find(issn) != issn_cache.end()) {
-                    if (!subfields.replaceFirstSubfield('w', issn_cache.find(issn)->second)) {
-                        subfields.addSubfield('w', issn_cache.find(issn)->second);
-                        std::cout << "Writing new ppn" << issn_cache.find(issn)->second;
-                    }
-                    field.setSubfields(subfields);
-                }
-            }
-        }
-        output_file->write(record);
-    }
-}
 } // unnamed namespace
 
 int Main(int argc, char **argv) {
@@ -426,14 +395,13 @@ int Main(int argc, char **argv) {
         Usage();
 
     const std::string mode(argv[1]);
-    if (mode == "construct") {
+    if (mode == "--construct") {
         std::vector<NacjdDoc> nacjd_docs;
-        ExtractInfoFromNACJD(argv[2], &nacjd_docs);
-        WriteMarc(argv[3], nacjd_docs);
-    } else if (mode == "augment") {
         std::map<std::string, std::string> issn_cache;
+
+        ExtractInfoFromNACJD(argv[2], &nacjd_docs);
         BuildISSNCache(&issn_cache, argv[3]);
-        AugmentingPPN(issn_cache, argv[2], argv[4]);
+        WriteMarc(argv[4], nacjd_docs, issn_cache);
     } else {
         Usage();
     }
