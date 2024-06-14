@@ -28,8 +28,7 @@ namespace {
 
 [[noreturn]] void Usage() {
     ::Usage(
-        "[mode] [mode_params]\n"
-        "--construct input_file source_file output_file\n"
+        "input_file source_file output_file\n"
         "\t- input_file: source of data in JSON format (taken from NACJD website).\n"
         "\t- source_file: source data needed for augmenting.\n"
         "\t- output_file: will contain all icpsr records as MARC21.\n"
@@ -174,12 +173,6 @@ struct NacjdDoc {
             record->insertField("264", 'c', year_pub_, ' ', '1');
         }
     }
-
-    void ConvertRefID(MARC::Record * const record) {
-        if (not ref_id_.empty()) {
-            record->insertField("LOK", { { '0', "035" }, { 'a', ref_id_ } }, ' ', ' ');
-        }
-    }
 };
 
 MARC::Record WriteABookContent(NacjdDoc * const nacjd_doc) {
@@ -195,7 +188,6 @@ MARC::Record WriteABookContent(NacjdDoc * const nacjd_doc) {
     nacjd_doc->ConvertDOI(&new_record);
     nacjd_doc->ConvertUrl(&new_record);
     nacjd_doc->ConvertYear(&new_record);
-    nacjd_doc->ConvertRefID(&new_record);
 
     return new_record;
 }
@@ -243,7 +235,6 @@ MARC::Record WriteAJournalContent(NacjdDoc * const nacjd_doc, std::map<std::stri
     if (not nacjd_doc->ConstructPublishingInfo_936().empty()) {
         new_record.insertField("936", nacjd_doc->ConstructPublishingInfo_936(), 'u', 'w');
     }
-    nacjd_doc->ConvertRefID(&new_record);
     return new_record;
 }
 
@@ -394,17 +385,13 @@ int Main(int argc, char **argv) {
     if (argc < 3)
         Usage();
 
-    const std::string mode(argv[1]);
-    if (mode == "--construct") {
-        std::vector<NacjdDoc> nacjd_docs;
-        std::map<std::string, std::string> issn_cache;
 
-        ExtractInfoFromNACJD(argv[2], &nacjd_docs);
-        BuildISSNCache(&issn_cache, argv[3]);
-        WriteMarc(argv[4], nacjd_docs, issn_cache);
-    } else {
-        Usage();
-    }
+    std::vector<NacjdDoc> nacjd_docs;
+    std::map<std::string, std::string> issn_cache;
+
+    ExtractInfoFromNACJD(argv[1], &nacjd_docs);
+    BuildISSNCache(&issn_cache, argv[2]);
+    WriteMarc(argv[3], nacjd_docs, issn_cache);
 
 
     return EXIT_SUCCESS;
