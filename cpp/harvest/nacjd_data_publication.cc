@@ -28,19 +28,33 @@ namespace {
 
 [[noreturn]] void Usage() {
     ::Usage(
-        "input_file source_file output_file\n"
+        "input_file source_file output_file [--verbose]\n"
         "\t- input_file: source of data in JSON format (taken from NACJD website).\n"
         "\t- source_file: source data needed for augmenting.\n"
         "\t- output_file: will contain all icpsr records as MARC21.\n"
+        "--verbose, print to standard output the summary.\n"
         "\n");
 }
 
-std::string ConstructPPN(std::string const issn, std::map<std::string, std::string> const &issn_cache) {
-    if (issn_cache.find(issn) != issn_cache.end()) {
-        return "(DE-627)" + issn_cache.find(issn)->second;
-    }
-    return "";
-}
+// std::string ConstructPPN(std::string const issn, std::map<std::string, std::string> const &issn_cache) {
+//     if (issn_cache.find(issn) != issn_cache.end()) {
+//         return "(DE-627)" + issn_cache.find(issn)->second;
+//     }
+//     return "";
+// }
+
+struct DebugInfo {
+    std::set<std::string> superior_work_not_found, unknown_type;
+    std::map<std::string, std::string> superior_work_found;
+    std::int16_t counter_advs = 0, counter_book = 0, counter_chap = 0, counter_conf = 0, counter_elec = 0, counter_generic = 0,
+                 counter_jour = 0, counter_mgzn = 0, counter_news = 0, counter_rprt = 0, counter_thes = 0, counter_unknown = 0,
+                 data_found_in_k10_plus = 0, data_not_found_in_k10_plus = 0;
+    DebugInfo() = default;
+    std::int16_t counter_t() const {
+        return (counter_advs + counter_book + counter_chap + counter_conf + counter_elec + counter_generic + counter_jour + counter_mgzn
+                + counter_news + counter_rprt + counter_thes + counter_unknown);
+    };
+};
 struct NacjdDoc {
     std::string ref_id_, // REF_ID
         title_,          // TITLE
@@ -65,30 +79,39 @@ struct NacjdDoc {
     std::set<std::string> authors_split, // AUTHORS_SPLIT
         study_titles_;                   // STUDYTITLE
 
-    const std::vector<MARC::Subfield> ConstructPublishingInfo_773(std::map<std::string, std::string> const &issn_cache) {
+    const std::vector<MARC::Subfield> ConstructPublishingInfo_773(std::map<std::string, std::string> const &issn_cache,
+                                                                  DebugInfo * const debug_info) {
         std::vector<MARC::Subfield> publishing_info;
         publishing_info.emplace_back(MARC::Subfield('i', "In:"));
 
         if (!volume_.empty() && !year_pub_.empty() && !i_number_.empty() && !page_start_.empty())
             if (not page_end_.empty()) {
                 if ((page_end_.compare("-") == 0) && (page_end_.compare("unknown") == 0)) {
-                    publishing_info.emplace_back(MARC::Subfield('g', volume_ + " (" + year_pub_ + "), " + i_number_ + ", " + page_start_));
+                    publishing_info.emplace_back(
+                        MARC::Subfield('g', volume_ + " (" + year_pub_ + "), " + i_number_ + ", Seite " + page_start_));
                 } else {
                     publishing_info.emplace_back(
-                        MARC::Subfield('g', volume_ + " (" + year_pub_ + "), " + i_number_ + ", " + page_start_ + "-" + page_end_));
+                        MARC::Subfield('g', volume_ + " (" + year_pub_ + "), " + i_number_ + ", Seite " + page_start_ + "-" + page_end_));
                 }
             } else {
-                publishing_info.emplace_back(MARC::Subfield('g', volume_ + " (" + year_pub_ + "), " + i_number_ + ", " + page_start_));
+                publishing_info.emplace_back(
+                    MARC::Subfield('g', volume_ + " (" + year_pub_ + "), " + i_number_ + ", Seite " + page_start_));
             }
 
         if (not journal_.empty())
             publishing_info.emplace_back(MARC::Subfield('t', journal_));
 
         if (not issn_.empty()) {
-            std::string ppn(ConstructPPN(issn_, issn_cache));
-            if (not ppn.empty()) {
-                publishing_info.emplace_back(MARC::Subfield('w', ppn));
+            // std::string ppn(ConstructPPN(issn_, issn_cache));
+            if (issn_cache.find(issn_) != issn_cache.end()) {
+                publishing_info.emplace_back(MARC::Subfield('w', "(DE-627)" + issn_cache.find(issn_)->second));
+                debug_info->superior_work_found.insert({ issn_cache.find(issn_)->second, issn_ });
+                debug_info->data_found_in_k10_plus++;
+            } else {
+                debug_info->data_not_found_in_k10_plus++;
+                debug_info->superior_work_not_found.insert(issn_);
             }
+
             publishing_info.emplace_back(MARC::Subfield('x', issn_));
         }
 
@@ -124,13 +147,13 @@ struct NacjdDoc {
 
     void ConvertUrl(MARC::Record * const record) {
         if (not url_.empty()) {
-            record->insertField("856", { { 'a', url_ } }, '4', ' ');
+            record->insertField("856", { { 'u', url_ } }, '4', '0');
         }
         if (not url_pdf_.empty()) {
-            record->insertField("856", { { 'a', url_pdf_ } }, '4', ' ');
+            record->insertField("856", { { 'u', url_pdf_ }, { 'q', "application/pdf" } }, '4', '0');
         }
         if (not url_abs_.empty()) {
-            record->insertField("856", { { 'a', url_abs_ } }, '4', ' ');
+            record->insertField("856", { { 'u', url_abs_ } }, '4', '0');
         }
     }
 
@@ -191,7 +214,8 @@ MARC::Record WriteABookContent(NacjdDoc * const nacjd_doc) {
 
     return new_record;
 }
-MARC::Record WriteAJournalContent(NacjdDoc * const nacjd_doc, std::map<std::string, std::string> const &issn_cache) {
+MARC::Record WriteAJournalContent(NacjdDoc * const nacjd_doc, std::map<std::string, std::string> const &issn_cache,
+                                  DebugInfo * const debug_info) {
     // create a new record
 
     MARC::Record new_record("00000naa a22000002  4500");
@@ -219,7 +243,7 @@ MARC::Record WriteAJournalContent(NacjdDoc * const nacjd_doc, std::map<std::stri
                              { '0', "(DE-576)469182156" },
                              { '2', "gnd-content" } },
                            ' ', '7');
-    std::vector<MARC::Subfield> publishing_info(nacjd_doc->ConstructPublishingInfo_773(issn_cache));
+    std::vector<MARC::Subfield> publishing_info(nacjd_doc->ConstructPublishingInfo_773(issn_cache, debug_info));
     if (not publishing_info.empty()) {
         new_record.insertField("773", publishing_info, '0', '8');
     }
@@ -238,8 +262,8 @@ MARC::Record WriteAJournalContent(NacjdDoc * const nacjd_doc, std::map<std::stri
     return new_record;
 }
 
-void WriteMarc(const std::string &marc_path, const std::vector<NacjdDoc> &nacjd_docs,
-               std::map<std::string, std::string> const &issn_cache) {
+void WriteMarc(const std::string &marc_path, const std::vector<NacjdDoc> &nacjd_docs, std::map<std::string, std::string> const &issn_cache,
+               DebugInfo * const debug_info) {
     auto marc_file(MARC::Writer::Factory(marc_path));
     MARC::Writer * const marc_writer(marc_file.get());
 
@@ -248,41 +272,47 @@ void WriteMarc(const std::string &marc_path, const std::vector<NacjdDoc> &nacjd_
             LOG_ERROR("No ID found on Title: " + nacjd_doc.title_ + ", Sec Title: " + nacjd_doc.sec_title_);
 
         // please see the list of RIS type here: https://en.wikipedia.org/wiki/RIS_(file_format)#Type_of_reference
-        // Audiovisual
         if (nacjd_doc.ris_type_.compare("ADVS") == 0) {
-        }
-        // Book
-        if (nacjd_doc.ris_type_.compare("BOOK") == 0) {
-            marc_writer->write(WriteABookContent(&nacjd_doc));
-        }
-        // Book section / chapter
-        if (nacjd_doc.ris_type_.compare("CHAP") == 0) {
-        }
-        // Conference Proceedings
-        if (nacjd_doc.ris_type_.compare("CONF") == 0) {
-        }
-        // Web page / electronic citation
-        if (nacjd_doc.ris_type_.compare("ELEC") == 0) {
-        }
-        // Generic
-        if (nacjd_doc.ris_type_.compare("GEN") == 0) {
-            // marc_writer->write(WriteAnGenericContent(nacjd_doc));
-        }
-        // Journal / Article
-        if (nacjd_doc.ris_type_.compare("JOUR") == 0) {
-            marc_writer->write(WriteAJournalContent(&nacjd_doc, issn_cache));
-        }
-        // Magazine
-        if (nacjd_doc.ris_type_.compare("MGZN") == 0) {
-        }
-        // Newspaper
-        if (nacjd_doc.ris_type_.compare("NEWS") == 0) {
-        }
-        // Report
-        if (nacjd_doc.ris_type_.compare("RPRT") == 0) {
-        }
-        // Thesis / Dissertation
-        if (nacjd_doc.ris_type_.compare("THES") == 0) {
+            // Audiovisual
+            debug_info->counter_advs++;
+        } else {
+            if (nacjd_doc.ris_type_.compare("BOOK") == 0) {
+                // Book
+                debug_info->counter_book++;
+                marc_writer->write(WriteABookContent(&nacjd_doc));
+            } else if (nacjd_doc.ris_type_.compare("CHAP") == 0) {
+                // Book section / chapter
+                debug_info->counter_chap++;
+            } else if (nacjd_doc.ris_type_.compare("CONF") == 0) {
+                // Conference Proceedings
+                debug_info->counter_conf++;
+            } else if (nacjd_doc.ris_type_.compare("ELEC") == 0) {
+                // Web page / electronic citation
+                debug_info->counter_elec++;
+            } else if (nacjd_doc.ris_type_.compare("GEN") == 0) {
+                // Generic
+                debug_info->counter_generic++;
+                // marc_writer->write(WriteAnGenericContent(nacjd_doc));
+            } else if (nacjd_doc.ris_type_.compare("JOUR") == 0) {
+                // Journal
+                debug_info->counter_jour++;
+                marc_writer->write(WriteAJournalContent(&nacjd_doc, issn_cache, debug_info));
+            } else if (nacjd_doc.ris_type_.compare("MGZN") == 0) {
+                // Magazine
+                debug_info->counter_mgzn += 1;
+            } else if (nacjd_doc.ris_type_.compare("NEWS") == 0) {
+                // Newspaper
+                debug_info->counter_news++;
+            } else if (nacjd_doc.ris_type_.compare("RPRT") == 0) {
+                // Report
+                debug_info->counter_rprt++;
+            } else if (nacjd_doc.ris_type_.compare("THES") == 0) {
+                // Thesis / Dissertation
+                debug_info->counter_thes++;
+            } else {
+                debug_info->unknown_type.insert(nacjd_doc.ris_type_);
+                debug_info->counter_unknown++;
+            }
         }
     }
 }
@@ -379,6 +409,41 @@ void BuildISSNCache(std::map<std::string, std::string> * const issn_cache, const
     }
 }
 
+void ShowInfoForDebugging(const DebugInfo &debug_info) {
+    std::cout << "=== ISSN Found in K10Plus ===" << std::endl;
+    for (auto db_found : debug_info.superior_work_found) {
+        std::cout << "superior: " << db_found.first << " , ISSN: " << db_found.second << std::endl;
+    }
+    std::cout << "=== ISSN not found in K10Plus ===" << std::endl;
+    for (auto db_not_found : debug_info.superior_work_not_found) {
+        std::cout << "- " << db_not_found << std::endl;
+    }
+
+    std::cout << "=== Unknown type ===" << std::endl;
+    for (auto unknown_type_ : debug_info.unknown_type) {
+        std::cout << "- " << unknown_type_ << std::endl;
+    }
+
+    std::cout << "=== Summary ===" << std::endl;
+    std::cout << "Audio visual: " << debug_info.counter_advs << std::endl;
+    std::cout << "Book: " << debug_info.counter_book << std::endl;
+    std::cout << "Chapter/ section: " << debug_info.counter_chap << std::endl;
+    std::cout << "Conference proceeding: " << debug_info.counter_conf << std::endl;
+    std::cout << "Electronic/ web page: " << debug_info.counter_elec << std::endl;
+    std::cout << "Generic: " << debug_info.counter_generic << std::endl;
+    std::cout << "Journal: " << debug_info.counter_jour << std::endl;
+    std::cout << "Magazine: " << debug_info.counter_mgzn << std::endl;
+    std::cout << "Newspaper: " << debug_info.counter_news << std::endl;
+    std::cout << "Report: " << debug_info.counter_rprt << std::endl;
+    std::cout << "Thesis/ dissertation: " << debug_info.counter_thes << std::endl;
+    std::cout << "Unknown: " << debug_info.counter_unknown << std::endl;
+    std::cout << "Total: " << debug_info.counter_t() << std::endl << std::endl;
+    std::cout << "Data found in K10+ : " << debug_info.data_found_in_k10_plus << std::endl;
+    std::cout << "ISSN found in K10+ (unique): " << debug_info.superior_work_found.size() << std::endl;
+    std::cout << "Data not found in K10+ : " << debug_info.data_not_found_in_k10_plus << std::endl;
+    std::cout << "ISSN not found in K10+ (unique): " << debug_info.superior_work_not_found.size() << std::endl;
+}
+
 } // unnamed namespace
 
 int Main(int argc, char **argv) {
@@ -388,10 +453,17 @@ int Main(int argc, char **argv) {
 
     std::vector<NacjdDoc> nacjd_docs;
     std::map<std::string, std::string> issn_cache;
+    DebugInfo debug_info;
 
     ExtractInfoFromNACJD(argv[1], &nacjd_docs);
     BuildISSNCache(&issn_cache, argv[2]);
-    WriteMarc(argv[3], nacjd_docs, issn_cache);
+    WriteMarc(argv[3], nacjd_docs, issn_cache, &debug_info);
+
+    const bool debug_mode(((argc == 5 && (std::strcmp(argv[4], "--verbose") == 0)) ? true : false));
+
+    if (debug_mode) {
+        ShowInfoForDebugging(debug_info);
+    }
 
 
     return EXIT_SUCCESS;
