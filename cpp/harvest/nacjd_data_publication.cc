@@ -28,27 +28,20 @@ namespace {
 
 [[noreturn]] void Usage() {
     ::Usage(
-        "input_file source_file output_file [--verbose]\n"
-        "\t- input_file: source of data in JSON format (taken from NACJD website).\n"
-        "\t- source_file: source data needed for augmenting.\n"
-        "\t- output_file: will contain all icpsr records as MARC21.\n"
+        "[--verbose] input_file source_file output_file \n"
         "--verbose, print to standard output the summary.\n"
+        "\t- input_file: source of data in JSON format (taken from NACJD website).\n"
+        "\t- source_file: source data needed for augmenting (taken from K10Plus).\n"
+        "\t- output_file: will contain all icpsr records as MARC21.\n"
         "\n");
 }
-
-// std::string ConstructPPN(std::string const issn, std::map<std::string, std::string> const &issn_cache) {
-//     if (issn_cache.find(issn) != issn_cache.end()) {
-//         return "(DE-627)" + issn_cache.find(issn)->second;
-//     }
-//     return "";
-// }
 
 struct DebugInfo {
     std::set<std::string> superior_work_not_found, unknown_type;
     std::map<std::string, std::string> superior_work_found;
     std::int16_t counter_advs = 0, counter_book = 0, counter_chap = 0, counter_conf = 0, counter_elec = 0, counter_generic = 0,
                  counter_jour = 0, counter_mgzn = 0, counter_news = 0, counter_rprt = 0, counter_thes = 0, counter_unknown = 0,
-                 data_found_in_k10_plus = 0, data_not_found_in_k10_plus = 0;
+                 counter_journal_without_issn = 0, data_found_in_k10_plus = 0, data_not_found_in_k10_plus = 0;
     DebugInfo() = default;
     std::int16_t counter_t() const {
         return (counter_advs + counter_book + counter_chap + counter_conf + counter_elec + counter_generic + counter_jour + counter_mgzn
@@ -102,7 +95,6 @@ struct NacjdDoc {
             publishing_info.emplace_back(MARC::Subfield('t', journal_));
 
         if (not issn_.empty()) {
-            // std::string ppn(ConstructPPN(issn_, issn_cache));
             if (issn_cache.find(issn_) != issn_cache.end()) {
                 publishing_info.emplace_back(MARC::Subfield('w', "(DE-627)" + issn_cache.find(issn_)->second));
                 debug_info->superior_work_found.insert({ issn_cache.find(issn_)->second, issn_ });
@@ -113,7 +105,10 @@ struct NacjdDoc {
             }
 
             publishing_info.emplace_back(MARC::Subfield('x', issn_));
+        } else {
+            debug_info->counter_journal_without_issn++;
         }
+
 
         return publishing_info;
     }
@@ -150,10 +145,10 @@ struct NacjdDoc {
             record->insertField("856", { { 'u', url_ } }, '4', '0');
         }
         if (not url_pdf_.empty()) {
-            record->insertField("856", { { 'u', url_pdf_ }, { 'q', "application/pdf" } }, '4', '0');
+            record->insertField("856", { { 'u', url_pdf_ }, { 'q', "application/pdf" }, { '3', "Volltext" } }, '4', '0');
         }
         if (not url_abs_.empty()) {
-            record->insertField("856", { { 'u', url_abs_ } }, '4', '0');
+            record->insertField("856", { { 'u', url_abs_ }, { 'x', "Abstracts" } }, '4', '0');
         }
     }
 
@@ -171,9 +166,10 @@ struct NacjdDoc {
     void ConvertDOI(MARC::Record * const record) {
         if (not doi_.empty()) {
             record->insertField("024", { { 'a', doi_ }, { '2', "doi" } }, '7');
-            record->insertField("856", { { 'u', "https://doi.org/" + doi_ }, { 'x', "R" }, { 'z', "LF" } },
-                                /*indicator1 = */ '4',
-                                /*indicator2 = */ '0');
+            record->insertField(
+                "856", { { 'u', "https://doi.org/" + doi_ }, { 'x', "Resolving-System" }, { 'z', "lizenzpflichtig" }, { '3', "Volltext" } },
+                /*indicator1 = */ '4',
+                /*indicator2 = */ '0');
         }
     }
 
@@ -438,10 +434,11 @@ void ShowInfoForDebugging(const DebugInfo &debug_info) {
     std::cout << "Thesis/ dissertation: " << debug_info.counter_thes << std::endl;
     std::cout << "Unknown: " << debug_info.counter_unknown << std::endl;
     std::cout << "Total: " << debug_info.counter_t() << std::endl << std::endl;
-    std::cout << "Data found in K10+ : " << debug_info.data_found_in_k10_plus << std::endl;
-    std::cout << "ISSN found in K10+ (unique): " << debug_info.superior_work_found.size() << std::endl;
-    std::cout << "Data not found in K10+ : " << debug_info.data_not_found_in_k10_plus << std::endl;
-    std::cout << "ISSN not found in K10+ (unique): " << debug_info.superior_work_not_found.size() << std::endl;
+    std::cout << "The number of updated journal  using data from K-10-Plus: " << debug_info.data_found_in_k10_plus << std::endl;
+    std::cout << "The number of journal that did not update: " << debug_info.data_not_found_in_k10_plus << std::endl;
+    std::cout << "The number of journal without ISSN: " << debug_info.counter_journal_without_issn << std::endl << std::endl;
+    std::cout << "ISSN found in K10-Plus (unique): " << debug_info.superior_work_found.size() << std::endl;
+    std::cout << "ISSN not found in K10-Plus (unique): " << debug_info.superior_work_not_found.size() << std::endl;
 }
 
 } // unnamed namespace
@@ -454,12 +451,23 @@ int Main(int argc, char **argv) {
     std::vector<NacjdDoc> nacjd_docs;
     std::map<std::string, std::string> issn_cache;
     DebugInfo debug_info;
+    std::string input_file, source_file, output_file;
+    bool debug_mode(false);
 
-    ExtractInfoFromNACJD(argv[1], &nacjd_docs);
-    BuildISSNCache(&issn_cache, argv[2]);
-    WriteMarc(argv[3], nacjd_docs, issn_cache, &debug_info);
+    if (argc == 5 && std::strcmp(argv[1], "--verbose") == 0) {
+        input_file = argv[2];
+        source_file = argv[3];
+        output_file = argv[4];
+        debug_mode = true;
+    } else {
+        input_file = argv[1];
+        source_file = argv[2];
+        output_file = argv[3];
+    }
 
-    const bool debug_mode(((argc == 5 && (std::strcmp(argv[4], "--verbose") == 0)) ? true : false));
+    ExtractInfoFromNACJD(input_file, &nacjd_docs);
+    BuildISSNCache(&issn_cache, source_file);
+    WriteMarc(output_file, nacjd_docs, issn_cache, &debug_info);
 
     if (debug_mode) {
         ShowInfoForDebugging(debug_info);
