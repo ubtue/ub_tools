@@ -37,17 +37,30 @@ namespace {
 }
 
 struct DebugInfo {
-    std::set<std::string> superior_work_not_found, unknown_type;
-    std::map<std::string, std::string> superior_work_found;
+    std::set<std::string> superior_work_not_found, // issn
+        unknown_type;
+    std::map<std::string, std::string> superior_work_found; // ppn -> issn
     std::int16_t counter_advs = 0, counter_book = 0, counter_chap = 0, counter_conf = 0, counter_elec = 0, counter_generic = 0,
                  counter_jour = 0, counter_mgzn = 0, counter_news = 0, counter_rprt = 0, counter_thes = 0, counter_unknown = 0,
-                 counter_journal_without_issn = 0, data_found_in_k10_plus = 0, data_not_found_in_k10_plus = 0;
+                 counter_journal_without_issn = 0, counter_doi_open_access = 0, counter_doi_close_access = 0, counter_doi_without_issn = 0,
+                 counter_doi_issn_without_access_info = 0, data_found_in_k10_plus = 0, data_not_found_in_k10_plus = 0;
     DebugInfo() = default;
-    std::int16_t counter_t() const {
+    std::int16_t counter_total() const {
         return (counter_advs + counter_book + counter_chap + counter_conf + counter_elec + counter_generic + counter_jour + counter_mgzn
                 + counter_news + counter_rprt + counter_thes + counter_unknown);
     };
 };
+
+struct K10PlusInfo {
+    std::string ppn_;
+    bool is_open_access_;
+    K10PlusInfo() = default;
+    K10PlusInfo(const std::string &ppn, const bool &is_open_access) {
+        ppn_ = ppn;
+        is_open_access_ = is_open_access;
+    }
+};
+
 struct NacjdDoc {
     std::string ref_id_, // REF_ID
         title_,          // TITLE
@@ -72,7 +85,7 @@ struct NacjdDoc {
     std::set<std::string> authors_split, // AUTHORS_SPLIT
         study_titles_;                   // STUDYTITLE
 
-    const std::vector<MARC::Subfield> ConstructPublishingInfo_773(std::map<std::string, std::string> const &issn_cache,
+    const std::vector<MARC::Subfield> ConstructPublishingInfo_773(const std::map<std::string, K10PlusInfo> &k10_plus_info,
                                                                   DebugInfo * const debug_info) {
         std::vector<MARC::Subfield> publishing_info;
         publishing_info.emplace_back(MARC::Subfield('i', "In:"));
@@ -95,9 +108,10 @@ struct NacjdDoc {
             publishing_info.emplace_back(MARC::Subfield('t', journal_));
 
         if (not issn_.empty()) {
-            if (issn_cache.find(issn_) != issn_cache.end()) {
-                publishing_info.emplace_back(MARC::Subfield('w', "(DE-627)" + issn_cache.find(issn_)->second));
-                debug_info->superior_work_found.insert({ issn_cache.find(issn_)->second, issn_ });
+            const auto is_exist_in_k10_plus = k10_plus_info.find(issn_);
+            if (is_exist_in_k10_plus != k10_plus_info.end()) {
+                publishing_info.emplace_back(MARC::Subfield('w', "(DE-627)" + is_exist_in_k10_plus->second.ppn_));
+                debug_info->superior_work_found.insert({ is_exist_in_k10_plus->second.ppn_, issn_ });
                 debug_info->data_found_in_k10_plus++;
             } else {
                 debug_info->data_not_found_in_k10_plus++;
@@ -140,7 +154,8 @@ struct NacjdDoc {
         return publishing_info;
     }
 
-    void ConvertUrl(MARC::Record * const record) {
+    void ConvertUrl(MARC::Record * const record, DebugInfo * const debug_info,
+                    const std::map<std::string, K10PlusInfo> k10_plus_info = {}) {
         if (not url_.empty()) {
             record->insertField("856", { { 'u', url_ } }, '4', '0');
         }
@@ -149,6 +164,29 @@ struct NacjdDoc {
         }
         if (not url_abs_.empty()) {
             record->insertField("856", { { 'u', url_abs_ }, { 'x', "Abstracts" } }, '4', '0');
+        }
+        if (not doi_.empty()) {
+            record->insertField("024", { { 'a', doi_ }, { '2', "doi" } }, '7');
+
+            if (not issn_.empty()) {
+                const auto is_exist_in_k10_plus(k10_plus_info.find(issn_));
+                if (is_exist_in_k10_plus != k10_plus_info.end()) {
+                    record->insertField("856",
+                                        { { 'u', "https://doi.org/" + doi_ },
+                                          { 'x', "Resolving-System" },
+                                          { 'z', (is_exist_in_k10_plus->second.is_open_access_ ? "LF" : "ZZ") },
+                                          { '3', "Volltext" } },
+                                        '4', '0');
+                    (is_exist_in_k10_plus->second.is_open_access_ ? debug_info->counter_doi_open_access++
+                                                                  : debug_info->counter_doi_close_access++);
+                } else {
+                    record->insertField("856", { { 'u', "https://doi.org/" + doi_ }, { 'x', "Resolving-System" } }, '4', '0');
+                    debug_info->counter_doi_issn_without_access_info++;
+                }
+            } else {
+                record->insertField("856", { { 'u', "https://doi.org/" + doi_ }, { 'x', "Resolving-System" } }, '4', '0');
+                debug_info->counter_doi_without_issn++;
+            }
         }
     }
 
@@ -161,29 +199,6 @@ struct NacjdDoc {
         }
 
         return authors;
-    }
-
-    void ConvertDOI(MARC::Record * const record, const std::map<std::string, bool> &issn_open_access_info_from_k10plus = {}) {
-        if (not doi_.empty()) {
-            record->insertField("024", { { 'a', doi_ }, { '2', "doi" } }, '7');
-            if (issn_.empty())
-                record->insertField("856", { { 'u', "https://doi.org/" + doi_ }, { 'x', "Resolving-System" } },
-                                    /*indicator1 = */ '4',
-                                    /*indicator2 = */ '0');
-            else {
-                if (issn_open_access_info_from_k10plus.find(issn_) != issn_open_access_info_from_k10plus.end()) {
-                    if (issn_open_access_info_from_k10plus.find(issn_)->second) {
-                        record->insertField(
-                            "856", { { 'u', "https://doi.org/" + doi_ }, { 'x', "Resolving-System" }, { 'z', "LF" }, { '3', "Volltext" } },
-                            '4', '0');
-                    } else {
-                        record->insertField("856", { { 'u', "https://doi.org/" + doi_ }, { 'x', "Resolving-System" } }, '4', '0');
-                    }
-                } else {
-                    record->insertField("856", { { 'u', "https://doi.org/" + doi_ }, { 'x', "Resolving-System" } }, '4', '0');
-                }
-            }
-        }
     }
 
     void ConvertISSN(MARC::Record * const record) {
@@ -207,7 +222,7 @@ struct NacjdDoc {
     }
 };
 
-MARC::Record WriteABookContent(NacjdDoc * const nacjd_doc) {
+MARC::Record WriteABookContent(NacjdDoc * const nacjd_doc, DebugInfo * const debug_info) {
     MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::MONOGRAPH_OR_ITEM,
                             "ICPSR" + nacjd_doc->ref_id_);
 
@@ -217,14 +232,13 @@ MARC::Record WriteABookContent(NacjdDoc * const nacjd_doc) {
     new_record.insertField("912", 'a', "NOMM");
 
     nacjd_doc->ConvertTitle(&new_record);
-    nacjd_doc->ConvertDOI(&new_record);
-    nacjd_doc->ConvertUrl(&new_record);
+    nacjd_doc->ConvertUrl(&new_record, debug_info);
     nacjd_doc->ConvertYear(&new_record);
 
     return new_record;
 }
-MARC::Record WriteAJournalContent(NacjdDoc * const nacjd_doc, std::map<std::string, std::string> const &issn_cache,
-                                  std::map<std::string, bool> const &issn_open_access_info_from_k10plus, DebugInfo * const debug_info) {
+MARC::Record WriteAJournalContent(NacjdDoc * const nacjd_doc, std::map<std::string, K10PlusInfo> const &k10_plus_info,
+                                  DebugInfo * const debug_info) {
     // create a new record
 
     MARC::Record new_record("00000naa a22000002  4500");
@@ -232,8 +246,6 @@ MARC::Record WriteAJournalContent(NacjdDoc * const nacjd_doc, std::map<std::stri
     new_record.insertControlField("001", "ICPSR" + nacjd_doc->ref_id_);
     new_record.insertControlField("007", "cr||||");
 
-    // nacjd_doc->ConvertISSN(&new_record);
-    nacjd_doc->ConvertDOI(&new_record, issn_open_access_info_from_k10plus);
 
     new_record.insertField("084", { { 'a', "2,1" }, { '2', "ssgn" } });
 
@@ -252,11 +264,12 @@ MARC::Record WriteAJournalContent(NacjdDoc * const nacjd_doc, std::map<std::stri
                              { '0', "(DE-576)469182156" },
                              { '2', "gnd-content" } },
                            ' ', '7');
-    std::vector<MARC::Subfield> publishing_info(nacjd_doc->ConstructPublishingInfo_773(issn_cache, debug_info));
+    std::vector<MARC::Subfield> publishing_info(nacjd_doc->ConstructPublishingInfo_773(k10_plus_info, debug_info));
     if (not publishing_info.empty()) {
         new_record.insertField("773", publishing_info, '0', '8');
     }
-    nacjd_doc->ConvertUrl(&new_record);
+
+    nacjd_doc->ConvertUrl(&new_record, debug_info, k10_plus_info);
 
     // Disable Match & Merge
     new_record.insertField("912", { { 'a', "NOMM" } });
@@ -271,8 +284,8 @@ MARC::Record WriteAJournalContent(NacjdDoc * const nacjd_doc, std::map<std::stri
     return new_record;
 }
 
-void WriteMarc(const std::string &marc_path, const std::vector<NacjdDoc> &nacjd_docs, std::map<std::string, std::string> const &issn_cache,
-               const std::map<std::string, bool> &issn_open_access_info_from_k10plus, DebugInfo * const debug_info) {
+void WriteMarc(const std::string &marc_path, const std::vector<NacjdDoc> &nacjd_docs,
+               const std::map<std::string, K10PlusInfo> &k10_plus_info, DebugInfo * const debug_info) {
     auto marc_file(MARC::Writer::Factory(marc_path));
     MARC::Writer * const marc_writer(marc_file.get());
 
@@ -288,7 +301,7 @@ void WriteMarc(const std::string &marc_path, const std::vector<NacjdDoc> &nacjd_
             if (nacjd_doc.ris_type_.compare("BOOK") == 0) {
                 // Book
                 debug_info->counter_book++;
-                marc_writer->write(WriteABookContent(&nacjd_doc));
+                marc_writer->write(WriteABookContent(&nacjd_doc, debug_info));
             } else if (nacjd_doc.ris_type_.compare("CHAP") == 0) {
                 // Book section / chapter
                 debug_info->counter_chap++;
@@ -305,7 +318,7 @@ void WriteMarc(const std::string &marc_path, const std::vector<NacjdDoc> &nacjd_
             } else if (nacjd_doc.ris_type_.compare("JOUR") == 0) {
                 // Journal
                 debug_info->counter_jour++;
-                marc_writer->write(WriteAJournalContent(&nacjd_doc, issn_cache, issn_open_access_info_from_k10plus, debug_info));
+                marc_writer->write(WriteAJournalContent(&nacjd_doc, k10_plus_info, debug_info));
             } else if (nacjd_doc.ris_type_.compare("MGZN") == 0) {
                 // Magazine
                 debug_info->counter_mgzn += 1;
@@ -406,17 +419,15 @@ void ExtractInfoFromNACJD(const std::string &json_path, std::vector<NacjdDoc> * 
     }
 }
 
-void BuildISSNCache(std::map<std::string, std::string> * const issn_cache,
-                    std::map<std::string, bool> * const issn_open_access_info_from_k10plus, const std::string &source_file_name) {
+void BuildISSNCache(std::map<std::string, K10PlusInfo> * const issn_to_k10_plus_info, const std::string &source_file_name) {
     auto input_file(MARC::Reader::Factory(source_file_name));
 
     while (MARC::Record record = input_file->read()) {
         const std::set<std::string> issns(record.getISSNs());
-        const bool is_open_access(MARC::IsOpenAccess(record));
+        const K10PlusInfo k10_plus_info(record.getControlNumber(), MARC::IsOpenAccess(record));
 
         for (auto const &issn : issns) {
-            issn_cache->insert({ StringUtil::ASCIIToUpper(issn), record.getControlNumber() });
-            issn_open_access_info_from_k10plus->insert({ StringUtil::ASCIIToUpper(issn), is_open_access });
+            issn_to_k10_plus_info->insert(std::make_pair(StringUtil::ASCIIToUpper(issn), k10_plus_info));
         }
     }
 }
@@ -449,10 +460,18 @@ void ShowInfoForDebugging(const DebugInfo &debug_info) {
     std::cout << "Report: " << debug_info.counter_rprt << std::endl;
     std::cout << "Thesis/ dissertation: " << debug_info.counter_thes << std::endl;
     std::cout << "Unknown: " << debug_info.counter_unknown << std::endl;
-    std::cout << "Total: " << debug_info.counter_t() << std::endl << std::endl;
+    std::cout << "Total: " << debug_info.counter_total() << std::endl << std::endl;
+
     std::cout << "The number of updated journal  using data from K-10-Plus: " << debug_info.data_found_in_k10_plus << std::endl;
     std::cout << "The number of journal that did not update: " << debug_info.data_not_found_in_k10_plus << std::endl;
     std::cout << "The number of journal without ISSN: " << debug_info.counter_journal_without_issn << std::endl << std::endl;
+
+    std::cout << "The number of doi with open access: " << debug_info.counter_doi_open_access << std::endl;
+    std::cout << "The number of doi with close access: " << debug_info.counter_doi_close_access << std::endl;
+    std::cout << "The number of doi with issn and no access information: " << debug_info.counter_doi_issn_without_access_info << std::endl;
+    std::cout << "The number of doi without issn and no access information: " << debug_info.counter_doi_without_issn << std::endl
+              << std::endl;
+
     std::cout << "ISSN found in K10-Plus (unique): " << debug_info.superior_work_found.size() << std::endl;
     std::cout << "ISSN not found in K10-Plus (unique): " << debug_info.superior_work_not_found.size() << std::endl;
 }
@@ -465,30 +484,19 @@ int Main(int argc, char **argv) {
 
 
     std::vector<NacjdDoc> nacjd_docs;
-    std::map<std::string, std::string> issn_cache;
-    std::map<std::string, bool> issn_open_access_info_from_k10plus;
+    std::map<std::string, K10PlusInfo> issn_to_k10_plus_info;
     DebugInfo debug_info;
-    std::string input_file, source_file, output_file;
     bool debug_mode(false);
 
-    if (argc == 5) {
-        if (std::strcmp(argv[1], "--verbose") == 0) {
-            input_file = argv[2];
-            source_file = argv[3];
-            output_file = argv[4];
-            debug_mode = true;
-        }
-    }
-    if (argc == 4) {
-        input_file = argv[1];
-        source_file = argv[2];
-        output_file = argv[3];
+
+    if (std::strcmp(argv[1], "--verbose") == 0) {
+        debug_mode = true;
+        --argc, ++argv;
     }
 
-
-    ExtractInfoFromNACJD(input_file, &nacjd_docs);
-    BuildISSNCache(&issn_cache, &issn_open_access_info_from_k10plus, source_file);
-    WriteMarc(output_file, nacjd_docs, issn_cache, issn_open_access_info_from_k10plus, &debug_info);
+    ExtractInfoFromNACJD(argv[1], &nacjd_docs);
+    BuildISSNCache(&issn_to_k10_plus_info, argv[2]);
+    WriteMarc(argv[3], nacjd_docs, issn_to_k10_plus_info, &debug_info);
 
     if (debug_mode) {
         ShowInfoForDebugging(debug_info);
