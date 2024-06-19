@@ -40,12 +40,12 @@ struct DebugInfo {
     std::set<std::string> superior_work_not_found, // issn
         unknown_type;
     std::map<std::string, std::string> superior_work_found; // ppn -> issn
-    std::int16_t counter_advs = 0, counter_book = 0, counter_chap = 0, counter_conf = 0, counter_elec = 0, counter_generic = 0,
-                 counter_jour = 0, counter_mgzn = 0, counter_news = 0, counter_rprt = 0, counter_thes = 0, counter_unknown = 0,
-                 counter_journal_without_issn = 0, counter_doi_open_access = 0, counter_doi_close_access = 0, counter_doi_without_issn = 0,
-                 counter_doi_issn_without_access_info = 0, data_found_in_k10_plus = 0, data_not_found_in_k10_plus = 0;
+    unsigned long counter_advs = 0, counter_book = 0, counter_chap = 0, counter_conf = 0, counter_elec = 0, counter_generic = 0,
+                  counter_jour = 0, counter_mgzn = 0, counter_news = 0, counter_rprt = 0, counter_thes = 0, counter_unknown = 0,
+                  counter_journal_without_issn = 0, counter_doi_open_access = 0, counter_doi_close_access = 0, counter_doi_without_issn = 0,
+                  counter_doi_issn_without_access_info = 0, data_found_in_k10_plus = 0, data_not_found_in_k10_plus = 0;
     DebugInfo() = default;
-    std::int16_t counter_total() const {
+    unsigned long counter_total() const {
         return (counter_advs + counter_book + counter_chap + counter_conf + counter_elec + counter_generic + counter_jour + counter_mgzn
                 + counter_news + counter_rprt + counter_thes + counter_unknown);
     };
@@ -59,6 +59,7 @@ struct K10PlusInfo {
         ppn_ = ppn;
         is_open_access_ = is_open_access;
     }
+    std::string GetAccessInfo() const { return (is_open_access_ ? "LF" : "ZZ"); }
 };
 
 struct NacjdDoc {
@@ -174,9 +175,10 @@ struct NacjdDoc {
                     record->insertField("856",
                                         { { 'u', "https://doi.org/" + doi_ },
                                           { 'x', "Resolving-System" },
-                                          { 'z', (is_exist_in_k10_plus->second.is_open_access_ ? "LF" : "ZZ") },
+                                          { 'z', is_exist_in_k10_plus->second.GetAccessInfo() },
                                           { '3', "Volltext" } },
                                         '4', '0');
+
                     (is_exist_in_k10_plus->second.is_open_access_ ? debug_info->counter_doi_open_access++
                                                                   : debug_info->counter_doi_close_access++);
                 } else {
