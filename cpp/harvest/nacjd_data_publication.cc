@@ -36,6 +36,7 @@ namespace {
         "\n");
 }
 
+
 struct DebugInfo {
     std::set<std::string> superior_work_not_found, // issn
         unknown_type;
@@ -59,9 +60,18 @@ struct K10PlusInfo {
         ppn_ = ppn;
         is_open_access_ = is_open_access;
     }
-    std::string GetAccessInfo() const { return (is_open_access_ ? "LF" : "ZZ"); }
 };
 
+std::string GetLicenceFlag(const std::string issn, DebugInfo * const debug_info, const std::map<std::string, K10PlusInfo> k10_plus_info) {
+    if (k10_plus_info.find(issn) != k10_plus_info.end() && k10_plus_info.find(issn)->second.is_open_access_) {
+        debug_info->counter_doi_open_access++;
+        return "LF";
+    }
+
+    debug_info->counter_doi_close_access++;
+    // Set the value to ZZ when the criteria is not met
+    return "ZZ";
+}
 struct NacjdDoc {
     std::string ref_id_, // REF_ID
         title_,          // TITLE
@@ -175,12 +185,9 @@ struct NacjdDoc {
                     record->insertField("856",
                                         { { 'u', "https://doi.org/" + doi_ },
                                           { 'x', "Resolving-System" },
-                                          { 'z', is_exist_in_k10_plus->second.GetAccessInfo() },
+                                          { 'z', GetLicenceFlag(issn_, debug_info, k10_plus_info) },
                                           { '3', "Volltext" } },
                                         '4', '0');
-
-                    (is_exist_in_k10_plus->second.is_open_access_ ? debug_info->counter_doi_open_access++
-                                                                  : debug_info->counter_doi_close_access++);
                 } else {
                     record->insertField("856", { { 'u', "https://doi.org/" + doi_ }, { 'x', "Resolving-System" } }, '4', '0');
                     debug_info->counter_doi_issn_without_access_info++;
@@ -421,6 +428,7 @@ void ExtractInfoFromNACJD(const std::string &json_path, std::vector<NacjdDoc> * 
     }
 }
 
+
 void BuildISSNCache(std::map<std::string, K10PlusInfo> * const issn_to_k10_plus_info, const std::string &source_file_name) {
     auto input_file(MARC::Reader::Factory(source_file_name));
 
@@ -460,7 +468,7 @@ void ShowInfoForDebugging(const DebugInfo &debug_info) {
     std::cout << "Magazine: " << debug_info.counter_mgzn << std::endl;
     std::cout << "Newspaper: " << debug_info.counter_news << std::endl;
     std::cout << "Report: " << debug_info.counter_rprt << std::endl;
-    std::cout << "Thesis/ dissertation: " << debug_info.counter_thes << std::endl;
+    std::cout << "Thesis/ Dissertation: " << debug_info.counter_thes << std::endl;
     std::cout << "Unknown: " << debug_info.counter_unknown << std::endl;
     std::cout << "Total: " << debug_info.counter_total() << std::endl << std::endl;
 
