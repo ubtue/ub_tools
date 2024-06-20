@@ -62,7 +62,7 @@ struct K10PlusInfo {
     }
 };
 
-std::string GetLicenceFlag(const std::string issn, DebugInfo * const debug_info, const std::map<std::string, K10PlusInfo> &k10_plus_info) {
+std::string GetLicenceFlag(const std::string &issn, DebugInfo * const debug_info, const std::map<std::string, K10PlusInfo> &k10_plus_info) {
     if (k10_plus_info.find(issn) != k10_plus_info.end() && k10_plus_info.find(issn)->second.is_open_access_) {
         debug_info->counter_doi_open_access++;
         return "LF";
