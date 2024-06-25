@@ -25,10 +25,6 @@ def GetSolrKeywordChains(solr_record):
     return pyjq.first('.[].key_word_chain_bag', solr_record)
 
 
-def GetSolrAbstract(solr_record):
-    return pyjq.first('.[].abstract', solr_record)
-
-
 def GetIxTheoNotations(solr_record):
     return pyjq.first('.[].ixtheo_notation', solr_record)
 
@@ -43,10 +39,6 @@ def AddSolrInformation(solr_host, json_data):
         keywords = GetSolrKeywordChains(record)
         if keywords is not None:
             item['keywords'] = keywords
-
-        abstract = GetSolrAbstract(record)
-        if abstract is not None:
-            item['abstract'] = abstract
 
         ixtheo_notation = GetIxTheoNotations(record)
         if ixtheo_notation is not None:
