@@ -52,6 +52,62 @@ struct DebugInfo {
     };
 };
 
+std::string URLBJSResolver(const std::string &ori_url) {
+    /**
+     * Mapping
+     * http://bjs.ojp.usdoj.gov/ -> https://bjs.ojp.gov/redirect-legacy/
+     * http://bjs.gov/ ->  https://bjs.ojp.gov/redirect-legacy/
+     * http://www.bjs.gov/ -> https://bjs.ojp.gov/redirect-legacy/
+     * https://www.bjs.gov/ -> https://bjs.ojp.gov/redirect-legacy/
+     */
+
+    const std::string new_url_address("https://bjs.ojp.gov/redirect-legacy");
+    const std::string bjs_ojp_usdoj("http://bjs.ojp.usdoj.gov"), bjs_ojp_usdoj_secure("https://bjs.ojp.usdoj.gov"),
+        bjs_gov("http://bjs.gov"), bjs_gov_secure("https://bjs.gov"), www_bjs_gov("http://www.bjs.gov"),
+        www_bjs_gov_secure("https://www.bjs.gov");
+    std::string tmp_url = "";
+    const int org_url_length = ori_url.length();
+
+    tmp_url = ori_url.substr(0, bjs_ojp_usdoj.length());
+    if (tmp_url.compare(bjs_ojp_usdoj) == 0) {
+        return (new_url_address + ori_url.substr(bjs_ojp_usdoj.length(), org_url_length));
+    }
+    tmp_url = ori_url.substr(0, bjs_ojp_usdoj_secure.length());
+    if (tmp_url.compare(bjs_ojp_usdoj_secure) == 0) {
+        return (new_url_address + ori_url.substr(bjs_ojp_usdoj_secure.length(), org_url_length));
+    }
+
+    tmp_url = ori_url.substr(0, bjs_gov.length());
+    if (tmp_url.compare(bjs_gov) == 0) {
+        return (new_url_address + ori_url.substr(bjs_gov.length(), org_url_length));
+    }
+
+    tmp_url = ori_url.substr(0, bjs_gov_secure.length());
+    if (tmp_url.compare(bjs_gov_secure) == 0) {
+        return (new_url_address + ori_url.substr(bjs_gov_secure.length(), org_url_length));
+    }
+
+    tmp_url = ori_url.substr(0, www_bjs_gov.length());
+    if (tmp_url.compare(www_bjs_gov) == 0) {
+        return (new_url_address + ori_url.substr(www_bjs_gov.length(), org_url_length));
+    }
+
+    tmp_url = ori_url.substr(0, www_bjs_gov_secure.length());
+    if (tmp_url.compare(www_bjs_gov_secure) == 0) {
+        return (new_url_address + ori_url.substr(www_bjs_gov_secure.length(), org_url_length));
+    }
+
+    return ori_url;
+}
+
+// This will act as an adapter for the URL resolver function.
+std::string URLResolver(const std::string &ori_url) {
+    const std::string bjs_resolver(URLBJSResolver(ori_url));
+    if (ori_url.compare(bjs_resolver) != 0)
+        return bjs_resolver;
+
+    return ori_url;
+}
 struct K10PlusInfo {
     std::string ppn_;
     bool is_open_access_;
@@ -246,6 +302,8 @@ MARC::Record WriteABookContent(NacjdDoc * const nacjd_doc, DebugInfo * const deb
 
     return new_record;
 }
+
+
 MARC::Record WriteAJournalContent(NacjdDoc * const nacjd_doc, std::map<std::string, K10PlusInfo> const &k10_plus_info,
                                   DebugInfo * const debug_info) {
     // create a new record
@@ -322,8 +380,12 @@ void WriteMarc(const std::string &marc_path, const std::vector<NacjdDoc> &nacjd_
                 debug_info->counter_elec++;
             } else if (nacjd_doc.ris_type_.compare("GEN") == 0) {
                 // Generic
+                /**
+                 * Generic content by assumption (based on observation of the link given and converted output by Zotero)
+                 * is a journal article without ISSN; typically, it is a version of pre-print or author version or draft, etc.
+                 * However, for statistic it should encoded as statistic.
+                 */
                 debug_info->counter_generic++;
-                // marc_writer->write(WriteAnGenericContent(nacjd_doc));
             } else if (nacjd_doc.ris_type_.compare("JOUR") == 0) {
                 // Journal
                 debug_info->counter_jour++;
@@ -405,13 +467,13 @@ void ExtractInfoFromNACJD(const std::string &json_path, std::vector<NacjdDoc> * 
             nacjd_doc.doi_ = doc.at("DOI").get<std::string>();
         }
         if (doc.contains("URL")) {
-            nacjd_doc.url_ = doc.at("URL").get<std::string>();
+            nacjd_doc.url_ = URLResolver(doc.at("URL").get<std::string>());
         }
         if (doc.contains("URL_PDF")) {
-            nacjd_doc.url_pdf_ = doc.at("URL_PDF").get<std::string>();
+            nacjd_doc.url_pdf_ = URLResolver(doc.at("URL_PDF").get<std::string>());
         }
         if (doc.contains("URL_ABS")) {
-            nacjd_doc.url_abs_ = doc.at("URL_ABS").get<std::string>();
+            nacjd_doc.url_abs_ = URLResolver(doc.at("URL_ABS").get<std::string>());
         }
         if (doc.contains("PUBLISHER")) {
             nacjd_doc.publisher_ = doc.at("PUBLISHER").get<std::string>();
