@@ -17,7 +17,7 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "ZoteroHarvesterConversion.h"
+#include <ranges>
 #include "BSZUtil.h"
 #include "Downloader.h"
 #include "FileUtil.h"
@@ -30,6 +30,7 @@
 #include "TranslationUtil.h"
 #include "UBTools.h"
 #include "UrlUtil.h"
+#include "ZoteroHarvesterConversion.h"
 #include "ZoteroHarvesterZederInterop.h"
 #include "util.h"
 
@@ -86,6 +87,8 @@ std::string MetadataRecord::toString() const {
                 creators += "\t\t\tppn: " + creator.ppn_ + ",\n";
             if (not creator.gnd_number_.empty())
                 creators += "\t\t\tgnd_number: " + creator.gnd_number_ + ",\n";
+            if (not creator.orcid_.empty())
+                creators += "\t\t\torcid: " + creator.orcid_ + ",\n";
             creators += "\t\t},\n";
         }
         creators += "\t]";
@@ -285,6 +288,7 @@ void ConvertZoteroItemToMetadataRecord(const std::shared_ptr<JSON::ObjectNode> &
     metadata_record->issn_ = GetStrippedHTMLStringFromJSON(zotero_item, "ISSN");
 
     const auto creators_array(zotero_item->getOptionalArrayNode("creators"));
+
     if (creators_array and not creators_array->empty()) {
         for (const auto &entry : *creators_array) {
             const auto creator_object(JSON::JSONNode::CastToObjectNodeOrDie("array_element", entry));
@@ -513,6 +517,38 @@ void PostProcessAuthorName(std::string * const first_name, std::string * const l
 
     LOG_DEBUG("post-processed author first name = '" + *first_name + "', last name = '" + *last_name + "', title = '" + *title
               + "', affix = '" + *affix + "'");
+}
+
+
+void AddOrcidToCreator(MetadataRecord * const metadata_record, MetadataRecord::Creator * const creator) {
+    const auto &custom_metadata(metadata_record->custom_metadata_);
+    const auto &note_range(custom_metadata.equal_range("orcid"));
+
+    std::set<std::string> orcid_lines;
+    std::transform(note_range.first, note_range.second, std::inserter(orcid_lines, orcid_lines.end()),
+                   [](const auto &key_and_value) { return key_and_value.second; });
+
+    for (const auto &orcid_line : orcid_lines) {
+        std::vector<std::string> orcid_and_noteCreator;
+        StringUtil::SplitThenTrimWhite(orcid_line, "|", &orcid_and_noteCreator);
+        if (orcid_and_noteCreator.size() < 2) {
+            LOG_WARNING("Invalid ORCID information: \"" + orcid_line + "\"");
+            continue;
+        }
+
+        const std::string orcid(orcid_and_noteCreator[0]);
+        static ThreadSafeRegexMatcher orcid_matcher("^\\d{4}-\\d{4}-\\d{4}-\\d{3}(?:(\\d|x))$", ThreadSafeRegexMatcher::CASE_INSENSITIVE);
+        if (!orcid_matcher.match(orcid)) {
+            LOG_WARNING("Invalid ORCID \"" + orcid + "\"");
+            continue;
+        }
+
+        const std::string noteCreator(TextUtil::CollapseAndTrimWhitespace(orcid_and_noteCreator[1]));
+        auto creator_matcher1(ThreadSafeRegexMatcher(creator->first_name_ + "\\s+" + creator->last_name_));
+        auto creator_matcher2(ThreadSafeRegexMatcher(creator->last_name_ + "\\s*,\\s*" + creator->first_name_));
+        if (creator_matcher1.match(noteCreator) or creator_matcher2.match(noteCreator))
+            creator->orcid_ = orcid;
+    }
 }
 
 
@@ -799,9 +835,11 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Convers
     // autodetect or map language
     AdjustLanguages(metadata_record, journal_params);
 
+
     // fetch creator GNDs and postprocess names
     for (auto &creator : metadata_record->creators_) {
         PostProcessAuthorName(&creator.first_name_, &creator.last_name_, &creator.title_, &creator.affix_, metadata_record->languages_);
+        AddOrcidToCreator(metadata_record, &creator);
 
         if (not creator.last_name_.empty()) {
             std::string combined_name(creator.last_name_);
@@ -1141,6 +1179,9 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
             subfields.appendSubfield('0', "(DE-627)" + creator.ppn_);
         if (not creator.gnd_number_.empty())
             subfields.appendSubfield('0', "(DE-588)" + creator.gnd_number_);
+        // Orcid may only be inserted if no GND is present
+        if (creator.gnd_number_.empty() and not creator.orcid_.empty())
+            subfields.appendSubfield('0', "(orcid)" + creator.orcid_);
         if (not creator.type_.empty()) {
             const auto creator_type_marc21(CREATOR_TYPES_TO_MARC21_MAP.find(creator.type_));
             if (creator_type_marc21 == CREATOR_TYPES_TO_MARC21_MAP.end())

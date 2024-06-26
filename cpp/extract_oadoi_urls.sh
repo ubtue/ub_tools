@@ -14,12 +14,12 @@ function GenerateMongoQueryFile {
     # From a given chunk file generate a comma separated list of DOI's and extract existing best_oa_location 
     # i.e. quote the single lines and join them to a comma separated array first and then extract the results set 
     # of this DOI's ANDed with non-null best_oa_location
-    cat "$1" | sed -e 's/^/"/; s/$/" /' | sed -re ':a;N;$!ba;s/\n/, /g' |  sed '1i db.all_oadoi.find( { $and: [ { "doi" : { $in:  [' - | sed -e '$a] }}, { best_oa_location : { $ne : null } } ] }, { "doi": 1, "best_oa_location" : 1, "_id": 0 }).forEach(printjson);' > ${MONGO_COMMAND_FILE}
+    cat "$1" | sed -e 's/^/"/; s/$/" /' | sed -re ':a;N;$!ba;s/\n/, /g' |  sed '1i db.all_oadoi.find( { $and: [ { "doi" : { $in:  [' - | sed -e '$a] }}, { best_oa_location : { $ne : null } } ] }, { "doi": 1, "best_oa_location" : 1, "_id": 0 }).forEach(doc => print(JSON.stringify(doc)));' > ${MONGO_COMMAND_FILE}
 }
 
 
 function AppendOADOIChunk {
-    mongo --quiet oadoi "$1" >> "$2"
+    mongosh --quiet oadoi "$1" >> "$2"
 }
 
 
