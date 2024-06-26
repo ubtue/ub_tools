@@ -22,6 +22,7 @@
 #include <nlohmann/json.hpp>
 #include "MARC.h"
 #include "StringUtil.h"
+#include "UrlUtil.h"
 
 
 namespace {
@@ -62,40 +63,14 @@ std::string URLBJSResolver(const std::string &ori_url) {
      */
 
     const std::string new_url_address("https://bjs.ojp.gov/redirect-legacy");
-    const std::string bjs_ojp_usdoj("http://bjs.ojp.usdoj.gov"), bjs_ojp_usdoj_secure("https://bjs.ojp.usdoj.gov"),
-        bjs_gov("http://bjs.gov"), bjs_gov_secure("https://bjs.gov"), www_bjs_gov("http://www.bjs.gov"),
-        www_bjs_gov_secure("https://www.bjs.gov");
-    std::string tmp_url = "";
-    const int org_url_length = ori_url.length();
+    const std::string bjs_ojp_usdoj("bjs.ojp.usdoj.gov"), bjs_gov("bjs.gov"), www_bjs_gov("www.bjs.gov");
+    std::string scheme, username_password, authority, port, path, params, query, fragment, relative_url;
 
-    tmp_url = ori_url.substr(0, bjs_ojp_usdoj.length());
-    if (tmp_url.compare(bjs_ojp_usdoj) == 0) {
-        return (new_url_address + ori_url.substr(bjs_ojp_usdoj.length(), org_url_length));
-    }
-    tmp_url = ori_url.substr(0, bjs_ojp_usdoj_secure.length());
-    if (tmp_url.compare(bjs_ojp_usdoj_secure) == 0) {
-        return (new_url_address + ori_url.substr(bjs_ojp_usdoj_secure.length(), org_url_length));
-    }
+    UrlUtil::ParseUrl(ori_url, &scheme, &username_password, &authority, &port, &path, &params, &query, &fragment, &relative_url);
+    const std::string uri_full(path + "?" + query);
 
-    tmp_url = ori_url.substr(0, bjs_gov.length());
-    if (tmp_url.compare(bjs_gov) == 0) {
-        return (new_url_address + ori_url.substr(bjs_gov.length(), org_url_length));
-    }
-
-    tmp_url = ori_url.substr(0, bjs_gov_secure.length());
-    if (tmp_url.compare(bjs_gov_secure) == 0) {
-        return (new_url_address + ori_url.substr(bjs_gov_secure.length(), org_url_length));
-    }
-
-    tmp_url = ori_url.substr(0, www_bjs_gov.length());
-    if (tmp_url.compare(www_bjs_gov) == 0) {
-        return (new_url_address + ori_url.substr(www_bjs_gov.length(), org_url_length));
-    }
-
-    tmp_url = ori_url.substr(0, www_bjs_gov_secure.length());
-    if (tmp_url.compare(www_bjs_gov_secure) == 0) {
-        return (new_url_address + ori_url.substr(www_bjs_gov_secure.length(), org_url_length));
-    }
+    if (authority.compare(bjs_gov) == 0 || authority.compare(www_bjs_gov) == 0 || authority.compare(bjs_ojp_usdoj) == 0)
+        return (new_url_address + uri_full);
 
     return ori_url;
 }
