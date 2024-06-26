@@ -267,40 +267,6 @@ static inline std::string GetStrippedHTMLStringFromJSON(const std::shared_ptr<JS
     return HtmlUtil::StripHtmlTags(json_object->getOptionalStringValue(field_name));
 }
 
-void AddOrcidToCreator(MetadataRecord * const metadata_record) {
-    auto &creators(metadata_record->creators_);
-    const auto &custom_metadata(metadata_record->custom_metadata_);
-    const auto &note_range(custom_metadata.equal_range("orcid"));
-
-    std::set<std::string> orcid_lines;
-    std::transform(note_range.first, note_range.second, std::inserter(orcid_lines, orcid_lines.end()),
-                   [](const auto &key_and_value) { return key_and_value.second; });
-
-    for (const auto &orcid_line : orcid_lines) {
-        std::vector<std::string> orcid_and_noteCreator;
-        StringUtil::SplitThenTrimWhite(orcid_line, "|", &orcid_and_noteCreator);
-        if (orcid_and_noteCreator.size() < 2) {
-            LOG_WARNING("Invalid ORCID information: \"" + orcid_line + "\"");
-            continue;
-        }
-
-        const std::string orcid(orcid_and_noteCreator[0]);
-        static ThreadSafeRegexMatcher orcid_matcher("^\\d{4}-\\d{4}-\\d{4}-\\d{3}(?:(\\d|x))$");
-        if (!orcid_matcher.match(orcid)) {
-            LOG_WARNING("Invalid ORCID \"" + orcid + "\"");
-            continue;
-        }
-
-        const std::string noteCreator(orcid_and_noteCreator[1]);
-        for (auto &creator : creators) {
-            const auto creator_matcher1(ThreadSafeRegexMatcher(creator.first_name_ + "\\s+" + creator.last_name_));
-            const auto creator_matcher2(ThreadSafeRegexMatcher(creator.last_name_ + "\\s*,\\s*" + creator.first_name_));
-            if (creator_matcher1.match(noteCreator) or creator_matcher2.match(noteCreator))
-                creator.orcid_ = orcid;
-        }
-    }
-}
-
 
 void ConvertZoteroItemToMetadataRecord(const std::shared_ptr<JSON::ObjectNode> &zotero_item, MetadataRecord * const metadata_record) {
     metadata_record->item_type_ = GetStrippedHTMLStringFromJSON(zotero_item, "itemType");
@@ -551,6 +517,38 @@ void PostProcessAuthorName(std::string * const first_name, std::string * const l
 
     LOG_DEBUG("post-processed author first name = '" + *first_name + "', last name = '" + *last_name + "', title = '" + *title
               + "', affix = '" + *affix + "'");
+}
+
+
+void AddOrcidToCreator(MetadataRecord * const metadata_record, MetadataRecord::Creator * const creator) {
+    const auto &custom_metadata(metadata_record->custom_metadata_);
+    const auto &note_range(custom_metadata.equal_range("orcid"));
+
+    std::set<std::string> orcid_lines;
+    std::transform(note_range.first, note_range.second, std::inserter(orcid_lines, orcid_lines.end()),
+                   [](const auto &key_and_value) { return key_and_value.second; });
+
+    for (const auto &orcid_line : orcid_lines) {
+        std::vector<std::string> orcid_and_noteCreator;
+        StringUtil::SplitThenTrimWhite(orcid_line, "|", &orcid_and_noteCreator);
+        if (orcid_and_noteCreator.size() < 2) {
+            LOG_WARNING("Invalid ORCID information: \"" + orcid_line + "\"");
+            continue;
+        }
+
+        const std::string orcid(orcid_and_noteCreator[0]);
+        static ThreadSafeRegexMatcher orcid_matcher("^\\d{4}-\\d{4}-\\d{4}-\\d{3}(?:(\\d|x))$", ThreadSafeRegexMatcher::CASE_INSENSITIVE);
+        if (!orcid_matcher.match(orcid)) {
+            LOG_WARNING("Invalid ORCID \"" + orcid + "\"");
+            continue;
+        }
+
+        const std::string noteCreator(TextUtil::CollapseAndTrimWhitespace(orcid_and_noteCreator[1]));
+        auto creator_matcher1(ThreadSafeRegexMatcher(creator->first_name_ + "\\s+" + creator->last_name_));
+        auto creator_matcher2(ThreadSafeRegexMatcher(creator->last_name_ + "\\s*,\\s*" + creator->first_name_));
+        if (creator_matcher1.match(noteCreator) or creator_matcher2.match(noteCreator))
+            creator->orcid_ = orcid;
+    }
 }
 
 
@@ -837,11 +835,11 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Convers
     // autodetect or map language
     AdjustLanguages(metadata_record, journal_params);
 
-    AddOrcidToCreator(metadata_record);
 
     // fetch creator GNDs and postprocess names
     for (auto &creator : metadata_record->creators_) {
         PostProcessAuthorName(&creator.first_name_, &creator.last_name_, &creator.title_, &creator.affix_, metadata_record->languages_);
+        AddOrcidToCreator(metadata_record, &creator);
 
         if (not creator.last_name_.empty()) {
             std::string combined_name(creator.last_name_);
