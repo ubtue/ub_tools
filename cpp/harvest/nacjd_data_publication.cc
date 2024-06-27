@@ -56,21 +56,23 @@ struct DebugInfo {
 std::string URLBJSResolver(const std::string &ori_url) {
     /**
      * Mapping
-     * http://bjs.ojp.usdoj.gov/ -> https://bjs.ojp.gov/redirect-legacy/
-     * http://bjs.gov/ ->  https://bjs.ojp.gov/redirect-legacy/
-     * http://www.bjs.gov/ -> https://bjs.ojp.gov/redirect-legacy/
-     * https://www.bjs.gov/ -> https://bjs.ojp.gov/redirect-legacy/
+     * http(s)://bjs.ojp.usdoj.gov/ -> https://bjs.ojp.gov/redirect-legacy/
+     * http(s)://bjs.gov/ ->  https://bjs.ojp.gov/redirect-legacy/
+     * http(s)://www.bjs.gov/ -> https://bjs.ojp.gov/redirect-legacy/
+     * http(s)://www.bjs.gov/ -> https://bjs.ojp.gov/redirect-legacy/
      */
 
     const std::string new_url_address("https://bjs.ojp.gov/redirect-legacy");
-    const std::string bjs_ojp_usdoj("bjs.ojp.usdoj.gov"), bjs_gov("bjs.gov"), www_bjs_gov("www.bjs.gov");
     std::string scheme, username_password, authority, port, path, params, query, fragment, relative_url;
+    static ThreadSafeRegexMatcher legacy_bjs_authority_matcher("(www.)?bjs(.ojp.usdoj)?.gov");
+
 
     UrlUtil::ParseUrl(ori_url, &scheme, &username_password, &authority, &port, &path, &params, &query, &fragment, &relative_url);
     const std::string uri_full(path + "?" + query);
 
-    if (authority.compare(bjs_gov) == 0 || authority.compare(www_bjs_gov) == 0 || authority.compare(bjs_ojp_usdoj) == 0)
+    if (legacy_bjs_authority_matcher.match(authority))
         return (new_url_address + uri_full);
+
 
     return ori_url;
 }
@@ -117,9 +119,12 @@ struct NacjdDoc {
         page_start_,     // PAGE_START
         page_end_,       // PAGE_END
         doi_,            // DOI
-        url_,            // URL
-        url_pdf_,        // URL_PDF
-        url_abs_,        // URL_ABS
+        url_,            // resolved url_old
+        url_old_,        // URL
+        url_pdf_,        // resolved url_pdf_old
+        url_pdf_old_,    // URL_PDF
+        url_abs_,        // resolved url_abs_old
+        url_abs_old_,    // URL_ABS
         type_work_,      // TYPE_WORK
         publisher_;      // PUBLISHER
 
@@ -200,12 +205,21 @@ struct NacjdDoc {
                     const std::map<std::string, K10PlusInfo> k10_plus_info = {}) {
         if (not url_.empty()) {
             record->insertField("856", { { 'u', url_ } }, '4', '0');
+            if (url_.compare(url_old_) != 0) {
+                record->insertField("887", { { 'a', "Invalid original URL from the original site: " + url_old_ } }, ' ', ' ');
+            }
         }
         if (not url_pdf_.empty()) {
             record->insertField("856", { { 'u', url_pdf_ }, { 'q', "application/pdf" }, { '3', "Volltext" } }, '4', '0');
+            if (url_pdf_.compare(url_pdf_old_) != 0) {
+                record->insertField("887", { { 'a', "Invalid original URL from the original site: " + url_pdf_old_ } }, ' ', ' ');
+            }
         }
         if (not url_abs_.empty()) {
             record->insertField("856", { { 'u', url_abs_ }, { 'x', "Abstracts" } }, '4', '0');
+            if (url_abs_.compare(url_abs_old_) != 0) {
+                record->insertField("887", { { 'a', "Invalid original URL from the original site: " + url_abs_old_ } }, ' ', ' ');
+            }
         }
         if (not doi_.empty()) {
             record->insertField("024", { { 'a', doi_ }, { '2', "doi" } }, '7');
@@ -442,13 +456,16 @@ void ExtractInfoFromNACJD(const std::string &json_path, std::vector<NacjdDoc> * 
             nacjd_doc.doi_ = doc.at("DOI").get<std::string>();
         }
         if (doc.contains("URL")) {
-            nacjd_doc.url_ = URLResolver(doc.at("URL").get<std::string>());
+            nacjd_doc.url_old_ = doc.at("URL").get<std::string>();
+            nacjd_doc.url_ = URLResolver(nacjd_doc.url_old_);
         }
         if (doc.contains("URL_PDF")) {
-            nacjd_doc.url_pdf_ = URLResolver(doc.at("URL_PDF").get<std::string>());
+            nacjd_doc.url_pdf_old_ = doc.at("URL_PDF").get<std::string>();
+            nacjd_doc.url_pdf_ = URLResolver(nacjd_doc.url_pdf_old_);
         }
         if (doc.contains("URL_ABS")) {
-            nacjd_doc.url_abs_ = URLResolver(doc.at("URL_ABS").get<std::string>());
+            nacjd_doc.url_abs_old_ = doc.at("URL_ABS").get<std::string>();
+            nacjd_doc.url_abs_ = URLResolver(nacjd_doc.url_abs_old_);
         }
         if (doc.contains("PUBLISHER")) {
             nacjd_doc.publisher_ = doc.at("PUBLISHER").get<std::string>();
