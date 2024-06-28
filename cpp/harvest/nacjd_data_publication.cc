@@ -192,25 +192,30 @@ struct NacjdDoc {
         return publishing_info;
     }
 
-    void Construct887ForInvalidURL(MARC::Record * const record, const std::string &url) {
-        if (url.compare(URLResolver(url)) != 0)
-            record->insertField("887", { { 'a', "Invalid original URL from the original site: " + url } }, ' ', ' ');
+    void InsertUrl(MARC::Record * const record, const std::string &original_url, const MARC::Subfields &additional_subfields = {}) {
+        const std::string valid_url(URLResolver(original_url));
+        MARC::Subfields _856subfields({ { 'u', valid_url } });
+        std::move(additional_subfields.begin(), additional_subfields.end(), std::back_inserter(_856subfields));
+        record->insertField("856", _856subfields, '4', '0');
+        if (valid_url != original_url)
+            record->insertField("887", { { 'a', "Invalid original URL from the original site: " + original_url } }, ' ', ' ');
     }
 
     void ConvertUrl(MARC::Record * const record, DebugInfo * const debug_info,
                     const std::map<std::string, K10PlusInfo> k10_plus_info = {}) {
-        if (not url_.empty()) {
-            record->insertField("856", { { 'u', URLResolver(url_) } }, '4', '0');
-            Construct887ForInvalidURL(record, url_);
-        }
+        if (not url_.empty())
+            InsertUrl(record, url_);
+
         if (not url_pdf_.empty()) {
-            record->insertField("856", { { 'u', URLResolver(url_pdf_) }, { 'q', "application/pdf" }, { '3', "Volltext" } }, '4', '0');
-            Construct887ForInvalidURL(record, url_pdf_);
+            const MARC::Subfields subfield({ { 'q', "application/pdf" }, { '3', "Volltext" } });
+            InsertUrl(record, url_, subfield);
         }
+
         if (not url_abs_.empty()) {
-            record->insertField("856", { { 'u', URLResolver(url_abs_) }, { 'x', "Abstracts" } }, '4', '0');
-            Construct887ForInvalidURL(record, url_abs_);
+            const MARC::Subfields subfield({ { 'x', "Abstracts" } });
+            InsertUrl(record, url_, subfield);
         }
+
         if (not doi_.empty()) {
             record->insertField("024", { { 'a', doi_ }, { '2', "doi" } }, '7');
 
