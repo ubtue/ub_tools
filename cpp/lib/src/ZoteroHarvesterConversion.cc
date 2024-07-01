@@ -800,6 +800,7 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Convers
 
     // normalise pages
     const auto pages(metadata_record->pages_);
+    metadata_record->pages_ = StringUtil::Map(metadata_record->pages_, "–", "-");
     auto page_match(PAGE_RANGE_DIGIT_MATCHER.match(pages));
     if (page_match and page_match[1] == page_match[2])
         metadata_record->pages_ = page_match[1];
