@@ -662,7 +662,12 @@ bool AddToPATH(const std::string &new_directory_path, const PreferredPathLocatio
 }
 
 
-std::string GenerateAddress(const std::string &optional_first_name, const std::string &optional_last_name, const std::string &fallback) {
+std::string GenerateSubscriptionRecipientName(const std::string &optional_first_name, const std::string &optional_last_name,
+                                              const std::string &language) {
+    std::string fallback("Subscriber");
+    if (language == "de")
+        fallback = "Abonnent/in";
+
     if (optional_first_name.empty())
         return optional_last_name.empty() ? fallback : optional_last_name;
     else if (optional_last_name.empty())

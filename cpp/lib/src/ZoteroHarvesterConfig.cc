@@ -357,6 +357,7 @@ const std::map<JournalParams::IniKey, std::string> JournalParams::KEY_TO_STRING_
     { CRAWL_URL_REGEX, "zotero_crawl_url_regex" },
     { EMAILCRAWL_SUBJECT_REGEX, "emailcrawl_subject_regex" },
     { ADDITIONAL_SELECTORS, "additional_selectors" },
+    { PAGES_NOT_ONLINE_FIRST, "pages_not_online_first" },
 };
 
 const std::map<std::string, JournalParams::IniKey> JournalParams::STRING_TO_KEY_MAP{
@@ -387,6 +388,8 @@ const std::map<std::string, JournalParams::IniKey> JournalParams::STRING_TO_KEY_
     { "zotero_crawl_url_regex", CRAWL_URL_REGEX },
     { "emailcrawl_subject_regex", EMAILCRAWL_SUBJECT_REGEX },
     { "additional_selectors", ADDITIONAL_SELECTORS },
+    { "pages_not_online_first", PAGES_NOT_ONLINE_FIRST },
+
 };
 
 
@@ -419,6 +422,8 @@ JournalParams::JournalParams(const IniFile::Section &journal_section, const Glob
     personalized_authors_ = journal_section.getString(GetIniKeyString(PERSONALIZED_AUTHORS), "-");
     const auto emailcrawl_subject_regex(journal_section.getString(GetIniKeyString(EMAILCRAWL_SUBJECT_REGEX), ""));
     additional_selectors_ = journal_section.getString(GetIniKeyString(ADDITIONAL_SELECTORS), "");
+    pages_not_online_first_ = journal_section.getBool(GetIniKeyString(PAGES_NOT_ONLINE_FIRST), false);
+
 
     if (not emailcrawl_subject_regex.empty())
         emailcrawl_subject_regex_.reset(new ThreadSafeRegexMatcher(emailcrawl_subject_regex));

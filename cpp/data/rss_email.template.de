@@ -1,7 +1,7 @@
 <!DOCTYPE HTML>
 <html>
     <body>
-        <p>Liebe/r {user_name},</p>
+        <p>Sehr geehrte/r {user_name},</p>
 
         <p>Die folgenden Beiträge / Posts aus Ihrer RSS Feed-Auswahl sind neu:</p>
         {list}

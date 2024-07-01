@@ -285,9 +285,10 @@ ValueType GetContainerValueOrDefault(const ContainerType &container, const KeyTy
 
 /** \returns optional_first_name + " " + optional_last_name if both are non-empty,
  *           optional_last_name or optional_first_name if one of the two is empty and
- *           fallback, if both are empty.
+ *           a default fallback depending on the language if both are empty.
  */
-std::string GenerateAddress(const std::string &optional_first_name, const std::string &optional_last_name, const std::string &fallback);
+std::string GenerateSubscriptionRecipientName(const std::string &optional_first_name, const std::string &optional_last_name,
+                                              const std::string &language);
 
 
 // Entries in /proc require special handling to read them.

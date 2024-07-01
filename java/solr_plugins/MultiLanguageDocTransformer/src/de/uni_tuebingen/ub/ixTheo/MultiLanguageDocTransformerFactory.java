@@ -14,6 +14,7 @@ import org.apache.solr.common.util.NamedList;
 import org.apache.solr.common.util.StrUtils;
 import org.apache.solr.request.SolrQueryRequest;
 import org.apache.solr.response.transform.DocTransformer;
+import org.apache.solr.response.transform.RenameFieldTransformer;
 import org.apache.solr.response.transform.TransformerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,13 +51,25 @@ public class MultiLanguageDocTransformerFactory extends TransformerFactory {
         // Throw away language subcode
         final String subcodeSeparator = "-";
         reqLang = reqLang.contains(subcodeSeparator) ? reqLang.split(subcodeSeparator)[0] : reqLang;
-        return new MultiLanguageDocTransformer();
+        return new MultiLanguageDocTransformer(reqLang);
     }
 
     class MultiLanguageDocTransformer extends DocTransformer {
+        protected String reqLang;
+
+        public MultiLanguageDocTransformer(final String reqLang) {
+            this.reqLang = reqLang;
+        }
+
         @Override
         public String getName() {
             return MultiLanguageDocTransformer.class.getName();
+        }
+
+
+        @Override
+        public boolean needsSolrIndexSearcher() {
+            return true;
         }
 
         @Override
@@ -64,14 +77,15 @@ public class MultiLanguageDocTransformerFactory extends TransformerFactory {
             if (enabled) {
                 for (String fieldName : fieldNames) {
                     // Select extension according to chosen language
-                    String reqLangExtension = "_" + reqLang;
-                    int i;
-                    String langExtension = ((i = langExtensions.indexOf(reqLangExtension)) != -1)
-                            ? langExtensions.get(i) : "_de";
-
-                    Object srcObj = doc.get(fieldName + langExtension);
-                    if (srcObj != null)
-                        doc.setField(fieldName, srcObj);
+                    String reqLangExtension = "_" + this.reqLang;
+                    int i = langExtensions.indexOf(reqLangExtension);
+                    String langExtension = (i != -1) ? langExtensions.get(i) : "_de";
+                    RenameFieldTransformer renameFieldTransformer =
+                        new RenameFieldTransformer(fieldName + langExtension, fieldName, true /*copy*/);
+                    renameFieldTransformer.transform(doc, docid);
+                    // Do not transfer the localized fields
+                    for (String lang_suffix : langExtensions)
+                        doc.removeFields(fieldName + lang_suffix);
                 }
             }
         }
