@@ -758,7 +758,7 @@ void DetectNotes(MetadataRecord * const metadata_record, const ConversionParams 
         DetectNotesWithMatcher(metadata_record, journal_notes_matcher);
 }
 
-
+const ThreadSafeRegexMatcher PAGE_RANGE_SEPARATOR_MATCHER("–");
 const ThreadSafeRegexMatcher PAGE_RANGE_MATCHER("^(.+)-(.+)$");
 const ThreadSafeRegexMatcher PAGE_RANGE_DIGIT_MATCHER("^(\\d+)-(\\d+)$");
 const ThreadSafeRegexMatcher PROPER_LAST_NAME("^(?!\\p{L}\\.).*$");
@@ -799,11 +799,13 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Convers
     StringUtil::LeftTrim(&metadata_record->volume_, '0');
 
     // normalise pages
-    const auto pages(metadata_record->pages_);
-    metadata_record->pages_ = StringUtil::Map(metadata_record->pages_, "–", "-");
+    std::string pages(metadata_record->pages_);
+    pages = PAGE_RANGE_SEPARATOR_MATCHER.replaceAll(pages, "-");
     auto page_match(PAGE_RANGE_DIGIT_MATCHER.match(pages));
     if (page_match and page_match[1] == page_match[2])
         metadata_record->pages_ = page_match[1];
+    else
+        metadata_record->pages_ = pages;
 
     // override publication title
     metadata_record->publication_title_ = journal_params.name_;
