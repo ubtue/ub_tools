@@ -21,9 +21,9 @@
 #include <iostream>
 #include <nlohmann/json.hpp>
 #include "MARC.h"
+#include "MiscUtil.h"
 #include "StringUtil.h"
 #include "UrlUtil.h"
-
 
 namespace {
 
@@ -239,16 +239,6 @@ struct NacjdDoc {
         }
     }
 
-    std::vector<MARC::Subfield> ConstructAuthors() {
-        std::vector<MARC::Subfield> authors;
-        if (not authors_split.empty()) {
-            for (const auto &author_ : authors_split) {
-                authors.emplace_back(MARC::Subfield('a', author_));
-            }
-        }
-
-        return authors;
-    }
 
     void ConvertISSN(MARC::Record * const record) {
         if (not issn_.empty()) {
@@ -269,13 +259,61 @@ struct NacjdDoc {
             record->insertField("264", 'c', year_pub_, ' ', '1');
         }
     }
+
+    void ConvertAuthor(MARC::Record * const record) {
+        if (not authors_split.empty()) {
+            std::vector<MARC::Subfield> corporate_as_authors;
+            std::vector<MARC::Subfield> authors;
+            for (const auto &author_ : authors_split) {
+                if (not author_.empty()) {
+                    if (MiscUtil::IsCorporateAuthor(author_)) {
+                        corporate_as_authors.emplace_back(MARC::Subfield('a', author_));
+                    } else {
+                        authors.emplace_back(MARC::Subfield('a', author_));
+                    }
+                }
+            }
+            if (not corporate_as_authors.empty()) {
+                record->insertField("110", corporate_as_authors, '1', ' ');
+                // record->insertField("710", corporate_as_authors, '1', ' ');
+            }
+            if (not authors.empty()) {
+                record->insertField("100", authors, '1', ' ');
+                // record->insertField("700", authors, '1', ' ');
+            }
+        }
+    }
 };
 
 MARC::Record WriteABookContent(NacjdDoc * const nacjd_doc, DebugInfo * const debug_info) {
-    MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::MONOGRAPH_OR_ITEM,
-                            "ICPSR" + nacjd_doc->ref_id_);
+    // MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::MONOGRAPH_OR_ITEM,
+    // "ICPSR" + nacjd_doc->ref_id_);
 
+
+    MARC::Record new_record("00000cam a22000000  4500");
+
+    new_record.insertControlField("001", "ICPSR" + nacjd_doc->ref_id_);
+    new_record.insertControlField("007", "tu");
+
+    new_record.insertField("084", { { 'a', "2,1" }, { '2', "ssgn" } });
+    new_record.insertField("591", 'a', "Metadaten maschinell erstellt (TUKRIM)");
+    new_record.insertField("912", 'a', "NOMM");
+
+    nacjd_doc->ConvertTitle(&new_record);
+    nacjd_doc->ConvertUrl(&new_record, debug_info);
+    nacjd_doc->ConvertYear(&new_record);
+    nacjd_doc->ConvertAuthor(&new_record);
+
+    return new_record;
+}
+
+
+MARC::Record WriteAReportContent(NacjdDoc * const nacjd_doc, DebugInfo * const debug_info) {
+    MARC::Record new_record("00000cam a22000000  4500");
+
+    new_record.insertControlField("001", "ICPSR" + nacjd_doc->ref_id_);
     new_record.insertControlField("007", "cr||||");
+
     new_record.insertField("084", { { 'a', "2,1" }, { '2', "ssgn" } });
     new_record.insertField("591", 'a', "Metadaten maschinell erstellt (TUKRIM)");
     new_record.insertField("912", 'a', "NOMM");
@@ -300,10 +338,6 @@ MARC::Record WriteAJournalContent(NacjdDoc * const nacjd_doc, std::map<std::stri
 
     new_record.insertField("084", { { 'a', "2,1" }, { '2', "ssgn" } });
 
-    if (not nacjd_doc->ConstructAuthors().empty()) {
-        new_record.insertField("100", nacjd_doc->ConstructAuthors(), '1');
-    }
-
     nacjd_doc->ConvertTitle(&new_record);
     nacjd_doc->ConvertYear(&new_record);
 
@@ -321,6 +355,7 @@ MARC::Record WriteAJournalContent(NacjdDoc * const nacjd_doc, std::map<std::stri
     }
 
     nacjd_doc->ConvertUrl(&new_record, debug_info, k10_plus_info);
+    nacjd_doc->ConvertAuthor(&new_record);
 
     // Disable Match & Merge
     new_record.insertField("912", { { 'a', "NOMM" } });
@@ -383,6 +418,7 @@ void WriteMarc(const std::string &marc_path, const std::vector<NacjdDoc> &nacjd_
             } else if (nacjd_doc.ris_type_.compare("RPRT") == 0) {
                 // Report
                 debug_info->counter_rprt++;
+                marc_writer->write(WriteAReportContent(&nacjd_doc, debug_info));
             } else if (nacjd_doc.ris_type_.compare("THES") == 0) {
                 // Thesis / Dissertation
                 debug_info->counter_thes++;
@@ -462,8 +498,8 @@ void ExtractInfoFromNACJD(const std::string &json_path, std::vector<NacjdDoc> * 
         if (doc.contains("PUBLISHER")) {
             nacjd_doc.publisher_ = doc.at("PUBLISHER").get<std::string>();
         }
-        if (doc.contains("authors_splitSPLIT")) {
-            nacjd_doc.authors_split = doc.at("authors_splitSPLIT").get<std::set<std::string>>();
+        if (doc.contains("AUTHORS_SPLIT")) {
+            nacjd_doc.authors_split = doc.at("AUTHORS_SPLIT").get<std::set<std::string>>();
         }
         if (doc.contains("STUDYTITLE")) {
             nacjd_doc.study_titles_ = doc.at("STUDYTITLE").get<std::set<std::string>>();
