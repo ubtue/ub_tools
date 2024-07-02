@@ -221,6 +221,7 @@ int GetRetryAfterSeconds(const HttpHeader &http_header) {
     return std::round(diff_time);
 }
 
+const unsigned MAX_429_ITERATIONS(5);
 
 void DownloadWikidataTranslations(const std::string &query, std::string * const results) {
     Downloader::Params params;
@@ -233,10 +234,14 @@ void DownloadWikidataTranslations(const std::string &query, std::string * const 
         LOG_WARNING("Could not download Wikidata Translations for query \"" + query + "\"(Error Code " + std::to_string(response_code)
                     + ")");
         if (response_code == 429) {
-            const unsigned wait_seconds(GetRetryAfterSeconds(downloader.getMessageHeaderObject()));
-            downloader.postData(wikidata_url, query);
-            TimeUtil::Millisleep(wait_seconds * 1000 + 1);
-            response_code = downloader.getResponseCode();
+            for (unsigned iteration = 0; iteration < MAX_429_ITERATIONS; ++iteration) {
+                const unsigned wait_seconds(GetRetryAfterSeconds(downloader.getMessageHeaderObject()));
+                TimeUtil::Millisleep(wait_seconds * 1000 + 1);
+                downloader.postData(wikidata_url, query);
+                response_code = downloader.getResponseCode();
+                if (response_code == 200)
+                    break;
+            }
             if (response_code != 200)
                 LOG_ERROR("Failed to download Wikidata Translations for query \"" + query + "\"(Error Code "
                           + std::to_string(response_code));
