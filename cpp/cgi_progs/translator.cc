@@ -409,7 +409,7 @@ void GetVuFindTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, co
         token_search_clause += " AND (token " + search_pattern + ")";
     } else {
         search_pattern = "LIKE '%" + lookfor + "%'";
-        token_search_clause += " AND token " + search_pattern + " OR translation " + search_pattern + ")";
+        token_search_clause += " AND token " + search_pattern + " OR translation " + search_pattern;
     }
 
 
