@@ -50,7 +50,7 @@ namespace {
 
 // Needed since no consistent convention was used for brackets
 std::string NormalizeBrackets(const std::string string_to_normalize) {
-    std::set<std::string> skip_patterns({ "<br>" });
+    std::set<std::string> skip_patterns({ "<br>", "<a href" });
     if (std::find_if(skip_patterns.begin(), skip_patterns.end(),
                      [&string_to_normalize](const auto &pattern) { return StringUtil::Contains(string_to_normalize, pattern); })
         != skip_patterns.end())
