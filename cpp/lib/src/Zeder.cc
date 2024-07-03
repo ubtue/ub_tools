@@ -43,7 +43,8 @@ const std::string &Entry::getAttribute(const std::string &name) const {
     if (match == attributes_.end())
         LOG_ERROR("Couldn't find attribute '" + name + "'! in entry " + std::to_string(id_));
     else
-        return match->second;
+        // Make sure librarians can tag tested but unavailable entries
+        return (match->second != "NV") ? match->second : StringUtil::EmptyString;
 }
 
 
