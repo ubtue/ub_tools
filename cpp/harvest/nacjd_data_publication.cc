@@ -99,7 +99,7 @@ std::string GetLicenceFlag(const std::string &issn, DebugInfo * const debug_info
     // Set the value to ZZ when the criteria is not met
     return "ZZ";
 }
-struct NacjdDoc {
+struct NACJDDoc {
     std::string ref_id_, // REF_ID
         title_,          // TITLE
         issn_,           // ISSN
@@ -140,10 +140,10 @@ struct NacjdDoc {
         return false;
     }
 
-    const std::vector<MARC::Subfield> ConstructPublishingInfo_773(const std::map<std::string, K10PlusInfo> &k10_plus_info,
-                                                                  DebugInfo * const debug_info) {
-        std::vector<MARC::Subfield> publishing_info;
-        publishing_info.emplace_back(MARC::Subfield('i', "In:"));
+    const MARC::Subfields ConstructPublishingInfo_773(const std::map<std::string, K10PlusInfo> &k10_plus_info,
+                                                      DebugInfo * const debug_info) {
+        MARC::Subfields publishing_info;
+        publishing_info.appendSubfield('i', "In:");
 
         if (not volume_.empty() && not year_pub_.empty() && not i_number_.empty() && not page_start_.empty()) {
             std::string field_info(volume_ + " (" + year_pub_ + "), " + i_number_ + ", Seite " + page_start_);
@@ -151,16 +151,16 @@ struct NacjdDoc {
             if (not page_end_.empty() && not(page_end_.compare("-") == 0) && not(page_end_.compare("unknown") == 0))
                 field_info.append("-" + page_end_);
 
-            publishing_info.emplace_back('g', field_info);
+            publishing_info.appendSubfield('g', field_info);
         }
 
         if (not journal_.empty())
-            publishing_info.emplace_back(MARC::Subfield('t', journal_));
+            publishing_info.appendSubfield('t', journal_);
 
         if (not issn_.empty()) {
             const auto is_exist_in_k10_plus = k10_plus_info.find(issn_);
             if (is_exist_in_k10_plus != k10_plus_info.end()) {
-                publishing_info.emplace_back(MARC::Subfield('w', "(DE-627)" + is_exist_in_k10_plus->second.ppn_));
+                publishing_info.appendSubfield('w', "(DE-627)" + is_exist_in_k10_plus->second.ppn_);
                 debug_info->superior_work_found.insert({ is_exist_in_k10_plus->second.ppn_, issn_ });
                 debug_info->data_found_in_k10_plus++;
             } else {
@@ -168,7 +168,7 @@ struct NacjdDoc {
                 debug_info->superior_work_not_found.insert(issn_);
             }
 
-            publishing_info.emplace_back(MARC::Subfield('x', issn_));
+            publishing_info.appendSubfield('x', issn_);
         } else {
             debug_info->counter_journal_without_issn++;
         }
@@ -177,24 +177,24 @@ struct NacjdDoc {
         return publishing_info;
     }
 
-    const std::vector<MARC::Subfield> ConstructPublishingInfo_936() {
-        std::vector<MARC::Subfield> publishing_info;
+    const MARC::Subfields ConstructPublishingInfo_936() {
+        MARC::Subfields publishing_info;
         if (not volume_.empty())
-            publishing_info.emplace_back(MARC::Subfield('d', volume_));
+            publishing_info.appendSubfield('d', volume_);
 
         if (not i_number_.empty())
-            publishing_info.emplace_back(MARC::Subfield('e', i_number_));
+            publishing_info.appendSubfield('e', i_number_);
 
         if (not page_start_.empty()) {
             std::string pages = page_start_;
             if (not page_end_.empty() && not(page_end_.compare("-") == 0) && not(page_end_.compare("unknown") == 0))
                 pages.append("-" + page_end_);
 
-            publishing_info.emplace_back(MARC::Subfield('h', pages));
+            publishing_info.appendSubfield('h', pages);
         }
 
         if (not year_pub_.empty())
-            publishing_info.emplace_back(MARC::Subfield('j', year_pub_));
+            publishing_info.appendSubfield('j', year_pub_);
 
 
         return publishing_info;
@@ -249,35 +249,37 @@ struct NacjdDoc {
 
 
     void ConvertISSN(MARC::Record * const record) {
-        if (not issn_.empty()) {
+        if (not issn_.empty())
             record->insertField("022", { { 'a', issn_ } });
-        }
     }
 
     void ConvertTitle(MARC::Record * const record) {
-        if (not title_.empty()) {
+        if (not title_.empty())
             record->insertField("245", { { 'a', title_ } }, '1', '0');
-        } else if (not sec_title_.empty()) {
+        else if (not sec_title_.empty())
             record->insertField("245", { { 'a', sec_title_ } }, '1', '0');
-        }
     }
 
     void ConvertYear(MARC::Record * const record) {
-        if (not year_pub_.empty()) {
+        if (not year_pub_.empty())
             record->insertField("264", 'c', year_pub_, ' ', '1');
-        }
+    }
+
+    void ConvertPublisher(MARC::Record * const record) {
+        if (not publisher_.empty())
+            record->insertField("264", 'c', publisher_);
     }
 
     void ConvertAuthor(MARC::Record * const record) {
         if (not authors_split.empty()) {
-            std::vector<MARC::Subfield> corporate_as_authors;
-            std::vector<MARC::Subfield> authors;
+            MARC::Subfields corporate_as_authors;
+            MARC::Subfields authors;
             for (const auto &author_ : authors_split) {
                 if (not author_.empty()) {
                     if (MiscUtil::IsCorporateAuthor(author_)) {
-                        corporate_as_authors.emplace_back(MARC::Subfield('a', author_));
+                        corporate_as_authors.appendSubfield('a', author_);
                     } else {
-                        authors.emplace_back(MARC::Subfield('a', author_));
+                        authors.appendSubfield('a', author_);
                     }
                 }
             }
@@ -289,215 +291,204 @@ struct NacjdDoc {
     }
 };
 
+MARC::Record *GenerateRecord(const std::string &leader, const std::string &_007_content) {
+    MARC::Record *record(new MARC::Record(leader));
+    record->insertControlField("007", _007_content);
 
-MARC::Record WriteAStatisticContent(NacjdDoc * const nacjd_doc, std::map<std::string, K10PlusInfo> const &k10_plus_info,
-                                    DebugInfo * const debug_info) {
-    // MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::MONOGRAPH_OR_ITEM,
-    // "ICPSR" + nacjd_doc->ref_id_);
-
-
-    MARC::Record new_record("00000cam a22000000  4500");
-
-    new_record.insertControlField("001", "ICPSR" + nacjd_doc->ref_id_);
-    new_record.insertControlField("007", "tu");
-
-    new_record.insertField("084", { { 'a', "2,1" }, { '2', "ssgn" } });
-
-    std::vector<MARC::Subfield> publishing_info(nacjd_doc->ConstructPublishingInfo_773(k10_plus_info, debug_info));
-    if (not publishing_info.empty()) {
-        new_record.insertField("773", publishing_info, '0', '8');
-    }
-
-    nacjd_doc->ConvertTitle(&new_record);
-    nacjd_doc->ConvertUrl(&new_record, debug_info);
-    nacjd_doc->ConvertYear(&new_record);
-    nacjd_doc->ConvertAuthor(&new_record);
-
-    return new_record;
-}
-
-MARC::Record WriteAGenericContent(NacjdDoc * const nacjd_doc, std::map<std::string, K10PlusInfo> const &k10_plus_info,
-                                  DebugInfo * const debug_info) {
-    // MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::MONOGRAPH_OR_ITEM,
-    // "ICPSR" + nacjd_doc->ref_id_);
-
-    if (nacjd_doc->IsDocTypeStatistic())
-        return WriteAStatisticContent(nacjd_doc, k10_plus_info, debug_info);
-
-
-    MARC::Record new_record("00000cam a22000000  4500");
-
-    new_record.insertControlField("001", "ICPSR" + nacjd_doc->ref_id_);
-    new_record.insertControlField("007", "tu");
-
-
-    std::vector<MARC::Subfield> publishing_info(nacjd_doc->ConstructPublishingInfo_773(k10_plus_info, debug_info));
-    if (not publishing_info.empty()) {
-        new_record.insertField("773", publishing_info, '0', '8');
-    }
-
-    nacjd_doc->ConvertTitle(&new_record);
-    nacjd_doc->ConvertUrl(&new_record, debug_info);
-    nacjd_doc->ConvertYear(&new_record);
-    nacjd_doc->ConvertAuthor(&new_record);
-
-    return new_record;
+    return record;
 }
 
 
-MARC::Record WriteABookContent(NacjdDoc * const nacjd_doc, DebugInfo * const debug_info) {
-    // MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::MONOGRAPH_OR_ITEM,
-    // "ICPSR" + nacjd_doc->ref_id_);
+void InsertGeneralFieldInfo(MARC::Record * const record, NACJDDoc * const nacjd_doc, DebugInfo * const debug_info) {
+    record->insertControlField("001", "ICPSR" + nacjd_doc->ref_id_);
+    record->insertField("084", { { 'a', "2,1" }, { '2', "ssgn" } });
+    nacjd_doc->ConvertTitle(record);
+    nacjd_doc->ConvertAuthor(record);
+    nacjd_doc->ConvertPublisher(record);
+    nacjd_doc->ConvertYear(record);
+    nacjd_doc->ConvertUrl(record, debug_info);
 
-
-    MARC::Record new_record("00000cam a22000000  4500");
-
-    new_record.insertControlField("001", "ICPSR" + nacjd_doc->ref_id_);
-    new_record.insertControlField("007", "tu");
-
-    new_record.insertField("084", { { 'a', "2,1" }, { '2', "ssgn" } });
-    new_record.insertField("591", 'a', "Metadaten maschinell erstellt (TUKRIM)");
-    new_record.insertField("912", 'a', "NOMM");
-
-    nacjd_doc->ConvertTitle(&new_record);
-    nacjd_doc->ConvertUrl(&new_record, debug_info);
-    nacjd_doc->ConvertYear(&new_record);
-    nacjd_doc->ConvertAuthor(&new_record);
-
-    return new_record;
-}
-
-
-MARC::Record WriteAReportContent(NacjdDoc * const nacjd_doc, std::map<std::string, K10PlusInfo> const &k10_plus_info,
-                                 DebugInfo * const debug_info) {
-    if (nacjd_doc->IsDocTypeStatistic())
-        return WriteAStatisticContent(nacjd_doc, k10_plus_info, debug_info);
-
-    MARC::Record new_record("00000cam a22000000  4500");
-
-    new_record.insertControlField("001", "ICPSR" + nacjd_doc->ref_id_);
-    new_record.insertControlField("007", "cr||||");
-
-    std::vector<MARC::Subfield> publishing_info(nacjd_doc->ConstructPublishingInfo_773(k10_plus_info, debug_info));
-    if (not publishing_info.empty()) {
-        new_record.insertField("773", publishing_info, '0', '8');
-    }
-    nacjd_doc->ConvertTitle(&new_record);
-    nacjd_doc->ConvertUrl(&new_record, debug_info);
-    nacjd_doc->ConvertYear(&new_record);
-    nacjd_doc->ConvertAuthor(&new_record);
-
-    return new_record;
-}
-
-
-MARC::Record WriteAJournalContent(NacjdDoc * const nacjd_doc, std::map<std::string, K10PlusInfo> const &k10_plus_info,
-                                  DebugInfo * const debug_info) {
-    // create a new record
-
-    MARC::Record new_record("00000naa a22000002  4500");
-
-    new_record.insertControlField("001", "ICPSR" + nacjd_doc->ref_id_);
-    new_record.insertControlField("007", "cr||||");
-
-
-    new_record.insertField("084", { { 'a', "2,1" }, { '2', "ssgn" } });
-
-    nacjd_doc->ConvertTitle(&new_record);
-    nacjd_doc->ConvertYear(&new_record);
-
-
-    new_record.insertField("655",
-                           { { 'a', "Forschungsdaten" },
-                             { '0', "(DE-588)1098579690" },
-                             { '0', "(DE-627)857755366" },
-                             { '0', "(DE-576)469182156" },
-                             { '2', "gnd-content" } },
-                           ' ', '7');
-    std::vector<MARC::Subfield> publishing_info(nacjd_doc->ConstructPublishingInfo_773(k10_plus_info, debug_info));
-    if (not publishing_info.empty()) {
-        new_record.insertField("773", publishing_info, '0', '8');
-    }
-
-    nacjd_doc->ConvertUrl(&new_record, debug_info, k10_plus_info);
-    nacjd_doc->ConvertAuthor(&new_record);
+    record->insertField("591", 'a', "Metadaten maschinell erstellt (TUKRIM)");
 
     // Disable Match & Merge
-    new_record.insertField("912", { { 'a', "NOMM" } });
-
-    new_record.insertField("935", { { 'a', "mkri" } });
-    new_record.insertField("935", { { 'a', "nacj" }, { '2', "LOK" } });
-    new_record.insertField("935", { { 'a', "foda" }, { '2', "LOK" } });
-
-    if (not nacjd_doc->ConstructPublishingInfo_936().empty())
-        new_record.insertField("936", nacjd_doc->ConstructPublishingInfo_936(), 'u', 'w');
+    record->insertField("912", { { 'a', "NOMM" } });
 
 
-    return new_record;
+    record->insertField("935", { { 'a', "mkri" } });
+    record->insertField("935", { { 'a', "nacj" }, { '2', "LOK" } });
 }
 
-void WriteMarc(const std::string &marc_path, const std::vector<NacjdDoc> &nacjd_docs,
-               const std::map<std::string, K10PlusInfo> &k10_plus_info, DebugInfo * const debug_info) {
+MARC::Record *GenerateMarcForStatistic(NACJDDoc * const nacjd_doc, std::map<std::string, K10PlusInfo> const &k10_plus_info,
+                                       DebugInfo * const debug_info) {
+    MARC::Subfields publishing_info(nacjd_doc->ConstructPublishingInfo_773(k10_plus_info, debug_info));
+
+    MARC::Record *record(GenerateRecord("00000cam a22000000  4500", "tu"));
+
+    // MARC::Record record(GenerateRecord("00000cam a22000000  4500", "tu"));
+    InsertGeneralFieldInfo(record, nacjd_doc, debug_info);
+
+    record->insertField("655",
+                        { { 'a', "Forschungsdaten" },
+                          { '0', "(DE-588)1098579690" },
+                          { '0', "(DE-627)857755366" },
+                          { '0', "(DE-576)469182156" },
+                          { '2', "gnd-content" } },
+                        ' ', '7');
+
+    if (not publishing_info.empty())
+        record->insertField("773", publishing_info, '0', '8');
+
+
+    record->insertField("935", { { 'a', "foda" }, { '2', "LOK" } });
+
+    return record;
+}
+
+MARC::Record *GenerateMarcForGeneric(NACJDDoc * const nacjd_doc, std::map<std::string, K10PlusInfo> const &k10_plus_info,
+                                     DebugInfo * const debug_info) {
+    if (nacjd_doc->IsDocTypeStatistic())
+        return GenerateMarcForStatistic(nacjd_doc, k10_plus_info, debug_info);
+
+
+    MARC::Subfields publishing_info(nacjd_doc->ConstructPublishingInfo_773(k10_plus_info, debug_info));
+    MARC::Record *record(GenerateRecord("00000cam a22000000  4500", "tu"));
+    InsertGeneralFieldInfo(record, nacjd_doc, debug_info);
+
+    if (not publishing_info.empty())
+        record->insertField("773", publishing_info, '0', '8');
+
+
+    return record;
+}
+
+
+MARC::Record *GenerateMarcForBook(NACJDDoc * const nacjd_doc, DebugInfo * const debug_info) {
+    MARC::Record *record(GenerateRecord("00000cam a22000000  4500", "tu"));
+    InsertGeneralFieldInfo(record, nacjd_doc, debug_info);
+
+    return record;
+}
+
+
+MARC::Record *GenerateMarcForReport(NACJDDoc * const nacjd_doc, std::map<std::string, K10PlusInfo> const &k10_plus_info,
+                                    DebugInfo * const debug_info) {
+    if (nacjd_doc->IsDocTypeStatistic())
+        return GenerateMarcForStatistic(nacjd_doc, k10_plus_info, debug_info);
+
+    MARC::Record *record(GenerateRecord("00000cam a22000000  4500", "cr||||"));
+    InsertGeneralFieldInfo(record, nacjd_doc, debug_info);
+    MARC::Subfields publishing_info(nacjd_doc->ConstructPublishingInfo_773(k10_plus_info, debug_info));
+
+    if (not publishing_info.empty())
+        record->insertField("773", publishing_info, '0', '8');
+
+
+    return record;
+}
+
+
+MARC::Record *GenerateMarcForJournal(NACJDDoc * const nacjd_doc, std::map<std::string, K10PlusInfo> const &k10_plus_info,
+                                     DebugInfo * const debug_info) {
+    MARC::Subfields publishing_info(nacjd_doc->ConstructPublishingInfo_773(k10_plus_info, debug_info));
+    // create a new record
+    MARC::Record *record(GenerateRecord("00000naa a22000002  4500", "cr||||"));
+    const MARC::Subfields _936_content(nacjd_doc->ConstructPublishingInfo_936());
+
+    InsertGeneralFieldInfo(record, nacjd_doc, debug_info);
+
+
+    record->insertField("655",
+                        { { 'a', "Forschungsdaten" },
+                          { '0', "(DE-588)1098579690" },
+                          { '0', "(DE-627)857755366" },
+                          { '0', "(DE-576)469182156" },
+                          { '2', "gnd-content" } },
+                        ' ', '7');
+
+
+    if (not publishing_info.empty())
+        record->insertField("773", publishing_info, '0', '8');
+
+
+    record->insertField("935", { { 'a', "foda" }, { '2', "LOK" } });
+
+    if (not _936_content.empty())
+        record->insertField("936", _936_content, 'u', 'w');
+
+
+    return record;
+}
+
+void WriteMarcRecords(const std::string &marc_path, const std::vector<NACJDDoc> &nacjd_docs,
+                      const std::map<std::string, K10PlusInfo> &k10_plus_info, DebugInfo * const debug_info) {
     auto marc_file(MARC::Writer::Factory(marc_path));
     MARC::Writer * const marc_writer(marc_file.get());
 
     for (auto nacjd_doc : nacjd_docs) {
         if (nacjd_doc.ref_id_.empty())
-            LOG_ERROR("No ID found on Title: " + nacjd_doc.title_ + ", Sec Title: " + nacjd_doc.sec_title_);
+            LOG_ERROR("No ID " + nacjd_doc.ref_id_ + " found on Title: " + nacjd_doc.title_ + ", Sec Title: " + nacjd_doc.sec_title_);
+
 
         // please see the list of RIS type here: https://en.wikipedia.org/wiki/RIS_(file_format)#Type_of_reference
+        MARC::Record *record(nullptr);
         if (nacjd_doc.ris_type_.compare("ADVS") == 0) {
             // Audiovisual
             debug_info->counter_advs++;
+        } else if (nacjd_doc.ris_type_.compare("BOOK") == 0) {
+            // Book
+            debug_info->counter_book++;
+            record = GenerateMarcForBook(&nacjd_doc, debug_info);
+        } else if (nacjd_doc.ris_type_.compare("CHAP") == 0) {
+            // Book section / chapter
+            debug_info->counter_chap++;
+        } else if (nacjd_doc.ris_type_.compare("CONF") == 0) {
+            // Conference Proceedings
+            debug_info->counter_conf++;
+        } else if (nacjd_doc.ris_type_.compare("ELEC") == 0) {
+            // Web page / electronic citation
+            debug_info->counter_elec++;
+        } else if (nacjd_doc.ris_type_.compare("GEN") == 0) {
+            // Generic
+            /**
+             * Generic content by assumption (based on observation of the link given and converted output by Zotero)
+             * is a journal article without ISSN; typically, it is a version of pre-print or author version or draft, etc.
+             * However, for statistic it should encoded as statistic.
+             */
+            debug_info->counter_generic++;
+            record = GenerateMarcForGeneric(&nacjd_doc, k10_plus_info, debug_info);
+        } else if (nacjd_doc.ris_type_.compare("JOUR") == 0) {
+            // Journal
+            debug_info->counter_jour++;
+            record = GenerateMarcForJournal(&nacjd_doc, k10_plus_info, debug_info);
+            marc_writer->write(*GenerateMarcForJournal(&nacjd_doc, k10_plus_info, debug_info));
+        } else if (nacjd_doc.ris_type_.compare("MGZN") == 0) {
+            // Magazine
+            debug_info->counter_mgzn += 1;
+        } else if (nacjd_doc.ris_type_.compare("NEWS") == 0) {
+            // Newspaper
+            debug_info->counter_news++;
+        } else if (nacjd_doc.ris_type_.compare("RPRT") == 0) {
+            // Report
+            debug_info->counter_rprt++;
+            record = GenerateMarcForReport(&nacjd_doc, k10_plus_info, debug_info);
+        } else if (nacjd_doc.ris_type_.compare("THES") == 0) {
+            // Thesis / Dissertation
+            debug_info->counter_thes++;
         } else {
-            if (nacjd_doc.ris_type_.compare("BOOK") == 0) {
-                // Book
-                debug_info->counter_book++;
-                marc_writer->write(WriteABookContent(&nacjd_doc, debug_info));
-            } else if (nacjd_doc.ris_type_.compare("CHAP") == 0) {
-                // Book section / chapter
-                debug_info->counter_chap++;
-            } else if (nacjd_doc.ris_type_.compare("CONF") == 0) {
-                // Conference Proceedings
-                debug_info->counter_conf++;
-            } else if (nacjd_doc.ris_type_.compare("ELEC") == 0) {
-                // Web page / electronic citation
-                debug_info->counter_elec++;
-            } else if (nacjd_doc.ris_type_.compare("GEN") == 0) {
-                // Generic
-                /**
-                 * Generic content by assumption (based on observation of the link given and converted output by Zotero)
-                 * is a journal article without ISSN; typically, it is a version of pre-print or author version or draft, etc.
-                 * However, for statistic it should encoded as statistic.
-                 */
-                debug_info->counter_generic++;
-                marc_writer->write(WriteAGenericContent(&nacjd_doc, k10_plus_info, debug_info));
-            } else if (nacjd_doc.ris_type_.compare("JOUR") == 0) {
-                // Journal
-                debug_info->counter_jour++;
-                marc_writer->write(WriteAJournalContent(&nacjd_doc, k10_plus_info, debug_info));
-            } else if (nacjd_doc.ris_type_.compare("MGZN") == 0) {
-                // Magazine
-                debug_info->counter_mgzn += 1;
-            } else if (nacjd_doc.ris_type_.compare("NEWS") == 0) {
-                // Newspaper
-                debug_info->counter_news++;
-            } else if (nacjd_doc.ris_type_.compare("RPRT") == 0) {
-                // Report
-                debug_info->counter_rprt++;
-                marc_writer->write(WriteAReportContent(&nacjd_doc, k10_plus_info, debug_info));
-            } else if (nacjd_doc.ris_type_.compare("THES") == 0) {
-                // Thesis / Dissertation
-                debug_info->counter_thes++;
-            } else {
-                debug_info->unknown_type.insert(nacjd_doc.ris_type_);
-                debug_info->counter_unknown++;
-            }
+            debug_info->unknown_type.insert(nacjd_doc.ris_type_);
+            debug_info->counter_unknown++;
         }
+
+        // avoid signal 11 caused by nullptr
+        if (record)
+            marc_writer->write(*record);
+
+        // cleaning unused variable (memory)
+        delete record;
     }
 }
 
-void ExtractInfoFromNACJD(const std::string &json_path, std::vector<NacjdDoc> * const nacjd_docs) {
+void ExtractInfoFromNACJD(const std::string &json_path, std::vector<NACJDDoc> * const nacjd_docs) {
     std::ifstream f(json_path, std::ifstream::in);
     nlohmann::json jdat(nlohmann::json::parse(f));
     const auto docs(jdat.at("searchResults").at("response").at("docs"));
@@ -506,7 +497,7 @@ void ExtractInfoFromNACJD(const std::string &json_path, std::vector<NacjdDoc> * 
         LOG_ERROR("docs is empty");
 
     for (const auto &doc : jdat.at("searchResults").at("response").at("docs")) {
-        NacjdDoc nacjd_doc;
+        NACJDDoc nacjd_doc;
 
         if (doc.contains("REF_ID")) {
             nacjd_doc.ref_id_ = std::to_string(doc.at("REF_ID").get<int>());
@@ -642,7 +633,7 @@ int Main(int argc, char **argv) {
         Usage();
 
 
-    std::vector<NacjdDoc> nacjd_docs;
+    std::vector<NACJDDoc> nacjd_docs;
     std::map<std::string, K10PlusInfo> issn_to_k10_plus_info;
     DebugInfo debug_info;
     bool debug_mode(false);
@@ -655,7 +646,7 @@ int Main(int argc, char **argv) {
 
     ExtractInfoFromNACJD(argv[1], &nacjd_docs);
     BuildISSNCache(&issn_to_k10_plus_info, argv[2]);
-    WriteMarc(argv[3], nacjd_docs, issn_to_k10_plus_info, &debug_info);
+    WriteMarcRecords(argv[3], nacjd_docs, issn_to_k10_plus_info, &debug_info);
 
     if (debug_mode) {
         ShowInfoForDebugging(debug_info);
