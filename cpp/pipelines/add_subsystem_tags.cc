@@ -217,7 +217,7 @@ inline bool IsRelBibRecord(const MARC::Record &record) {
 bool IsBibleStudiesRecord(const MARC::Record &record, const std::unordered_set<std::string> &bible_studies_gnd_numbers) {
     // 1. Abrufzeichen
     for (const auto &field : record.getTagRange("935")) {
-        if (field.hasSubfieldWithValue('a', "BIIN"))
+        if (field.hasSubfieldWithValue('a', "BIIN") or field.hasSubfieldWithValue('a', "BiBIL"))
             return true;
     }
 
