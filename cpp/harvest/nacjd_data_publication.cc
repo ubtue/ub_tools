@@ -53,6 +53,35 @@ struct DebugInfo {
     };
 };
 
+std::map<std::string, std::string> ConstructAVDSCategory() {
+    std::map<std::string, std::string> _935a_category_map;
+    _935a_category_map.emplace(StringUtil::ASCIIToUpper("video file"), "vika");
+    _935a_category_map.emplace(StringUtil::ASCIIToUpper("videocassette"), "vika");
+    _935a_category_map.emplace(StringUtil::ASCIIToUpper("video tape"), "vika");
+    _935a_category_map.emplace(StringUtil::ASCIIToUpper("Workshop recording"), "vika");
+    _935a_category_map.emplace(StringUtil::ASCIIToUpper("videorecording"), "vika");
+    _935a_category_map.emplace(StringUtil::ASCIIToUpper("Videocassette, 1 hour"), "vika");
+    _935a_category_map.emplace(StringUtil::ASCIIToUpper("VHS videotape"), "vika");
+    _935a_category_map.emplace(StringUtil::ASCIIToUpper("VHS"), "vika");
+    _935a_category_map.emplace(StringUtil::ASCIIToUpper("Podcast"), "cofz");
+    _935a_category_map.emplace(StringUtil::ASCIIToUpper("webinar"), "medi");
+    _935a_category_map.emplace(StringUtil::ASCIIToUpper("webinar videorecording"), "scha");
+    _935a_category_map.emplace(StringUtil::ASCIIToUpper("infographic"), "kunstbl");
+    _935a_category_map.emplace(StringUtil::ASCIIToUpper("graphic"), "kunstbl");
+    _935a_category_map.emplace(StringUtil::ASCIIToUpper("audio podcast"), "scha");
+    _935a_category_map.emplace(StringUtil::ASCIIToUpper("audio recording"), "scha");
+    _935a_category_map.emplace(StringUtil::ASCIIToUpper("audio recording with transcript"), "scha");
+    _935a_category_map.emplace(StringUtil::ASCIIToUpper("presentation slides"), "dias");
+    _935a_category_map.emplace(StringUtil::ASCIIToUpper("Powerpoint presentation"), "dias");
+    _935a_category_map.emplace(StringUtil::ASCIIToUpper("Slideshow Presentation"), "dias");
+    _935a_category_map.emplace(StringUtil::ASCIIToUpper("Webinar slides"), "dias");
+    _935a_category_map.emplace(StringUtil::ASCIIToUpper("Slideshow (PDF)"), "dias");
+
+    return _935a_category_map;
+}
+
+static std::map<std::string, std::string> avds_category(ConstructAVDSCategory());
+
 std::string URLBJSResolver(const std::string &ori_url) {
     /**
      * Mapping
@@ -299,7 +328,8 @@ MARC::Record *GenerateRecord(const std::string &leader, const std::string &_007_
 }
 
 
-void InsertGeneralFieldInfo(MARC::Record * const record, NACJDDoc * const nacjd_doc, DebugInfo * const debug_info) {
+void InsertGeneralFieldInfo(MARC::Record * const record, NACJDDoc * const nacjd_doc,
+                            std::map<std::string, K10PlusInfo> const &k10_plus_info, DebugInfo * const debug_info) {
     record->insertControlField("001", "ICPSR" + nacjd_doc->ref_id_);
     record->insertField("084", { { 'a', "2,1" }, { '2', "ssgn" } });
     nacjd_doc->ConvertTitle(record);
@@ -309,6 +339,14 @@ void InsertGeneralFieldInfo(MARC::Record * const record, NACJDDoc * const nacjd_
     nacjd_doc->ConvertUrl(record, debug_info);
 
     record->insertField("591", 'a', "Metadaten maschinell erstellt (TUKRIM)");
+
+
+    if (nacjd_doc->ris_type_.compare("BOOK") != 0) {
+        MARC::Subfields publishing_info(nacjd_doc->ConstructPublishingInfo_773(k10_plus_info, debug_info));
+        if (not publishing_info.empty())
+            record->insertField("773", publishing_info, '0', '8');
+    }
+
 
     // Disable Match & Merge
     record->insertField("912", { { 'a', "NOMM" } });
@@ -324,7 +362,7 @@ MARC::Record *GenerateMarcForStatistic(NACJDDoc * const nacjd_doc, std::map<std:
 
     MARC::Record *record(GenerateRecord("00000cam a22000000  4500", "tu"));
 
-    InsertGeneralFieldInfo(record, nacjd_doc, debug_info);
+    InsertGeneralFieldInfo(record, nacjd_doc, k10_plus_info, debug_info);
 
     record->insertField("655",
                         { { 'a', "Forschungsdaten" },
@@ -333,10 +371,6 @@ MARC::Record *GenerateMarcForStatistic(NACJDDoc * const nacjd_doc, std::map<std:
                           { '0', "(DE-576)469182156" },
                           { '2', "gnd-content" } },
                         ' ', '7');
-
-    if (not publishing_info.empty())
-        record->insertField("773", publishing_info, '0', '8');
-
 
     record->insertField("935", { { 'a', "foda" }, { '2', "LOK" } });
 
@@ -351,10 +385,7 @@ MARC::Record *GenerateMarcForNews(NACJDDoc * const nacjd_doc, std::map<std::stri
 
     MARC::Subfields publishing_info(nacjd_doc->ConstructPublishingInfo_773(k10_plus_info, debug_info));
     MARC::Record *record(GenerateRecord("00000cas a2200000   4500", "tu"));
-    InsertGeneralFieldInfo(record, nacjd_doc, debug_info);
-
-    if (not publishing_info.empty())
-        record->insertField("773", publishing_info, '0', '8');
+    InsertGeneralFieldInfo(record, nacjd_doc, k10_plus_info, debug_info);
 
 
     return record;
@@ -367,12 +398,9 @@ MARC::Record *GenerateMarcForMagazine(NACJDDoc * const nacjd_doc, std::map<std::
 
 
     MARC::Subfields publishing_info(nacjd_doc->ConstructPublishingInfo_773(k10_plus_info, debug_info));
-    // Magazine is categories as Serial, the header is taken from vufind demo for serial
-    MARC::Record *record(GenerateRecord("00000cas a2200000Ia 4500", "tu"));
-    InsertGeneralFieldInfo(record, nacjd_doc, debug_info);
-
-    if (not publishing_info.empty())
-        record->insertField("773", publishing_info, '0', '8');
+    // The magazine is categorised as Serial, and the header is taken from Vufind demo for serial
+    MARC::Record *record(GenerateRecord("00000nas a2200000   4500", "tu"));
+    InsertGeneralFieldInfo(record, nacjd_doc, k10_plus_info, debug_info);
 
 
     return record;
@@ -385,13 +413,9 @@ MARC::Record *GenerateMarcForThesis(NACJDDoc * const nacjd_doc, std::map<std::st
 
 
     MARC::Subfields publishing_info(nacjd_doc->ConstructPublishingInfo_773(k10_plus_info, debug_info));
-    // using header of Manuscript. Needed to be validate by librarian.
-    MARC::Record *record(GenerateRecord("00000ctm a2200000   4500", "tu"));
-    InsertGeneralFieldInfo(record, nacjd_doc, debug_info);
-
-    if (not publishing_info.empty())
-        record->insertField("773", publishing_info, '0', '8');
-
+    // Using header from vufind
+    MARC::Record *record(GenerateRecord("00000nam a2200000   4500", "tu"));
+    InsertGeneralFieldInfo(record, nacjd_doc, k10_plus_info, debug_info);
 
     return record;
 }
@@ -405,11 +429,8 @@ MARC::Record *GenerateMarcForConference(NACJDDoc * const nacjd_doc, std::map<std
     MARC::Subfields publishing_info(nacjd_doc->ConstructPublishingInfo_773(k10_plus_info, debug_info));
     // The header code for Conference proceeding
     MARC::Record *record(GenerateRecord("00000cam a22000000  4500", "tu"));
-    InsertGeneralFieldInfo(record, nacjd_doc, debug_info);
-
-    if (not publishing_info.empty())
-        record->insertField("773", publishing_info, '0', '8');
-
+    InsertGeneralFieldInfo(record, nacjd_doc, k10_plus_info, debug_info);
+    record->insertField("655", { { 'a', "Conference papers and proceedings." } }, ' ', '7');
 
     return record;
 }
@@ -423,14 +444,11 @@ MARC::Record *GenerateMarcForChapter(NACJDDoc * const nacjd_doc, std::map<std::s
     MARC::Subfields publishing_info(nacjd_doc->ConstructPublishingInfo_773(k10_plus_info, debug_info));
     // This header took from vufind live demo
     MARC::Record *record(GenerateRecord("00000naa a22000008i 4500", "tu"));
-    InsertGeneralFieldInfo(record, nacjd_doc, debug_info);
-
-    if (not publishing_info.empty())
-        record->insertField("773", publishing_info, '0', '8');
-
+    InsertGeneralFieldInfo(record, nacjd_doc, k10_plus_info, debug_info);
 
     return record;
 }
+
 
 MARC::Record *GenerateMarcForAudioVisual(NACJDDoc * const nacjd_doc, std::map<std::string, K10PlusInfo> const &k10_plus_info,
                                          DebugInfo * const debug_info) {
@@ -443,31 +461,9 @@ MARC::Record *GenerateMarcForAudioVisual(NACJDDoc * const nacjd_doc, std::map<st
         audio_({ "audio podcast", "audio recording", "audio recording with transcript" }),
         webinar({ "Webinar", "webinar videorecording", "webinar" }), infographic_({ "infographic", "graphic" }),
         slide_({ "presentation slides", "Powerpoint presentation", "Webinar slides", "Slideshow (PDF)" });
+
     // 935a type map, please see the mapping on TueFindBiblio.java
-    std::map<std::string, std::string> _935a_category_map;
-    _935a_category_map.emplace("video file", "vika");
-    _935a_category_map.emplace("videocassette", "vika");
-    _935a_category_map.emplace("video type", "vika");
-    _935a_category_map.emplace("videorecording", "vika");
-    _935a_category_map.emplace("Videorecording", "vika");
-    _935a_category_map.emplace("VHS videotape", "vika");
-    _935a_category_map.emplace("Podcast", "cofz");
-    _935a_category_map.emplace("Webinar", "medi");
-    _935a_category_map.emplace("webinar", "medi");
-    _935a_category_map.emplace("webinar videorecording", "vika");
-    _935a_category_map.emplace("infographic", "kunstbl");
-    _935a_category_map.emplace("audio podcast", "sott");
-    _935a_category_map.emplace("audio recording", "sott");
-    _935a_category_map.emplace("audio recording with transcript", "sott");
-    _935a_category_map.emplace("presentation slides", "dias");
-    _935a_category_map.emplace("Powerpoint presentation", "dias");
-    _935a_category_map.emplace("Webinar slides", "dias");
-    _935a_category_map.emplace("Slideshow (PDF)", "dias");
-    _935a_category_map.emplace("Webinar slides", "dias");
-
-
-    const std::string _935a(
-        _935a_category_map.find(nacjd_doc->type_work_) != _935a_category_map.end() ? _935a_category_map[nacjd_doc->type_work_] : "");
+    const std::string _935a(avds_category.find(nacjd_doc->type_work_) != avds_category.end() ? avds_category[nacjd_doc->type_work_] : "");
     std::string record_header("00000cgm a22000002  4500");
 
     if (video_.find(nacjd_doc->type_work_) != video_.end())
@@ -484,33 +480,28 @@ MARC::Record *GenerateMarcForAudioVisual(NACJDDoc * const nacjd_doc, std::map<st
 
     MARC::Subfields publishing_info(nacjd_doc->ConstructPublishingInfo_773(k10_plus_info, debug_info));
     MARC::Record *record(GenerateRecord(record_header, "tu"));
-    InsertGeneralFieldInfo(record, nacjd_doc, debug_info);
+    InsertGeneralFieldInfo(record, nacjd_doc, k10_plus_info, debug_info);
 
     if (not _935a.empty())
         record->insertField("935", { { 'a', _935a } });
-    else
+    else if (not nacjd_doc->type_work_.empty())
         LOG_INFO("Need to add this category: " + nacjd_doc->type_work_ + " for ADVS");
-
-    if (not publishing_info.empty())
-        record->insertField("773", publishing_info, '0', '8');
 
 
     return record;
 }
 
-MARC::Record *GenerateMarcForElectronic(NACJDDoc * const nacjd_doc, std::map<std::string, K10PlusInfo> const &k10_plus_info,
-                                        DebugInfo * const debug_info) {
+MARC::Record *GenerateMarcForWebsite(NACJDDoc * const nacjd_doc, std::map<std::string, K10PlusInfo> const &k10_plus_info,
+                                     DebugInfo * const debug_info) {
     if (nacjd_doc->IsDocTypeStatistic())
         return GenerateMarcForStatistic(nacjd_doc, k10_plus_info, debug_info);
 
 
     MARC::Subfields publishing_info(nacjd_doc->ConstructPublishingInfo_773(k10_plus_info, debug_info));
-    MARC::Record *record(GenerateRecord("00000cam a22000000  4500", "tu"));
-    InsertGeneralFieldInfo(record, nacjd_doc, debug_info);
+    MARC::Record *record(GenerateRecord("00000cai a22000000  4500", "tu"));
+    InsertGeneralFieldInfo(record, nacjd_doc, k10_plus_info, debug_info);
 
-    if (not publishing_info.empty())
-        record->insertField("773", publishing_info, '0', '8');
-
+    record->insertField("300", { { 'a', "Online-Ressource " } });
 
     return record;
 }
@@ -522,38 +513,17 @@ MARC::Record *GenerateMarcForGeneric(NACJDDoc * const nacjd_doc, std::map<std::s
 
 
     MARC::Subfields publishing_info(nacjd_doc->ConstructPublishingInfo_773(k10_plus_info, debug_info));
-    MARC::Record *record(GenerateRecord("00000cam a22000000  4500", "tu"));
-    InsertGeneralFieldInfo(record, nacjd_doc, debug_info);
-
-    if (not publishing_info.empty())
-        record->insertField("773", publishing_info, '0', '8');
-
+    MARC::Record *record(GenerateRecord("00000caa a22000000  4500", "tu"));
+    InsertGeneralFieldInfo(record, nacjd_doc, k10_plus_info, debug_info);
 
     return record;
 }
 
 
-MARC::Record *GenerateMarcForUnknown(NACJDDoc * const nacjd_doc, std::map<std::string, K10PlusInfo> const &k10_plus_info,
-                                     DebugInfo * const debug_info) {
-    if (nacjd_doc->IsDocTypeStatistic())
-        return GenerateMarcForStatistic(nacjd_doc, k10_plus_info, debug_info);
-
-
-    MARC::Subfields publishing_info(nacjd_doc->ConstructPublishingInfo_773(k10_plus_info, debug_info));
-    MARC::Record *record(GenerateRecord("00000cai a2200000  4500", "tu"));
-    InsertGeneralFieldInfo(record, nacjd_doc, debug_info);
-
-    if (not publishing_info.empty())
-        record->insertField("773", publishing_info, '0', '8');
-
-
-    return record;
-}
-
-
-MARC::Record *GenerateMarcForBook(NACJDDoc * const nacjd_doc, DebugInfo * const debug_info) {
+MARC::Record *GenerateMarcForBook(NACJDDoc * const nacjd_doc, std::map<std::string, K10PlusInfo> const &k10_plus_info,
+                                  DebugInfo * const debug_info) {
     MARC::Record *record(GenerateRecord("00000cam a22000000  4500", "tu"));
-    InsertGeneralFieldInfo(record, nacjd_doc, debug_info);
+    InsertGeneralFieldInfo(record, nacjd_doc, k10_plus_info, debug_info);
 
     return record;
 }
@@ -565,11 +535,8 @@ MARC::Record *GenerateMarcForReport(NACJDDoc * const nacjd_doc, std::map<std::st
         return GenerateMarcForStatistic(nacjd_doc, k10_plus_info, debug_info);
 
     MARC::Record *record(GenerateRecord("00000cam a22000002  4500", "cr||||"));
-    InsertGeneralFieldInfo(record, nacjd_doc, debug_info);
+    InsertGeneralFieldInfo(record, nacjd_doc, k10_plus_info, debug_info);
     MARC::Subfields publishing_info(nacjd_doc->ConstructPublishingInfo_773(k10_plus_info, debug_info));
-
-    if (not publishing_info.empty())
-        record->insertField("773", publishing_info, '0', '8');
 
 
     return record;
@@ -583,7 +550,7 @@ MARC::Record *GenerateMarcForJournal(NACJDDoc * const nacjd_doc, std::map<std::s
     MARC::Record *record(GenerateRecord("00000naa a22000002  4500", "cr||||"));
     const MARC::Subfields _936_content(nacjd_doc->ConstructPublishingInfo_936());
 
-    InsertGeneralFieldInfo(record, nacjd_doc, debug_info);
+    InsertGeneralFieldInfo(record, nacjd_doc, k10_plus_info, debug_info);
 
 
     record->insertField("655",
@@ -593,10 +560,6 @@ MARC::Record *GenerateMarcForJournal(NACJDDoc * const nacjd_doc, std::map<std::s
                           { '0', "(DE-576)469182156" },
                           { '2', "gnd-content" } },
                         ' ', '7');
-
-
-    if (not publishing_info.empty())
-        record->insertField("773", publishing_info, '0', '8');
 
 
     record->insertField("935", { { 'a', "foda" }, { '2', "LOK" } });
@@ -627,7 +590,7 @@ void WriteMarcRecords(const std::string &marc_path, const std::vector<NACJDDoc> 
         } else if (nacjd_doc.ris_type_.compare("BOOK") == 0) {
             // Book
             debug_info->counter_book++;
-            record = GenerateMarcForBook(&nacjd_doc, debug_info);
+            record = GenerateMarcForBook(&nacjd_doc, k10_plus_info, debug_info);
         } else if (nacjd_doc.ris_type_.compare("CHAP") == 0) {
             // Book section / chapter
             debug_info->counter_chap++;
@@ -639,7 +602,7 @@ void WriteMarcRecords(const std::string &marc_path, const std::vector<NACJDDoc> 
         } else if (nacjd_doc.ris_type_.compare("ELEC") == 0) {
             // Web page / electronic citation
             debug_info->counter_elec++;
-            record = GenerateMarcForElectronic(&nacjd_doc, k10_plus_info, debug_info);
+            record = GenerateMarcForWebsite(&nacjd_doc, k10_plus_info, debug_info);
         } else if (nacjd_doc.ris_type_.compare("GEN") == 0) {
             // Generic
             /**
@@ -673,7 +636,7 @@ void WriteMarcRecords(const std::string &marc_path, const std::vector<NACJDDoc> 
         } else {
             debug_info->unknown_type.insert(nacjd_doc.ris_type_);
             debug_info->counter_unknown++;
-            record = GenerateMarcForUnknown(&nacjd_doc, k10_plus_info, debug_info);
+            LOG_INFO("Unknown RIS TYPE: " + nacjd_doc.ris_type_);
         }
 
         // avoid signal 11 caused by nullptr on writing marc file
@@ -710,7 +673,7 @@ void ExtractInfoFromNACJD(const std::string &json_path, std::vector<NACJDDoc> * 
             nacjd_doc.publisher_ = doc.at("PUBLISHER").get<std::string>();
         }
         if (doc.contains("TYPE_WORK")) {
-            nacjd_doc.type_work_ = doc.at("TYPE_WORK").get<std::string>();
+            nacjd_doc.type_work_ = StringUtil::ASCIIToUpper(doc.at("TYPE_WORK").get<std::string>());
         }
         if (doc.contains("VOLUME")) {
             nacjd_doc.volume_ = doc.at("VOLUME").get<std::string>();
