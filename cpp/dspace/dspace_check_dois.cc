@@ -111,7 +111,9 @@ void DownloadAndUpdate(DbConnection * const &db_writer, const std::string &dspac
     Downloader downloader(DOWNLOAD_URL, params);
     if (downloader.anErrorOccurred()) {
         LOG_WARNING("Error while downloading data for id " + publication_id + ": " + downloader.getLastErrorMessage());
-        EmailSender::SimplerSendEmail(EMAIL_SENDER, notification_mail_addresses, "Error while downloading data from DSpace API",
+        // Since this is a technical problem, the message will always be sent to ixtheo-team only
+        // to avoid meistertask items being created in this case.
+        EmailSender::SimplerSendEmail(EMAIL_SENDER, "ixtheo-team@ub.uni-tuebingen.de", "Error while downloading data from DSpace API",
                                       "Error while downloading data for id " + publication_id + ": " + downloader.getLastErrorMessage(),
                                       EmailSender::MEDIUM);
         return;
