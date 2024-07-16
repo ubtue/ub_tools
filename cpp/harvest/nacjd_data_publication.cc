@@ -644,12 +644,13 @@ void WriteMarcRecords(const std::string &marc_path, const std::vector<NACJDDoc> 
         } else {
             debug_info->unknown_type.insert(nacjd_doc.ris_type_);
             debug_info->counter_unknown++;
-            LOG_ERROR("Unknown RIS TYPE: " + nacjd_doc.ris_type_);
         }
 
         // avoid signal 11 caused by nullptr on writing marc file
         if (record)
             marc_writer->write(*record);
+        else
+            LOG_ERROR("Generator can't generate record for type: " + nacjd_doc.ris_type_);
 
         delete record;
     }
