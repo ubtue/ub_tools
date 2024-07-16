@@ -430,7 +430,15 @@ MARC::Record *GenerateMarcForConference(NACJDDoc * const nacjd_doc, std::map<std
     // The header code for Conference proceeding
     MARC::Record *record(GenerateRecord("00000cam a22000000  4500", "tu"));
     InsertGeneralFieldInfo(record, nacjd_doc, k10_plus_info, debug_info);
-    record->insertField("655", { { 'a', "Conference papers and proceedings." } }, ' ', '7');
+    MARC::Subfields _655_subfields;
+
+    _655_subfields.appendSubfield('a', "Konferenzschrift");
+    if (not nacjd_doc->year_pub_.empty())
+        _655_subfields.appendSubfield('y', nacjd_doc->year_pub_);
+    if (not nacjd_doc->place_pub_.empty())
+        _655_subfields.appendSubfield('z', nacjd_doc->place_pub_);
+
+    record->insertField("655", _655_subfields, ' ', '7');
 
     return record;
 }
