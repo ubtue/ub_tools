@@ -245,12 +245,12 @@ struct NACJDDoc {
 
         if (not url_pdf_.empty()) {
             const MARC::Subfields additional_subfields({ { 'q', "application/pdf" }, { '3', "Volltext" } });
-            InsertUrl(record, url_, additional_subfields);
+            InsertUrl(record, url_pdf_, additional_subfields);
         }
 
         if (not url_abs_.empty()) {
             const MARC::Subfields additional_subfields({ { 'x', "Abstracts" } });
-            InsertUrl(record, url_, additional_subfields);
+            InsertUrl(record, url_abs_, additional_subfields);
         }
 
         if (not doi_.empty()) {
