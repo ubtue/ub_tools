@@ -624,7 +624,6 @@ void WriteMarcRecords(const std::string &marc_path, const std::vector<NACJDDoc> 
             // Journal
             debug_info->counter_jour++;
             record = GenerateMarcForJournal(&nacjd_doc, k10_plus_info, debug_info);
-            marc_writer->write(*GenerateMarcForJournal(&nacjd_doc, k10_plus_info, debug_info));
         } else if (nacjd_doc.ris_type_.compare("MGZN") == 0) {
             // Magazine
             debug_info->counter_mgzn += 1;
@@ -644,6 +643,7 @@ void WriteMarcRecords(const std::string &marc_path, const std::vector<NACJDDoc> 
         } else {
             debug_info->unknown_type.insert(nacjd_doc.ris_type_);
             debug_info->counter_unknown++;
+            LOG_INFO("Unknown RIS TYPE: " + nacjd_doc.ris_type_);
         }
 
         // avoid signal 11 caused by nullptr on writing marc file
