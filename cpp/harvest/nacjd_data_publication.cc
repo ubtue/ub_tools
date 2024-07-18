@@ -338,6 +338,7 @@ void InsertGeneralFieldInfo(MARC::Record * const record, NACJDDoc * const nacjd_
     nacjd_doc->ConvertYear(record);
     nacjd_doc->ConvertUrl(record, debug_info);
 
+    record->insertField("041", { { 'a', "eng" } });
     record->insertField("591", 'a', "Metadaten maschinell erstellt (TUKRIM)");
 
 
