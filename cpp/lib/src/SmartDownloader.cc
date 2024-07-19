@@ -23,6 +23,7 @@
 #include "MediaTypeUtil.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
+#include "UBTools.h"
 #include "UrlUtil.h"
 #include "WebUtil.h"
 #include "util.h"
@@ -431,14 +432,19 @@ bool SmartDownload(const std::string &url, const TimeLimit &time_limit, std::str
     return false;
 }
 
-bool SmartDownloadResolveFirstRedirectHop(const std::string &url, const TimeLimit &time_limit, std::string * const document,
-                                          std::string * const http_header_charset, std::string * const error_message, const bool trace) {
+bool SmartDownloadResolveFirstRedirectHop(const std::string &url, const TimeLimit &time_limit, const bool use_web_proxy,
+                                          std::string * const document, std::string * const http_header_charset,
+                                          std::string * const error_message, const bool trace) {
     std::string redirected_url(url);
-    if (not GetRedirectedUrl(url, time_limit, &redirected_url))
+    Downloader::Params params;
+    if (use_web_proxy)
+        params.proxy_host_and_port_ = UBTools::GetUBWebProxyURL();
+
+    if (not GetRedirectUrlWithCustomParams(url, time_limit, &redirected_url))
         redirected_url = url; // Make sure redirected_url was not changed internally
     // If the redirection was just from http to https make another try (occurs e.g. with doi.dx requests)
     if (UrlUtil::URLIdenticalButDifferentScheme(url, redirected_url)) {
-        if (not GetRedirectedUrl(redirected_url, time_limit, &redirected_url))
+        if (not GetRedirectUrlWithCustomParams(redirected_url, time_limit, &redirected_url))
             LOG_WARNING("Could not resolve redirection for " + redirected_url);
     }
     return SmartDownload(redirected_url, time_limit, document, http_header_charset, error_message, trace);
