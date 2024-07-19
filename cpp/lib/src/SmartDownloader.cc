@@ -440,11 +440,11 @@ bool SmartDownloadResolveFirstRedirectHop(const std::string &url, const TimeLimi
     if (use_web_proxy)
         params.proxy_host_and_port_ = UBTools::GetUBWebProxyURL();
 
-    if (not GetRedirectUrlWithCustomParams(url, time_limit, &redirected_url))
+    if (not GetRedirectUrlWithCustomParams(url, time_limit, &redirected_url, params))
         redirected_url = url; // Make sure redirected_url was not changed internally
     // If the redirection was just from http to https make another try (occurs e.g. with doi.dx requests)
     if (UrlUtil::URLIdenticalButDifferentScheme(url, redirected_url)) {
-        if (not GetRedirectUrlWithCustomParams(redirected_url, time_limit, &redirected_url))
+        if (not GetRedirectUrlWithCustomParams(redirected_url, time_limit, &redirected_url, params))
             LOG_WARNING("Could not resolve redirection for " + redirected_url);
     }
     return SmartDownload(redirected_url, time_limit, document, http_header_charset, error_message, trace);
