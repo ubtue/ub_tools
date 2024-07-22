@@ -172,7 +172,13 @@ struct NACJDDoc {
     const MARC::Subfields ConstructPublishingInfo_773(const std::map<std::string, K10PlusInfo> &k10_plus_info,
                                                       DebugInfo * const debug_info) {
         MARC::Subfields publishing_info;
-        publishing_info.appendSubfield('i', "In:");
+
+        if (not journal_.empty() || not issn_.empty()
+            || (not volume_.empty() && not year_pub_.empty() && not i_number_.empty() && not page_start_.empty()))
+        {
+            publishing_info.appendSubfield('i', "In:");
+        }
+
 
         if (not volume_.empty() && not year_pub_.empty() && not i_number_.empty() && not page_start_.empty()) {
             std::string field_info(volume_ + " (" + year_pub_ + "), " + i_number_ + ", Seite " + page_start_);
@@ -359,8 +365,6 @@ void InsertGeneralFieldInfo(MARC::Record * const record, NACJDDoc * const nacjd_
 
 MARC::Record *GenerateMarcForStatistic(NACJDDoc * const nacjd_doc, std::map<std::string, K10PlusInfo> const &k10_plus_info,
                                        DebugInfo * const debug_info) {
-    MARC::Subfields publishing_info(nacjd_doc->ConstructPublishingInfo_773(k10_plus_info, debug_info));
-
     MARC::Record *record(GenerateRecord("00000cam a22000000  4500", "tu"));
 
     InsertGeneralFieldInfo(record, nacjd_doc, k10_plus_info, debug_info);
@@ -383,8 +387,6 @@ MARC::Record *GenerateMarcForNews(NACJDDoc * const nacjd_doc, std::map<std::stri
     if (nacjd_doc->IsDocTypeStatistic())
         return GenerateMarcForStatistic(nacjd_doc, k10_plus_info, debug_info);
 
-
-    MARC::Subfields publishing_info(nacjd_doc->ConstructPublishingInfo_773(k10_plus_info, debug_info));
     MARC::Record *record(GenerateRecord("00000cas a2200000   4500", "tu"));
     InsertGeneralFieldInfo(record, nacjd_doc, k10_plus_info, debug_info);
 
@@ -398,7 +400,6 @@ MARC::Record *GenerateMarcForMagazine(NACJDDoc * const nacjd_doc, std::map<std::
         return GenerateMarcForStatistic(nacjd_doc, k10_plus_info, debug_info);
 
 
-    MARC::Subfields publishing_info(nacjd_doc->ConstructPublishingInfo_773(k10_plus_info, debug_info));
     // The magazine is categorised as Serial, and the header is taken from Vufind demo for serial
     MARC::Record *record(GenerateRecord("00000nas a2200000   4500", "tu"));
     InsertGeneralFieldInfo(record, nacjd_doc, k10_plus_info, debug_info);
@@ -413,7 +414,6 @@ MARC::Record *GenerateMarcForThesis(NACJDDoc * const nacjd_doc, std::map<std::st
         return GenerateMarcForStatistic(nacjd_doc, k10_plus_info, debug_info);
 
 
-    MARC::Subfields publishing_info(nacjd_doc->ConstructPublishingInfo_773(k10_plus_info, debug_info));
     // Using header from vufind
     MARC::Record *record(GenerateRecord("00000nam a2200000   4500", "tu"));
     InsertGeneralFieldInfo(record, nacjd_doc, k10_plus_info, debug_info);
@@ -427,7 +427,6 @@ MARC::Record *GenerateMarcForConference(NACJDDoc * const nacjd_doc, std::map<std
         return GenerateMarcForStatistic(nacjd_doc, k10_plus_info, debug_info);
 
 
-    MARC::Subfields publishing_info(nacjd_doc->ConstructPublishingInfo_773(k10_plus_info, debug_info));
     // The header code for Conference proceeding
     MARC::Record *record(GenerateRecord("00000cam a22000000  4500", "tu"));
     InsertGeneralFieldInfo(record, nacjd_doc, k10_plus_info, debug_info);
@@ -450,7 +449,6 @@ MARC::Record *GenerateMarcForChapter(NACJDDoc * const nacjd_doc, std::map<std::s
         return GenerateMarcForStatistic(nacjd_doc, k10_plus_info, debug_info);
 
 
-    MARC::Subfields publishing_info(nacjd_doc->ConstructPublishingInfo_773(k10_plus_info, debug_info));
     // This header took from vufind live demo
     MARC::Record *record(GenerateRecord("00000naa a22000008i 4500", "tu"));
     InsertGeneralFieldInfo(record, nacjd_doc, k10_plus_info, debug_info);
@@ -487,7 +485,6 @@ MARC::Record *GenerateMarcForAudioVisual(NACJDDoc * const nacjd_doc, std::map<st
         record_header = "00000ckm a22000002  4500";
 
 
-    MARC::Subfields publishing_info(nacjd_doc->ConstructPublishingInfo_773(k10_plus_info, debug_info));
     MARC::Record *record(GenerateRecord(record_header, "tu"));
     InsertGeneralFieldInfo(record, nacjd_doc, k10_plus_info, debug_info);
 
@@ -506,7 +503,6 @@ MARC::Record *GenerateMarcForWebsite(NACJDDoc * const nacjd_doc, std::map<std::s
         return GenerateMarcForStatistic(nacjd_doc, k10_plus_info, debug_info);
 
 
-    MARC::Subfields publishing_info(nacjd_doc->ConstructPublishingInfo_773(k10_plus_info, debug_info));
     MARC::Record *record(GenerateRecord("00000cai a22000000  4500", "tu"));
     InsertGeneralFieldInfo(record, nacjd_doc, k10_plus_info, debug_info);
 
@@ -521,7 +517,6 @@ MARC::Record *GenerateMarcForGeneric(NACJDDoc * const nacjd_doc, std::map<std::s
         return GenerateMarcForStatistic(nacjd_doc, k10_plus_info, debug_info);
 
 
-    MARC::Subfields publishing_info(nacjd_doc->ConstructPublishingInfo_773(k10_plus_info, debug_info));
     MARC::Record *record(GenerateRecord("00000caa a22000000  4500", "tu"));
     InsertGeneralFieldInfo(record, nacjd_doc, k10_plus_info, debug_info);
 
@@ -545,7 +540,6 @@ MARC::Record *GenerateMarcForReport(NACJDDoc * const nacjd_doc, std::map<std::st
 
     MARC::Record *record(GenerateRecord("00000cam a22000002  4500", "cr||||"));
     InsertGeneralFieldInfo(record, nacjd_doc, k10_plus_info, debug_info);
-    MARC::Subfields publishing_info(nacjd_doc->ConstructPublishingInfo_773(k10_plus_info, debug_info));
 
 
     return record;
@@ -554,7 +548,6 @@ MARC::Record *GenerateMarcForReport(NACJDDoc * const nacjd_doc, std::map<std::st
 
 MARC::Record *GenerateMarcForJournal(NACJDDoc * const nacjd_doc, std::map<std::string, K10PlusInfo> const &k10_plus_info,
                                      DebugInfo * const debug_info) {
-    MARC::Subfields publishing_info(nacjd_doc->ConstructPublishingInfo_773(k10_plus_info, debug_info));
     // create a new record
     MARC::Record *record(GenerateRecord("00000naa a22000002  4500", "cr||||"));
     const MARC::Subfields _936_content(nacjd_doc->ConstructPublishingInfo_936());
