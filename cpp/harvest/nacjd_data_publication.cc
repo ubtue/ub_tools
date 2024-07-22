@@ -173,12 +173,6 @@ struct NACJDDoc {
                                                       DebugInfo * const debug_info) {
         MARC::Subfields publishing_info;
 
-        if (not journal_.empty() || not issn_.empty()
-            || (not volume_.empty() && not year_pub_.empty() && not i_number_.empty() && not page_start_.empty()))
-        {
-            publishing_info.appendSubfield('i', "In:");
-        }
-
 
         if (not volume_.empty() && not year_pub_.empty() && not i_number_.empty() && not page_start_.empty()) {
             std::string field_info(volume_ + " (" + year_pub_ + "), " + i_number_ + ", Seite " + page_start_);
@@ -186,6 +180,8 @@ struct NACJDDoc {
             if (not page_end_.empty() && not(page_end_.compare("-") == 0) && not(page_end_.compare("unknown") == 0))
                 field_info.append("-" + page_end_);
 
+
+            publishing_info.appendSubfield('i', "In:");
             publishing_info.appendSubfield('g', field_info);
         }
 
