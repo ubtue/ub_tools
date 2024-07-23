@@ -148,9 +148,10 @@ struct NACJDDoc {
         type_work_,      // TYPE_WORK
         publisher_;      // PUBLISHER
 
+    // using vector to keep the order of the authors
+    std::vector<std::string> authors_split; // AUTHORS_SPLIT
     // using set to avoid redundancy
-    std::set<std::string> authors_split, // AUTHORS_SPLIT
-        study_titles_;                   // STUDYTITLE
+    std::set<std::string> study_titles_; // STUDYTITLE
 
     bool StatisticTypePredictionBaseOnURL() {
         static ThreadSafeRegexMatcher url_matcher("http(s)?://(www.)?bjs.(ojp.)?(usdoj.)?gov");
@@ -305,22 +306,35 @@ struct NACJDDoc {
         if (not authors_split.empty()) {
             MARC::Subfields corporate_as_authors;
             MARC::Subfields authors;
+            bool is_first_author(true), is_first_corporate(true);
             for (const auto &author_ : authors_split) {
                 if (not author_.empty()) {
                     if (MiscUtil::IsCorporateAuthor(author_)) {
-                        corporate_as_authors.appendSubfield('a', author_);
-                    } else if (StringUtil::ASCIIToUpper(author_) != "ANONYMOUS" && StringUtil::ASCIIToUpper(author_) != "UNKNOWN") {
-                        authors.appendSubfield('a', author_);
+                        if (is_first_corporate) {
+                            record->insertField("110", { { 'a', author_ } }, '1', ' ');
+                            is_first_corporate = false;
+                        } else {
+                            corporate_as_authors.appendSubfield('a', author_);
+                        }
+                    } else if (StringUtil::ASCIIToUpper(author_) == "ANONYMOUS" || StringUtil::ASCIIToUpper(author_) == "(AUTHOR UNKNOWN)")
+                    {
+                        record->insertField("500", { { 'a', author_ } }, ' ', ' ');
+                    } else {
+                        if (is_first_author) {
+                            record->insertField("100", { { 'a', author_ } }, '1', ' ');
+                            is_first_author = false;
+                        } else {
+                            authors.appendSubfield('a', author_);
+                        }
                     }
                 }
             }
             if (not corporate_as_authors.empty())
-                record->insertField("110", corporate_as_authors, '1', ' ');
+                record->insertField("710", corporate_as_authors, '1', ' ');
             if (not authors.empty())
-                record->insertField("100", authors, '1', ' ');
-
-            if (corporate_as_authors.empty() && authors.empty())
-                record->insertField("500", { { 'a', "Anonymous" } }, ' ', ' ');
+                record->insertField("700", authors, '1', ' ');
+        } else {
+            record->insertField("500", { { 'a', "Anonymous" } }, ' ', ' ');
         }
     }
 };
@@ -718,7 +732,7 @@ void ExtractInfoFromNACJD(const std::string &json_path, std::vector<NACJDDoc> * 
             nacjd_doc.publisher_ = doc.at("PUBLISHER").get<std::string>();
         }
         if (doc.contains("AUTHORS_SPLIT")) {
-            nacjd_doc.authors_split = doc.at("AUTHORS_SPLIT").get<std::set<std::string>>();
+            nacjd_doc.authors_split = doc.at("AUTHORS_SPLIT").get<std::vector<std::string>>();
         }
         if (doc.contains("STUDYTITLE")) {
             nacjd_doc.study_titles_ = doc.at("STUDYTITLE").get<std::set<std::string>>();
