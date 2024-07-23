@@ -309,7 +309,7 @@ struct NACJDDoc {
                 if (not author_.empty()) {
                     if (MiscUtil::IsCorporateAuthor(author_)) {
                         corporate_as_authors.appendSubfield('a', author_);
-                    } else {
+                    } else if (StringUtil::ASCIIToUpper(author_) != "ANONYMOUS" && StringUtil::ASCIIToUpper(author_) != "UNKNOWN") {
                         authors.appendSubfield('a', author_);
                     }
                 }
@@ -318,6 +318,9 @@ struct NACJDDoc {
                 record->insertField("110", corporate_as_authors, '1', ' ');
             if (not authors.empty())
                 record->insertField("100", authors, '1', ' ');
+
+            if (corporate_as_authors.empty() && authors.empty())
+                record->insertField("500", { { 'a', "Anonymous" } }, ' ', ' ');
         }
     }
 };
