@@ -82,6 +82,13 @@ std::map<std::string, std::string> ConstructAVDSCategory() {
 
 static std::map<std::string, std::string> avds_category(ConstructAVDSCategory());
 
+bool IsAnonymOrUnknown(const std::string &author) {
+    const std::set<std::string> unknown_author({ "ANONYMOUS", "(AUTHOR UNKNOWN)", "AUTHOR UNKNOWN" });
+    const auto search_it(unknown_author.find(StringUtil::ASCIIToUpper(author)));
+
+    return (search_it != unknown_author.end() ? true : false);
+}
+
 std::string URLBJSResolver(const std::string &ori_url) {
     /**
      * Mapping
@@ -306,35 +313,21 @@ struct NACJDDoc {
         if (not authors_split.empty()) {
             MARC::Subfields corporate_as_authors;
             MARC::Subfields authors;
-            bool is_first_author(true), is_first_corporate(true);
+            bool is_first_author(true);
+
             for (const auto &author_ : authors_split) {
-                if (not author_.empty()) {
-                    if (MiscUtil::IsCorporateAuthor(author_)) {
-                        if (is_first_corporate) {
-                            record->insertField("110", { { 'a', author_ } }, '1', ' ');
-                            is_first_corporate = false;
-                        } else {
-                            corporate_as_authors.appendSubfield('a', author_);
-                        }
-                    } else if (StringUtil::ASCIIToUpper(author_) == "ANONYMOUS" || StringUtil::ASCIIToUpper(author_) == "(AUTHOR UNKNOWN)")
-                    {
-                        record->insertField("500", { { 'a', author_ } }, ' ', ' ');
-                    } else {
-                        if (is_first_author) {
-                            record->insertField("100", { { 'a', author_ } }, '1', ' ');
-                            is_first_author = false;
-                        } else {
-                            authors.appendSubfield('a', author_);
-                        }
-                    }
+                if (IsAnonymOrUnknown(author_)) {
+                    record->insertField("500", { { 'a', author_ } }, ' ', ' ');
+                } else {
+                    if (is_first_author) {
+                        record->insertField(MiscUtil::IsCorporateAuthor(author_) ? "110" : "100", { { 'a', author_ } }, '1', ' ');
+                        is_first_author = false;
+                    } else
+                        record->insertField(MiscUtil::IsCorporateAuthor(author_) ? "710" : "700", { { 'a', author_ } }, '1', ' ');
                 }
             }
-            if (not corporate_as_authors.empty())
-                record->insertField("710", corporate_as_authors, '1', ' ');
-            if (not authors.empty())
-                record->insertField("700", authors, '1', ' ');
         } else {
-            record->insertField("500", { { 'a', "Anonymous" } }, ' ', ' ');
+            record->insertField("500", { { 'a', "Author Unknown" } }, ' ', ' ');
         }
     }
 };
