@@ -329,7 +329,7 @@ struct NACJDDoc {
             } else
                 tag = MiscUtil::IsCorporateAuthor(author_) ? "710" : "700";
 
-            record->insertField(tag, { { 'a', author_ } }, '1', ' ');
+            record->insertField(tag, { { 'a', author_ }, { 'e', "VerfasserIn" }, { '4', "aut" } }, '1', ' ');
         }
     }
 };
