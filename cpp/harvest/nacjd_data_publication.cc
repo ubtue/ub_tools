@@ -82,8 +82,8 @@ std::map<std::string, std::string> ConstructAVDSCategory() {
 
 static std::map<std::string, std::string> avds_category(ConstructAVDSCategory());
 
-bool IsAnonymOrUnknown(const std::string &author) {
-    const std::set<std::string> unknown_author({ "ANONYMOUS", "(AUTHOR UNKNOWN)", "AUTHOR UNKNOWN" });
+bool IsAnonymousOrUnknown(const std::string &author) {
+    const std::set<std::string> unknown_author({ "ANONYMOUS", "(AUTHOR UNKNOWN)", "AUTHOR UNKNOWN", "UNKNOWN" });
     const auto search_it(unknown_author.find(StringUtil::ASCIIToUpper(author)));
 
     return (search_it != unknown_author.end() ? true : false);
@@ -310,24 +310,26 @@ struct NACJDDoc {
     }
 
     void ConvertAuthor(MARC::Record * const record) {
-        if (not authors_split.empty()) {
-            MARC::Subfields corporate_as_authors;
-            MARC::Subfields authors;
-            bool is_first_author(true);
-
-            for (const auto &author_ : authors_split) {
-                if (IsAnonymOrUnknown(author_)) {
-                    record->insertField("500", { { 'a', author_ } }, ' ', ' ');
-                } else {
-                    if (is_first_author) {
-                        record->insertField(MiscUtil::IsCorporateAuthor(author_) ? "110" : "100", { { 'a', author_ } }, '1', ' ');
-                        is_first_author = false;
-                    } else
-                        record->insertField(MiscUtil::IsCorporateAuthor(author_) ? "710" : "700", { { 'a', author_ } }, '1', ' ');
-                }
-            }
-        } else {
+        if (authors_split.empty()) {
             record->insertField("500", { { 'a', "Author Unknown" } }, ' ', ' ');
+            return;
+        }
+
+        if (IsAnonymousOrUnknown(authors_split[0])) {
+            record->insertField("500", { { 'a', authors_split[0] } }, ' ', ' ');
+            return;
+        }
+
+        bool is_first_author(true);
+        for (const auto &author_ : authors_split) {
+            std::string tag;
+            if (is_first_author) {
+                tag = MiscUtil::IsCorporateAuthor(author_) ? "110" : "100";
+                is_first_author = false;
+            } else
+                tag = MiscUtil::IsCorporateAuthor(author_) ? "710" : "700";
+
+            record->insertField(tag, { { 'a', author_ } }, '1', ' ');
         }
     }
 };
