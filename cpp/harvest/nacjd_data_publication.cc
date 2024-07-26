@@ -64,7 +64,8 @@ struct DebugInfo {
 };
 
 struct AugmentedOpenAccessDebugInfo {
-    unsigned updated = 0, exist_in_k10plus = 0, updated_lf = 0, updated_zz = 0, total_not_in_openalex = 0;
+    unsigned updated = 0, exist_in_k10plus = 0, updated_lf = 0, updated_zz = 0, total_not_in_openalex = 0,
+             updating_existing_info_taken_from_k10plus = 0;
     std::set<std::string> not_found_in_openalex;
     AugmentedOpenAccessDebugInfo() = default;
 };
@@ -855,6 +856,17 @@ void FindAndReplaceOpenAccessInfo(MARC::Record * const record, const std::map<st
         // Open access info is exist, taken from k10plus
         if (subfields.hasSubfield('z')) {
             debug_info->exist_in_k10plus++;
+            if (subfields.getFirstSubfieldWithCode('z') == "ZZ") {
+                const auto oa_info(open_access_info_cache.find(subfield_u));
+                if (oa_info != open_access_info_cache.end()) {
+                    if (oa_info->second == "true") {
+                        if (subfields.replaceFirstSubfield('z', "LF")) {
+                            field.setSubfields(subfields);
+                            debug_info->updating_existing_info_taken_from_k10plus++;
+                        }
+                    }
+                }
+            }
             continue;
         }
 
@@ -865,7 +877,7 @@ void FindAndReplaceOpenAccessInfo(MARC::Record * const record, const std::map<st
             continue;
         }
 
-        subfields.appendSubfield('z', (oa_info->second == "true" ? "LZ" : "ZZ"));
+        subfields.appendSubfield('z', (oa_info->second == "true" ? "LF" : "ZZ"));
         field.setSubfields(subfields);
 
         debug_info->updated++;
@@ -901,6 +913,8 @@ void AugmentOpenAccessInfo(int argc, char **argv, const bool &debug_mode) {
 
         std::cout << "Not found in OpenAlex: " << augmented_oa_debug_info.total_not_in_openalex << std::endl;
         std::cout << "Info is exist already: " << augmented_oa_debug_info.exist_in_k10plus << std::endl;
+        std::cout << "Info is exist already, but updated with a new: " << augmented_oa_debug_info.updating_existing_info_taken_from_k10plus
+                  << std::endl;
         std::cout << "Augmented: " << augmented_oa_debug_info.updated << std::endl;
         std::cout << "Augmented with LF: " << augmented_oa_debug_info.updated_lf << std::endl;
         std::cout << "Augmented with ZZ: " << augmented_oa_debug_info.updated_zz << std::endl;
