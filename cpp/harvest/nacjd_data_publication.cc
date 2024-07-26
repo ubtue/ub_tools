@@ -20,6 +20,7 @@
 #include <fstream>
 #include <iostream>
 #include <nlohmann/json.hpp>
+#include "FileUtil.h"
 #include "MARC.h"
 #include "MiscUtil.h"
 #include "StringUtil.h"
@@ -29,11 +30,19 @@ namespace {
 
 [[noreturn]] void Usage() {
     ::Usage(
-        "[--verbose] input_file source_file output_file \n"
+        "[--verbose] mode mode_params\n"
+        "\n"
         "--verbose, print to standard output the summary.\n"
+        "\n"
+        "convert input_file source_file output_file\n"
         "\t- input_file: source of data in JSON format (taken from NACJD website).\n"
         "\t- source_file: source data needed for augmenting (taken from K10Plus).\n"
         "\t- output_file: will contain all icpsr records as MARC21.\n"
+        "\n"
+        "augment_open_access input_file source_file output_file\n"
+        "\t- input_file: source of data.\n"
+        "\t- source_file: source data needed for augmenting (taken from https://api.openalex.org/works).\n"
+        "\t- output_file: target file after augmenting with the information of open access."
         "\n");
 }
 
@@ -44,13 +53,20 @@ struct DebugInfo {
     std::map<std::string, std::string> superior_work_found; // ppn -> issn
     unsigned long counter_advs = 0, counter_book = 0, counter_chap = 0, counter_conf = 0, counter_elec = 0, counter_generic = 0,
                   counter_jour = 0, counter_mgzn = 0, counter_news = 0, counter_rprt = 0, counter_thes = 0, counter_unknown = 0,
-                  counter_journal_without_issn = 0, counter_doi_open_access = 0, counter_doi_close_access = 0, counter_doi_without_issn = 0,
-                  counter_doi_issn_without_access_info = 0, data_found_in_k10_plus = 0, data_not_found_in_k10_plus = 0;
+                  counter_open_access_from_k10plus = 0, counter_journal_without_issn = 0, counter_doi_open_access = 0,
+                  counter_doi_close_access = 0, counter_doi_without_issn = 0, counter_doi_issn_without_access_info = 0,
+                  data_found_in_k10_plus = 0, data_not_found_in_k10_plus = 0;
     DebugInfo() = default;
     unsigned long counter_total() const {
         return (counter_advs + counter_book + counter_chap + counter_conf + counter_elec + counter_generic + counter_jour + counter_mgzn
                 + counter_news + counter_rprt + counter_thes + counter_unknown);
     };
+};
+
+struct AugmentedOpenAccessDebugInfo {
+    unsigned updated = 0, exist_in_k10plus = 0, updated_lf = 0, updated_zz = 0, total_not_in_openalex = 0;
+    std::set<std::string> not_found_in_openalex;
+    AugmentedOpenAccessDebugInfo() = default;
 };
 
 std::map<std::string, std::string> ConstructAVDSCategory() {
@@ -259,7 +275,7 @@ struct NACJDDoc {
         }
 
         if (not url_abs_.empty()) {
-            const MARC::Subfields additional_subfields({ { 'x', "Abstracts" } });
+            const MARC::Subfields additional_subfields({ { 'x', "Abstract" } });
             InsertUrl(record, url_abs_, additional_subfields);
         }
 
@@ -275,6 +291,7 @@ struct NACJDDoc {
                                           { 'z', GetLicenceFlag(issn_, debug_info, k10_plus_info) },
                                           { '3', "Volltext" } },
                                         '4', '0');
+                    debug_info->counter_open_access_from_k10plus++;
                 } else {
                     record->insertField("856", { { 'u', "https://doi.org/" + doi_ }, { 'x', "Resolving-System" } }, '4', '0');
                     debug_info->counter_doi_issn_without_access_info++;
@@ -350,7 +367,7 @@ void InsertGeneralFieldInfo(MARC::Record * const record, NACJDDoc * const nacjd_
     nacjd_doc->ConvertAuthor(record);
     nacjd_doc->ConvertPublisher(record);
     nacjd_doc->ConvertYear(record);
-    nacjd_doc->ConvertUrl(record, debug_info);
+    nacjd_doc->ConvertUrl(record, debug_info, k10_plus_info);
 
     record->insertField("041", { { 'a', "eng" } });
     record->insertField("591", 'a', "Metadaten maschinell erstellt (TUKRIM)");
@@ -583,8 +600,7 @@ MARC::Record *GenerateMarcForJournal(NACJDDoc * const nacjd_doc, std::map<std::s
 
 void WriteMarcRecords(const std::string &marc_path, const std::vector<NACJDDoc> &nacjd_docs,
                       const std::map<std::string, K10PlusInfo> &k10_plus_info, DebugInfo * const debug_info) {
-    auto marc_file(MARC::Writer::Factory(marc_path));
-    MARC::Writer * const marc_writer(marc_file.get());
+    std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_path));
 
     for (auto nacjd_doc : nacjd_docs) {
         if (nacjd_doc.ref_id_.empty())
@@ -650,7 +666,7 @@ void WriteMarcRecords(const std::string &marc_path, const std::vector<NACJDDoc> 
 
         // avoid signal 11 caused by nullptr on writing marc file
         if (record)
-            marc_writer->write(*record);
+            marc_writer.get()->write(*record);
         else
             LOG_ERROR("Generator can't generate record for type: " + nacjd_doc.ris_type_);
 
@@ -738,10 +754,8 @@ void ExtractInfoFromNACJD(const std::string &json_path, std::vector<NACJDDoc> * 
     }
 }
 
-
 void BuildISSNCache(std::map<std::string, K10PlusInfo> * const issn_to_k10_plus_info, const std::string &source_file_name) {
     auto input_file(MARC::Reader::Factory(source_file_name));
-
     while (MARC::Record record = input_file->read()) {
         const std::set<std::string> issns(record.getISSNs());
         const K10PlusInfo k10_plus_info(record.getControlNumber(), MARC::IsOpenAccess(record));
@@ -786,6 +800,7 @@ void ShowInfoForDebugging(const DebugInfo &debug_info) {
     std::cout << "The number of journal that did not update: " << debug_info.data_not_found_in_k10_plus << std::endl;
     std::cout << "The number of journal without ISSN: " << debug_info.counter_journal_without_issn << std::endl << std::endl;
 
+    std::cout << "The number of doi with open access info from k10plus: " << debug_info.counter_open_access_from_k10plus << std::endl;
     std::cout << "The number of doi with open access: " << debug_info.counter_doi_open_access << std::endl;
     std::cout << "The number of doi with close access: " << debug_info.counter_doi_close_access << std::endl;
     std::cout << "The number of doi with issn and no access information: " << debug_info.counter_doi_issn_without_access_info << std::endl;
@@ -796,31 +811,139 @@ void ShowInfoForDebugging(const DebugInfo &debug_info) {
     std::cout << "ISSN not found in K10-Plus (unique): " << debug_info.superior_work_not_found.size() << std::endl;
 }
 
-} // unnamed namespace
+void BuildOpenAccessCache(const std::string &file_path, std::map<std::string, std::string> * const open_access_info_cache) {
+    std::vector<std::vector<std::string>> lines;
+    TextUtil::ParseCSVFileOrDie(file_path, &lines);
 
-int Main(int argc, char **argv) {
-    if (argc < 3)
+    auto line(lines.cbegin());
+    if (line == lines.cend())
+        LOG_ERROR("Open Access file is empty");
+
+    // Construct open access cache
+    for (line = lines.cbegin(); line != lines.cend(); ++line) {
+        if (line->size() != 3)
+            LOG_ERROR("Logical line #" + std::to_string(line - lines.cbegin()) + " doesn't contain 3 values!");
+
+        if (unlikely((*line)[0].empty()))
+            LOG_ERROR("Logical line #" + std::to_string(line - lines.cbegin()) + " is missing the DOI!");
+        if (unlikely((*line)[1].empty() and (*line)[2].empty()))
+            LOG_ERROR("Logical line #" + std::to_string(line - lines.cbegin()) + " is missing Open Access Information!");
+
+        if (not(*line)[1].empty() && not(*line)[2].empty())
+            open_access_info_cache->insert({ (*line)[0], (*line)[1] });
+    }
+}
+
+void FindAndReplaceOpenAccessInfo(MARC::Record * const record, const std::map<std::string, std::string> &open_access_info_cache,
+                                  AugmentedOpenAccessDebugInfo * const debug_info) {
+    for (auto &field : *record) {
+        if (field.getTag() != "856")
+            continue;
+
+        if (field.getIndicator1() != '4' && field.getIndicator2() != '0')
+            continue;
+
+        MARC::Subfields subfields(field.getContents());
+        if (not subfields.hasSubfield('u'))
+            continue;
+
+        const std::string subfield_u(subfields.getFirstSubfieldWithCode('u'));
+
+        if (subfield_u.substr(0, 16) != "https://doi.org/")
+            continue;
+
+        // Open access info is exist, taken from k10plus
+        if (subfields.hasSubfield('z')) {
+            debug_info->exist_in_k10plus++;
+            continue;
+        }
+
+        const auto oa_info(open_access_info_cache.find(subfield_u));
+        if (oa_info == open_access_info_cache.end()) {
+            debug_info->not_found_in_openalex.emplace(subfield_u);
+            debug_info->total_not_in_openalex++;
+            continue;
+        }
+
+        subfields.appendSubfield('z', (oa_info->second == "true" ? "LZ" : "ZZ"));
+        field.setSubfields(subfields);
+
+        debug_info->updated++;
+        (oa_info->second == "true" ? debug_info->updated_lf++ : debug_info->updated_zz++);
+    }
+}
+
+void AugmentOpenAccessInfo(int argc, char **argv, const bool &debug_mode) {
+    if (argc < 5)
         Usage();
 
+
+    AugmentedOpenAccessDebugInfo augmented_oa_debug_info;
+    std::map<std::string, std::string> open_access_info_cache;
+    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(argv[2]));
+    std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(argv[4]));
+
+    if (unlikely((argv[2] == (argv[4]))))
+        LOG_ERROR("The input file name equals the output file name!");
+
+    BuildOpenAccessCache(argv[3], &open_access_info_cache);
+
+    while (MARC::Record record = marc_reader.get()->read()) {
+        // 856u
+        FindAndReplaceOpenAccessInfo(&record, open_access_info_cache, &augmented_oa_debug_info);
+        marc_writer.get()->write(record);
+    }
+
+    if (debug_mode) {
+        for (auto const &doi : augmented_oa_debug_info.not_found_in_openalex) {
+            std::cout << doi << std::endl;
+        }
+
+        std::cout << "Not found in OpenAlex: " << augmented_oa_debug_info.total_not_in_openalex << std::endl;
+        std::cout << "Info is exist already: " << augmented_oa_debug_info.exist_in_k10plus << std::endl;
+        std::cout << "Augmented: " << augmented_oa_debug_info.updated << std::endl;
+        std::cout << "Augmented with LF: " << augmented_oa_debug_info.updated_lf << std::endl;
+        std::cout << "Augmented with ZZ: " << augmented_oa_debug_info.updated_zz << std::endl;
+    }
+}
+
+void Convert(int argc, char **argv, const bool &debug_mode) {
+    if (argc < 5)
+        Usage();
 
     std::vector<NACJDDoc> nacjd_docs;
     std::map<std::string, K10PlusInfo> issn_to_k10_plus_info;
     DebugInfo debug_info;
-    bool debug_mode(false);
+    ExtractInfoFromNACJD(argv[2], &nacjd_docs);
+    BuildISSNCache(&issn_to_k10_plus_info, argv[3]);
+    WriteMarcRecords(argv[4], nacjd_docs, issn_to_k10_plus_info, &debug_info);
 
+    if (debug_mode) {
+        ShowInfoForDebugging(debug_info);
+    }
+}
+
+} // unnamed namespace
+
+int Main(int argc, char **argv) {
+    if (argc < 5)
+        Usage();
+
+    bool debug_mode(false);
 
     if (std::strcmp(argv[1], "--verbose") == 0) {
         debug_mode = true;
         --argc, ++argv;
     }
 
-    ExtractInfoFromNACJD(argv[1], &nacjd_docs);
-    BuildISSNCache(&issn_to_k10_plus_info, argv[2]);
-    WriteMarcRecords(argv[3], nacjd_docs, issn_to_k10_plus_info, &debug_info);
+    const std::string mode(argv[1]);
 
-    if (debug_mode) {
-        ShowInfoForDebugging(debug_info);
-    }
+    if (mode == "convert") {
+        Convert(argc, argv, debug_mode);
+    } else if (mode == "augment_open_access") {
+        AugmentOpenAccessInfo(argc, argv, debug_mode);
+    } else
+        Usage();
 
 
     return EXIT_SUCCESS;
