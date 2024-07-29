@@ -759,11 +759,30 @@ void BuildISSNCache(std::map<std::string, K10PlusInfo> * const issn_to_k10_plus_
     auto input_file(MARC::Reader::Factory(source_file_name));
     while (MARC::Record record = input_file->read()) {
         const std::set<std::string> issns(record.getISSNs());
-        const K10PlusInfo k10_plus_info(record.getControlNumber(), MARC::IsOpenAccess(record));
+        const bool is_open_access(MARC::IsOpenAccess(record));
+        const K10PlusInfo k10_plus_info(record.getControlNumber(), is_open_access);
+        std::string printed_issn("");
+        std::string control_number_or_superior_number(record.getControlNumber());
+
+
+        for (const auto &field776 : record.getTagRange("776")) {
+            if (field776.getIndicator1() == '0' && field776.getIndicator2() == '8') {
+                const std::string sub_i = field776.getFirstSubfieldWithCode('i');
+                const std::string sub_n = field776.getFirstSubfieldWithCode('n');
+                printed_issn = field776.getFirstSubfieldWithCode('x');
+
+                if (sub_i == "Erscheint auch" && sub_n == "Online-Ausgabe")
+                    control_number_or_superior_number = record.getSuperiorControlNumber();
+            }
+        }
 
         for (auto const &issn : issns) {
-            issn_to_k10_plus_info->insert(std::make_pair(StringUtil::ASCIIToUpper(issn), k10_plus_info));
+            issn_to_k10_plus_info->insert({ StringUtil::ASCIIToUpper(issn), { control_number_or_superior_number, is_open_access } });
         }
+
+        if (not printed_issn.empty())
+            issn_to_k10_plus_info->insert(
+                { StringUtil::ASCIIToUpper(printed_issn), { control_number_or_superior_number, is_open_access } });
     }
 }
 
