@@ -53,9 +53,9 @@ struct DebugInfo {
     std::map<std::string, std::string> superior_work_found; // ppn -> issn
     unsigned long counter_advs = 0, counter_book = 0, counter_chap = 0, counter_conf = 0, counter_elec = 0, counter_generic = 0,
                   counter_jour = 0, counter_mgzn = 0, counter_news = 0, counter_rprt = 0, counter_thes = 0, counter_unknown = 0,
-                  counter_open_access_from_k10plus = 0, counter_journal_without_issn = 0, counter_doi_open_access = 0,
-                  counter_doi_close_access = 0, counter_doi_without_issn = 0, counter_doi_issn_without_access_info = 0,
-                  data_found_in_k10_plus = 0, data_not_found_in_k10_plus = 0;
+                  counter_data_without_issn = 0, counter_doi_open_access = 0, counter_doi_close_access = 0, counter_doi_without_issn = 0,
+                  counter_doi_with_issn = 0, data_found_in_k10_plus = 0, data_not_found_in_k10_plus = 0, k10plus_issn_online,
+                  k10plus_issn_printed;
     DebugInfo() = default;
     unsigned long counter_total() const {
         return (counter_advs + counter_book + counter_chap + counter_conf + counter_elec + counter_generic + counter_jour + counter_mgzn
@@ -64,8 +64,7 @@ struct DebugInfo {
 };
 
 struct AugmentedOpenAccessDebugInfo {
-    unsigned updated = 0, exist_in_k10plus = 0, updated_lf = 0, updated_zz = 0, total_not_in_openalex = 0,
-             updating_existing_info_taken_from_k10plus = 0;
+    unsigned updated_lf = 0, updated_zz = 0, total_not_in_openalex = 0;
     std::set<std::string> not_found_in_openalex;
     AugmentedOpenAccessDebugInfo() = default;
 };
@@ -142,16 +141,17 @@ struct K10PlusInfo {
     }
 };
 
-std::string GetLicenceFlag(const std::string &issn, DebugInfo * const debug_info, const std::map<std::string, K10PlusInfo> &k10_plus_info) {
-    if (k10_plus_info.find(issn) != k10_plus_info.end() && k10_plus_info.find(issn)->second.is_open_access_) {
-        debug_info->counter_doi_open_access++;
-        return "LF";
-    }
+// std::string GetLicenceFlag(const std::string &issn, DebugInfo * const debug_info, const std::map<std::string, K10PlusInfo>
+// &k10_plus_info) {
+//     if (k10_plus_info.find(issn) != k10_plus_info.end() && k10_plus_info.find(issn)->second.is_open_access_) {
+//         debug_info->counter_doi_open_access++;
+//         return "LF";
+//     }
 
-    debug_info->counter_doi_close_access++;
-    // Set the value to ZZ when the criteria is not met
-    return "ZZ";
-}
+//     debug_info->counter_doi_close_access++;
+//     // Set the value to ZZ when the criteria is not met
+//     return "ZZ";
+// }
 struct NACJDDoc {
     std::string ref_id_, // REF_ID
         title_,          // TITLE
@@ -217,7 +217,7 @@ struct NACJDDoc {
             const auto is_exist_in_k10_plus = k10_plus_info.find(issn_);
             if (is_exist_in_k10_plus != k10_plus_info.end()) {
                 publishing_info.appendSubfield('w', "(DE-627)" + is_exist_in_k10_plus->second.ppn_);
-                debug_info->superior_work_found.insert({ is_exist_in_k10_plus->second.ppn_, issn_ });
+                debug_info->superior_work_found.insert({ issn_, is_exist_in_k10_plus->second.ppn_ });
                 debug_info->data_found_in_k10_plus++;
             } else {
                 debug_info->data_not_found_in_k10_plus++;
@@ -226,7 +226,7 @@ struct NACJDDoc {
 
             publishing_info.appendSubfield('x', issn_);
         } else {
-            debug_info->counter_journal_without_issn++;
+            debug_info->counter_data_without_issn++;
         }
 
 
@@ -265,8 +265,7 @@ struct NACJDDoc {
             record->insertField("887", { { 'a', "Invalid original URL from the original site: " + original_url } }, ' ', ' ');
     }
 
-    void ConvertUrl(MARC::Record * const record, DebugInfo * const debug_info,
-                    const std::map<std::string, K10PlusInfo> k10_plus_info = {}) {
+    void ConvertUrl(MARC::Record * const record, DebugInfo * const debug_info) {
         if (not url_.empty())
             InsertUrl(record, url_);
 
@@ -283,24 +282,9 @@ struct NACJDDoc {
         if (not doi_.empty()) {
             record->insertField("024", { { 'a', doi_ }, { '2', "doi" } }, '7');
 
-            if (not issn_.empty()) {
-                const auto is_exist_in_k10_plus(k10_plus_info.find(issn_));
-                if (is_exist_in_k10_plus != k10_plus_info.end()) {
-                    record->insertField("856",
-                                        { { 'u', "https://doi.org/" + doi_ },
-                                          { 'x', "Resolving-System" },
-                                          { 'z', GetLicenceFlag(issn_, debug_info, k10_plus_info) },
-                                          { '3', "Volltext" } },
-                                        '4', '0');
-                    debug_info->counter_open_access_from_k10plus++;
-                } else {
-                    record->insertField("856", { { 'u', "https://doi.org/" + doi_ }, { 'x', "Resolving-System" } }, '4', '0');
-                    debug_info->counter_doi_issn_without_access_info++;
-                }
-            } else {
-                record->insertField("856", { { 'u', "https://doi.org/" + doi_ }, { 'x', "Resolving-System" } }, '4', '0');
-                debug_info->counter_doi_without_issn++;
-            }
+            (not issn_.empty() ? debug_info->counter_doi_with_issn++ : debug_info->counter_doi_without_issn++);
+
+            record->insertField("856", { { 'u', "https://doi.org/" + doi_ }, { 'x', "Resolving-System" } }, '4', '0');
         }
     }
 
@@ -368,7 +352,7 @@ void InsertGeneralFieldInfo(MARC::Record * const record, NACJDDoc * const nacjd_
     nacjd_doc->ConvertAuthor(record);
     nacjd_doc->ConvertPublisher(record);
     nacjd_doc->ConvertYear(record);
-    nacjd_doc->ConvertUrl(record, debug_info, k10_plus_info);
+    nacjd_doc->ConvertUrl(record, debug_info);
 
     record->insertField("041", { { 'a', "eng" } });
     record->insertField("591", 'a', "Metadaten maschinell erstellt (TUKRIM)");
@@ -755,45 +739,67 @@ void ExtractInfoFromNACJD(const std::string &json_path, std::vector<NACJDDoc> * 
     }
 }
 
-void BuildISSNCache(std::map<std::string, K10PlusInfo> * const issn_to_k10_plus_info, const std::string &source_file_name) {
+void BuildISSNCache(std::map<std::string, K10PlusInfo> * const issn_to_k10_plus_info, const std::string &source_file_name,
+                    DebugInfo * const debug_info) {
     auto input_file(MARC::Reader::Factory(source_file_name));
     while (MARC::Record record = input_file->read()) {
         const std::set<std::string> issns(record.getISSNs());
         const bool is_open_access(MARC::IsOpenAccess(record));
         const K10PlusInfo k10_plus_info(record.getControlNumber(), is_open_access);
-        std::string printed_issn("");
+        bool is_online_resource(false);
         std::string control_number_or_superior_number(record.getControlNumber());
 
-
-        for (const auto &field776 : record.getTagRange("776")) {
-            if (field776.getIndicator1() == '0' && field776.getIndicator2() == '8') {
-                const std::string sub_i = field776.getFirstSubfieldWithCode('i');
-                const std::string sub_n = field776.getFirstSubfieldWithCode('n');
-                printed_issn = field776.getFirstSubfieldWithCode('x');
-
-                if (sub_i == "Erscheint auch" && sub_n == "Online-Ausgabe")
-                    control_number_or_superior_number = record.getSuperiorControlNumber();
+        for (const auto &fiedl300 : record.getTagRange("300")) {
+            const std::string subfield_a = fiedl300.getFirstSubfieldWithCode('a');
+            if (subfield_a == "Online-Ressource") {
+                is_online_resource = true;
+                break;
             }
         }
 
-        for (auto const &issn : issns) {
-            issn_to_k10_plus_info->insert({ StringUtil::ASCIIToUpper(issn), { control_number_or_superior_number, is_open_access } });
+        if (not is_online_resource) {
+            for (const auto &field338 : record.getTagRange("338")) {
+                const std::string subfield_a = field338.getFirstSubfieldWithCode('a');
+                if (subfield_a == "Online-Ressource") {
+                    is_online_resource = true;
+                    break;
+                }
+            }
         }
 
-        if (not printed_issn.empty())
-            issn_to_k10_plus_info->insert(
-                { StringUtil::ASCIIToUpper(printed_issn), { control_number_or_superior_number, is_open_access } });
+        if (not is_online_resource) {
+            for (const auto &field776 : record.getTagRange("776")) {
+                if (field776.getIndicator1() == '0' && field776.getIndicator2() == '8') {
+                    const std::string sub_i = field776.getFirstSubfieldWithCode('i');
+                    const std::string sub_n = field776.getFirstSubfieldWithCode('n');
+
+                    if (sub_i == "Erscheint auch" && sub_n == "Online-Ausgabe") {
+                        control_number_or_superior_number = record.getSuperiorControlNumber();
+                        is_online_resource = true;
+                    }
+                }
+            }
+        }
+
+        if (is_online_resource) {
+            for (auto const &issn : issns) {
+                issn_to_k10_plus_info->insert({ StringUtil::ASCIIToUpper(issn), { control_number_or_superior_number, is_open_access } });
+                debug_info->k10plus_issn_online++;
+            }
+        } else {
+            debug_info->k10plus_issn_printed += issns.size();
+        }
     }
 }
 
 void ShowInfoForDebugging(const DebugInfo &debug_info) {
     std::cout << "=== ISSN Found in K10Plus ===" << std::endl;
     for (auto db_found : debug_info.superior_work_found) {
-        std::cout << "superior: " << db_found.first << " , ISSN: " << db_found.second << std::endl;
+        std::cout << "ISSN: " << db_found.first << " , PPN: " << db_found.second << std::endl;
     }
     std::cout << "=== ISSN not found in K10Plus ===" << std::endl;
     for (auto db_not_found : debug_info.superior_work_not_found) {
-        std::cout << "- " << db_not_found << std::endl;
+        std::cout << db_not_found << std::endl;
     }
 
     std::cout << "=== Unknown type ===" << std::endl;
@@ -816,19 +822,19 @@ void ShowInfoForDebugging(const DebugInfo &debug_info) {
     std::cout << "Unknown: " << debug_info.counter_unknown << std::endl;
     std::cout << "Total: " << debug_info.counter_total() << std::endl << std::endl;
 
-    std::cout << "The number of updated journal  using data from K-10-Plus: " << debug_info.data_found_in_k10_plus << std::endl;
-    std::cout << "The number of journal that did not update: " << debug_info.data_not_found_in_k10_plus << std::endl;
-    std::cout << "The number of journal without ISSN: " << debug_info.counter_journal_without_issn << std::endl << std::endl;
+    std::cout << "K10 Plus, issn online: " << debug_info.k10plus_issn_online << std::endl;
+    std::cout << "K10 Plus, issn printed: " << debug_info.k10plus_issn_printed << std::endl << std::endl;
 
-    std::cout << "The number of doi with open access info from k10plus: " << debug_info.counter_open_access_from_k10plus << std::endl;
-    std::cout << "The number of doi with open access: " << debug_info.counter_doi_open_access << std::endl;
-    std::cout << "The number of doi with close access: " << debug_info.counter_doi_close_access << std::endl;
-    std::cout << "The number of doi with issn and no access information: " << debug_info.counter_doi_issn_without_access_info << std::endl;
-    std::cout << "The number of doi without issn and no access information: " << debug_info.counter_doi_without_issn << std::endl
-              << std::endl;
+    std::cout << "The number of updated data using information from K-10-Plus: " << debug_info.data_found_in_k10_plus << std::endl;
+    std::cout << "The number of data that did not update: " << debug_info.data_not_found_in_k10_plus << std::endl;
+    std::cout << "The number of data without ISSN: " << debug_info.counter_data_without_issn << std::endl << std::endl;
+
+    std::cout << "The number of doi with issn: " << debug_info.counter_doi_with_issn << std::endl;
+    std::cout << "The number of doi without issn: " << debug_info.counter_doi_without_issn << std::endl << std::endl;
 
     std::cout << "ISSN found in K10-Plus (unique): " << debug_info.superior_work_found.size() << std::endl;
-    std::cout << "ISSN not found in K10-Plus (unique): " << debug_info.superior_work_not_found.size() << std::endl;
+    std::cout << "ISSN not found in K10-Plus (unique) including the printed version: " << debug_info.superior_work_not_found.size()
+              << std::endl;
 }
 
 void BuildOpenAccessCache(const std::string &file_path, std::map<std::string, std::string> * const open_access_info_cache) {
@@ -872,22 +878,6 @@ void FindAndReplaceOpenAccessInfo(MARC::Record * const record, const std::map<st
         if (subfield_u.substr(0, 16) != "https://doi.org/")
             continue;
 
-        // Open access info is exist, taken from k10plus
-        if (subfields.hasSubfield('z')) {
-            debug_info->exist_in_k10plus++;
-            if (subfields.getFirstSubfieldWithCode('z') == "ZZ") {
-                const auto oa_info(open_access_info_cache.find(subfield_u));
-                if (oa_info != open_access_info_cache.end()) {
-                    if (oa_info->second == "true") {
-                        if (subfields.replaceFirstSubfield('z', "LF")) {
-                            field.setSubfields(subfields);
-                            debug_info->updating_existing_info_taken_from_k10plus++;
-                        }
-                    }
-                }
-            }
-            continue;
-        }
 
         const auto oa_info(open_access_info_cache.find(subfield_u));
         if (oa_info == open_access_info_cache.end()) {
@@ -899,7 +889,6 @@ void FindAndReplaceOpenAccessInfo(MARC::Record * const record, const std::map<st
         subfields.appendSubfield('z', (oa_info->second == "true" ? "LF" : "ZZ"));
         field.setSubfields(subfields);
 
-        debug_info->updated++;
         (oa_info->second == "true" ? debug_info->updated_lf++ : debug_info->updated_zz++);
     }
 }
@@ -930,11 +919,9 @@ void AugmentOpenAccessInfo(int argc, char **argv, const bool &debug_mode) {
             std::cout << doi << std::endl;
         }
 
+        std::cout << "\n\n";
         std::cout << "Not found in OpenAlex: " << augmented_oa_debug_info.total_not_in_openalex << std::endl;
-        std::cout << "Info is exist already: " << augmented_oa_debug_info.exist_in_k10plus << std::endl;
-        std::cout << "Info is exist already, but updated with a new: " << augmented_oa_debug_info.updating_existing_info_taken_from_k10plus
-                  << std::endl;
-        std::cout << "Augmented: " << augmented_oa_debug_info.updated << std::endl;
+        std::cout << "Augmented: " << augmented_oa_debug_info.updated_lf + augmented_oa_debug_info.updated_zz << std::endl;
         std::cout << "Augmented with LF: " << augmented_oa_debug_info.updated_lf << std::endl;
         std::cout << "Augmented with ZZ: " << augmented_oa_debug_info.updated_zz << std::endl;
     }
@@ -948,7 +935,7 @@ void Convert(int argc, char **argv, const bool &debug_mode) {
     std::map<std::string, K10PlusInfo> issn_to_k10_plus_info;
     DebugInfo debug_info;
     ExtractInfoFromNACJD(argv[2], &nacjd_docs);
-    BuildISSNCache(&issn_to_k10_plus_info, argv[3]);
+    BuildISSNCache(&issn_to_k10_plus_info, argv[3], &debug_info);
     WriteMarcRecords(argv[4], nacjd_docs, issn_to_k10_plus_info, &debug_info);
 
     if (debug_mode) {
