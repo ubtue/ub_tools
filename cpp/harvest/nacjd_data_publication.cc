@@ -54,8 +54,8 @@ struct DebugInfo {
     unsigned long counter_advs = 0, counter_book = 0, counter_chap = 0, counter_conf = 0, counter_elec = 0, counter_generic = 0,
                   counter_jour = 0, counter_mgzn = 0, counter_news = 0, counter_rprt = 0, counter_thes = 0, counter_unknown = 0,
                   counter_data_without_issn = 0, counter_doi_open_access = 0, counter_doi_close_access = 0, counter_doi_without_issn = 0,
-                  counter_doi_with_issn = 0, data_found_in_k10_plus = 0, data_not_found_in_k10_plus = 0, k10plus_issn_online,
-                  k10plus_issn_printed;
+                  counter_doi_with_issn = 0, data_found_in_k10_plus = 0, data_not_found_in_k10_plus = 0, k10plus_issn_online = 0,
+                  k10plus_issn_printed = 0;
     DebugInfo() = default;
     unsigned long counter_total() const {
         return (counter_advs + counter_book + counter_chap + counter_conf + counter_elec + counter_generic + counter_jour + counter_mgzn
