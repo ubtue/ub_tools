@@ -43,6 +43,9 @@ namespace {
         "\t- input_file: source of data.\n"
         "\t- source_file: source data needed for augmenting (taken from https://api.openalex.org/works).\n"
         "\t- output_file: target file after augmenting with the information of open access."
+        "\n"
+        "augment_773w input_file alternative_issn_file output_file\n"
+        "\t- input_file"
         "\n");
 }
 
@@ -132,17 +135,10 @@ std::string URLResolver(const std::string &ori_url) {
     return ori_url;
 }
 
-// std::string GetLicenceFlag(const std::string &issn, DebugInfo * const debug_info, const std::map<std::string, std::string>
-// &k10_plus_info) {
-//     if (k10_plus_info.find(issn) != k10_plus_info.end() && k10_plus_info.find(issn)->second.is_open_access_) {
-//         debug_info->counter_doi_open_access++;
-//         return "LF";
-//     }
+struct PPNAndISSN {
+    std::string ppn, issn;
+};
 
-//     debug_info->counter_doi_close_access++;
-//     // Set the value to ZZ when the criteria is not met
-//     return "ZZ";
-// }
 struct NACJDDoc {
     std::string ref_id_, // REF_ID
         title_,          // TITLE
@@ -185,7 +181,7 @@ struct NACJDDoc {
         return false;
     }
 
-    const MARC::Subfields ConstructPublishingInfo_773(const std::map<std::string, std::string> &k10_plus_info,
+    const MARC::Subfields ConstructPublishingInfo_773(const std::map<std::string, PPNAndISSN> &k10_plus_info,
                                                       DebugInfo * const debug_info) {
         MARC::Subfields publishing_info;
 
@@ -207,15 +203,16 @@ struct NACJDDoc {
         if (not issn_.empty()) {
             const auto is_exist_in_k10_plus = k10_plus_info.find(issn_);
             if (is_exist_in_k10_plus != k10_plus_info.end()) {
-                publishing_info.appendSubfield('w', "(DE-627)" + is_exist_in_k10_plus->second);
-                debug_info->superior_work_found.insert({ issn_, is_exist_in_k10_plus->second });
+                publishing_info.appendSubfield('w', is_exist_in_k10_plus->second.ppn);
+                publishing_info.appendSubfield('x', is_exist_in_k10_plus->second.issn);
+                debug_info->superior_work_found.insert({ issn_, is_exist_in_k10_plus->second.ppn });
                 debug_info->data_found_in_k10_plus++;
             } else {
+                publishing_info.appendSubfield('x', issn_);
                 debug_info->data_not_found_in_k10_plus++;
                 debug_info->superior_work_not_found.insert(issn_);
             }
 
-            publishing_info.appendSubfield('x', issn_);
         } else {
             debug_info->counter_data_without_issn++;
         }
@@ -335,8 +332,8 @@ MARC::Record *GenerateRecord(const std::string &leader, const std::string &_007_
 }
 
 
-void InsertGeneralFieldInfo(MARC::Record * const record, NACJDDoc * const nacjd_doc,
-                            std::map<std::string, std::string> const &k10_plus_info, DebugInfo * const debug_info) {
+void InsertGeneralFieldInfo(MARC::Record * const record, NACJDDoc * const nacjd_doc, std::map<std::string, PPNAndISSN> const &k10_plus_info,
+                            DebugInfo * const debug_info) {
     record->insertControlField("001", "ICPSR" + nacjd_doc->ref_id_);
     record->insertField("084", { { 'a', "2,1" }, { '2', "ssgn" } });
     nacjd_doc->ConvertTitle(record);
@@ -363,7 +360,7 @@ void InsertGeneralFieldInfo(MARC::Record * const record, NACJDDoc * const nacjd_
     record->insertField("935", { { 'a', "nacj" }, { '2', "LOK" } });
 }
 
-MARC::Record *GenerateMarcForStatistic(NACJDDoc * const nacjd_doc, std::map<std::string, std::string> const &k10_plus_info,
+MARC::Record *GenerateMarcForStatistic(NACJDDoc * const nacjd_doc, std::map<std::string, PPNAndISSN> const &k10_plus_info,
                                        DebugInfo * const debug_info) {
     MARC::Record *record(GenerateRecord("00000cam a22000000  4500", "tu"));
 
@@ -382,7 +379,7 @@ MARC::Record *GenerateMarcForStatistic(NACJDDoc * const nacjd_doc, std::map<std:
     return record;
 }
 
-MARC::Record *GenerateMarcForNews(NACJDDoc * const nacjd_doc, std::map<std::string, std::string> const &k10_plus_info,
+MARC::Record *GenerateMarcForNews(NACJDDoc * const nacjd_doc, std::map<std::string, PPNAndISSN> const &k10_plus_info,
                                   DebugInfo * const debug_info) {
     if (nacjd_doc->IsDocTypeStatistic())
         return GenerateMarcForStatistic(nacjd_doc, k10_plus_info, debug_info);
@@ -394,7 +391,7 @@ MARC::Record *GenerateMarcForNews(NACJDDoc * const nacjd_doc, std::map<std::stri
     return record;
 }
 
-MARC::Record *GenerateMarcForMagazine(NACJDDoc * const nacjd_doc, std::map<std::string, std::string> const &k10_plus_info,
+MARC::Record *GenerateMarcForMagazine(NACJDDoc * const nacjd_doc, std::map<std::string, PPNAndISSN> const &k10_plus_info,
                                       DebugInfo * const debug_info) {
     if (nacjd_doc->IsDocTypeStatistic())
         return GenerateMarcForStatistic(nacjd_doc, k10_plus_info, debug_info);
@@ -408,7 +405,7 @@ MARC::Record *GenerateMarcForMagazine(NACJDDoc * const nacjd_doc, std::map<std::
     return record;
 }
 
-MARC::Record *GenerateMarcForThesis(NACJDDoc * const nacjd_doc, std::map<std::string, std::string> const &k10_plus_info,
+MARC::Record *GenerateMarcForThesis(NACJDDoc * const nacjd_doc, std::map<std::string, PPNAndISSN> const &k10_plus_info,
                                     DebugInfo * const debug_info) {
     if (nacjd_doc->IsDocTypeStatistic())
         return GenerateMarcForStatistic(nacjd_doc, k10_plus_info, debug_info);
@@ -421,7 +418,7 @@ MARC::Record *GenerateMarcForThesis(NACJDDoc * const nacjd_doc, std::map<std::st
     return record;
 }
 
-MARC::Record *GenerateMarcForConference(NACJDDoc * const nacjd_doc, std::map<std::string, std::string> const &k10_plus_info,
+MARC::Record *GenerateMarcForConference(NACJDDoc * const nacjd_doc, std::map<std::string, PPNAndISSN> const &k10_plus_info,
                                         DebugInfo * const debug_info) {
     if (nacjd_doc->IsDocTypeStatistic())
         return GenerateMarcForStatistic(nacjd_doc, k10_plus_info, debug_info);
@@ -443,7 +440,7 @@ MARC::Record *GenerateMarcForConference(NACJDDoc * const nacjd_doc, std::map<std
     return record;
 }
 
-MARC::Record *GenerateMarcForChapter(NACJDDoc * const nacjd_doc, std::map<std::string, std::string> const &k10_plus_info,
+MARC::Record *GenerateMarcForChapter(NACJDDoc * const nacjd_doc, std::map<std::string, PPNAndISSN> const &k10_plus_info,
                                      DebugInfo * const debug_info) {
     if (nacjd_doc->IsDocTypeStatistic())
         return GenerateMarcForStatistic(nacjd_doc, k10_plus_info, debug_info);
@@ -457,7 +454,7 @@ MARC::Record *GenerateMarcForChapter(NACJDDoc * const nacjd_doc, std::map<std::s
 }
 
 
-MARC::Record *GenerateMarcForAudioVisual(NACJDDoc * const nacjd_doc, std::map<std::string, std::string> const &k10_plus_info,
+MARC::Record *GenerateMarcForAudioVisual(NACJDDoc * const nacjd_doc, std::map<std::string, PPNAndISSN> const &k10_plus_info,
                                          DebugInfo * const debug_info) {
     if (nacjd_doc->IsDocTypeStatistic())
         return GenerateMarcForStatistic(nacjd_doc, k10_plus_info, debug_info);
@@ -497,7 +494,7 @@ MARC::Record *GenerateMarcForAudioVisual(NACJDDoc * const nacjd_doc, std::map<st
     return record;
 }
 
-MARC::Record *GenerateMarcForWebsite(NACJDDoc * const nacjd_doc, std::map<std::string, std::string> const &k10_plus_info,
+MARC::Record *GenerateMarcForWebsite(NACJDDoc * const nacjd_doc, std::map<std::string, PPNAndISSN> const &k10_plus_info,
                                      DebugInfo * const debug_info) {
     if (nacjd_doc->IsDocTypeStatistic())
         return GenerateMarcForStatistic(nacjd_doc, k10_plus_info, debug_info);
@@ -511,7 +508,7 @@ MARC::Record *GenerateMarcForWebsite(NACJDDoc * const nacjd_doc, std::map<std::s
     return record;
 }
 
-MARC::Record *GenerateMarcForGeneric(NACJDDoc * const nacjd_doc, std::map<std::string, std::string> const &k10_plus_info,
+MARC::Record *GenerateMarcForGeneric(NACJDDoc * const nacjd_doc, std::map<std::string, PPNAndISSN> const &k10_plus_info,
                                      DebugInfo * const debug_info) {
     if (nacjd_doc->IsDocTypeStatistic())
         return GenerateMarcForStatistic(nacjd_doc, k10_plus_info, debug_info);
@@ -524,7 +521,7 @@ MARC::Record *GenerateMarcForGeneric(NACJDDoc * const nacjd_doc, std::map<std::s
 }
 
 
-MARC::Record *GenerateMarcForBook(NACJDDoc * const nacjd_doc, std::map<std::string, std::string> const &k10_plus_info,
+MARC::Record *GenerateMarcForBook(NACJDDoc * const nacjd_doc, std::map<std::string, PPNAndISSN> const &k10_plus_info,
                                   DebugInfo * const debug_info) {
     MARC::Record *record(GenerateRecord("00000cam a22000000  4500", "tu"));
     InsertGeneralFieldInfo(record, nacjd_doc, k10_plus_info, debug_info);
@@ -533,7 +530,7 @@ MARC::Record *GenerateMarcForBook(NACJDDoc * const nacjd_doc, std::map<std::stri
 }
 
 
-MARC::Record *GenerateMarcForReport(NACJDDoc * const nacjd_doc, std::map<std::string, std::string> const &k10_plus_info,
+MARC::Record *GenerateMarcForReport(NACJDDoc * const nacjd_doc, std::map<std::string, PPNAndISSN> const &k10_plus_info,
                                     DebugInfo * const debug_info) {
     if (nacjd_doc->IsDocTypeStatistic())
         return GenerateMarcForStatistic(nacjd_doc, k10_plus_info, debug_info);
@@ -546,7 +543,7 @@ MARC::Record *GenerateMarcForReport(NACJDDoc * const nacjd_doc, std::map<std::st
 }
 
 
-MARC::Record *GenerateMarcForJournal(NACJDDoc * const nacjd_doc, std::map<std::string, std::string> const &k10_plus_info,
+MARC::Record *GenerateMarcForJournal(NACJDDoc * const nacjd_doc, std::map<std::string, PPNAndISSN> const &k10_plus_info,
                                      DebugInfo * const debug_info) {
     // create a new record
     MARC::Record *record(GenerateRecord("00000naa a22000002  4500", "cr||||"));
@@ -574,7 +571,7 @@ MARC::Record *GenerateMarcForJournal(NACJDDoc * const nacjd_doc, std::map<std::s
 }
 
 void WriteMarcRecords(const std::string &marc_path, const std::vector<NACJDDoc> &nacjd_docs,
-                      const std::map<std::string, std::string> &k10_plus_info, DebugInfo * const debug_info) {
+                      const std::map<std::string, PPNAndISSN> &k10_plus_info, DebugInfo * const debug_info) {
     std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_path));
 
     for (auto nacjd_doc : nacjd_docs) {
@@ -729,41 +726,44 @@ void ExtractInfoFromNACJD(const std::string &json_path, std::vector<NACJDDoc> * 
     }
 }
 
-void BuildISSNCache(std::map<std::string, std::string> * const issn_to_ppn_from_k10plus, const std::string &source_file_name,
-                    DebugInfo * const debug_info) {
+void BuildK10PlusSuperiorWorkInformationLookupTable(std::map<std::string, PPNAndISSN> * const issn_to_ppn_from_k10plus,
+                                                    const std::string &source_file_name, DebugInfo * const debug_info) {
     auto input_file(MARC::Reader::Factory(source_file_name));
     while (MARC::Record record = input_file->read()) {
         const std::set<std::string> issns(record.getISSNs());
-        bool is_online_resource(false);
         std::string control_number_or_superior_number(record.getControlNumber());
 
         if (record.hasFieldWithSubfieldValue("300", 'a', "Online-Ressource")
-            || record.hasFieldWithSubfieldValue("339", 'a', "Online-Ressource"))
-            is_online_resource = true;
+            || record.hasFieldWithSubfieldValue("338", 'a', "Online-Ressource")) {
+            for (auto &issn : issns) {
+                const std::string issn_(StringUtil::ASCIIToUpper(issn));
+                issn_to_ppn_from_k10plus->insert({ issn_, { "(DE-627)" + record.getControlNumber(), issn_ } });
+                debug_info->k10plus_issn_online++;
+            }
+            continue;
+        }
 
-
-        if (not is_online_resource) {
+        if (record.hasFieldWithSubfieldValue("776", 'n', "Online-Ausgabe")) {
             for (const auto &field776 : record.getTagRange("776")) {
                 if (field776.getIndicator1() == '0' && field776.getIndicator2() == '8') {
                     const std::string sub_i = field776.getFirstSubfieldWithCode('i');
                     const std::string sub_n = field776.getFirstSubfieldWithCode('n');
 
-                    if (sub_i == "Erscheint auch" && sub_n == "Online-Ausgabe") {
-                        control_number_or_superior_number = record.getSuperiorControlNumber();
-                        is_online_resource = true;
+                    if (sub_i == "Erscheint auch als" && sub_n == "Online-Ausgabe") {
+                        for (auto &issn : issns) {
+                            issn_to_ppn_from_k10plus->insert(
+                                { StringUtil::ASCIIToUpper(issn),
+                                  { field776.getFirstSubfieldWithCode('w'), field776.getFirstSubfieldWithCode('x') } });
+                            debug_info->k10plus_issn_online++;
+                        }
+                        break;
                     }
                 }
             }
+            continue;
         }
 
-        if (is_online_resource) {
-            for (auto const &issn : issns) {
-                issn_to_ppn_from_k10plus->insert({ StringUtil::ASCIIToUpper(issn), control_number_or_superior_number });
-                debug_info->k10plus_issn_online++;
-            }
-        } else {
-            debug_info->k10plus_issn_printed += issns.size();
-        }
+        debug_info->k10plus_issn_printed += issns.size();
     }
 }
 
@@ -907,10 +907,10 @@ void Convert(int argc, char **argv, const bool &debug_mode) {
         Usage();
 
     std::vector<NACJDDoc> nacjd_docs;
-    std::map<std::string, std::string> issn_to_ppn_from_k10plus;
+    std::map<std::string, PPNAndISSN> issn_to_ppn_from_k10plus;
     DebugInfo debug_info;
     ExtractInfoFromNACJD(argv[2], &nacjd_docs);
-    BuildISSNCache(&issn_to_ppn_from_k10plus, argv[3], &debug_info);
+    BuildK10PlusSuperiorWorkInformationLookupTable(&issn_to_ppn_from_k10plus, argv[3], &debug_info);
     WriteMarcRecords(argv[4], nacjd_docs, issn_to_ppn_from_k10plus, &debug_info);
 
     if (debug_mode) {
