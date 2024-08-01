@@ -357,7 +357,7 @@ void InsertGeneralFieldInfo(MARC::Record * const record, NACJDDoc * const nacjd_
 
 
     record->insertField("935", { { 'a', "mkri" } });
-    record->insertField("935", { { 'a', "nacj" }, { '2', "LOK" } });
+    record->insertField("935", { { 'a', "nacp" }, { '2', "LOK" } });
 }
 
 MARC::Record *GenerateMarcForStatistic(NACJDDoc * const nacjd_doc, std::map<std::string, PPNAndISSN> const &k10_plus_info,
