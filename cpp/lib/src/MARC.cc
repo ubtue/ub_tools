@@ -1237,8 +1237,12 @@ std::set<std::string> Record::getISSNs() const {
     std::set<std::string> issns;
     for (const auto &field : getTagRange("022")) {
         const std::string first_subfield_a(field.getFirstSubfieldWithCode('a'));
+        const std::string first_subfield_l(field.getFirstSubfieldWithCode('l'));
         std::string normalised_issn;
         if (MiscUtil::NormaliseISSN(first_subfield_a, &normalised_issn))
+            issns.insert(normalised_issn);
+
+        if (MiscUtil::NormaliseISSN(first_subfield_l, &normalised_issn))
             issns.insert(normalised_issn);
     }
 
