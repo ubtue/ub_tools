@@ -536,6 +536,12 @@ MARC::Record *GenerateMarcForBook(NACJDDoc * const nacjd_doc, std::map<std::stri
     MARC::Record *record(GenerateRecord("00000cam a22000000  4500", "tu"));
     InsertGeneralFieldInfo(record, nacjd_doc, k10_plus_info, debug_info);
 
+    if (nacjd_doc->place_pub_.empty())
+        record->insertField("264", 'a', "[Erscheinungsort nicht ermittelbar]");
+
+    if (nacjd_doc->publisher_.empty())
+        record->insertField("264", 'b', "[Verlag nicht ermittelbar]");
+
     return record;
 }
 
