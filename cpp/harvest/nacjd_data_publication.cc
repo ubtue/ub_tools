@@ -37,6 +37,7 @@ namespace {
         "convert input_file source_file output_file\n"
         "\t- input_file: source of data in JSON format (taken from NACJD website).\n"
         "\t- source_file: source data needed for augmenting (taken from K10Plus).\n"
+        "\t- issn_not_found: will contain list of ISSN for printed version or not found.\n"
         "\t- output_file: will contain all icpsr records as MARC21.\n"
         "\n"
         "augment_open_access input_file source_file output_file\n"
@@ -44,8 +45,17 @@ namespace {
         "\t- source_file: source data needed for augmenting (taken from https://api.openalex.org/works).\n"
         "\t- output_file: target file after augmenting with the information of open access."
         "\n"
-        "augment_773w input_file alternative_issn_file output_file\n"
-        "\t- input_file"
+        "augment_773w input_file alternative_issn_file source_file not_found_issn_file output_file\n"
+        "\t- input_file: source of data to be augmented.\n"
+        "\t- alternative_issn_file: list of alternative ISSN map (ex. taken from openalex).\n"
+        "\t- source_file: source data needed for augmenting (taken from K10Plus).\n"
+        "\t- not_found_issn_file: target file contain alternative ISSN(s) do not exist in K10 Plus.\n"
+        "\t- output_file: target file after augmenting with the information from K10 Plus.\n"
+        "\n"
+        "suggested_report input_file source_file output_file.\n"
+        "\t- input_file: the list of ISSNs taken from not_found_issn_file from 'augment_773w.\n"
+        "\t- source_file: source data needed for gathering information (taken from K10Plus).\n"
+        "\t- output_file: the list of ISSNs needed to be considered.\n"
         "\n");
 }
 
@@ -664,7 +674,7 @@ void ExtractInfoFromNACJD(const std::string &json_path, std::vector<NACJDDoc> * 
             nacjd_doc.title_ = doc.at("TITLE").get<std::string>();
         }
         if (doc.contains("ISSN")) {
-            nacjd_doc.issn_ = doc.at("ISSN").get<std::string>();
+            nacjd_doc.issn_ = StringUtil::ASCIIToUpper(doc.at("ISSN").get<std::string>());
         }
         if (doc.contains("PUBLISHER")) {
             nacjd_doc.publisher_ = doc.at("PUBLISHER").get<std::string>();
@@ -732,6 +742,7 @@ void BuildK10PlusSuperiorWorkInformationLookupTable(std::map<std::string, PPNAnd
     while (MARC::Record record = input_file->read()) {
         const std::set<std::string> issns(record.getISSNs());
         std::string control_number_or_superior_number(record.getControlNumber());
+        // Online-Ressource
 
         if (record.hasFieldWithSubfieldValue("300", 'a', "Online-Ressource")
             || record.hasFieldWithSubfieldValue("338", 'a', "Online-Ressource")) {
@@ -742,14 +753,17 @@ void BuildK10PlusSuperiorWorkInformationLookupTable(std::map<std::string, PPNAnd
             }
             continue;
         }
-
-        if (record.hasFieldWithSubfieldValue("776", 'n', "Online-Ausgabe")) {
+        // if (record.hasFieldWithSubfieldValue("776", 'n', "Online-Ausgabe")) {
+        if (record.hasTag("776")) {
             for (const auto &field776 : record.getTagRange("776")) {
                 if (field776.getIndicator1() == '0' && field776.getIndicator2() == '8') {
-                    const std::string sub_i = field776.getFirstSubfieldWithCode('i');
-                    const std::string sub_n = field776.getFirstSubfieldWithCode('n');
-
-                    if (sub_i == "Erscheint auch als" && sub_n == "Online-Ausgabe") {
+                    const std::string sub_i(field776.getFirstSubfieldWithCode('i'));
+                    // Online-Au
+                    const std::string sub_n(field776.getFirstSubfieldWithCode('n').substr(0, 9));
+                    if ((StringUtil::AlphaWordCompare(sub_i, "Erscheint auch als") == 0
+                         && StringUtil::AlphaWordCompare(sub_n, "Online-Au") == 0)
+                        || (StringUtil::AlphaWordCompare(sub_i.substr(0, 11), "Online-Ausg") == 0))
+                    {
                         for (auto &issn : issns) {
                             issn_to_ppn_from_k10plus->insert(
                                 { StringUtil::ASCIIToUpper(issn),
@@ -771,10 +785,6 @@ void ShowInfoForDebugging(const DebugInfo &debug_info) {
     std::cout << "=== ISSN Found in K10Plus ===" << std::endl;
     for (auto db_found : debug_info.superior_work_found) {
         std::cout << "ISSN: " << db_found.first << " , PPN: " << db_found.second << std::endl;
-    }
-    std::cout << "=== ISSN not found in K10Plus ===" << std::endl;
-    for (auto db_not_found : debug_info.superior_work_not_found) {
-        std::cout << db_not_found << std::endl;
     }
 
     std::cout << "=== Unknown type ===" << std::endl;
@@ -868,6 +878,101 @@ void FindAndReplaceOpenAccessInfo(MARC::Record * const record, const std::map<st
     }
 }
 
+void BuildISSNAlternativeCache(const std::string &file_path, std::map<std::string, std::set<std::string>> * const alternative_issn_cache) {
+    std::vector<std::vector<std::string>> lines;
+    TextUtil::ParseCSVFileOrDie(file_path, &lines);
+
+    auto line(lines.cbegin());
+    if (line == lines.cend())
+        LOG_ERROR("Open Access file is empty");
+
+    for (line = lines.cbegin(); line != lines.cend(); ++line) {
+        if (line->size() > 1) {
+            std::set<std::string> alternative_issns;
+            for (unsigned long i = 1; i < line->size(); i++)
+                alternative_issns.insert((*line)[i]);
+
+            alternative_issn_cache->insert({ (*line)[0], alternative_issns });
+        }
+    }
+}
+
+void Update773w(MARC::Record * const record, const std::map<std::string, PPNAndISSN> &issn_to_ppn_from_k10plus,
+                const std::map<std::string, std::set<std::string>> &alternative_issn_cache,
+                std::set<std::string> * const missing_issn_in_k10plus) {
+    for (auto &tag773 : record->getTagRange("773")) {
+        MARC::Subfields subfields(tag773.getContents());
+        if (subfields.hasSubfield('w'))
+            return;
+
+        const std::string issn_x(subfields.getFirstSubfieldWithCode('x'));
+        const auto alternative_issns(alternative_issn_cache.find(issn_x));
+        if (alternative_issns == alternative_issn_cache.end())
+            return;
+
+        for (auto const &alternative_issn : alternative_issns->second) {
+            const auto ppn_issn_k10plus(issn_to_ppn_from_k10plus.find(alternative_issn));
+
+            if (ppn_issn_k10plus != issn_to_ppn_from_k10plus.end()) {
+                subfields.appendSubfield('w', ppn_issn_k10plus->second.ppn);
+                subfields.replaceFirstSubfield('x', ppn_issn_k10plus->second.issn);
+
+                tag773.setSubfields(subfields);
+                return;
+            }
+        }
+
+        missing_issn_in_k10plus->insert(issn_x);
+
+        subfields.deleteFirstSubfieldWithCode('x');
+        subfields.appendSubfield('i', "Sonderdruck aus");
+        tag773.setSubfields(subfields);
+        record->insertField("500", { { 'a', issn_x } });
+        record->insertField("935", { { 'c', "so" } });
+    }
+}
+
+void Augement773w(int argc, char **argv, const bool &debug_mode) {
+    if (argc < 7)
+        Usage();
+
+
+    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(argv[2]));
+    std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(argv[6]));
+    std::map<std::string, std::set<std::string>> alternative_issn_cache;
+    DebugInfo debug_info;
+    std::map<std::string, PPNAndISSN> issn_to_ppn_from_k10plus;
+    std::set<std::string> missing_issn_in_k10plus;
+    // argv[5] is issn not found in k10 plus
+    const std::string output_issn_filename(argv[5]);
+
+    BuildISSNAlternativeCache(argv[3], &alternative_issn_cache);
+    BuildK10PlusSuperiorWorkInformationLookupTable(&issn_to_ppn_from_k10plus, argv[4], &debug_info);
+
+
+    while (MARC::Record record = marc_reader.get()->read()) {
+        // 856u
+        Update773w(&record, issn_to_ppn_from_k10plus, alternative_issn_cache, &missing_issn_in_k10plus);
+        marc_writer.get()->write(record);
+    }
+
+
+    File list_of_issn_printed_or_not_found(output_issn_filename, "w");
+    if (not list_of_issn_printed_or_not_found)
+        LOG_ERROR("can't open \"" + output_issn_filename + "\" for writing!");
+
+    for (auto const &issn : missing_issn_in_k10plus) {
+        list_of_issn_printed_or_not_found << issn << '\n';
+    }
+
+    if (debug_mode) {
+        std::cout << "Debug Mode" << std::endl;
+        for (auto const &issn : missing_issn_in_k10plus) {
+            std::cout << issn << std::endl;
+        }
+    }
+}
+
 void AugmentOpenAccessInfo(int argc, char **argv, const bool &debug_mode) {
     if (argc < 5)
         Usage();
@@ -903,7 +1008,7 @@ void AugmentOpenAccessInfo(int argc, char **argv, const bool &debug_mode) {
 }
 
 void Convert(int argc, char **argv, const bool &debug_mode) {
-    if (argc < 5)
+    if (argc < 6)
         Usage();
 
     std::vector<NACJDDoc> nacjd_docs;
@@ -911,12 +1016,155 @@ void Convert(int argc, char **argv, const bool &debug_mode) {
     DebugInfo debug_info;
     ExtractInfoFromNACJD(argv[2], &nacjd_docs);
     BuildK10PlusSuperiorWorkInformationLookupTable(&issn_to_ppn_from_k10plus, argv[3], &debug_info);
-    WriteMarcRecords(argv[4], nacjd_docs, issn_to_ppn_from_k10plus, &debug_info);
+    WriteMarcRecords(argv[5], nacjd_docs, issn_to_ppn_from_k10plus, &debug_info);
+
+    const std::string output_issn_filename(argv[4]);
+    File list_of_issn_printed_or_not_found(output_issn_filename, "w");
+    if (not list_of_issn_printed_or_not_found)
+        LOG_ERROR("can't open \"" + output_issn_filename + "\" for writing!");
+
+    for (auto const &issn : debug_info.superior_work_not_found) {
+        list_of_issn_printed_or_not_found << issn << '\n';
+    }
 
     if (debug_mode) {
         ShowInfoForDebugging(debug_info);
     }
 }
+
+std::set<std::string> GetISSNFrom776Xs(const MARC::Record &record) {
+    std::set<std::string> issns;
+    for (const auto &field : record.getTagRange("776")) {
+        const std::string first_subfield_x(field.getFirstSubfieldWithCode('x'));
+        std::string normalised_issn;
+        if (MiscUtil::NormaliseISSN(first_subfield_x, &normalised_issn))
+            issns.insert(normalised_issn);
+    }
+
+    return issns;
+}
+
+std::string ISSNType(const MARC::Record &record) {
+    if (record.hasFieldWithSubfieldValue("300", 'a', "Online-Ressource")
+        || record.hasFieldWithSubfieldValue("338", 'a', "Online-Ressource"))
+        return "Online-Ressource";
+    // if (record.hasFieldWithSubfieldValue("776", 'n', "Online-Ausgabe")) {
+    if (record.hasTag("776")) {
+        for (const auto &field776 : record.getTagRange("776")) {
+            if (field776.getIndicator1() == '0' && field776.getIndicator2() == '8') {
+                const std::string sub_i(field776.getFirstSubfieldWithCode('i'));
+                // Online-Au
+                const std::string sub_n(field776.getFirstSubfieldWithCode('n').substr(0, 9));
+                if ((StringUtil::AlphaWordCompare(sub_i, "Erscheint auch als") == 0
+                     && StringUtil::AlphaWordCompare(sub_n, "Online-Au") == 0)
+                    || (StringUtil::AlphaWordCompare(sub_i.substr(0, 11), "Online-Ausg") == 0))
+                {
+                    return "Online-Ressource";
+                }
+            }
+        }
+    }
+
+    return "Printed";
+}
+
+void BuildK10PlusISSNInfo(std::map<std::string, std::string> * const issn_and_type,
+                          std::map<std::string, std::string> * const issn_from_776x_and_type, const std::string &source_file_name) {
+    auto input_file(MARC::Reader::Factory(source_file_name));
+    while (MARC::Record record = input_file->read()) {
+        const std::set<std::string> issns(record.getISSNs());
+        const std::set<std::string> issns776x(GetISSNFrom776Xs(record));
+        const std::string issn_type(ISSNType(record));
+        if (not issns.empty()) {
+            for (const auto &issn : issns) {
+                issn_and_type->insert({ issn, issn_type });
+            }
+        }
+        if (not issns776x.empty()) {
+            for (const auto &issn : issns776x)
+                issn_from_776x_and_type->insert({ issn, issn_type });
+        }
+    }
+}
+
+void NotFoundOrPrinted(int argc, char **argv, const bool &debug_mode) {
+    if (argc != 5)
+        Usage();
+
+    std::map<std::string, std::string> issns_and_type, issns776_and_type, issn_printed, issn_in_776;
+    std::vector<std::string> issn_not_found;
+    const std::string output_issn_filename(argv[4]);
+    File issns_to_be_considered(output_issn_filename, "w");
+    BuildK10PlusISSNInfo(&issns_and_type, &issns776_and_type, argv[3]);
+
+
+    std::vector<std::vector<std::string>> lines;
+    TextUtil::ParseCSVFileOrDie(argv[2], &lines);
+
+    auto line(lines.cbegin());
+    if (line == lines.cend())
+        LOG_ERROR("Open Access file is empty");
+
+    // Construct open access cache
+    for (line = lines.cbegin(); line != lines.cend(); ++line) {
+        if (line->size() != 1)
+            LOG_ERROR("Logical line #" + std::to_string(line - lines.cbegin()) + " doesn't contain 1 values!");
+
+        if (unlikely((*line)[0].empty()))
+            LOG_ERROR("Logical line #" + std::to_string(line - lines.cbegin()) + " is missing!");
+
+        std::string issn_((*line)[0]);
+        if (not issn_.empty()) {
+            const auto issn(issns_and_type.find(issn_)), issn776x(issns776_and_type.find(issn_));
+            if (issn != issns_and_type.end()) {
+                issn_printed.insert(*issn);
+            } else if (issn776x != issns776_and_type.end())
+                issn_in_776.insert(*issn776x);
+            else
+                issn_not_found.emplace_back(issn_);
+        }
+    }
+
+
+    if (not issns_to_be_considered)
+        LOG_ERROR("can't open \"" + output_issn_filename + "\" for writing!");
+
+    issns_to_be_considered << "ISSN is Printed Version" << '\n';
+    for (const auto &printed_ : issn_printed)
+        issns_to_be_considered << printed_.first << ", type: " << printed_.second << '\n';
+
+    issns_to_be_considered << "ISSN is in 776x" << '\n';
+    for (const auto &_776 : issn_in_776)
+        issns_to_be_considered << _776.first << ", type: " << _776.second << '\n';
+
+    issns_to_be_considered << "ISSN not found in k10plus but found in openalex" << '\n';
+    for (const auto &not_found : issn_not_found)
+        issns_to_be_considered << not_found << '\n';
+
+    issns_to_be_considered << "\n\nPrinted version: " << issn_printed.size() << '\n';
+    issns_to_be_considered << "ISSN is in 776x: " << issn_in_776.size() << '\n';
+    issns_to_be_considered << "ISSN is not found in K10Plus but found on openalex: " << issn_not_found.size() << '\n';
+
+
+    if (debug_mode) {
+        std::cout << "ISSN is Printed Version" << std::endl;
+        for (const auto &printed_ : issn_printed)
+            std::cout << printed_.first << ", type: " << printed_.second << std::endl;
+
+        std::cout << "ISSN is in 776x" << std::endl;
+        for (const auto &_776 : issn_in_776)
+            std::cout << _776.first << ", type: " << _776.second << std::endl;
+
+        std::cout << "ISSN not found in k10plus but found in openalex" << std::endl;
+        for (const auto &not_found : issn_not_found)
+            std::cout << not_found << std::endl;
+
+        std::cout << "\n\nPrinted version: " << issn_printed.size() << std::endl;
+        std::cout << "ISSN is in 776x: " << issn_in_776.size() << std::endl;
+        std::cout << "ISSN is not found in K10Plus but found on openalex: " << issn_not_found.size() << std::endl;
+    }
+}
+
 
 } // unnamed namespace
 
@@ -937,8 +1185,13 @@ int Main(int argc, char **argv) {
         Convert(argc, argv, debug_mode);
     } else if (mode == "augment_open_access") {
         AugmentOpenAccessInfo(argc, argv, debug_mode);
-    } else
+    } else if (mode == "augment_773w") {
+        Augement773w(argc, argv, debug_mode);
+    } else if (mode == "suggested_report") {
+        NotFoundOrPrinted(argc, argv, debug_mode);
+    } else {
         Usage();
+    }
 
 
     return EXIT_SUCCESS;
