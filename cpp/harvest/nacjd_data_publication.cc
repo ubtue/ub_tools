@@ -41,9 +41,10 @@ namespace {
         "\t- issn_not_found: will contain list of ISSN for printed version or not found.\n"
         "\t- output_file: will contain all icpsr records as MARC21.\n"
         "\n"
-        "augment_open_access input_file source_file output_file\n"
+        "augment_open_access input_file source_doi_based_file source_issn_based_file output_file\n"
         "\t- input_file: source of data.\n"
-        "\t- source_file: source data needed for augmenting (taken from https://api.openalex.org/works).\n"
+        "\t- source_doi_based_file: source data needed for augmenting (taken from https://api.openalex.org/works).\n"
+        "\t- source_issn_based_file: source data needed for augmenting (taken from https://api.openalex.org/sources/issn:).\n"
         "\t- output_file: target file after augmenting with the information of open access.\n"
         "\n"
         "augment_773w input_file alternative_issn_file source_file not_found_issn_file output_file\n"
@@ -79,7 +80,7 @@ struct DebugInfo {
 
 struct AugmentedOpenAccessDebugInfo {
     unsigned updated_lf = 0, updated_zz = 0, total_not_in_openalex = 0;
-    std::set<std::string> not_found_in_openalex;
+    std::set<std::string> not_found_in_openalex, augment_based_on_issn;
     AugmentedOpenAccessDebugInfo() = default;
 };
 
@@ -781,8 +782,7 @@ void BuildK10PlusSuperiorWorkInformationLookupTable(std::map<std::string, PPNAnd
         // Online-Ressource
 
         if (record.hasFieldWithSubfieldValue("300", 'a', "Online-Ressource")
-            || record.hasFieldWithSubfieldValue("338", 'a', "Online-Ressource"))
-        {
+            || record.hasFieldWithSubfieldValue("338", 'a', "Online-Ressource")) {
             for (auto &issn : issns) {
                 const std::string issn_(StringUtil::ASCIIToUpper(issn));
                 issn_to_ppn_from_k10plus->insert({ issn_, { "(DE-627)" + record.getControlNumber(), issn_ } });
@@ -790,7 +790,7 @@ void BuildK10PlusSuperiorWorkInformationLookupTable(std::map<std::string, PPNAnd
             }
             continue;
         }
-        // if (record.hasFieldWithSubfieldValue("776", 'n', "Online-Ausgabe")) {
+
         if (record.hasTag("776")) {
             for (const auto &field776 : record.getTagRange("776")) {
                 if (field776.getIndicator1() == '0' && field776.getIndicator2() == '8') {
@@ -888,7 +888,17 @@ void BuildOpenAccessCache(const std::string &file_path, std::map<std::string, st
 }
 
 void FindAndReplaceOpenAccessInfo(MARC::Record * const record, const std::map<std::string, std::string> &open_access_info_cache,
+                                  const std::map<std::string, std::string> issn_based_open_access_info,
                                   AugmentedOpenAccessDebugInfo * const debug_info) {
+    std::string issn;
+    const auto field773(record->getFirstField("773"));
+    if (field773 != record->end()) {
+        const auto subfield(field773->getSubfields());
+        if (subfield.hasSubfield('x')) {
+            issn = subfield.getFirstSubfieldWithCode('x');
+        }
+    }
+
     for (auto &field : *record) {
         if (field.getTag() != "856")
             continue;
@@ -905,20 +915,52 @@ void FindAndReplaceOpenAccessInfo(MARC::Record * const record, const std::map<st
         if (subfield_u.substr(0, 16) != "https://doi.org/")
             continue;
 
+        std::string z_info;
 
         const auto oa_info(open_access_info_cache.find(subfield_u));
-        if (oa_info == open_access_info_cache.end()) {
-            debug_info->not_found_in_openalex.emplace(subfield_u);
-            debug_info->total_not_in_openalex++;
-            continue;
+
+        if (oa_info != open_access_info_cache.end()) {
+            z_info = (oa_info->second == "true" ? "LF" : "ZZ");
+        } else {
+            if (issn.empty()) {
+                debug_info->not_found_in_openalex.emplace(subfield_u);
+                debug_info->total_not_in_openalex++;
+                continue;
+            }
+
+            const auto oa_info_issn(issn_based_open_access_info.find(issn));
+            if (oa_info_issn != issn_based_open_access_info.end()) {
+                debug_info->augment_based_on_issn.emplace(issn);
+                z_info = (oa_info_issn->second == "true" ? "LF" : "ZZ");
+            } else {
+                debug_info->not_found_in_openalex.emplace(subfield_u);
+                debug_info->total_not_in_openalex++;
+                continue;
+            }
         }
 
-        subfields.appendSubfield('z', (oa_info->second == "true" ? "LF" : "ZZ"));
+        subfields.appendSubfield('z', z_info);
         field.setSubfields(subfields);
 
-        (oa_info->second == "true" ? debug_info->updated_lf++ : debug_info->updated_zz++);
+        (z_info == "LF" ? debug_info->updated_lf++ : debug_info->updated_zz++);
     }
 }
+
+void BuildISSNBasedOpenAccessInfoCache(const std::string &file_path,
+                                       std::map<std::string, std::string> * const issn_based_open_access_cache) {
+    std::vector<std::vector<std::string>> lines;
+    TextUtil::ParseCSVFileOrDie(file_path, &lines);
+
+    auto line(lines.cbegin());
+    if (line == lines.cend())
+        LOG_ERROR("Open Access file is empty");
+
+    for (line = lines.cbegin(); line != lines.cend(); ++line) {
+        if (line->size() == 2)
+            issn_based_open_access_cache->insert({ (*line)[1], (*line)[0] });
+    }
+}
+
 void BuildStudyNumberToControlNumberCache(const std::string &file_path, std::map<std::string, std::string> * const study_number_cache) {
     std::vector<std::vector<std::string>> lines;
     TextUtil::ParseCSVFileOrDie(file_path, &lines);
@@ -1028,31 +1070,37 @@ void Augement773w(int argc, char **argv, const bool &debug_mode) {
 }
 
 void AugmentOpenAccessInfo(int argc, char **argv, const bool &debug_mode) {
-    if (argc < 5)
+    if (argc < 6)
         Usage();
 
 
     AugmentedOpenAccessDebugInfo augmented_oa_debug_info;
     std::map<std::string, std::string> open_access_info_cache;
+    std::map<std::string, std::string> issn_based_open_access_cache;
     std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(argv[2]));
-    std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(argv[4]));
+    std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(argv[5]));
 
-    if (unlikely((argv[2] == (argv[4]))))
+    if (unlikely((argv[2] == (argv[5]))))
         LOG_ERROR("The input file name equals the output file name!");
 
     BuildOpenAccessCache(argv[3], &open_access_info_cache);
-
+    BuildISSNBasedOpenAccessInfoCache(argv[4], &issn_based_open_access_cache);
     while (MARC::Record record = marc_reader.get()->read()) {
         // 856u
-        FindAndReplaceOpenAccessInfo(&record, open_access_info_cache, &augmented_oa_debug_info);
+        FindAndReplaceOpenAccessInfo(&record, open_access_info_cache, issn_based_open_access_cache, &augmented_oa_debug_info);
         marc_writer.get()->write(record);
     }
 
     if (debug_mode) {
-        for (auto const &doi : augmented_oa_debug_info.not_found_in_openalex) {
+        for (const auto &doi : augmented_oa_debug_info.not_found_in_openalex) {
             std::cout << doi << std::endl;
         }
 
+        std::cout << "Augmented open access information based on ISSN" << std::endl;
+        for (const auto &issn : augmented_oa_debug_info.augment_based_on_issn) {
+            std::cout << issn << std::endl;
+        }
+        std::cout << "Total augemented based on ISSN: " << augmented_oa_debug_info.augment_based_on_issn.size() << std::endl;
         std::cout << "\n\n";
         std::cout << "Not found in OpenAlex: " << augmented_oa_debug_info.total_not_in_openalex << std::endl;
         std::cout << "Augmented: " << augmented_oa_debug_info.updated_lf + augmented_oa_debug_info.updated_zz << std::endl;
@@ -1104,7 +1152,7 @@ std::string ISSNType(const MARC::Record &record) {
     if (record.hasFieldWithSubfieldValue("300", 'a', "Online-Ressource")
         || record.hasFieldWithSubfieldValue("338", 'a', "Online-Ressource"))
         return "Online-Ressource";
-    // if (record.hasFieldWithSubfieldValue("776", 'n', "Online-Ausgabe")) {
+
     if (record.hasTag("776")) {
         for (const auto &field776 : record.getTagRange("776")) {
             if (field776.getIndicator1() == '0' && field776.getIndicator2() == '8') {
