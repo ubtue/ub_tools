@@ -17,7 +17,7 @@ declare -r WORKING_DIR="/usr/local/ub_tools/cpp/harvest/"
 declare -r NACJD_TOOL="$WORKING_DIR/nacjd_data_publication"
 declare -r ISSN_LOOKUP_K10_PLUS_TOOL="$WORKING_DIR/issn_lookup.py"
 declare -r FINAL_OUTPUT="nacjd_data_publication_$(date +%y%m%d).xml"
-declare -r ISSN_TO_BE_CONSIDER="issn_to_be_considered_$(date +%y%m%d).xml"
+declare -r ISSN_TO_BE_CONSIDER="issn_to_be_considered_$(date +%y%m%d).txt"
 declare -r ISSN_ALTERNATIVE_NEED_FROM_K10PLUS="alternative_issn_needed_to_be_download_from_k10plus_$(date +%y%m%d).txt"
 declare -r BASE_OPENALEX_ISSN_API="https://api.openalex.org/sources/issn:"
 declare -r ISSN_ALTERNATIVE_FROM_OPENALEX="info_issn_alternative_from_openalex_$(date +%y%m%d).json"
@@ -30,6 +30,10 @@ declare -r BASE_OPENALEX_DOI_API="https://api.openalex.org/works/https://doi.org
 declare -r JSON_FROM_OPENALEX="open_access_info_from_openalex.json"
 declare -r NACJD_DOI="nacjd_dois_$(date +%y%m%d).txt"
 declare -r OPEN_ACCESS_INFO_CSV="open_access_info_$(date +%y%m%d).csv"
+declare -r CURRENT_KRIMDOK_FILE="GesamtTiteldaten-post-pipeline-240802.mrc"
+declare -r EXISTING_STUDY_NUMBER_WITH_PPN="existing_study_number_and_ppn.txt"
+declare -r ISSN_FOR_GETTING_OPEN_ACCESS_INFO="issn_for_getting_open_access_info_$(date +%y%m%d).txt"
+declare -r OPEN_ACCESS_INFO_ISSN_BASED_CSV="open_access_info_issn_based_$(date +%y%m%d).csv"
 
 remove_error_message(){
     FILE_NAME=$1
@@ -52,8 +56,11 @@ $ISSN_LOOKUP_K10_PLUS_TOOL "$ISSN_FILE" "$MARC_FILE_K10PLUS_WITH_DUPS"
 echo "Removing duplicatons in $MARC_FILE_K10PLUS_WITH_DUPS"
 marc_remove_dups "$MARC_FILE_K10PLUS_WITH_DUPS" "$MARC_FILE_K10PLUS"
 
+echo "Extracting control number and study number"
+marc_grep $CURRENT_KRIMDOK_FILE '"LOK"' control_number_and_traditional |grep '[(]DE-2619[)]ICPSR' | awk -F':' '{print $1","$3}' | sed -re 's/  [$]0035  [$]a[(]DE-2619[)]ICPSR//' > "$EXISTING_STUDY_NUMBER_WITH_PPN"
+
 echo "Augmenting MARC using info from K10Plus"
-$NACJD_TOOL "--verbose" "convert" $NACJD_INPUT $MARC_FILE_K10PLUS $ISSN_NOT_FOUND_IN_K10_PLUS $NACJD_OUTPUT
+$NACJD_TOOL "--verbose" "convert" $NACJD_INPUT $MARC_FILE_K10PLUS $EXISTING_STUDY_NUMBER_WITH_PPN $ISSN_NOT_FOUND_IN_K10_PLUS $NACJD_OUTPUT
 
 echo "Downloading alternative ISSN from openalex"
 echo "Creating/ Cleaning: $ISSN_ALTERNATIVE_FROM_OPENALEX"
@@ -103,8 +110,14 @@ remove_error_message $JSON_FROM_OPENALEX
 echo "Creating open access info CSV: $OPEN_ACCESS_INFO_CSV" 
 cat $JSON_FROM_OPENALEX |jq -r '[.doi, .open_access.is_oa, .open_access.any_repository_has_fulltext] | flatten | @csv' > $OPEN_ACCESS_INFO_CSV
 
+echo "Extracting ISSN for getting open access info"
+marc_grep $AUGMENTED_77w_OUTPUT '"773x"' traditional | sed -re 's/773 //' | sort | uniq > $ISSN_FOR_GETTING_OPEN_ACCESS_INFO
+
+echo "Getting open access information based on ISSN"
+cat $ISSN_FOR_GETTING_OPEN_ACCESS_INFO | xargs -I'{}' sh -c 'echo "$@" $(curl -L -s https://api.openalex.org/sources/issn:"$@" |jq -r .is_oa)' _ '{}' > $OPEN_ACCESS_INFO_ISSN_BASED_CSV
+
 echo "Updating open access info"
-$NACJD_TOOL "--verbose" "augment_open_access" $AUGMENTED_77w_OUTPUT $OPEN_ACCESS_INFO_CSV $FINAL_OUTPUT 
+$NACJD_TOOL "--verbose" "augment_open_access" $AUGMENTED_77w_OUTPUT $OPEN_ACCESS_INFO_CSV $OPEN_ACCESS_INFO_ISSN_BASED_CSV $FINAL_OUTPUT 
 
 echo "List the ISSNs to be considered"
-$NACJD_TOOL "--verbose" "suggested_report" $NOT_FOUND_ISSN $SOURCE 
+$NACJD_TOOL "--verbose" "suggested_report" $NOT_FOUND_ISSN $SOURCE $ISSN_TO_BE_CONSIDER
