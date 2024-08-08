@@ -44,7 +44,7 @@ namespace {
         "augment_open_access input_file source_file output_file\n"
         "\t- input_file: source of data.\n"
         "\t- source_file: source data needed for augmenting (taken from https://api.openalex.org/works).\n"
-        "\t- output_file: target file after augmenting with the information of open access."
+        "\t- output_file: target file after augmenting with the information of open access.\n"
         "\n"
         "augment_773w input_file alternative_issn_file source_file not_found_issn_file output_file\n"
         "\t- input_file: source of data to be augmented.\n"
@@ -173,8 +173,8 @@ struct NACJDDoc {
 
     // using vector to keep the order of the content
     std::vector<std::string> authors_split, // AUTHORS_SPLIT
-        study_q_,                           // STUDYQ
         study_titles_;                      // STUDYTITLE
+    std::vector<unsigned> study_q_;         // STUDYQ
 
     bool StatisticTypePredictionBaseOnURL() {
         static ThreadSafeRegexMatcher url_matcher("http(s)?://(www.)?bjs.(ojp.)?(usdoj.)?gov");
@@ -365,7 +365,7 @@ void InsertGeneralFieldInfo(MARC::Record * const record, NACJDDoc * const nacjd_
 
     if (nacjd_doc->study_q_.size() > 0) {
         for (unsigned long i = 0; i < nacjd_doc->study_q_.size(); i++) {
-            const auto study_number(study_number_to_control_number.find(nacjd_doc->study_q_[i]));
+            const auto study_number(study_number_to_control_number.find(std::to_string(nacjd_doc->study_q_[i])));
             if (study_number != study_number_to_control_number.end()) {
                 if (i < nacjd_doc->study_titles_.size() && nacjd_doc->authors_split.size() > 0) {
                     record->insertField("787", { { 'a', nacjd_doc->authors_split[0] },
@@ -373,7 +373,7 @@ void InsertGeneralFieldInfo(MARC::Record * const record, NACJDDoc * const nacjd_
                                                  { 'w', "(DE-627)" + study_number->second } });
                 }
             } else {
-                debug_info->study_number_not_found.insert(nacjd_doc->study_q_[i]);
+                debug_info->study_number_not_found.insert(std::to_string(nacjd_doc->study_q_[i]));
             }
         }
     }
@@ -758,7 +758,7 @@ void ExtractInfoFromNACJD(const std::string &json_path, std::vector<NACJDDoc> * 
             nacjd_doc.publisher_ = doc.at("PUBLISHER").get<std::string>();
         }
         if (doc.contains("STUDYQ")) {
-            nacjd_doc.study_q_ = doc.at("STUDYQ").get<std::vector<std::string>>();
+            nacjd_doc.study_q_ = doc.at("STUDYQ").get<std::vector<unsigned>>();
         }
         if (doc.contains("AUTHORS_SPLIT")) {
             nacjd_doc.authors_split = doc.at("AUTHORS_SPLIT").get<std::vector<std::string>>();
@@ -781,7 +781,8 @@ void BuildK10PlusSuperiorWorkInformationLookupTable(std::map<std::string, PPNAnd
         // Online-Ressource
 
         if (record.hasFieldWithSubfieldValue("300", 'a', "Online-Ressource")
-            || record.hasFieldWithSubfieldValue("338", 'a', "Online-Ressource")) {
+            || record.hasFieldWithSubfieldValue("338", 'a', "Online-Ressource"))
+        {
             for (auto &issn : issns) {
                 const std::string issn_(StringUtil::ASCIIToUpper(issn));
                 issn_to_ppn_from_k10plus->insert({ issn_, { "(DE-627)" + record.getControlNumber(), issn_ } });
@@ -1020,7 +1021,6 @@ void Augement773w(int argc, char **argv, const bool &debug_mode) {
     }
 
     if (debug_mode) {
-        std::cout << "Debug Mode" << std::endl;
         for (auto const &issn : missing_issn_in_k10plus) {
             std::cout << issn << std::endl;
         }
