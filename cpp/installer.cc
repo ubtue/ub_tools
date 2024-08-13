@@ -440,7 +440,7 @@ static void GenerateAndInstallVuFindServiceTemplate(const VuFindSystemType syste
     FileUtil::AutoTempDirectory temp_dir;
 
     Template::Map names_to_values_map;
-    names_to_values_map.insertScalar("solr_heap", system_type == KRIMDOK ? "4G" : "12G");
+    names_to_values_map.insertScalar("solr_heap", system_type == KRIMDOK ? "6G" : "12G");
     // names_to_values_map.insertScalar("solr_heap", system_type == KRIMDOK ? "4G" : "4G");
     const std::string vufind_service(Template::ExpandTemplate(
         FileUtil::ReadStringOrDie(INSTALLER_DATA_DIRECTORY + "/" + service_name + ".service.template"), names_to_values_map));
