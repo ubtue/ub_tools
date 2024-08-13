@@ -17,7 +17,7 @@ declare -r WORKING_DIR="/usr/local/ub_tools/cpp/harvest/"
 declare -r NACJD_TOOL="$WORKING_DIR/nacjd_data_publication"
 declare -r ISSN_LOOKUP_K10_PLUS_TOOL="$WORKING_DIR/issn_lookup.py"
 declare -r FINAL_OUTPUT="nacjd_data_publication_$(date +%y%m%d).xml"
-declare -r ISSN_TO_BE_CONSIDER="issn_to_be_considered_$(date +%y%m%d).txt"
+declare -r ISSN_TO_BE_CONSIDERED="issn_to_be_considerEDed_$(date +%y%m%d).txt"
 declare -r ISSN_ALTERNATIVE_NEED_FROM_K10PLUS="alternative_issn_needed_to_be_download_from_k10plus_$(date +%y%m%d).txt"
 declare -r BASE_OPENALEX_ISSN_API="https://api.openalex.org/sources/issn:"
 declare -r ISSN_ALTERNATIVE_FROM_OPENALEX="info_issn_alternative_from_openalex_$(date +%y%m%d).json"
@@ -120,4 +120,4 @@ echo "Updating open access info"
 $NACJD_TOOL "--verbose" "augment_open_access" $AUGMENTED_77w_OUTPUT $OPEN_ACCESS_INFO_CSV $OPEN_ACCESS_INFO_ISSN_BASED_CSV $FINAL_OUTPUT 
 
 echo "List the ISSNs to be considered"
-$NACJD_TOOL "--verbose" "suggested_report" $NOT_FOUND_ISSN $SOURCE $ISSN_TO_BE_CONSIDER
+$NACJD_TOOL "--verbose" "suggested_report" $NOT_FOUND_ISSN $SOURCE $ISSN_TO_BE_CONSIDERED
