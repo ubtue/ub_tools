@@ -71,15 +71,6 @@ const std::map<journal_subscription_format, std::string> JOURNAL_SUBSCRIPTION_FO
 
 const std::map<std::string, journal_subscription_format> JOURNAL_SUBSCRIPTION_FORMAT_ENUM_MAP{ { "meistertask", MEISTERTASK } };
 
-std::string SubscriberEmptyNameLanguage(const std::string &lang) {
-    std::map<std::string, std::string> name_map = { { "en", "Subscriber" }, { "de", "Abonnent/in" } };
-    const std::string default_name("Subscriber");
-    const auto user_name = name_map.find(lang);
-    if (name_map.find(lang) != name_map.end())
-        return user_name->second;
-    else
-        return default_name;
-}
 
 struct SerialControlNumberAndMaxLastModificationTime {
     std::string serial_control_number_;
@@ -278,8 +269,7 @@ public:
         const static std::string email_template_prepared = StringUtil::ReplaceString("\n", "<br>\n", email_template);
 
         Template::Map names_to_values_map;
-        names_to_values_map.insertScalar("user_name",
-                                         (name_of_user == "Subscriber" ? SubscriberEmptyNameLanguage(language) : name_of_user));
+        names_to_values_map.insertScalar("user_name", name_of_user);
         names_to_values_map.insertScalar("list", list);
         names_to_values_map.insertScalar("system", VuFind::CapitalizedUserType(user_type));
         names_to_values_map.insertScalar("email_reply_to", user_type + "@ub.uni-tuebingen.de");
