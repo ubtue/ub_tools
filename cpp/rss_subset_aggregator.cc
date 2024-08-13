@@ -143,24 +143,25 @@ bool SendEmail(const std::string &subsystem_type, const std::string &email_sende
     static const std::string email_template(FileUtil::ReadStringOrDie(template_filename));
 
 
-
     std::string list("<ul>\n");
     std::string previous_feed_title;
     for (const auto &harvested_item : harvested_items) {
         const bool new_feed(previous_feed_title != harvested_item.feed_title_);
         if (new_feed) {
             if (not previous_feed_title.empty()) { // not before the first feed
-                list += "\t</ul>\n"; // end feed item list
+                list += "\t</ul>\n";               // end feed item list
             }
-            list += "\t<li><a href=\"" + harvested_item.website_url_ + "\">" + HtmlUtil::HtmlEscape(harvested_item.feed_title_) + "</a></li>\n";
+            list +=
+                "\t<li><a href=\"" + harvested_item.website_url_ + "\">" + HtmlUtil::HtmlEscape(harvested_item.feed_title_) + "</a></li>\n";
             list += "\t<ul>\n"; // begin feed item list
         }
 
-        list += "\t\t<li><a href=\"" + harvested_item.item_.getLink() + "\">" + HtmlUtil::HtmlEscape(harvested_item.item_.getTitle()) + "</a></li>\n";
+        list += "\t\t<li><a href=\"" + harvested_item.item_.getLink() + "\">" + HtmlUtil::HtmlEscape(harvested_item.item_.getTitle())
+                + "</a></li>\n";
         previous_feed_title = harvested_item.feed_title_;
     }
     list += "\t</ul>\n"; // end feed item list
-    list += "</ul>\n"; // end whole list
+    list += "</ul>\n";   // end whole list
 
     Template::Map names_to_values_map;
     names_to_values_map.insertScalar("user_name", user_address);
@@ -305,8 +306,8 @@ int Main(int argc, char *argv[]) {
         }
 
         if (ProcessFeeds(user_id, user_info.rss_feed_last_notification_, sender_email, user_info.email_,
-                         MiscUtil::GenerateAddress(user_info.first_name_, user_info.last_name_, "Subscriber"), user_info.language_code_,
-                         vufind_user_id.empty(), subsystem_type, &db_connection))
+                         MiscUtil::GenerateSubscriptionRecipientName(user_info.first_name_, user_info.last_name_, user_info.language_code_),
+                         user_info.language_code_, vufind_user_id.empty(), subsystem_type, &db_connection))
         {
             if (vufind_user_id.empty())
                 ++email_sent_count;

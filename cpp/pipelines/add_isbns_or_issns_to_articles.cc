@@ -66,14 +66,18 @@ void PopulateParentIdToISBNAndISSNMap(
 
         const auto isbns(record.getISBNs());
         for (const auto &isbn : isbns) {
-            (*parent_id_to_isbn_issn_and_open_access_status_map)[record.getControlNumber()] = { isbn, MARC::IsOpenAccess(record) };
+            (*parent_id_to_isbn_issn_and_open_access_status_map)[record.getControlNumber()] = {
+                isbn, MARC::IsOpenAccess(record, true /*suppress unpaywall*/)
+            };
             ++extracted_isbn_count;
         }
         if (not isbns.empty())
             continue;
 
         for (const auto &issn : record.getISSNs()) {
-            (*parent_id_to_isbn_issn_and_open_access_status_map)[record.getControlNumber()] = { issn, MARC::IsOpenAccess(record) };
+            (*parent_id_to_isbn_issn_and_open_access_status_map)[record.getControlNumber()] = {
+                issn, MARC::IsOpenAccess(record, true /*suppress unpaywall*/)
+            };
             ++extracted_issn_count;
         }
     }
@@ -124,7 +128,7 @@ void AddMissingISBNsOrISSNsToArticleEntries(
             continue;
         }
 
-        // If parent is open access and we're not, add it!
+        // If parent is open access and we're not, add it, unless the superior work OA link is Unpaywall!
         if (parent_isbn_or_issn_iter->second.is_open_access_ and not MARC::IsOpenAccess(record)) {
             record.insertField("OAS", { { 'a', "1" }, { 'b', "inherited from superior work" } });
             _773_field = record.findTag("773"); // Iterator was invalidated by previous line!

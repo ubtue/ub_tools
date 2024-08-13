@@ -95,15 +95,17 @@ void ProcessRecord(MARC::Writer * const marc_writer, const std::unordered_set<st
 }
 
 
-void AddSuperiorFlag(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
+void AddSuperiorFlag(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer, Zeder::Flavour flavour,
                      const std::unordered_set<std::string> &superior_ppns) {
     unsigned modified_count(0);
 
-    Zeder::SimpleZeder zeder(Zeder::IXTHEO, { "eppn", "pppn", "kat" }, { { "kat", JOURNAL_IS_IN_ACTIVE_EVALUATION } });
     std::set<std::string> ppns_in_kat;
-    for (const auto &journal : zeder) {
-        ppns_in_kat.emplace(journal.lookup("pppn"));
-        ppns_in_kat.emplace(journal.lookup("eppn"));
+    if (flavour == Zeder::IXTHEO) {
+        Zeder::SimpleZeder zeder(flavour, { "eppn", "pppn", "kat" }, { { "kat", JOURNAL_IS_IN_ACTIVE_EVALUATION } });
+        for (const auto &journal : zeder) {
+            ppns_in_kat.emplace(journal.lookup("pppn"));
+            ppns_in_kat.emplace(journal.lookup("eppn"));
+        }
     }
 
     while (MARC::Record record = marc_reader->read())
@@ -122,11 +124,11 @@ int main(int argc, char **argv) {
     if (argc != 4)
         Usage();
 
-    std::string flavour;
+    Zeder::Flavour flavour;
     if (__builtin_strcmp(argv[1], "ixtheo") == 0)
-        flavour = "IxTheo";
+        flavour = Zeder::IXTHEO;
     else if (__builtin_strcmp(argv[1], "krimdok") == 0)
-        flavour = "KrimDok"; // KrimDok is not used in Zeder, if used in the future, check naming
+        flavour = Zeder::KRIMDOK;
     else
         LOG_ERROR("zeder_flavour must be one of (ixtheo,krimdok)!");
 
@@ -138,7 +140,7 @@ int main(int argc, char **argv) {
         std::unordered_set<std::string> superior_ppns;
         LoadSuperiorPPNs(marc_reader.get(), &superior_ppns);
         marc_reader->rewind();
-        AddSuperiorFlag(marc_reader.get(), marc_writer.get(), superior_ppns);
+        AddSuperiorFlag(marc_reader.get(), marc_writer.get(), flavour, superior_ppns);
     } catch (const std::exception &x) {
         LOG_ERROR("caught exception: " + std::string(x.what()));
     }
