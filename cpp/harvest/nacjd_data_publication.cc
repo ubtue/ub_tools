@@ -34,11 +34,12 @@ namespace {
         "\n"
         "--verbose, print to standard output the summary.\n"
         "\n"
-        "convert input_file source_file study_number_file issn_not_found  output_file\n"
+        "convert input_file source_file study_number_file issn_not_found study_no_not_found  output_file\n"
         "\t- input_file: source of data in JSON format (taken from NACJD website).\n"
         "\t- source_file: source data needed for augmenting (taken from K10Plus).\n"
         "\t- study_number_file: list of study number and its control number.\n"
         "\t- issn_not_found: will contain list of ISSN for printed version or not found.\n"
+        "\t- study_no_not_found: will contain list of study number not found.\n"
         "\t- output_file: will contain all icpsr records as MARC21.\n"
         "\n"
         "augment_open_access input_file source_doi_based_file source_issn_based_file output_file\n"
@@ -693,12 +694,13 @@ void WriteMarcRecords(const std::string &marc_path, const std::vector<NACJDDoc> 
 void ExtractInfoFromNACJD(const std::string &json_path, std::vector<NACJDDoc> * const nacjd_docs) {
     std::ifstream f(json_path, std::ifstream::in);
     nlohmann::json jdat(nlohmann::json::parse(f));
-    const auto docs(jdat.at("searchResults").at("response").at("docs"));
+    // const auto docs(jdat.at("searchResults").at("response").at("docs"));
 
-    if (not docs.is_structured())
-        LOG_ERROR("docs is empty");
+    // if (not docs.is_structured())
+    //     LOG_ERROR("docs is empty");
 
-    for (const auto &doc : jdat.at("searchResults").at("response").at("docs")) {
+    // for (const auto &doc : jdat.at("searchResults").at("response").at("docs")) {
+    for (const auto &doc : jdat) {
         NACJDDoc nacjd_doc;
 
         if (doc.contains("REF_ID")) {
@@ -782,7 +784,8 @@ void BuildK10PlusSuperiorWorkInformationLookupTable(std::map<std::string, PPNAnd
         // Online-Ressource
 
         if (record.hasFieldWithSubfieldValue("300", 'a', "Online-Ressource")
-            || record.hasFieldWithSubfieldValue("338", 'a', "Online-Ressource")) {
+            || record.hasFieldWithSubfieldValue("338", 'a', "Online-Ressource"))
+        {
             for (auto &issn : issns) {
                 const std::string issn_(StringUtil::ASCIIToUpper(issn));
                 issn_to_ppn_from_k10plus->insert({ issn_, { "(DE-627)" + record.getControlNumber(), issn_ } });
@@ -1110,7 +1113,7 @@ void AugmentOpenAccessInfo(int argc, char **argv, const bool &debug_mode) {
 }
 
 void Convert(int argc, char **argv, const bool &debug_mode) {
-    if (argc < 7)
+    if (argc < 8)
         Usage();
 
     std::vector<NACJDDoc> nacjd_docs;
@@ -1120,7 +1123,7 @@ void Convert(int argc, char **argv, const bool &debug_mode) {
     ExtractInfoFromNACJD(argv[2], &nacjd_docs);
     BuildK10PlusSuperiorWorkInformationLookupTable(&issn_to_ppn_from_k10plus, argv[3], &debug_info);
     BuildStudyNumberToControlNumberCache(argv[4], &study_number_to_control_number);
-    WriteMarcRecords(argv[6], nacjd_docs, issn_to_ppn_from_k10plus, study_number_to_control_number, &debug_info);
+    WriteMarcRecords(argv[7], nacjd_docs, issn_to_ppn_from_k10plus, study_number_to_control_number, &debug_info);
 
     const std::string output_issn_filename(argv[5]);
     File list_of_issn_printed_or_not_found(output_issn_filename, "w");
@@ -1130,6 +1133,17 @@ void Convert(int argc, char **argv, const bool &debug_mode) {
     for (auto const &issn : debug_info.superior_work_not_found) {
         list_of_issn_printed_or_not_found << issn << '\n';
     }
+
+
+    const std::string output_study_number_not_found_filename(argv[6]);
+    File list_of_study_number_not_found(output_study_number_not_found_filename, "w");
+    if (not list_of_study_number_not_found)
+        LOG_ERROR("can't open \"" + output_study_number_not_found_filename + "\" for writing!");
+
+    for (auto const &study_number : debug_info.study_number_not_found) {
+        list_of_study_number_not_found << study_number << '\n';
+    }
+
 
     if (debug_mode) {
         ShowInfoForDebugging(debug_info);
