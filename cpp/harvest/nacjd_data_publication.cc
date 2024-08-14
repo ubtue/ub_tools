@@ -64,8 +64,8 @@ namespace {
 
 
 struct DebugInfo {
-    std::set<std::string> superior_work_not_found, // issn
-        unknown_type, study_number_not_found;
+    std::set<std::string> superior_works_not_found, // issn
+        unknown_type, study_numbers_not_found;
     std::map<std::string, std::string> superior_work_found; // ppn -> issn
     unsigned long counter_advs = 0, counter_book = 0, counter_chap = 0, counter_conf = 0, counter_elec = 0, counter_generic = 0,
                   counter_jour = 0, counter_mgzn = 0, counter_news = 0, counter_rprt = 0, counter_thes = 0, counter_unknown = 0,
@@ -224,7 +224,7 @@ struct NACJDDoc {
             } else {
                 publishing_info.appendSubfield('x', issn_);
                 debug_info->data_not_found_in_k10_plus++;
-                debug_info->superior_work_not_found.insert(issn_);
+                debug_info->superior_works_not_found.insert(issn_);
             }
 
         } else {
@@ -375,7 +375,7 @@ void InsertGeneralFieldInfo(MARC::Record * const record, NACJDDoc * const nacjd_
                                                  { 'w', "(DE-627)" + study_number->second } });
                 }
             } else {
-                debug_info->study_number_not_found.insert(std::to_string(nacjd_doc->study_q_[i]));
+                debug_info->study_numbers_not_found.insert(std::to_string(nacjd_doc->study_q_[i]));
             }
         }
     }
@@ -694,12 +694,7 @@ void WriteMarcRecords(const std::string &marc_path, const std::vector<NACJDDoc> 
 void ExtractInfoFromNACJD(const std::string &json_path, std::vector<NACJDDoc> * const nacjd_docs) {
     std::ifstream f(json_path, std::ifstream::in);
     nlohmann::json jdat(nlohmann::json::parse(f));
-    // const auto docs(jdat.at("searchResults").at("response").at("docs"));
 
-    // if (not docs.is_structured())
-    //     LOG_ERROR("docs is empty");
-
-    // for (const auto &doc : jdat.at("searchResults").at("response").at("docs")) {
     for (const auto &doc : jdat) {
         NACJDDoc nacjd_doc;
 
@@ -784,8 +779,7 @@ void BuildK10PlusSuperiorWorkInformationLookupTable(std::map<std::string, PPNAnd
         // Online-Ressource
 
         if (record.hasFieldWithSubfieldValue("300", 'a', "Online-Ressource")
-            || record.hasFieldWithSubfieldValue("338", 'a', "Online-Ressource"))
-        {
+            || record.hasFieldWithSubfieldValue("338", 'a', "Online-Ressource")) {
             for (auto &issn : issns) {
                 const std::string issn_(StringUtil::ASCIIToUpper(issn));
                 issn_to_ppn_from_k10plus->insert({ issn_, { "(DE-627)" + record.getControlNumber(), issn_ } });
@@ -833,7 +827,7 @@ void ShowInfoForDebugging(const DebugInfo &debug_info) {
     }
 
     std::cout << "=== Study number not found ===" << std::endl;
-    for (auto study_number : debug_info.study_number_not_found) {
+    for (auto study_number : debug_info.study_numbers_not_found) {
         std::cout << study_number << std::endl;
     }
 
@@ -863,7 +857,7 @@ void ShowInfoForDebugging(const DebugInfo &debug_info) {
     std::cout << "The number of doi without issn: " << debug_info.counter_doi_without_issn << std::endl << std::endl;
 
     std::cout << "ISSN found in K10-Plus (unique): " << debug_info.superior_work_found.size() << std::endl;
-    std::cout << "ISSN not found in K10-Plus (unique) including the printed version: " << debug_info.superior_work_not_found.size()
+    std::cout << "ISSN not found in K10-Plus (unique) including the printed version: " << debug_info.superior_works_not_found.size()
               << std::endl;
 }
 
@@ -1130,18 +1124,18 @@ void Convert(int argc, char **argv, const bool &debug_mode) {
     if (not list_of_issn_printed_or_not_found)
         LOG_ERROR("can't open \"" + output_issn_filename + "\" for writing!");
 
-    for (auto const &issn : debug_info.superior_work_not_found) {
+    for (auto const &issn : debug_info.superior_works_not_found) {
         list_of_issn_printed_or_not_found << issn << '\n';
     }
 
 
     const std::string output_study_number_not_found_filename(argv[6]);
-    File list_of_study_number_not_found(output_study_number_not_found_filename, "w");
-    if (not list_of_study_number_not_found)
+    File list_of_study_numbers_not_found(output_study_number_not_found_filename, "w");
+    if (not list_of_study_numbers_not_found)
         LOG_ERROR("can't open \"" + output_study_number_not_found_filename + "\" for writing!");
 
-    for (auto const &study_number : debug_info.study_number_not_found) {
-        list_of_study_number_not_found << study_number << '\n';
+    for (auto const &study_number : debug_info.study_numbers_not_found) {
+        list_of_study_numbers_not_found << study_number << '\n';
     }
 
 
