@@ -94,6 +94,7 @@ std::map<std::string, std::string> ConstructAVDSCategory() {
     _935a_category_map.emplace(StringUtil::ASCIIToUpper("videorecording"), "vika");
     _935a_category_map.emplace(StringUtil::ASCIIToUpper("Videocassette, 1 hour"), "vika");
     _935a_category_map.emplace(StringUtil::ASCIIToUpper("VHS videotape"), "vika");
+    _935a_category_map.emplace(StringUtil::ASCIIToUpper("presentation video"), "vika");
     _935a_category_map.emplace(StringUtil::ASCIIToUpper("VHS"), "vika");
     _935a_category_map.emplace(StringUtil::ASCIIToUpper("Podcast"), "cofz");
     _935a_category_map.emplace(StringUtil::ASCIIToUpper("webinar"), "medi");
