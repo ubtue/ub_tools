@@ -44,7 +44,7 @@ def SetupChatAI(config):
     return chat_ai
 
 
-def answer_quality_metric(predicted_classification, manual_classification):
+def answer_quality_metric(predicted_classification, manual_classification, trace=None):
     """A simple metric that compares predicted and manually assigned labels"""
     return abs(len(set(predicted_classification) & set(manual_classification) - len(set(manual_classification))))
 
@@ -84,7 +84,6 @@ class IxTheoAutoClassification(dspy.Module):
         return notations
 
 
-
     def run(self, input_data):
         return self.forward(input_data)
 
@@ -104,6 +103,31 @@ def ReadFulltext(file_path):
 def Usage():
     print("Usage: " + sys.argv[0] + " [--sample number_of_samples] augmented_tocs_with_notations.json output_directory")
     sys.exit(-1)
+
+
+def GenerateTrainingSet(items):
+    inputs = pyjq.all('del(.[].ixtheo_notation) | .[]', items)
+    gold_standard_results = pyjq.all('.[].ixtheo_notation', items)
+    combined = zip(inputs, gold_standard_results)
+    return [ dspy.Example(input_data = json.dumps(input), ixtheo_notations = json.dumps(result)).with_inputs("input_data") for input, result in combined ]
+
+
+def GetPredictions(config, items):
+    ixtheo_auto_classification = IxTheoAutoClassification(config)
+    for item in items:
+        print(pyjq.first('.id', item))
+        #new_notations = ProcessRecord(config, str(pyjq.first('del(.ixtheo_notation)', item)), output_directory)
+        new_notations = ixtheo_auto_classification(str(pyjq.first('del(.ixtheo_notation)', item)))
+        print("\n************************************************\n")
+        print("New notations: " + str(new_notations.ixtheo_notations))
+        print("Original Notations: " + str(pyjq.first('.ixtheo_notation', item)))
+
+        print("\n###############################################\n")
+
+def Optimize(config, items):
+    optimizer_config = dict(max_bootstrapped_demos=4, max_labeled_demos=4)
+    teleprompter = BootstrapFewShot(metric=answer_quality_metric, **optimizer_config)
+    optimized = teleprompter.compile(IxTheoAutoClassification(config), trainset=GenerateTrainingSet(items))
 
 
 def Main():
@@ -134,17 +158,12 @@ def Main():
     if use_samples:
        jq_array_element_selector = GetRandomOffsets(number_of_samples, ReadFulltext(augmented_tocs_with_notations))
 
-    items = pyjq.all(jq_array_element_selector, ReadFulltext(augmented_tocs_with_notations))
-    ixtheo_auto_classification = IxTheoAutoClassification(config)
-    for item in items:
-        print(pyjq.first('.id', item))
-        #new_notations = ProcessRecord(config, str(pyjq.first('del(.ixtheo_notation)', item)), output_directory)
-        new_notations = ixtheo_auto_classification(str(pyjq.first('del(.ixtheo_notation)', item)))
-        print("\n************************************************\n")
-        print("New notations: " + str(new_notations.ixtheo_notations))
-        print("Original Notations: " + str(pyjq.first('.ixtheo_notation', item)))
 
-        print("\n###############################################\n")
+    items = pyjq.all(jq_array_element_selector, ReadFulltext(augmented_tocs_with_notations))
+    #GetPredictions(config, items)
+    Optimize(config, items)
+
+
 
 if __name__ == "__main__":
     Main()
