@@ -8,6 +8,8 @@ from pathlib import Path
 import logging
 import pyjq
 import json
+from json.decoder import JSONDecodeError
+from pprint import pprint
 import random
 import sys
 import util
@@ -44,15 +46,25 @@ def SetupChatAI(config):
     return chat_ai
 
 
-def answer_quality_metric(predicted_classification, manual_classification, trace=None):
+def answer_quality_metric(manual_classification, predicted_classification, trace=None):
     """A simple metric that compares predicted and manually assigned labels"""
-    print("\n###########################################\n")
+    #print("Input : "  + str(predicted_classification.input_data))
     print("Predicted: " + str(predicted_classification.ixtheo_notations))
     print("Original: " + str(manual_classification.ixtheo_notations))
-    print("\n-------------------------------------------\n")
+    print("\n###########################################\n")
     predicted_classification_parsed = json.loads(str(predicted_classification.ixtheo_notations))
     manual_classification_parsed = json.loads(str(manual_classification.ixtheo_notations))
     return abs(len(set(predicted_classification_parsed) & set(manual_classification_parsed)) - len(set(manual_classification_parsed)))
+
+
+def IsValidIxTheoNotationArray(notations):
+    try:
+        # Make sure we don't have one letter notations
+        parsed_notations = json.loads(str(notations.ixtheo_notations))
+        return all(len(notation) > 1 for notation in parsed_notations)
+    except JSONDecodeError as e:
+        return False
+
 
 
 class IxTheoAutoClassification(dspy.Module):
@@ -74,6 +86,8 @@ class IxTheoAutoClassification(dspy.Module):
             input_data = dspy.InputField(desc="Information as JSON object")
             new_keywords = dspy.OutputField(desc="A set of newly assigned keywords as JSON object")
             rationale = dspy.OutputField(desc="A rationale for the selection of the keywords as JSON object with key keywords")
+
+
         super().__init__()
         self.generate_new_keywords = dspy.ChainOfThought(AssignNewKeywords)
         self.generate_notations = dspy.ChainOfThought(AssignIxTheoNotation)
@@ -82,11 +96,12 @@ class IxTheoAutoClassification(dspy.Module):
     def forward(self, input_data):
         new_keywords = self.generate_new_keywords(input_data=input_data)
         notations = self.generate_notations(input_data=new_keywords.new_keywords, context="")
-        print(f"New notations: {notations.ixtheo_notations}")
-        print("\n-----------------------------------------------\n")
-        print(f"New Keywords: {str(new_keywords.new_keywords)}")
-        print(f"New Keywords rationale: {str(new_keywords.rationale)}")
-        print(f"Notation rationale: {str(notations.rationale)}")
+        dspy.Suggest(IsValidIxTheoNotationArray(notations), "Output must be a JSON array of non-one letter Ixtheo notations")
+        #print(f"New notations: {notations.ixtheo_notations}")
+        #print("\n-----------------------------------------------\n")
+        #print(f"New Keywords: {str(new_keywords.new_keywords)}")
+        #print(f"New Keywords rationale: {str(new_keywords.rationale)}")
+        #print(f"Notation rationale: {str(notations.rationale)}")
         return notations
 
 
@@ -122,7 +137,6 @@ def GetPredictions(config, items):
     ixtheo_auto_classification = IxTheoAutoClassification(config)
     for item in items:
         print(pyjq.first('.id', item))
-        #new_notations = ProcessRecord(config, str(pyjq.first('del(.ixtheo_notation)', item)), output_directory)
         new_notations = ixtheo_auto_classification(str(pyjq.first('del(.ixtheo_notation)', item)))
         print("\n************************************************\n")
         print("New notations: " + str(new_notations.ixtheo_notations))
@@ -133,7 +147,7 @@ def GetPredictions(config, items):
 def Optimize(config, items):
     optimizer_config = dict(max_bootstrapped_demos=4, max_labeled_demos=4)
     teleprompter = BootstrapFewShot(metric=answer_quality_metric, **optimizer_config)
-    optimized = teleprompter.compile(IxTheoAutoClassification(config), trainset=GenerateTrainingSet(items))
+    optimized = teleprompter.compile(IxTheoAutoClassification(config).activate_assertions(), trainset=GenerateTrainingSet(items))
 
 
 def Main():
