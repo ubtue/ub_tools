@@ -46,7 +46,13 @@ def SetupChatAI(config):
 
 def answer_quality_metric(predicted_classification, manual_classification, trace=None):
     """A simple metric that compares predicted and manually assigned labels"""
-    return abs(len(set(predicted_classification) & set(manual_classification) - len(set(manual_classification))))
+    print("\n###########################################\n")
+    print("Predicted: " + str(predicted_classification.ixtheo_notations))
+    print("Original: " + str(manual_classification.ixtheo_notations))
+    print("\n-------------------------------------------\n")
+    predicted_classification_parsed = json.loads(str(predicted_classification.ixtheo_notations))
+    manual_classification_parsed = json.loads(str(manual_classification.ixtheo_notations))
+    return abs(len(set(predicted_classification_parsed) & set(manual_classification_parsed)) - len(set(manual_classification_parsed)))
 
 
 class IxTheoAutoClassification(dspy.Module):
