@@ -6,32 +6,34 @@ if [ $# != 0 ]; then
     exit 1
 fi
 
-declare -r NACJD_INPUT="nacjd.json"
+# please check the script 'extract_nacjd_json.sh' to produce NACJD_INPUT 
+declare -r NACJD_INPUT="nacjd_$(date +%y%m%d).json"
 declare -r NACJD_OUTPUT="nacjd_convert_$(date +%y%m%d).xml"
 declare -r ISSN_NOT_FOUND_IN_K10_PLUS="not_found_or_print_version_in_k10plus_$(date +%y%m%d).txt"
+declare -r STUDY_NUMBER_NOT_FOUND="study_number_not_found_$(date +%y%m%d).txt"
 declare -r NACJD_OUTPUT_TRADITIONAL="nacjd_data_publication_traditional$(date +%y%m%d).txt"
 declare -r ISSN_FILE="req_issn.txt"
-declare -r MARC_FILE_K10PLUS_WITH_DUPS="marc_from_k10plus.mrc"
-declare -r MARC_FILE_K10PLUS="marc_from_k10plus_no_dups.mrc"
+declare -r MARC_FILE_K10PLUS_WITH_DUPS="marc_from_k10plus_$(date +%y%m%d).mrc"
+declare -r MARC_FILE_K10PLUS="marc_from_k10plus_no_dups_$(date +%y%m%d).mrc"
 declare -r WORKING_DIR="/usr/local/ub_tools/cpp/harvest/"
 declare -r NACJD_TOOL="$WORKING_DIR/nacjd_data_publication"
 declare -r ISSN_LOOKUP_K10_PLUS_TOOL="$WORKING_DIR/issn_lookup.py"
 declare -r FINAL_OUTPUT="nacjd_data_publication_$(date +%y%m%d).xml"
-declare -r ISSN_TO_BE_CONSIDERED="issn_to_be_considerEDed_$(date +%y%m%d).txt"
+declare -r ISSN_TO_BE_CONSIDERED="issn_to_be_considered_$(date +%y%m%d).txt"
 declare -r ISSN_ALTERNATIVE_NEED_FROM_K10PLUS="alternative_issn_needed_to_be_download_from_k10plus_$(date +%y%m%d).txt"
 declare -r BASE_OPENALEX_ISSN_API="https://api.openalex.org/sources/issn:"
 declare -r ISSN_ALTERNATIVE_FROM_OPENALEX="info_issn_alternative_from_openalex_$(date +%y%m%d).json"
 declare -r ISSN_ALTERNATIVE_FROM_OPENALEX_CSV="alternative_issn_openalex_$(date +%y%m%d).csv"
-declare -r SOURCE_WITH_DUPS="alternative_issn_k10plus.mrc"
-declare -r SOURCE="alternative_issn_k10plus_no_dups.mrc"
+declare -r SOURCE_WITH_DUPS="alternative_issn_k10plus_$(date +%y%m%d).mrc"
+declare -r SOURCE="alternative_issn_k10plus_no_dups_$(date +%y%m%d).mrc"
 declare -r NOT_FOUND_ISSN="printed_or_not_found_$(date +%y%m%d).txt"
 declare -r AUGMENTED_77w_OUTPUT="augmented_773w_$(date +%y%m%d).xml"
 declare -r BASE_OPENALEX_DOI_API="https://api.openalex.org/works/https://doi.org/"
-declare -r JSON_FROM_OPENALEX="open_access_info_from_openalex.json"
+declare -r JSON_FROM_OPENALEX="open_access_info_from_openalex_$(date +%y%m%d).json"
 declare -r NACJD_DOI="nacjd_dois_$(date +%y%m%d).txt"
 declare -r OPEN_ACCESS_INFO_CSV="open_access_info_$(date +%y%m%d).csv"
-declare -r CURRENT_KRIMDOK_FILE="GesamtTiteldaten-post-pipeline-240802.mrc"
-declare -r EXISTING_STUDY_NUMBER_WITH_PPN="existing_study_number_and_ppn.txt"
+declare -r CURRENT_KRIMDOK_FILE="GesamtTiteldaten-post-pipeline-240809.mrc"
+declare -r EXISTING_STUDY_NUMBER_WITH_PPN="existing_study_number_and_ppn_$(date +%y%m%d).txt"
 declare -r ISSN_FOR_GETTING_OPEN_ACCESS_INFO="issn_for_getting_open_access_info_$(date +%y%m%d).txt"
 declare -r OPEN_ACCESS_INFO_ISSN_BASED_CSV="open_access_info_issn_based_$(date +%y%m%d).csv"
 
@@ -48,7 +50,7 @@ remove_error_message(){
 
 
 echo "Extracting ISSN"
-cat "$NACJD_INPUT" | jq -r '.searchResults.response.docs[].ISSN' | sort | uniq > "$ISSN_FILE"
+cat "$NACJD_INPUT" | jq -r '.[].ISSN' | sort | uniq > "$ISSN_FILE"
 
 echo "Downloading MARC from K10Plus"
 $ISSN_LOOKUP_K10_PLUS_TOOL "$ISSN_FILE" "$MARC_FILE_K10PLUS_WITH_DUPS"
@@ -90,7 +92,7 @@ $NACJD_TOOL "--verbose" "augment_773w" $NACJD_OUTPUT $ISSN_ALTERNATIVE_FROM_OPEN
 
 
 echo "Extracting DOI"
-cat "$NACJD_INPUT" | jq -r '.searchResults.response.docs[].DOI' | sort | uniq > "$NACJD_DOI"
+cat "$NACJD_INPUT" | jq -r '.[].DOI' | sort | uniq > "$NACJD_DOI"
 
 echo "Removing space from $NACJD_DOI"
 sed -i "s/ //g" $NACJD_DOI
@@ -101,7 +103,7 @@ echo "" > $JSON_FROM_OPENALEX
 echo "Starting download data"
 while read DOI; do
     echo $DOI
-    curl "$BASE_OPENALEX_DOI_API$DOI?select=doi,open_access" >> $JSON_FROM_OPENALEX
+    curl  -s "$BASE_OPENALEX_DOI_API$DOI?select=doi,open_access" >> $JSON_FROM_OPENALEX
 done < $NACJD_DOI 
 
 echo "Removing error tag from $JSON_FROM_OPENALEX" 
