@@ -96,18 +96,19 @@ class IxTheoAutoClassification(dspy.Module):
             context = dspy.InputField(desc=context_desc)
             input_data = dspy.InputField()
             ixtheo_notations = dspy.OutputField(desc="""A set of two or three letter (not one-letter!) notations as JSON array, not more than 5.
-                                                        Do not output the textual description of the notations""")
+                                                        Only letters - no descriptions and and other output""")
             rationale = dspy.OutputField(desc="A rationale for the selection of the labels")
 
         class AssignNewKeywords(dspy.Signature):
             """You are a classifier and assign one or more labels to text. The text is given in JSON format with id, title, keywords and summary.
                Use title, keywords and the summary.
-               Generate a summary of the topics first with a bias on title and keywords. Determine the main topic.
+               Generate a summary of the topics first with a bias on title and keywords. Please return your answer in JSON format. Determine the main topic.
                Determine whether or not the topic is concerned with a topic of theology and add a key theology_related if so.
-               Determine the place and time of the topics. Then generate a new set of keywords. Please return your answer in JSON format"""
+               Determine the place and time of the topics. Then generate a new set of keywords. """
             input_data = dspy.InputField(desc="Information as JSON object")
             new_keywords = dspy.OutputField(desc="A set of newly assigned keywords as JSON object")
             rationale = dspy.OutputField(desc="A rationale for the selection of the keywords as JSON object with key keywords")
+            theology_related = dspy.OutputField(desc="A boolean value that indicates that the work is primarily concerned. No other output")
 
 
         super().__init__()
