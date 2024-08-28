@@ -265,8 +265,8 @@ public:
         if (not FileUtil::Exists(template_filename))
             template_filename = template_filename_prefix + ".en";
 
-        const static std::string email_template(FileUtil::ReadStringOrDie(template_filename));
-        const static std::string email_template_prepared = StringUtil::ReplaceString("\n", "<br>\n", email_template);
+        std::string email_template(FileUtil::ReadStringOrDie(template_filename));
+        std::string email_template_prepared = StringUtil::ReplaceString("\n", "<br>\n", email_template);
 
         Template::Map names_to_values_map;
         names_to_values_map.insertScalar("user_name", name_of_user);

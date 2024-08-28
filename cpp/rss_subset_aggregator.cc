@@ -140,7 +140,7 @@ bool SendEmail(const std::string &subsystem_type, const std::string &email_sende
     std::string template_filename(template_filename_prefix + "." + language);
     if (not FileUtil::Exists(template_filename))
         template_filename = template_filename_prefix + ".en";
-    static const std::string email_template(FileUtil::ReadStringOrDie(template_filename));
+    std::string email_template(FileUtil::ReadStringOrDie(template_filename));
 
 
     std::string list("<ul>\n");
