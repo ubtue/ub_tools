@@ -16,6 +16,14 @@ import util
 from openai import OpenAI
 import os
 
+#Phoenix
+from openinference.instrumentation.dspy import DSPyInstrumentor
+from opentelemetry import trace as trace_api
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk import trace as trace_sdk
+from opentelemetry.sdk.resources import Resource
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+import phoenix
 
 def SetupChatAI(config):
     base_url = config.get("Server", "base_url")
@@ -46,6 +54,17 @@ def SetupChatAI(config):
     return chat_ai
 
 
+def SetupTracing():
+    endpoint = "http://127.0.0.1:6006/v1/traces"
+    resource = Resource(attributes={})
+    tracer_provider = trace_sdk.TracerProvider(resource=resource)
+    span_otlp_exporter = OTLPSpanExporter(endpoint=endpoint)
+    tracer_provider.add_span_processor(SimpleSpanProcessor(span_exporter=span_otlp_exporter))
+    trace_api.set_tracer_provider(tracer_provider=tracer_provider)
+    DSPyInstrumentor().instrument(skip_dep_check=True)
+    phoenix_session = phoenix.launch_app()
+
+
 def answer_quality_metric(manual_classification, predicted_classification, trace=None):
     """A simple metric that compares predicted and manually assigned labels"""
     #print("Input : "  + str(predicted_classification.input_data))
@@ -66,7 +85,6 @@ def IsValidIxTheoNotationArray(notations):
         return False
 
 
-
 class IxTheoAutoClassification(dspy.Module):
     def __init__(self, config):
         ixtheo_notations = Path(config.get("Notations", "notations_file")).read_text();
@@ -77,12 +95,16 @@ class IxTheoAutoClassification(dspy.Module):
             """Assign an Ixtheo notation based on the given keywords"""
             context = dspy.InputField(desc=context_desc)
             input_data = dspy.InputField()
-            ixtheo_notations = dspy.OutputField(desc="""A set of two or three letter notations as JSON array, not more than 5.
+            ixtheo_notations = dspy.OutputField(desc="""A set of two or three letter (not one-letter!) notations as JSON array, not more than 5.
                                                         Do not output the textual description of the notations""")
             rationale = dspy.OutputField(desc="A rationale for the selection of the labels")
 
         class AssignNewKeywords(dspy.Signature):
-            """You are a classifier and assign one or more labels to text. The text is given as a json file with id, title, keywords and summary. Use title, keywords and the summary  Avoid notations with only one letter. Generate a summary of the topics first with a bias on title and keywords. Determine the main topic. Determine whether or not the topic is concerned with a topic of theology. Determine the place and time of the topics. Then generate a new set of keywords. Please return your answer in JSON format"""
+            """You are a classifier and assign one or more labels to text. The text is given in JSON format with id, title, keywords and summary.
+               Use title, keywords and the summary.
+               Generate a summary of the topics first with a bias on title and keywords. Determine the main topic.
+               Determine whether or not the topic is concerned with a topic of theology and add a key theology_related if so.
+               Determine the place and time of the topics. Then generate a new set of keywords. Please return your answer in JSON format"""
             input_data = dspy.InputField(desc="Information as JSON object")
             new_keywords = dspy.OutputField(desc="A set of newly assigned keywords as JSON object")
             rationale = dspy.OutputField(desc="A rationale for the selection of the keywords as JSON object with key keywords")
@@ -141,13 +163,16 @@ def GetPredictions(config, items):
         print("\n************************************************\n")
         print("New notations: " + str(new_notations.ixtheo_notations))
         print("Original Notations: " + str(pyjq.first('.ixtheo_notation', item)))
-
         print("\n###############################################\n")
+
 
 def Optimize(config, items):
     optimizer_config = dict(max_bootstrapped_demos=4, max_labeled_demos=4)
+#    teleprompter = BootstrapFewShotWithRandomSearch(metric=answer_quality_metric, **optimizer_config)
     teleprompter = BootstrapFewShot(metric=answer_quality_metric, **optimizer_config)
     optimized = teleprompter.compile(IxTheoAutoClassification(config).activate_assertions(), trainset=GenerateTrainingSet(items))
+    optimized.save("/tmp/optimized_bootstrap_random_search.dspy")
+
 
 
 def Main():
@@ -178,10 +203,12 @@ def Main():
     if use_samples:
        jq_array_element_selector = GetRandomOffsets(number_of_samples, ReadFulltext(augmented_tocs_with_notations))
 
+    SetupTracing()
 
     items = pyjq.all(jq_array_element_selector, ReadFulltext(augmented_tocs_with_notations))
     #GetPredictions(config, items)
     Optimize(config, items)
+    input("Press Enter to finish...")
 
 
 
