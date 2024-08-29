@@ -106,7 +106,7 @@ create_full_text_db --process-count-low-and-high-watermarks \
                     $(get_config_file_entry.py krimdok_marc_pipeline.conf \
                     create_full_text_db process_count_low_and_high_watermarks) \
                     --store-pdfs-as-html --use-separate-entries-per-url --include-all-tocs \
-                    --include-list-of-references --only-pdf-fulltexts \
+                    --include-list-of-references --only-pdf-fulltexts --use-web-proxy \
                     GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                     ${TMP_NULL} >> "${log}" 2>&1
 EndPhase

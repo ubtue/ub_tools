@@ -43,8 +43,10 @@ constexpr unsigned DEFAULT_PDF_EXTRACTION_TIMEOUT = 120; // seconds
 
 
 [[noreturn]] void Usage() {
-    ::Usage("[--min-log-level=min_verbosity] [--process-count-low-and-high-watermarks low:high] [--pdf-extraction-timeout=timeout]\n"
-            "[--only-open-access] [--store-pdfs-as-html] [--use-web-proxy] marc_input marc_output\n"
+    ::Usage("[--min-log-level=min_verbosity] [--process-count-low-and-high-watermarks low:high]\n"
+            "[--pdf-extraction-timeout=timeout] [--only-open-access] [--store-pdfs-as-html] [--use-separate-entries-per-url]\n"
+            "[--include-all-tocs] [--include-list-of-references] [--only-pdf-fulltexts] [--use-web-proxy] marc_input marc_output\n"
+            "\n"
             "\"--process-count-low-and-high-watermarks\" sets the maximum and minimum number of spawned\n"
             "    child processes.  When we hit the high water mark we wait for child processes to exit\n"
             "    until we reach the low watermark.\n"
@@ -58,6 +60,7 @@ constexpr unsigned DEFAULT_PDF_EXTRACTION_TIMEOUT = 120; // seconds
             "\"--include-list-of-references\": Extract list of references\n"
             "\"--only-pdf-fulltexts\": Download real Fulltexts only if the link points to a PDF\n"
             "\"--use-web-proxy\": Use ZDV Web Proxy to download files\n"
+            "\n"
            );
 
     std::exit(EXIT_FAILURE);
