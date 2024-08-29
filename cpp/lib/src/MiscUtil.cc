@@ -711,7 +711,7 @@ std::string NormalizeName(const std::string &name) {
 
 
 const ThreadSafeRegexMatcher CORPORATE_AUTHOR_MATCHER(
-    "\\b(Universit\\w+|College|School|Institut\\w+|Fakult\\w+|Council|Office|Association|International|Center|Centre)\\b",
+    "\\b(Universit\\w+|College|School|Institut\\w+|Fakult\\w+|Council|Office|Association|International|Center|Centre|Administration)\\b",
     ThreadSafeRegexMatcher::Option::ENABLE_UTF8 | ThreadSafeRegexMatcher::Option::CASE_INSENSITIVE);
 
 

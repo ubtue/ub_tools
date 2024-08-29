@@ -97,6 +97,7 @@ public:
     inline const std::string toString() const { return std::string(c_str(), 3); }
     inline uint32_t to_int() const { return htonl(tag_.as_int_); }
 
+
     inline bool isTagOfControlField() const { return tag_.as_cstring_[0] == '0' and tag_.as_cstring_[1] == '0'; }
     bool isLocal() const;
     Tag &swap(Tag &other);
@@ -176,6 +177,9 @@ public:
     inline size_t size() const { return subfields_.size(); }
     inline void reserve(const size_t size) { subfields_.reserve(size); }
     void clear() { return subfields_.clear(); }
+
+    typedef std::vector<Subfield>::value_type value_type;
+    inline void push_back(const Subfield &subfield) { subfields_.push_back(subfield); }
 
     inline bool hasSubfield(const char subfield_code) const {
         return std::find_if(subfields_.cbegin(), subfields_.cend(),
