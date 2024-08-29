@@ -51,15 +51,16 @@ namespace {
             "\"--include-all-tocs\": Extract TOCs even if they are not matched by the only-open-access-filter\n"
             "\"--include-list-of-references\": Extract list of references\n"
             "\"--only-pdf-fulltexts\": Download real Fulltexts only if the link points to a PDF\n"
+            "\"--use-web-proxy\": Use ZDV Web Proxy to download files\n"
             "\"file_offset\" Where to start reading a MARC data set from in marc_input.");
 }
 
 
 // \note Sets "error_message" when it returns false.
-bool GetDocumentAndMediaType(const std::string &url, const unsigned timeout, std::string * const document, std::string * const media_type,
-                             std::string * const media_subtype, std::string * const http_header_charset,
+bool GetDocumentAndMediaType(const std::string &url, const unsigned timeout, const bool use_web_proxy, std::string * const document,
+                             std::string * const media_type, std::string * const media_subtype, std::string * const http_header_charset,
                              std::string * const error_message) {
-    if (not SmartDownloadResolveFirstRedirectHop(url, timeout, document, http_header_charset, error_message))
+    if (not SmartDownloadResolveFirstRedirectHop(url, timeout, use_web_proxy, document, http_header_charset, error_message))
         return false;
 
     *media_type = MediaTypeUtil::GetMediaType(*document, media_subtype);
@@ -266,14 +267,13 @@ void ExtractUrlsFromUrlsAndTextTypes(const std::set<UrlAndTextType> &urls_and_te
 bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extraction_timeout, const bool use_only_open_access_links,
                        const bool store_pdfs_as_html, const bool use_separate_entries_per_url = false, const bool include_all_tocs = false,
                        const bool include_list_of_references = false, const bool only_pdf_fulltexts = false,
-                       const bool skip_reviews = false) {
+                       const bool skip_reviews = false, const bool use_web_proxy = false) {
     const std::string ppn(record->getControlNumber());
     std::set<UrlAndTextType> urls_and_text_types;
     GetUrlsAndTextTypes(*record, &urls_and_text_types, use_only_open_access_links, include_all_tocs, include_list_of_references,
                         only_pdf_fulltexts, skip_reviews);
     std::set<std::string> urls;
     ExtractUrlsFromUrlsAndTextTypes(urls_and_text_types, &urls);
-    ;
     FullTextCache cache;
     const std::string semaphore_id("full_text_cached_counter");
 
@@ -332,8 +332,9 @@ bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extractio
         if (url_and_text_type.url_ == LOCAL_520_TEXT)
             extracted_text = GetTextFrom520a(*record);
         else {
-            if ((not GetDocumentAndMediaType(url, PER_DOC_TIMEOUT, &document, &media_type, &media_subtype, &http_header_charset,
-                                             &error_message))) {
+            if ((not GetDocumentAndMediaType(url, PER_DOC_TIMEOUT, use_web_proxy, &document, &media_type, &media_subtype,
+                                             &http_header_charset, &error_message)))
+            {
                 LOG_WARNING("URL " + url + ": could not get document and media type! (" + error_message + ")");
                 entry_url.error_message_ = "could not get document and media type! (" + error_message + ")";
                 at_least_one_error = true;
@@ -411,11 +412,13 @@ bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extractio
 
 bool ProcessRecord(MARC::Record * const record, const std::string &marc_output_filename, const unsigned pdf_extraction_timeout,
                    const bool use_only_open_access_links, const bool extract_html_from_pdfs, const bool use_separate_entries_per_url,
-                   const bool include_all_tocs, const bool include_list_of_references, const bool only_pdf_fulltexts) {
+                   const bool include_all_tocs, const bool include_list_of_references, const bool only_pdf_fulltexts,
+                   const bool use_web_proxy) {
     bool success(false);
     try {
         success = ProcessRecordUrls(record, pdf_extraction_timeout, use_only_open_access_links, extract_html_from_pdfs,
-                                    use_separate_entries_per_url, include_all_tocs, include_list_of_references, only_pdf_fulltexts);
+                                    use_separate_entries_per_url, include_all_tocs, include_list_of_references, only_pdf_fulltexts,
+                                    /*skip_reviews=*/false, use_web_proxy);
     } catch (const std::exception &x) {
         LOG_WARNING("caught exception: " + std::string(x.what()));
     }
@@ -435,12 +438,13 @@ bool ProcessRecord(MARC::Record * const record, const std::string &marc_output_f
 // Returns true if text has been successfully extracted, else false.
 bool ProcessRecord(MARC::Reader * const marc_reader, const std::string &marc_output_filename, const unsigned pdf_extraction_timeout,
                    const bool use_only_open_access_links, const bool extract_html_from_pdfs, const bool use_separate_entries_per_url,
-                   const bool include_all_tocs, const bool include_list_of_references, const bool only_pdf_fulltexts) {
+                   const bool include_all_tocs, const bool include_list_of_references, const bool only_pdf_fulltexts,
+                   const bool use_web_proxy) {
     MARC::Record record(marc_reader->read());
     try {
         LOG_INFO("processing record " + record.getControlNumber());
         return ProcessRecord(&record, marc_output_filename, pdf_extraction_timeout, use_only_open_access_links, extract_html_from_pdfs,
-                             use_separate_entries_per_url, include_all_tocs, include_list_of_references, only_pdf_fulltexts);
+                             use_separate_entries_per_url, include_all_tocs, include_list_of_references, only_pdf_fulltexts, use_web_proxy);
     } catch (const std::exception &x) {
         throw std::runtime_error(x.what() + std::string(" (PPN: ") + record.getControlNumber() + ")");
     }
@@ -496,6 +500,12 @@ int Main(int argc, char *argv[]) {
         ++argv, --argc;
     }
 
+    bool use_web_proxy(false);
+    if (argc > 1 and StringUtil::StartsWith(argv[1], "--use-web-proxy")) {
+        use_web_proxy = true;
+        ++argv, --argc;
+    }
+
 
     if (argc != 4)
         Usage();
@@ -510,7 +520,7 @@ int Main(int argc, char *argv[]) {
 
     try {
         return ProcessRecord(marc_reader.get(), argv[3], pdf_extraction_timeout, use_only_open_access_documents, store_html_from_pdfs,
-                             use_separate_entries_per_url, include_all_tocs, include_list_of_references, only_pdf_fulltexts)
+                             use_separate_entries_per_url, include_all_tocs, include_list_of_references, only_pdf_fulltexts, use_web_proxy)
                    ? EXIT_SUCCESS
                    : EXIT_FAILURE;
     } catch (const std::exception &e) {
