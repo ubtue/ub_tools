@@ -523,7 +523,7 @@ void Client::harvestSet(const std::string &set_spec, const std::string &from, co
         received_record_count += list_records_parser.getRecordCount();
         const std::list<OaiPmh::Record> &records(list_records_parser.getRecords());
         for (std::list<OaiPmh::Record>::const_iterator record(records.begin()); record != records.end(); ++record) {
-            processRecord(*record, verbosity, logger)
+            processRecord(*record, verbosity, logger);
         }
 
         // Grab the new resumption token:
