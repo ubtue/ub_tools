@@ -969,9 +969,11 @@ int Main(int argc, char **argv) {
     bool omit_systemctl(false);
     bool production(false);
 
-    if (std::strcmp("ub-tools-only", argv[1]) == 0)
+    if (std::strcmp("ub-tools-only", argv[1]) == 0) {
         installation_type = UB_TOOLS_ONLY;
-    else if (std::strcmp("fulltext-backend", argv[1]) == 0)
+        omit_systemctl = true;
+        omit_cronjobs = true;
+    } else if (std::strcmp("fulltext-backend", argv[1]) == 0)
         installation_type = FULLTEXT_BACKEND;
     else if (std::strcmp("vufind", argv[1]) == 0)
         installation_type = VUFIND;
