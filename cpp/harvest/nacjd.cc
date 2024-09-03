@@ -571,7 +571,6 @@ void getStatistics(int argc, char **argv) {
         } else {
             title = title_node->getValue();
 
-            int i = 0;
             bool find_category(false);
             for (const std::string &n : statistics_categories) {
                 size_t pos = title.find(n);
@@ -579,7 +578,6 @@ void getStatistics(int argc, char **argv) {
                     statistics_count.emplace(n, statistics_count[n]++);
                     find_category = true;
                 }
-                i++;
             }
             if (!find_category)
                 ++no_statistics_category;
@@ -706,10 +704,8 @@ void getStatistics(int argc, char **argv) {
              + std::to_string(no_initial_date) + "\n" + "\t\tKeywords not found or empty: " + std::to_string(no_keywords) + "\n");
 
     std::cout << "NACJD Statistics Categories: \n" << std::endl;
-    int ii(0);
     for (const std::string &n : statistics_categories) {
         std::cout << "\t" << n << " - " << statistics_count[n] << std::endl;
-        ii++;
     }
     std::cout << "\nStatistics category is not defined: " + std::to_string(no_statistics_category) + "\n" << std::endl;
 }
