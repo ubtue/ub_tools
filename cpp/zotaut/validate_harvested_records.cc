@@ -489,7 +489,7 @@ int Main(int argc, char *argv[]) {
                                       &journal_specific_regular_article_validator, &general_regular_article_validator };
 
 
-    unsigned total_record_count(0), online_first_record_count(0), missed_expectation_count(0);
+    unsigned total_record_count(0), missed_expectation_count(0);
     while (const auto record = marc_reader->read()) {
         ++total_record_count;
         LOG_INFO(""); // intentionally empty newline !
@@ -507,7 +507,6 @@ int Main(int argc, char *argv[]) {
             {
                 LOG_INFO("Record " + record.getControlNumber() + " is online first");
                 online_first_records_writer->write(record);
-                ++online_first_record_count;
                 upload_tracker.archiveRecord(record, ZoteroHarvester::Util::UploadTracker::DeliveryState::ONLINE_FIRST,
                                              StringUtil::Join(reasons_for_being_invalid, "\n"));
             } else {
