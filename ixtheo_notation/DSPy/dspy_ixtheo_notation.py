@@ -119,7 +119,7 @@ class IxTheoAutoClassification(dspy.Module):
     def forward(self, input_data):
         new_keywords = self.generate_new_keywords(input_data=input_data)
         notations = self.generate_notations(input_data=new_keywords.new_keywords, context="")
-        dspy.Suggest(IsValidIxTheoNotationArray(notations), "Output must be a JSON array of non-one letter Ixtheo notations")
+        #dspy.Suggest(IsValidIxTheoNotationArray(notations), "Output must be a JSON array of non-one letter Ixtheo notations")
         #print(f"New notations: {notations.ixtheo_notations}")
         #print("\n-----------------------------------------------\n")
         #print(f"New Keywords: {str(new_keywords.new_keywords)}")
@@ -158,6 +158,7 @@ def GenerateTrainingSet(items):
 
 def GetPredictions(config, items):
     ixtheo_auto_classification = IxTheoAutoClassification(config)
+#    ixtheo_auto_classification.load("/tmp/optimized_bootstrap_random_search.dspy")
     for item in items:
         print(pyjq.first('.id', item))
         new_notations = ixtheo_auto_classification(str(pyjq.first('del(.ixtheo_notation)', item)))
@@ -169,8 +170,8 @@ def GetPredictions(config, items):
 
 def Optimize(config, items):
     optimizer_config = dict(max_bootstrapped_demos=4, max_labeled_demos=4)
-#    teleprompter = BootstrapFewShotWithRandomSearch(metric=answer_quality_metric, **optimizer_config)
-    teleprompter = BootstrapFewShot(metric=answer_quality_metric, **optimizer_config)
+    teleprompter = BootstrapFewShotWithRandomSearch(metric=answer_quality_metric, **optimizer_config)
+#    teleprompter = BootstrapFewShot(metric=answer_quality_metric, **optimizer_config)
     optimized = teleprompter.compile(IxTheoAutoClassification(config).activate_assertions(), trainset=GenerateTrainingSet(items))
     optimized.save("/tmp/optimized_bootstrap_random_search.dspy")
 
@@ -199,6 +200,7 @@ def Main():
     config=util.LoadConfigFile('../conf/' +  os.path.basename(sys.argv[0])[:-2] + "conf")
     client = SetupChatAI(config)
     dspy.settings.configure(lm=client)
+    dspy.settings.backoff_time = 10
 
     jq_array_element_selector = '.[]'
     if use_samples:
@@ -207,8 +209,8 @@ def Main():
     SetupTracing()
 
     items = pyjq.all(jq_array_element_selector, ReadFulltext(augmented_tocs_with_notations))
-    #GetPredictions(config, items)
-    Optimize(config, items)
+    GetPredictions(config, items)
+    #Optimize(config, items)
     input("Press Enter to finish...")
 
 
