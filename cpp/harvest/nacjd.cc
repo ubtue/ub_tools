@@ -149,6 +149,13 @@ bool DownloadID(std::ofstream &json_new_titles, const std::string &id, const boo
     const std::string DOWNLOAD_URL("https://pcms.icpsr.umich.edu/pcms/api/1.0/studies/" + id
                                    + "/versions/V1/dats?page=https://www.icpsr.umich.edu/web/NACJD/studies/" + id + "/export&user=");
 
+    // Some data can't be downloaded because the version of the datum it self. Here is the two possibles link when the V1 link is not
+    // working const std::string DOWNLOAD_URL("https://pcms.icpsr.umich.edu/pcms/api/1.0/studies/" + id
+    //                                + "/versions/V2/dats?page=https://www.icpsr.umich.edu/web/NACJD/studies/" + id + "/export&user=");
+
+    // const std::string DOWNLOAD_URL("https://pcms.icpsr.umich.edu/pcms/api/1.0/studies/" + id
+    //                                + "/versions/V3/dats?page=https://www.icpsr.umich.edu/web/NACJD/studies/" + id + "/export&user=");
+
     Downloader downloader(DOWNLOAD_URL, Downloader::Params(), TIMEOUT_IN_SECONDS * 1000);
     if (downloader.anErrorOccurred()) {
         LOG_WARNING("Error while downloading data for id " + id + ": " + downloader.getLastErrorMessage());
