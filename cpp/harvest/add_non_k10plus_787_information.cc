@@ -71,10 +71,10 @@ void ProcessRecord(const bool verbose, MARC::Record * const record, const Missin
             LOG_INFO("Adding information for study " + study_id + " to record " + record->getControlNumber());
         const auto information(study_information.at(study_id));
         if (information.first.empty()) {
-            record->insertField("787", MARC::Subfields({ { 't', information.first } }));
+            record->insertFieldAtEnd("787", MARC::Subfields({ { 't', information.first } }));
             continue;
         }
-        record->insertField("787", MARC::Subfields({ { 'a', information.second }, { 't', information.first } }));
+        record->insertFieldAtEnd("787", MARC::Subfields({ { 'a', information.second }, { 't', information.first } }));
     }
 }
 
