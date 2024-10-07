@@ -367,6 +367,7 @@ void InsertGeneralFieldInfo(MARC::Record * const record, NACJDDoc * const nacjd_
     }
 
     if (nacjd_doc->study_q_.size() > 0) {
+        std::set<std::string> studies_missing_in_k10plus;
         for (unsigned long i = 0; i < nacjd_doc->study_q_.size(); i++) {
             const auto study_number(study_number_to_control_number.find(std::to_string(nacjd_doc->study_q_[i])));
             if (study_number != study_number_to_control_number.end()) {
@@ -377,8 +378,11 @@ void InsertGeneralFieldInfo(MARC::Record * const record, NACJDDoc * const nacjd_
                 }
             } else {
                 debug_info->study_numbers_not_found.insert(std::to_string(nacjd_doc->study_q_[i]));
+                studies_missing_in_k10plus.emplace(std::to_string(nacjd_doc->study_q_[i]));
             }
         }
+        if (not studies_missing_in_k10plus.empty())
+            record->insertField("MIS", StringUtil::Join(studies_missing_in_k10plus, ","));
     }
 
     // Disable Match & Merge
