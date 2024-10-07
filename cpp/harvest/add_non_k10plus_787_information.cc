@@ -76,6 +76,8 @@ void ProcessRecord(const bool verbose, MARC::Record * const record, const Missin
         }
         record->insertFieldAtEnd("787", MARC::Subfields({ { 'a', information.second }, { 't', information.first } }));
     }
+
+    record->deleteFields("MIS");
 }
 
 
