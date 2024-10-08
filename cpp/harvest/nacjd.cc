@@ -149,12 +149,23 @@ bool DownloadID(std::ofstream &json_new_titles, const std::string &id, const boo
     const std::string DOWNLOAD_URL("https://pcms.icpsr.umich.edu/pcms/api/1.0/studies/" + id
                                    + "/versions/V1/dats?page=https://www.icpsr.umich.edu/web/NACJD/studies/" + id + "/export&user=");
 
-    // Some data can't be downloaded because of the version of the data itself. The link above is working on data with version 1 (V1), but
-    // the link is not working for the newer one. These are two possible links when the data version is newer:
-    // V2: "https://pcms.icpsr.umich.edu/pcms/api/1.0/studies/" + id +
-    // "/versions/V2/dats?page=https://www.icpsr.umich.edu/web/NACJD/studies/" + id + "/export&user=");
-    // V3: "https://pcms.icpsr.umich.edu/pcms/api/1.0/studies/" + id +
-    // "/versions/V3/dats?page=https://www.icpsr.umich.edu/web/NACJD/studies/" + id + "/export&user=");
+    /**
+     * Some data can't be downloaded because of the version of the data itself. The link above is working on data with version 1 (V1), but
+     * the link is not working for the newer one. These are two possible links when the data version is newer:
+     *
+     * V2: "https://pcms.icpsr.umich.edu/pcms/api/1.0/studies/" + id +
+     * "/versions/V2/dats?page=https://www.icpsr.umich.edu/web/NACJD/studies/" + id + "/export&user=");
+     *
+     * V3: "https://pcms.icpsr.umich.edu/pcms/api/1.0/studies/" + id +
+     * "/versions/V3/dats?page=https://www.icpsr.umich.edu/web/NACJD/studies/" + id + "/export&user=");
+     *
+     * Those links above are compatible
+     * with the current JSON parser, but a weakness is needed to check the data version, and it is difficult. It needs to iterate all links.
+     *
+     * This link `https://pcms.icpsr.umich.edu/pcms/api/1.0/studies/ + $id` offers the easiest way to download the data because it
+     * compatible with all version of data. The weakness is the current parser is not comply to the output (JSON) format of the link, it
+     * needs to update the parser to comply with it format.
+     */
 
     Downloader downloader(DOWNLOAD_URL, Downloader::Params(), TIMEOUT_IN_SECONDS * 1000);
     if (downloader.anErrorOccurred()) {
