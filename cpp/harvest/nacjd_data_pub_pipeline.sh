@@ -1,4 +1,11 @@
 #!/bin/bash
+###########################################
+# Author: Johannes Riedl (johannes.riedl@uni-tuebingen.de)
+# Author: Steven Lolong (steven.lolong@uni-tuebingen.de)
+# copyright 2024 Tübingen University Library.  All rights reserved.
+#
+# Script to generate a nacjd data publication file
+###########################################
 set -o errexit -o nounset
 
 if [ $# != 0 ]; then
@@ -124,6 +131,12 @@ cat $ISSN_FOR_GETTING_OPEN_ACCESS_INFO | xargs -I'{}' sh -c 'echo "$@" $(curl -L
 
 echo "Updating open access info"
 $NACJD_TOOL "--verbose" "augment_open_access" $AUGMENTED_77w_OUTPUT $OPEN_ACCESS_INFO_CSV $OPEN_ACCESS_INFO_ISSN_BASED_CSV $NACJD_WITH_MISSING_SOME_STUDY_LINK 
+
+echo "Downloading NACJD studies referenced  were missing from the old approach"
+time cat $STUDY_NUMBER_NOT_FOUND | xargs -I '{}' sh -c 'curl -s https://pcms.icpsr.umich.edu/pcms/api/1.0/studies/$@ > $@.json' _ '{}'
+
+echo "Extracting downloaded information"
+ls -1 *.json | xargs -I'{}' sh -c 'echo ${@%%.json}\\t$(cat $@ | jq -r -C .projectTitle)\\t$(cat $@ | jq -r '"'"'.creators | map("\(.orgName), \(.personName)") | join("; ")'"'"')' _ '{}' | sed -re 's/([, ]+)?null([, ]+)?//g' > $OLD_NACJD_MISSING_STUDIES_ID_TITLE_AUTHOR
 
 echo "Adding information about studies, that are not in K10Plus to 787"
 $AUGMENTING_787_TOOL  $NACJD_WITH_MISSING_SOME_STUDY_LINK $OLD_NACJD_MISSING_STUDIES_ID_TITLE_AUTHOR  $NACJD_FINAL
