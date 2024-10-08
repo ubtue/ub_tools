@@ -160,11 +160,11 @@ bool DownloadID(std::ofstream &json_new_titles, const std::string &id, const boo
      * "/versions/V3/dats?page=https://www.icpsr.umich.edu/web/NACJD/studies/" + id + "/export&user=");
      *
      * Those links above are compatible
-     * with the current JSON parser, but a weakness is needed to check the data version, and it is difficult. It needs to iterate all links.
+     * with the current JSON parser, but a weakness is that it is necessary to check all candidate versions which is ineffective as it needs to try out all the links.
      *
      * This link `https://pcms.icpsr.umich.edu/pcms/api/1.0/studies/ + $id` offers the easiest way to download the data because it
      * compatible with all version of data. The weakness is the current parser is not comply to the output (JSON) format of the link, it
-     * needs to update the parser to comply with it format.
+     * needs to update the parser to comply with it format. If adjustments are to be made adjusting the parser is probably the best way to go (!!!)-
      */
 
     Downloader downloader(DOWNLOAD_URL, Downloader::Params(), TIMEOUT_IN_SECONDS * 1000);
