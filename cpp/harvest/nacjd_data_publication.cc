@@ -382,7 +382,7 @@ void InsertGeneralFieldInfo(MARC::Record * const record, NACJDDoc * const nacjd_
             }
         }
         if (not studies_missing_in_k10plus.empty())
-            record->insertField("MIS", StringUtil::Join(studies_missing_in_k10plus, ","));
+            record->insertField("MIS", { { 'a', StringUtil::Join(studies_missing_in_k10plus, ",") } });
     }
 
     // Disable Match & Merge
