@@ -1,7 +1,7 @@
 #!/bin/bash
 ###########################################
-# Author: Johannes Riedl (johannes.riedl@uni-tuebingen.de)
 # Author: Steven Lolong (steven.lolong@uni-tuebingen.de)
+# Some contributions: Johannes Riedl (johannes.riedl@uni-tuebingen.de)
 # copyright 2024 Tübingen University Library.  All rights reserved.
 #
 # Script to generate a nacjd data publication file
