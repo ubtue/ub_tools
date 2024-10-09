@@ -385,6 +385,8 @@ void InsertGeneralFieldInfo(MARC::Record * const record, NACJDDoc * const nacjd_
             record->insertField("MIS", { { 'a', StringUtil::Join(studies_missing_in_k10plus, ",") } });
     }
 
+    record->insertField("852", { { 'a', "DE-2619" } });
+
     // Disable Match & Merge
     record->insertField("912", { { 'a', "NOMM" } });
 
