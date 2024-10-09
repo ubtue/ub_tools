@@ -34,6 +34,7 @@ import org.apache.solr.search.SyntaxError;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+
 public class MultiLanguageQueryParser extends QParser {
     private String searchString;
     private static Logger logger = LoggerFactory.getLogger(MultiLanguageQueryParser.class);
