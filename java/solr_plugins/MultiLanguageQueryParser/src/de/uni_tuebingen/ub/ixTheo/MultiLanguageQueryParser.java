@@ -34,7 +34,6 @@ import org.apache.solr.search.SyntaxError;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 public class MultiLanguageQueryParser extends QParser {
     private String searchString;
     private static Logger logger = LoggerFactory.getLogger(MultiLanguageQueryParser.class);
@@ -244,7 +243,7 @@ public class MultiLanguageQueryParser extends QParser {
             QParser parser = getParser(this.searchString, "edismax", this.newRequest);
             newQuery = parser.parse();
         } catch (SyntaxError e) {
-            throw new SolrException(ErrorCode.SERVER_ERROR, "Could not succesfully rewrite query", e);
+            throw new SolrException(ErrorCode.SERVER_ERROR, "Could not successfully rewrite query", e);
         }
     }
 
@@ -391,7 +390,9 @@ public class MultiLanguageQueryParser extends QParser {
                 subquery = processMultiPhraseQuery((MultiPhraseQuery)subquery);
             } else if (subquery instanceof SynonymQuery) {
                 subquery = processSynonymQuery((SynonymQuery)subquery);
-            } else
+            } else if (subquery.getClass().getName().equals("org.apache.lucene.search.MultiTermQueryConstantScoreBlendedWrapper")){
+                break;
+            } else 
                 logger.warn("No appropriate Query in BooleanClause for " + subquery.getClass().getName());
             queryBuilder.add(subquery, currentClause.getOccur());
        }
