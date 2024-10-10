@@ -5,7 +5,7 @@
 
 
 if [ $# != 1 ]; then
-    echo "Usage: $0 deletion_candidated_file"
+    echo "Usage: $0 deletion_candidate_file"
     exit 1
 fi
 
@@ -19,5 +19,5 @@ cat ${deletion_candidates_file} | \
      xargs -L1 bash -c 'echo "# $1 $2 ";  \
                         arr=(${@:3}); \
                         unset arr[-1] ; \
-                        echo ${arr[@]} ' _
-
+                        echo ${arr[@]} ' _ | \
+     grep -v '^#' | tr '\n' ' ' | tr ' ' '\n'
