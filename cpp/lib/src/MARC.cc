@@ -662,6 +662,13 @@ void Record::merge(const Record &other) {
 }
 
 
+void Record::setLeader(const std::string new_leader) {
+    leader_ = new_leader;
+    if (not hasValidLeader())
+        LOG_ERROR("Invalid new leader: \"" + new_leader + "\"");
+}
+
+
 bool Record::isMonograph() const {
     for (const auto &_935_field : getTagRange("935")) {
         for (const auto &subfield : _935_field.getSubfields()) {
