@@ -1288,6 +1288,10 @@ void NotFoundOrPrinted(int argc, char **argv, const bool &debug_mode) {
     }
 }
 
+/*
+ * When field 773 is missing, the assumptions is the record is a monograph and the leader annotation needs to be updated.
+ * Otherwise, the leader annotation will not change.
+ */
 void UpdateMonograph(int argc, char **argv, const bool &debug_mode) {
     if (argc < 4)
         Usage();

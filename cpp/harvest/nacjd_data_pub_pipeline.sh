@@ -146,9 +146,14 @@ $AUGMENTING_787_TOOL  $NACJD_WITH_MISSING_SOME_STUDY_LINK $OLD_NACJD_MISSING_STU
 echo "List the ISSNs to be considered"
 $NACJD_TOOL "--verbose" "suggested_report" $NOT_FOUND_ISSN $SOURCE $ISSN_TO_BE_CONSIDERED
 
-echo "Update 007 and 856"
+# If field 856u is present in the record, it means that the record is an online version, so it is necessary to update the information in field 007 from print to online.
+# The field 787 contains information about related research with the record. Therefore, when the 787t is present, it is needed to add subfield i:Forschungsdaten.
+echo "Update 007 to online when online information exists in 856u." 
+echo "Add 787i:Forschungsdaten when 787t is present."
 marc_augmentor $NACJD_STUDIES $NACJD_UPDATE_007_856 --replace-field-if '007:cr|||||' '856u:\W.*' --add-subfield-if '787i:Forschungsdaten' '787t:\W+'
 
-echo "Update leader"
+#  When field 773 is missing, the assumptions is the record is a monograph and the leader annotation needs to be updated.
+#  Otherwise, the leader annotation will not change.
+echo "Update leader to a monograph when the 773 is not present."
 $NACJD_TOOL "--verbose" "update_monograph" $NACJD_UPDATE_007_856 $NACJD_FINAL
 
