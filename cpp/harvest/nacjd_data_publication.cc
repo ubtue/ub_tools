@@ -494,6 +494,13 @@ MARC::Record *GenerateMarcForChapter(NACJDDoc * const nacjd_doc, std::map<std::s
     MARC::Record *record(GenerateRecord("00000naa a22000008i 4500", "tu"));
     InsertGeneralFieldInfo(record, nacjd_doc, k10_plus_info, study_number_to_control_number, debug_info);
 
+    const MARC::Subfields _936_content(nacjd_doc->ConstructPublishingInfo_936());
+    if (not _936_content.empty())
+        record->insertField("936", _936_content, 'u', 'w');
+
+    if (not nacjd_doc->sec_title_.empty())
+        record->insertField("773", { { 't', nacjd_doc->sec_title_ } });
+
     return record;
 }
 
