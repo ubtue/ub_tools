@@ -45,6 +45,8 @@ declare -r EXISTING_STUDY_NUMBER_WITH_PPN="existing_study_number_and_ppn_$(date 
 declare -r ISSN_FOR_GETTING_OPEN_ACCESS_INFO="issn_for_getting_open_access_info_$(date +%y%m%d).txt"
 declare -r OPEN_ACCESS_INFO_ISSN_BASED_CSV="open_access_info_issn_based_$(date +%y%m%d).csv"
 declare -r OLD_NACJD_MISSING_STUDIES_ID_TITLE_AUTHOR="old_nacjd_missing_id_title_author_$(date +%y%m%d).txt"
+declare -r NACJD_STUDIES="nacjd_data_publication_update_studies_$(date +%y%m%d).xml"
+declare -r NACJD_UPDATE_007_856="nacjd_data_publication_007_856$(date +%y%m%d).xml"
 declare -r NACJD_FINAL="nacjd_data_publication_$(date +%y%m%d).xml"
 
 
@@ -139,7 +141,19 @@ echo "Extracting downloaded information"
 ls -1 *.json | xargs -I'{}' sh -c 'echo ${@%%.json}\\t$(cat $@ | jq -r -C .projectTitle)\\t$(cat $@ | jq -r '"'"'.creators | map("\(.orgName), \(.personName)") | join("; ")'"'"')' _ '{}' | sed -re 's/([, ]+)?null([, ]+)?//g' > $OLD_NACJD_MISSING_STUDIES_ID_TITLE_AUTHOR
 
 echo "Adding information about studies, that are not in K10Plus to 787"
-$AUGMENTING_787_TOOL  $NACJD_WITH_MISSING_SOME_STUDY_LINK $OLD_NACJD_MISSING_STUDIES_ID_TITLE_AUTHOR  $NACJD_FINAL
+$AUGMENTING_787_TOOL  $NACJD_WITH_MISSING_SOME_STUDY_LINK $OLD_NACJD_MISSING_STUDIES_ID_TITLE_AUTHOR  $NACJD_STUDIES
 
 echo "List the ISSNs to be considered"
 $NACJD_TOOL "--verbose" "suggested_report" $NOT_FOUND_ISSN $SOURCE $ISSN_TO_BE_CONSIDERED
+
+# If field 856u is present in the record, it means that the record is an online version, so it is necessary to update the information in field 007 from print to online.
+# The field 787 contains information about related research with the record. Therefore, when the 787t is present, it is needed to add subfield i:Forschungsdaten.
+echo "Update 007 to online when online information exists in 856u." 
+echo "Add 787i:Forschungsdaten when 787t is present."
+marc_augmentor $NACJD_STUDIES $NACJD_UPDATE_007_856 --replace-field-if '007:cr|||||' '856u:\W.*' --add-subfield-if '787i:Forschungsdaten' '787t:\W+'
+
+#  When field 773 is missing, the assumptions is the record is a monograph and the leader annotation needs to be updated.
+#  Otherwise, the leader annotation will not change.
+echo "Update leader to a monograph when the 773 is not present."
+$NACJD_TOOL "--verbose" "update_monograph" $NACJD_UPDATE_007_856 $NACJD_FINAL
+

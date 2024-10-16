@@ -59,6 +59,10 @@ namespace {
         "\t- input_file: the list of ISSNs taken from not_found_issn_file from 'augment_773w.\n"
         "\t- source_file: source data needed for gathering information (taken from K10Plus).\n"
         "\t- output_file: the list of ISSNs needed to be considered.\n"
+        "\n"
+        "update_monograph input_file output_file\n"
+        "\t- input_file: source of data to be updated.\n"
+        "\t- ouput_file: target file after updating with the new data for 007.\n"
         "\n");
 }
 
@@ -489,6 +493,13 @@ MARC::Record *GenerateMarcForChapter(NACJDDoc * const nacjd_doc, std::map<std::s
     // This header took from vufind live demo
     MARC::Record *record(GenerateRecord("00000naa a22000008i 4500", "tu"));
     InsertGeneralFieldInfo(record, nacjd_doc, k10_plus_info, study_number_to_control_number, debug_info);
+
+    const MARC::Subfields _936_content(nacjd_doc->ConstructPublishingInfo_936());
+    if (not _936_content.empty())
+        record->insertField("936", _936_content, 'u', 'w');
+
+    if (not nacjd_doc->sec_title_.empty())
+        record->insertField("773", { { 't', nacjd_doc->sec_title_ } });
 
     return record;
 }
@@ -1284,11 +1295,50 @@ void NotFoundOrPrinted(int argc, char **argv, const bool &debug_mode) {
     }
 }
 
+/*
+ * When field 773 is missing, the assumptions is the record is a monograph and the leader annotation needs to be updated.
+ * Otherwise, the leader annotation will not change.
+ */
+void UpdateMonograph(int argc, char **argv, const bool &debug_mode) {
+    if (argc < 4)
+        Usage();
+
+
+    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(argv[2]));
+    std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(argv[3]));
+    std::set<std::string> record_updated, record_not_updated;
+
+
+    while (MARC::Record record = marc_reader.get()->read()) {
+        if (!record.hasFieldWithTag("773")) {
+            record.setLeader("00000cam a22000000  4500");
+            record_updated.emplace(record.getControlNumber());
+        } else {
+            record_not_updated.emplace(record.getControlNumber());
+        }
+
+        marc_writer.get()->write(record);
+    }
+
+    if (debug_mode) {
+        std::cout << "==== Updated ====" << std::endl;
+        for (auto updated : record_updated)
+            std::cout << updated << std::endl;
+
+
+        std::cout << "==== Not Updated ====" << std::endl;
+        for (auto not_updated : record_not_updated)
+            std::cout << not_updated << std::endl;
+
+        std::cout << "Total update: " << record_updated.size() << std::endl;
+        std::cout << "Total not update: " << record_not_updated.size() << std::endl;
+    }
+}
 
 } // unnamed namespace
 
 int Main(int argc, char **argv) {
-    if (argc < 5)
+    if (argc < 4)
         Usage();
 
     bool debug_mode(false);
@@ -1308,6 +1358,8 @@ int Main(int argc, char **argv) {
         Augement773w(argc, argv, debug_mode);
     } else if (mode == "suggested_report") {
         NotFoundOrPrinted(argc, argv, debug_mode);
+    } else if (mode == "update_monograph") {
+        UpdateMonograph(argc, argv, debug_mode);
     } else {
         Usage();
     }
