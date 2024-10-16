@@ -376,9 +376,11 @@ void InsertGeneralFieldInfo(MARC::Record * const record, NACJDDoc * const nacjd_
             const auto study_number(study_number_to_control_number.find(std::to_string(nacjd_doc->study_q_[i])));
             if (study_number != study_number_to_control_number.end()) {
                 if (i < nacjd_doc->study_titles_.size() && nacjd_doc->authors_split.size() > 0) {
-                    record->insertField("787", { { 'a', nacjd_doc->authors_split[0] },
-                                                 { 't', nacjd_doc->study_titles_[i] },
-                                                 { 'w', "(DE-627)" + study_number->second } });
+                    record->insertField("787",
+                                        { { 'a', nacjd_doc->authors_split[0] },
+                                          { 't', nacjd_doc->study_titles_[i] },
+                                          { 'w', "(DE-627)" + study_number->second } },
+                                        '0', '8');
                 }
             } else {
                 debug_info->study_numbers_not_found.insert(std::to_string(nacjd_doc->study_q_[i]));
@@ -1296,8 +1298,9 @@ void NotFoundOrPrinted(int argc, char **argv, const bool &debug_mode) {
 }
 
 /*
- * When field 773 is missing, the assumptions is the record is a monograph and the leader annotation needs to be updated.
- * Otherwise, the leader annotation will not change.
+ * When field 773 is missing and the record type is an article, the assumption is that the record should be a monograph. In this case, the
+ * leader annotation must be changed from article to book. Otherwise, when field 773 exists, and the record type is a book, the assumption
+ * is that the record should be an article. In this case, the leader annotation must be updated from book to article.
  */
 void UpdateMonograph(int argc, char **argv, const bool &debug_mode) {
     if (argc < 4)
@@ -1306,13 +1309,16 @@ void UpdateMonograph(int argc, char **argv, const bool &debug_mode) {
 
     std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(argv[2]));
     std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(argv[3]));
-    std::set<std::string> record_updated, record_not_updated;
+    std::set<std::string> update_article_to_book, update_book_to_article, record_not_updated;
 
 
     while (MARC::Record record = marc_reader.get()->read()) {
-        if (!record.hasFieldWithTag("773")) {
+        if (!record.hasFieldWithTag("773") && record.isArticle()) {
             record.setLeader("00000cam a22000000  4500");
-            record_updated.emplace(record.getControlNumber());
+            update_article_to_book.emplace(record.getControlNumber());
+        } else if (record.isMonograph()) {
+            record.setLeader("00000naa a22000002  4500");
+            update_book_to_article.emplace(record.getControlNumber());
         } else {
             record_not_updated.emplace(record.getControlNumber());
         }
@@ -1321,8 +1327,13 @@ void UpdateMonograph(int argc, char **argv, const bool &debug_mode) {
     }
 
     if (debug_mode) {
-        std::cout << "==== Updated ====" << std::endl;
-        for (auto updated : record_updated)
+        std::cout << "==== Updated from book to article ====" << std::endl;
+        for (auto updated : update_book_to_article)
+            std::cout << updated << std::endl;
+
+
+        std::cout << "==== Updated from article to book ====" << std::endl;
+        for (auto updated : update_article_to_book)
             std::cout << updated << std::endl;
 
 
@@ -1330,7 +1341,8 @@ void UpdateMonograph(int argc, char **argv, const bool &debug_mode) {
         for (auto not_updated : record_not_updated)
             std::cout << not_updated << std::endl;
 
-        std::cout << "Total update: " << record_updated.size() << std::endl;
+        std::cout << "Total from article to book: " << update_article_to_book.size() << std::endl;
+        std::cout << "Total from book to article: " << update_book_to_article.size() << std::endl;
         std::cout << "Total not update: " << record_not_updated.size() << std::endl;
     }
 }
