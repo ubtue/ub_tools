@@ -39,6 +39,7 @@ namespace {
 
 const std::string CONF_FILE_PATH(UBTools::GetTuelibPath() + "translations.conf");
 const std::string NEW_ITEM_NOTIFICATION_SECTION("NewItemNotifications");
+const std::string NEW_ITEM_NOTIFICATION_REFERENCE_LANGUAGE_SECTION("NewItemNotificationsReferenceLanguage");
 const std::string TRANSLATION_LANGUAGES_SECTION("TranslationLanguages");
 const std::string EMAIL_SECTION("Email");
 static std::string translator_url("https://ixtheo.de/cgi-bin/translator");
@@ -121,12 +122,21 @@ void SetTranslatorURL(const std::string &new_translator_url) {
     translator_url = new_translator_url;
 }
 
+
 std::string GetTranslatorURL() {
     return translator_url;
 }
 
 
-bool GetNewItems(DbConnection &db_connection, const std::string last_notified, Template::Map * const names_to_values_map) {
+std::string GetUserReferenceLanguage(const IniFile &ini_file, const std::string &user) {
+    std::string reference_language;
+    ini_file.lookup(NEW_ITEM_NOTIFICATION_REFERENCE_LANGUAGE_SECTION, user, &reference_language);
+    return reference_language;
+}
+
+
+bool GetNewItems(DbConnection &db_connection, const std::string last_notified, Template::Map * const names_to_values_map,
+                 const std::string &reference_language) {
     names_to_values_map->clear();
 
     std::string vufind_new_items_query("SELECT token FROM vufind_translations WHERE create_timestamp>='" + last_notified + "'"
@@ -140,7 +150,8 @@ bool GetNewItems(DbConnection &db_connection, const std::string last_notified, T
 
 
     std::string keywords_new_items_query("SELECT translation FROM keyword_translations WHERE create_timestamp>='" + last_notified
-                                         + +"' AND language_code='ger' AND origin='150' AND prev_version_id IS NULL");
+                                         + "' AND language_code='" + (reference_language.empty() ? "ger" : reference_language)
+                                         + "' AND origin='150' AND prev_version_id IS NULL");
     DbResultSet keywords_new_result_set(ExecSqlAndReturnResultsOrDie(keywords_new_items_query, &db_connection));
 
     std::vector<std::string> keywords_new_items;
@@ -229,7 +240,8 @@ void NotifyTranslators(const IniFile &ini_file, DbConnection &db_connection, con
         Template::Map names_to_values_map;
         // Hold a time slightly before the actual queries were sent
         const std::string query_time_lower_bound(GetCurrentDBTimestamp(db_connection));
-        if (GetNewItems(db_connection, last_notified, &names_to_values_map))
+        const std::string user_reference_language(GetUserReferenceLanguage(ini_file, user));
+        if (GetNewItems(db_connection, last_notified, &names_to_values_map, user_reference_language))
             MailNewItems(user, ini_file, names_to_values_map, debug);
         UpdateLastNotifiedTo(&db_connection, user, query_time_lower_bound, debug);
     }
