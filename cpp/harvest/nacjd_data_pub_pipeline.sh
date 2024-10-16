@@ -152,8 +152,8 @@ echo "Update 007 to online when online information exists in 856u."
 echo "Add 787i:Forschungsdaten when 787t is present."
 marc_augmentor $NACJD_STUDIES $NACJD_UPDATE_007_856 --replace-field-if '007:cr|||||' '856u:\W.*' --add-subfield-if '787i:Forschungsdaten' '787t:\W+'
 
-#  When field 773 is missing, the assumptions is the record is a monograph and the leader annotation needs to be updated.
-#  Otherwise, the leader annotation will not change.
+# When field 773 is missing and the record type is an article, the assumption is that the record should be a monograph. In this case, the leader annotation must be changed from article to book. 
+# Otherwise, when field 773 exists, and the record type is a book, the assumption is that the record should be an article. In this case, the leader annotation must be updated from book to article. 
 echo "Update leader to a monograph when the 773 is not present."
 $NACJD_TOOL "--verbose" "update_monograph" $NACJD_UPDATE_007_856 $NACJD_FINAL
 
