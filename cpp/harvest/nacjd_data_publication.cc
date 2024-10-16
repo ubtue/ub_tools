@@ -1316,7 +1316,7 @@ void UpdateMonograph(int argc, char **argv, const bool &debug_mode) {
         if (!record.hasFieldWithTag("773") && record.isArticle()) {
             record.setLeader("00000cam a22000000  4500");
             update_article_to_book.emplace(record.getControlNumber());
-        } else if (record.isMonograph()) {
+        } else if (record.hasFieldWithTag("773") && record.isMonograph()) {
             record.setLeader("00000naa a22000002  4500");
             update_book_to_article.emplace(record.getControlNumber());
         } else {
