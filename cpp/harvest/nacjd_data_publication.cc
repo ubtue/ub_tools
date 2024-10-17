@@ -408,9 +408,13 @@ MARC::Record *GenerateMarcForStatistic(NACJDDoc * const nacjd_doc, std::map<std:
 
     InsertGeneralFieldInfo(record, nacjd_doc, k10_plus_info, study_number_to_control_number, debug_info);
 
-    record->insertField(
-        "655", { { '0', "(DE-588)1098579690" }, { '0', "(DE-627)857755366" }, { '0', "(DE-576)469182156" }, { '2', "gnd-content" } }, ' ',
-        '7');
+    record->insertField("655",
+                        { { 'a', "Forschungsdaten" },
+                          { '0', "(DE-588)1098579690" },
+                          { '0', "(DE-627)857755366" },
+                          { '0', "(DE-576)469182156" },
+                          { '2', "gnd-content" } },
+                        ' ', '7');
 
     record->insertField("935", { { 'a', "foda" }, { '2', "LOK" } });
 
@@ -610,18 +614,6 @@ MARC::Record *GenerateMarcForJournal(NACJDDoc * const nacjd_doc, std::map<std::s
     const MARC::Subfields _936_content(nacjd_doc->ConstructPublishingInfo_936());
 
     InsertGeneralFieldInfo(record, nacjd_doc, k10_plus_info, study_number_to_control_number, debug_info);
-
-
-    record->insertField("655",
-                        { { 'a', "Forschungsdaten" },
-                          { '0', "(DE-588)1098579690" },
-                          { '0', "(DE-627)857755366" },
-                          { '0', "(DE-576)469182156" },
-                          { '2', "gnd-content" } },
-                        ' ', '7');
-
-
-    record->insertField("935", { { 'a', "foda" }, { '2', "LOK" } });
 
     if (not _936_content.empty())
         record->insertField("936", _936_content, 'u', 'w');
