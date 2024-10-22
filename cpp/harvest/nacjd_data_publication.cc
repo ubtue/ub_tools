@@ -501,7 +501,7 @@ MARC::Record *GenerateMarcForChapter(NACJDDoc * const nacjd_doc, std::map<std::s
         record->insertField("936", _936_content, 'u', 'w');
 
     if (not nacjd_doc->sec_title_.empty())
-        record->insertField("773", { { 't', nacjd_doc->sec_title_ } });
+        record->insertField("773", { { 't', nacjd_doc->sec_title_ } }, '0', '8');
 
     return record;
 }
