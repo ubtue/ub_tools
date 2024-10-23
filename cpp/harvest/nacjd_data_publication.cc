@@ -428,7 +428,7 @@ MARC::Record *GenerateMarcForNews(NACJDDoc * const nacjd_doc, std::map<std::stri
     if (nacjd_doc->IsDocTypeStatistic())
         return GenerateMarcForStatistic(nacjd_doc, k10_plus_info, study_number_to_control_number, debug_info);
 
-    MARC::Record *record(GenerateRecord("00000cas a2200000   4500", "tu"));
+    MARC::Record *record(GenerateRecord("00000caa a2200000   4500", "tu"));
     InsertGeneralFieldInfo(record, nacjd_doc, k10_plus_info, study_number_to_control_number, debug_info);
 
 
