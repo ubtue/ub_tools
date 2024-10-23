@@ -333,6 +333,12 @@ struct NACJDDoc {
 
         bool is_first_author(true);
         for (const auto &author_ : authors_split) {
+            // Prevent generation of invalid field
+            static ThreadSafeRegexMatcher invalid_authors_matcher(
+                "et\\w+al", ThreadSafeRegexMatcher::Option::ENABLE_UTF8 | ThreadSafeRegexMatcher::Option::CASE_INSENSITIVE);
+            if (invalid_authors_matcher.match(author_))
+                continue;
+
             std::string tag;
             if (is_first_author) {
                 tag = MiscUtil::IsCorporateAuthor(author_) ? "110" : "100";
