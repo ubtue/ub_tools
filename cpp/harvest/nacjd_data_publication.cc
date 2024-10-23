@@ -218,6 +218,8 @@ struct NACJDDoc {
 
         if (not journal_.empty())
             publishing_info.appendSubfield('t', journal_);
+        else if (not sec_title_.empty())
+            publishing_info.appendSubfield('t', sec_title_);
 
         if (not issn_.empty()) {
             const auto is_exist_in_k10_plus = k10_plus_info.find(issn_);
