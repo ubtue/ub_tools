@@ -337,7 +337,7 @@ struct NACJDDoc {
         for (const auto &author_ : authors_split) {
             // Prevent generation of invalid field
             static ThreadSafeRegexMatcher invalid_authors_matcher(
-                "et\\w+al", ThreadSafeRegexMatcher::Option::ENABLE_UTF8 | ThreadSafeRegexMatcher::Option::CASE_INSENSITIVE);
+                "et\\s+al", ThreadSafeRegexMatcher::Option::ENABLE_UTF8 | ThreadSafeRegexMatcher::Option::CASE_INSENSITIVE);
             if (invalid_authors_matcher.match(author_))
                 continue;
 
@@ -417,6 +417,14 @@ MARC::Record *GenerateMarcForStatistic(NACJDDoc * const nacjd_doc, std::map<std:
                           { '0', "(DE-588)1098579690" },
                           { '0', "(DE-627)857755366" },
                           { '0', "(DE-576)469182156" },
+                          { '2', "gnd-content" } },
+                        ' ', '7');
+
+    record->insertField("655",
+                        { { 'a', "Statistik" },
+                          { '0', "(DE-588)4056995-0" },
+                          { '0', "(DE-627)106152955" },
+                          { '0', "(DE-576)209119799" },
                           { '2', "gnd-content" } },
                         ' ', '7');
 
