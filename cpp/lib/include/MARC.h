@@ -832,7 +832,8 @@ public:
     /** \brief  Adds a subfield to the first existing field with tag "field_tag". Field is created if it does not exist.
      *  \return True if the subfield was inserted false otherwise
      */
-    bool addSubfieldCreateFieldIfNotExists(const Tag &field_tag, const char subfield_code, const std::string &subfield_value);
+    bool addSubfieldCreateFieldIfNotExists(const Tag &field_tag, const char subfield_code, const std::string &subfield_value,
+                                           const char indicator1 = ' ', const char indicator2 = ' ');
 
     /** \brief  Checks if a specified field exists which additionally contains a subfield with a given value.
      */

@@ -1628,11 +1628,12 @@ bool Record::addSubfieldCreateFieldUnique(const Tag &field_tag, const char subfi
 }
 
 
-bool Record::addSubfieldCreateFieldIfNotExists(const Tag &field_tag, const char subfield_code, const std::string &subfield_value) {
+bool Record::addSubfieldCreateFieldIfNotExists(const Tag &field_tag, const char subfield_code, const std::string &subfield_value,
+                                               const char indicator1, const char indicator2) {
     const auto &field(findTag(field_tag));
     if (field == fields_.end())
-        return insertField(field_tag, { { subfield_code, subfield_value } });
-    if (field->getSubfields().hasSubfield(subfield_code))
+        return insertField(field_tag, { { subfield_code, subfield_value } }, indicator1, indicator2);
+    if (field->getIndicator1() == indicator1 && field->getIndicator2() == indicator2 && field->getSubfields().hasSubfield(subfield_code))
         return false;
     return addSubfield(field_tag, subfield_code, subfield_value);
 }
