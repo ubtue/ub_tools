@@ -317,7 +317,7 @@ struct NACJDDoc {
 
     void ConvertPublisher(MARC::Record * const record) {
         if (not publisher_.empty())
-            record->addSubfieldCreateFieldIfNotExists("264", 'c', publisher_);
+            record->addSubfieldCreateFieldIfNotExists("264", 'b', publisher_, ' ', '1');
     }
 
     void ConvertAuthor(MARC::Record * const record) {
@@ -1291,8 +1291,8 @@ void NotFoundOrPrinted(int argc, char **argv, const bool &debug_mode) {
 
 
 void InsertPlaceholder264(MARC::Record * const record) {
-    record->addSubfieldCreateFieldIfNotExists("264", 'a', "[Erscheinungsort nicht ermittelbar]");
-    record->addSubfieldCreateFieldIfNotExists("264", 'b', "[Verlag nicht ermittelbar]");
+    record->addSubfieldCreateFieldIfNotExists("264", 'a', "[Erscheinungsort nicht ermittelbar]", ' ', '1');
+    record->addSubfieldCreateFieldIfNotExists("264", 'b', "[Verlag nicht ermittelbar]", ' ', '1');
 }
 
 
