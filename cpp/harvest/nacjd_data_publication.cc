@@ -591,7 +591,7 @@ MARC::Record *GenerateMarcForReport(NACJDDoc * const nacjd_doc, std::map<std::st
     if (nacjd_doc->IsDocTypeStatistic())
         return GenerateMarcForStatistic(nacjd_doc, k10_plus_info, study_number_to_control_number, debug_info);
 
-    MARC::Record *record(GenerateRecord("00000cam a22000002  4500", "cr||||"));
+    MARC::Record *record(GenerateRecord("00000cam a22000002  4500", "tu"));
     InsertGeneralFieldInfo(record, nacjd_doc, k10_plus_info, study_number_to_control_number, debug_info);
 
 
@@ -603,7 +603,7 @@ MARC::Record *GenerateMarcForJournal(NACJDDoc * const nacjd_doc, std::map<std::s
                                      const std::map<std::string, std::string> &study_number_to_control_number,
                                      DebugInfo * const debug_info) {
     // create a new record
-    MARC::Record *record(GenerateRecord("00000naa a22000002  4500", "cr||||"));
+    MARC::Record *record(GenerateRecord("00000naa a22000002  4500", "tu"));
     const MARC::Subfields _936_content(nacjd_doc->ConstructPublishingInfo_936());
 
     InsertGeneralFieldInfo(record, nacjd_doc, k10_plus_info, study_number_to_control_number, debug_info);
