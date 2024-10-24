@@ -385,13 +385,7 @@ void InsertGeneralFieldInfo(MARC::Record * const record, NACJDDoc * const nacjd_
         for (unsigned long i = 0; i < nacjd_doc->study_q_.size(); i++) {
             const auto study_number(study_number_to_control_number.find(std::to_string(nacjd_doc->study_q_[i])));
             if (study_number != study_number_to_control_number.end()) {
-                if (i < nacjd_doc->study_titles_.size() && nacjd_doc->authors_split.size() > 0) {
-                    record->insertField("787",
-                                        { { 'a', nacjd_doc->authors_split[0] },
-                                          { 't', nacjd_doc->study_titles_[i] },
-                                          { 'w', "(DE-627)" + study_number->second } },
-                                        '0', '8');
-                }
+                record->insertField("787", { { 'w', "(DE-627)" + study_number->second } }, '0', '8');
             } else {
                 debug_info->study_numbers_not_found.insert(std::to_string(nacjd_doc->study_q_[i]));
                 studies_missing_in_k10plus.emplace(std::to_string(nacjd_doc->study_q_[i]));
@@ -1299,9 +1293,9 @@ void InsertPlaceholder264(MARC::Record * const record) {
 
 
 /*
- * When field 773 is missing and the record type is an article, the assumption is that the record should be a monograph. In this case, the
- * leader annotation must be changed from article to book. Otherwise, when field 773 exists, and the record type is a book, the assumption
- * is that the record should be an article. In this case, the leader annotation must be updated from book to article.
+ * When field 773 is missing and the record type is an article, the assumption is that the record should be a monograph. In this case,
+ * the leader annotation must be changed from article to book. Otherwise, when field 773 exists, and the record type is a book, the
+ * assumption is that the record should be an article. In this case, the leader annotation must be updated from book to article.
  */
 void UpdateMonograph(int argc, char **argv, const bool &debug_mode) {
     if (argc < 4)
