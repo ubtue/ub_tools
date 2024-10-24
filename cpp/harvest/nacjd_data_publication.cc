@@ -1030,6 +1030,7 @@ void Update773w(MARC::Record * const record, const std::map<std::string, PPNAndI
         missing_issn_in_k10plus->insert(issn_x);
 
         subfields.deleteFirstSubfieldWithCode('x');
+        subfields.deleteFirstSubfieldWithCode('i');
         subfields.appendSubfield('i', "Sonderdruck aus");
         tag773.setSubfields(subfields);
         record->insertField("500", { { 'a', issn_x } });
