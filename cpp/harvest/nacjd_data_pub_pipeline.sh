@@ -150,7 +150,7 @@ $NACJD_TOOL "--verbose" "suggested_report" $NOT_FOUND_ISSN $SOURCE $ISSN_TO_BE_C
 # The field 787 contains information about related research with the record. Therefore, when the 787t is present, it is needed to add subfield i:Forschungsdaten.
 echo "Update 007 to online when online information exists in 856u." 
 echo "Add 787i:Forschungsdaten when 787t is present."
-marc_augmentor $NACJD_STUDIES $NACJD_UPDATE_007_856 --replace-field-if '007:cr||||' '856u:\W+' --add-subfield-if '787i:Forschungsdaten' '787t:\W+'
+marc_augmentor $NACJD_STUDIES $NACJD_UPDATE_007_856 --replace-field-if '007:cr|||||' '856u:\W+' --add-subfield-if '787i:Forschungsdaten' '787t:\W+'
 
 # When field 773 is missing and the record type is an article, the assumption is that the record should be a monograph. In this case, the leader annotation must be changed from article to book. 
 # Otherwise, when field 773 exists, and the record type is a book, the assumption is that the record should be an article. In this case, the leader annotation must be updated from book to article. 
