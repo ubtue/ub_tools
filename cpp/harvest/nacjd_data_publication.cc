@@ -317,7 +317,7 @@ struct NACJDDoc {
 
     void ConvertPublisher(MARC::Record * const record) {
         if (not publisher_.empty())
-            record->insertField("264", 'c', publisher_);
+            record->addSubfieldCreateFieldIfNotExists("264", 'c', publisher_);
     }
 
     void ConvertAuthor(MARC::Record * const record) {
@@ -459,15 +459,15 @@ MARC::Record *GenerateMarcForConference(NACJDDoc * const nacjd_doc, std::map<std
     // The header code for Conference proceeding
     MARC::Record *record(GenerateRecord("00000cam a22000000  4500", "tu"));
     InsertGeneralFieldInfo(record, nacjd_doc, k10_plus_info, study_number_to_control_number, debug_info);
-    MARC::Subfields _650_subfields;
+    MARC::Subfields _655_subfields;
 
-    _650_subfields.appendSubfield('a', "Konferenzschrift");
+    _655_subfields.appendSubfield('a', "Konferenzschrift");
     if (not nacjd_doc->year_pub_.empty())
-        _650_subfields.appendSubfield('y', nacjd_doc->year_pub_);
+        _655_subfields.appendSubfield('y', nacjd_doc->year_pub_);
     if (not nacjd_doc->place_pub_.empty())
-        _650_subfields.appendSubfield('z', nacjd_doc->place_pub_);
+        _655_subfields.appendSubfield('z', nacjd_doc->place_pub_);
 
-    record->insertField("650", _650_subfields, ' ', '4');
+    record->insertField("655", _655_subfields, ' ', '4');
 
     return record;
 }
@@ -585,7 +585,7 @@ MARC::Record *GenerateMarcForReport(NACJDDoc * const nacjd_doc, std::map<std::st
     if (nacjd_doc->IsDocTypeStatistic())
         return GenerateMarcForStatistic(nacjd_doc, k10_plus_info, study_number_to_control_number, debug_info);
 
-    MARC::Record *record(GenerateRecord("00000cam a22000002  4500", "cr||||"));
+    MARC::Record *record(GenerateRecord("00000cam a22000002  4500", "tu"));
     InsertGeneralFieldInfo(record, nacjd_doc, k10_plus_info, study_number_to_control_number, debug_info);
 
 
@@ -597,7 +597,7 @@ MARC::Record *GenerateMarcForJournal(NACJDDoc * const nacjd_doc, std::map<std::s
                                      const std::map<std::string, std::string> &study_number_to_control_number,
                                      DebugInfo * const debug_info) {
     // create a new record
-    MARC::Record *record(GenerateRecord("00000naa a22000002  4500", "cr||||"));
+    MARC::Record *record(GenerateRecord("00000naa a22000002  4500", "tu"));
     const MARC::Subfields _936_content(nacjd_doc->ConstructPublishingInfo_936());
 
     InsertGeneralFieldInfo(record, nacjd_doc, k10_plus_info, study_number_to_control_number, debug_info);
@@ -1024,6 +1024,7 @@ void Update773w(MARC::Record * const record, const std::map<std::string, PPNAndI
         missing_issn_in_k10plus->insert(issn_x);
 
         subfields.deleteFirstSubfieldWithCode('x');
+        subfields.deleteFirstSubfieldWithCode('i');
         subfields.appendSubfield('i', "Sonderdruck aus");
         tag773.setSubfields(subfields);
         record->insertField("500", { { 'a', issn_x } });
@@ -1282,6 +1283,13 @@ void NotFoundOrPrinted(int argc, char **argv, const bool &debug_mode) {
     }
 }
 
+
+void InsertPlaceholder264(MARC::Record * const record) {
+    record->addSubfieldCreateFieldIfNotExists("264", 'a', "[Erscheinungsort nicht ermittelbar]");
+    record->addSubfieldCreateFieldIfNotExists("264", 'b', "[Verlag nicht ermittelbar]");
+}
+
+
 /*
  * When field 773 is missing and the record type is an article, the assumption is that the record should be a monograph. In this case,
  * the leader annotation must be changed from article to book. Otherwise, when field 773 exists, and the record type is a book, the
@@ -1300,6 +1308,8 @@ void UpdateMonograph(int argc, char **argv, const bool &debug_mode) {
     while (MARC::Record record = marc_reader.get()->read()) {
         if (!record.hasFieldWithTag("773") && record.isArticle()) {
             record.setLeader("00000cam a22000000  4500");
+            // Make sure 264 is not empty for monographs
+            InsertPlaceholder264(&record);
             update_article_to_book.emplace(record.getControlNumber());
         } else if (record.hasFieldWithTag("773") && record.isMonograph()) {
             record.setLeader("00000naa a22000002  4500");
