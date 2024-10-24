@@ -333,6 +333,12 @@ struct NACJDDoc {
 
         bool is_first_author(true);
         for (const auto &author_ : authors_split) {
+            // Prevent generation of invalid field
+            static ThreadSafeRegexMatcher invalid_authors_matcher(
+                "et\\w+al", ThreadSafeRegexMatcher::Option::ENABLE_UTF8 | ThreadSafeRegexMatcher::Option::CASE_INSENSITIVE);
+            if (invalid_authors_matcher.match(author_))
+                continue;
+
             std::string tag;
             if (is_first_author) {
                 tag = MiscUtil::IsCorporateAuthor(author_) ? "110" : "100";
@@ -428,7 +434,7 @@ MARC::Record *GenerateMarcForNews(NACJDDoc * const nacjd_doc, std::map<std::stri
     if (nacjd_doc->IsDocTypeStatistic())
         return GenerateMarcForStatistic(nacjd_doc, k10_plus_info, study_number_to_control_number, debug_info);
 
-    MARC::Record *record(GenerateRecord("00000cas a2200000   4500", "tu"));
+    MARC::Record *record(GenerateRecord("00000caa a2200000   4500", "tu"));
     InsertGeneralFieldInfo(record, nacjd_doc, k10_plus_info, study_number_to_control_number, debug_info);
 
 
@@ -459,15 +465,15 @@ MARC::Record *GenerateMarcForConference(NACJDDoc * const nacjd_doc, std::map<std
     // The header code for Conference proceeding
     MARC::Record *record(GenerateRecord("00000cam a22000000  4500", "tu"));
     InsertGeneralFieldInfo(record, nacjd_doc, k10_plus_info, study_number_to_control_number, debug_info);
-    MARC::Subfields _655_subfields;
+    MARC::Subfields _650_subfields;
 
-    _655_subfields.appendSubfield('a', "Konferenzschrift");
+    _650_subfields.appendSubfield('a', "Konferenzschrift");
     if (not nacjd_doc->year_pub_.empty())
-        _655_subfields.appendSubfield('y', nacjd_doc->year_pub_);
+        _650_subfields.appendSubfield('y', nacjd_doc->year_pub_);
     if (not nacjd_doc->place_pub_.empty())
-        _655_subfields.appendSubfield('z', nacjd_doc->place_pub_);
+        _650_subfields.appendSubfield('z', nacjd_doc->place_pub_);
 
-    record->insertField("655", _655_subfields, ' ', '7');
+    record->insertField("650", _650_subfields, ' ', '4');
 
     return record;
 }
