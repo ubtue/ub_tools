@@ -317,7 +317,7 @@ struct NACJDDoc {
 
     void ConvertPublisher(MARC::Record * const record) {
         if (not publisher_.empty())
-            record->insertField("264", 'c', publisher_);
+            record->addSubfieldCreateFieldIfNotExists("264", 'c', publisher_);
     }
 
     void ConvertAuthor(MARC::Record * const record) {
@@ -1289,6 +1289,13 @@ void NotFoundOrPrinted(int argc, char **argv, const bool &debug_mode) {
     }
 }
 
+
+void InsertPlaceholder264(MARC::Record * const record) {
+    record->addSubfieldCreateFieldIfNotExists("264", 'a', "[Erscheinungsort nicht ermittelbar]");
+    record->addSubfieldCreateFieldIfNotExists("264", 'b', "[Verlag nicht ermittelbar]");
+}
+
+
 /*
  * When field 773 is missing and the record type is an article, the assumption is that the record should be a monograph. In this case, the
  * leader annotation must be changed from article to book. Otherwise, when field 773 exists, and the record type is a book, the assumption
@@ -1307,6 +1314,8 @@ void UpdateMonograph(int argc, char **argv, const bool &debug_mode) {
     while (MARC::Record record = marc_reader.get()->read()) {
         if (!record.hasFieldWithTag("773") && record.isArticle()) {
             record.setLeader("00000cam a22000000  4500");
+            // Make sure 264 is not empty for monographs
+            InsertPlaceholder264(&record);
             update_article_to_book.emplace(record.getControlNumber());
         } else if (record.hasFieldWithTag("773") && record.isMonograph()) {
             record.setLeader("00000naa a22000002  4500");
