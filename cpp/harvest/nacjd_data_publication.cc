@@ -420,6 +420,14 @@ MARC::Record *GenerateMarcForStatistic(NACJDDoc * const nacjd_doc, std::map<std:
                           { '2', "gnd-content" } },
                         ' ', '7');
 
+    record->insertField("655",
+                        { { 'a', "Statistik" },
+                          { '0', "(DE-588)4056995-0" },
+                          { '0', "(DE-627)106152955" },
+                          { '0', "(DE-576)209119799" },
+                          { '2', "gnd-content" } },
+                        ' ', '7');
+
     record->insertField("935", { { 'a', "foda" }, { '2', "LOK" } });
 
     return record;
