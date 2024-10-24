@@ -316,8 +316,10 @@ struct NACJDDoc {
     }
 
     void ConvertPublisher(MARC::Record * const record) {
-        if (not publisher_.empty())
-            record->addSubfieldCreateFieldIfNotExists("264", 'b', publisher_, ' ', '1');
+        if (not publisher_.empty()) {
+            if (not record->addSubfieldCreateFieldIfNotExists("264", 'b', publisher_, ' ', '1'))
+                LOG_WARNING("Skip overwriting publisher in 264b for record " + record->getControlNumber());
+        }
     }
 
     void ConvertAuthor(MARC::Record * const record) {
