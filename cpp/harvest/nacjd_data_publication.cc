@@ -337,7 +337,7 @@ struct NACJDDoc {
         for (const auto &author_ : authors_split) {
             // Prevent generation of invalid field
             static ThreadSafeRegexMatcher invalid_authors_matcher(
-                "et\\w+al", ThreadSafeRegexMatcher::Option::ENABLE_UTF8 | ThreadSafeRegexMatcher::Option::CASE_INSENSITIVE);
+                "et\\s+al", ThreadSafeRegexMatcher::Option::ENABLE_UTF8 | ThreadSafeRegexMatcher::Option::CASE_INSENSITIVE);
             if (invalid_authors_matcher.match(author_))
                 continue;
 
