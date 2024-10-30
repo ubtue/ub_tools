@@ -433,18 +433,6 @@ MARC::Record *GenerateMarcForStatistic(NACJDDoc * const nacjd_doc, std::map<std:
     return record;
 }
 
-MARC::Record *GenerateMarcForNews(NACJDDoc * const nacjd_doc, std::map<std::string, PPNAndISSN> const &k10_plus_info,
-                                  const std::map<std::string, std::string> &study_number_to_control_number, DebugInfo * const debug_info) {
-    if (nacjd_doc->IsDocTypeStatistic())
-        return GenerateMarcForStatistic(nacjd_doc, k10_plus_info, study_number_to_control_number, debug_info);
-
-    MARC::Record *record(GenerateRecord("00000caa a2200000   4500", "tu"));
-    InsertGeneralFieldInfo(record, nacjd_doc, k10_plus_info, study_number_to_control_number, debug_info);
-
-
-    return record;
-}
-
 MARC::Record *GenerateMarcForThesis(NACJDDoc * const nacjd_doc, std::map<std::string, PPNAndISSN> const &k10_plus_info,
                                     const std::map<std::string, std::string> &study_number_to_control_number,
                                     DebugInfo * const debug_info) {
@@ -627,6 +615,16 @@ MARC::Record *GenerateMarcForMagazine(NACJDDoc * const nacjd_doc, std::map<std::
 
     return GenerateMarcForJournal(nacjd_doc, k10_plus_info, study_number_to_control_number, debug_info);
 }
+
+
+MARC::Record *GenerateMarcForNews(NACJDDoc * const nacjd_doc, std::map<std::string, PPNAndISSN> const &k10_plus_info,
+                                  const std::map<std::string, std::string> &study_number_to_control_number, DebugInfo * const debug_info) {
+    if (nacjd_doc->IsDocTypeStatistic())
+        return GenerateMarcForStatistic(nacjd_doc, k10_plus_info, study_number_to_control_number, debug_info);
+
+    return GenerateMarcForJournal(nacjd_doc, k10_plus_info, study_number_to_control_number, debug_info);
+}
+
 
 void WriteMarcRecords(const std::string &marc_path, const std::vector<NACJDDoc> &nacjd_docs,
                       const std::map<std::string, PPNAndISSN> &k10_plus_info,
