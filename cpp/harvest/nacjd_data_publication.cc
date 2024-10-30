@@ -204,7 +204,6 @@ struct NACJDDoc {
                                                       DebugInfo * const debug_info) {
         MARC::Subfields publishing_info;
 
-
         if (not volume_.empty() && not year_pub_.empty() && not i_number_.empty() && not page_start_.empty()) {
             std::string field_info(volume_ + " (" + year_pub_ + "), " + i_number_ + ", Seite " + page_start_);
 
@@ -212,7 +211,6 @@ struct NACJDDoc {
                 field_info.append("-" + page_end_);
 
 
-            publishing_info.appendSubfield('i', "In:");
             publishing_info.appendSubfield('g', field_info);
         }
 
@@ -238,6 +236,8 @@ struct NACJDDoc {
             debug_info->counter_data_without_issn++;
         }
 
+        if (not publishing_info.empty())
+            publishing_info.addSubfield('i', "In:");
 
         return publishing_info;
     }
@@ -433,18 +433,6 @@ MARC::Record *GenerateMarcForStatistic(NACJDDoc * const nacjd_doc, std::map<std:
     return record;
 }
 
-MARC::Record *GenerateMarcForNews(NACJDDoc * const nacjd_doc, std::map<std::string, PPNAndISSN> const &k10_plus_info,
-                                  const std::map<std::string, std::string> &study_number_to_control_number, DebugInfo * const debug_info) {
-    if (nacjd_doc->IsDocTypeStatistic())
-        return GenerateMarcForStatistic(nacjd_doc, k10_plus_info, study_number_to_control_number, debug_info);
-
-    MARC::Record *record(GenerateRecord("00000caa a2200000   4500", "tu"));
-    InsertGeneralFieldInfo(record, nacjd_doc, k10_plus_info, study_number_to_control_number, debug_info);
-
-
-    return record;
-}
-
 MARC::Record *GenerateMarcForThesis(NACJDDoc * const nacjd_doc, std::map<std::string, PPNAndISSN> const &k10_plus_info,
                                     const std::map<std::string, std::string> &study_number_to_control_number,
                                     DebugInfo * const debug_info) {
@@ -498,7 +486,7 @@ MARC::Record *GenerateMarcForChapter(NACJDDoc * const nacjd_doc, std::map<std::s
         record->insertField("936", _936_content, 'u', 'w');
 
     if (not nacjd_doc->sec_title_.empty())
-        record->insertField("773", { { 't', nacjd_doc->sec_title_ } }, '0', '8');
+        record->insertField("773", { { 'i', "In:" }, { 't', nacjd_doc->sec_title_ } }, '0', '8');
 
     return record;
 }
@@ -608,10 +596,9 @@ MARC::Record *GenerateMarcForJournal(NACJDDoc * const nacjd_doc, std::map<std::s
                                      DebugInfo * const debug_info) {
     // create a new record
     MARC::Record *record(GenerateRecord("00000naa a22000002  4500", "tu"));
-    const MARC::Subfields _936_content(nacjd_doc->ConstructPublishingInfo_936());
-
     InsertGeneralFieldInfo(record, nacjd_doc, k10_plus_info, study_number_to_control_number, debug_info);
 
+    const MARC::Subfields _936_content(nacjd_doc->ConstructPublishingInfo_936());
     if (not _936_content.empty())
         record->insertField("936", _936_content, 'u', 'w');
 
@@ -628,6 +615,16 @@ MARC::Record *GenerateMarcForMagazine(NACJDDoc * const nacjd_doc, std::map<std::
 
     return GenerateMarcForJournal(nacjd_doc, k10_plus_info, study_number_to_control_number, debug_info);
 }
+
+
+MARC::Record *GenerateMarcForNews(NACJDDoc * const nacjd_doc, std::map<std::string, PPNAndISSN> const &k10_plus_info,
+                                  const std::map<std::string, std::string> &study_number_to_control_number, DebugInfo * const debug_info) {
+    if (nacjd_doc->IsDocTypeStatistic())
+        return GenerateMarcForStatistic(nacjd_doc, k10_plus_info, study_number_to_control_number, debug_info);
+
+    return GenerateMarcForJournal(nacjd_doc, k10_plus_info, study_number_to_control_number, debug_info);
+}
+
 
 void WriteMarcRecords(const std::string &marc_path, const std::vector<NACJDDoc> &nacjd_docs,
                       const std::map<std::string, PPNAndISSN> &k10_plus_info,
@@ -1042,7 +1039,7 @@ void Update773w(MARC::Record * const record, const std::map<std::string, PPNAndI
     }
 }
 
-void Augement773w(int argc, char **argv, const bool &debug_mode) {
+void Augment773w(int argc, char **argv, const bool &debug_mode) {
     if (argc < 7)
         Usage();
 
@@ -1295,6 +1292,8 @@ void NotFoundOrPrinted(int argc, char **argv, const bool &debug_mode) {
 
 
 void InsertPlaceholder264(MARC::Record * const record) {
+    if (not record->isMonograph())
+        return;
     record->addSubfieldCreateFieldIfNotExists("264", 'a', "[Erscheinungsort nicht ermittelbar]", ' ', '1');
     record->addSubfieldCreateFieldIfNotExists("264", 'b', "[Verlag nicht ermittelbar]", ' ', '1');
 }
@@ -1318,8 +1317,6 @@ void UpdateMonograph(int argc, char **argv, const bool &debug_mode) {
     while (MARC::Record record = marc_reader.get()->read()) {
         if (!record.hasFieldWithTag("773") && record.isArticle()) {
             record.setLeader("00000cam a22000000  4500");
-            // Make sure 264 is not empty for monographs
-            InsertPlaceholder264(&record);
             update_article_to_book.emplace(record.getControlNumber());
         } else if (record.hasFieldWithTag("773") && record.isMonograph()) {
             record.setLeader("00000naa a22000002  4500");
@@ -1327,6 +1324,9 @@ void UpdateMonograph(int argc, char **argv, const bool &debug_mode) {
         } else {
             record_not_updated.emplace(record.getControlNumber());
         }
+
+        // Make sure 264 is not empty for monographs
+        InsertPlaceholder264(&record);
 
         marc_writer.get()->write(record);
     }
@@ -1372,7 +1372,7 @@ int Main(int argc, char **argv) {
     } else if (mode == "augment_open_access") {
         AugmentOpenAccessInfo(argc, argv, debug_mode);
     } else if (mode == "augment_773w") {
-        Augement773w(argc, argv, debug_mode);
+        Augment773w(argc, argv, debug_mode);
     } else if (mode == "suggested_report") {
         NotFoundOrPrinted(argc, argv, debug_mode);
     } else if (mode == "update_monograph") {
