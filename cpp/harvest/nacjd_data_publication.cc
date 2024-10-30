@@ -608,10 +608,9 @@ MARC::Record *GenerateMarcForJournal(NACJDDoc * const nacjd_doc, std::map<std::s
                                      DebugInfo * const debug_info) {
     // create a new record
     MARC::Record *record(GenerateRecord("00000naa a22000002  4500", "tu"));
-    const MARC::Subfields _936_content(nacjd_doc->ConstructPublishingInfo_936());
-
     InsertGeneralFieldInfo(record, nacjd_doc, k10_plus_info, study_number_to_control_number, debug_info);
 
+    const MARC::Subfields _936_content(nacjd_doc->ConstructPublishingInfo_936());
     if (not _936_content.empty())
         record->insertField("936", _936_content, 'u', 'w');
 
@@ -1042,7 +1041,7 @@ void Update773w(MARC::Record * const record, const std::map<std::string, PPNAndI
     }
 }
 
-void Augement773w(int argc, char **argv, const bool &debug_mode) {
+void Augment773w(int argc, char **argv, const bool &debug_mode) {
     if (argc < 7)
         Usage();
 
@@ -1375,7 +1374,7 @@ int Main(int argc, char **argv) {
     } else if (mode == "augment_open_access") {
         AugmentOpenAccessInfo(argc, argv, debug_mode);
     } else if (mode == "augment_773w") {
-        Augement773w(argc, argv, debug_mode);
+        Augment773w(argc, argv, debug_mode);
     } else if (mode == "suggested_report") {
         NotFoundOrPrinted(argc, argv, debug_mode);
     } else if (mode == "update_monograph") {
