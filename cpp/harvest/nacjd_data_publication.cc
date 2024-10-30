@@ -204,7 +204,6 @@ struct NACJDDoc {
                                                       DebugInfo * const debug_info) {
         MARC::Subfields publishing_info;
 
-
         if (not volume_.empty() && not year_pub_.empty() && not i_number_.empty() && not page_start_.empty()) {
             std::string field_info(volume_ + " (" + year_pub_ + "), " + i_number_ + ", Seite " + page_start_);
 
@@ -212,7 +211,6 @@ struct NACJDDoc {
                 field_info.append("-" + page_end_);
 
 
-            publishing_info.appendSubfield('i', "In:");
             publishing_info.appendSubfield('g', field_info);
         }
 
@@ -238,6 +236,8 @@ struct NACJDDoc {
             debug_info->counter_data_without_issn++;
         }
 
+        if (not publishing_info.empty())
+            publishing_info.addSubfield('i', "In:");
 
         return publishing_info;
     }
@@ -486,7 +486,7 @@ MARC::Record *GenerateMarcForChapter(NACJDDoc * const nacjd_doc, std::map<std::s
         record->insertField("936", _936_content, 'u', 'w');
 
     if (not nacjd_doc->sec_title_.empty())
-        record->insertField("773", { { 't', nacjd_doc->sec_title_ } }, '0', '8');
+        record->insertField("773", { { 'i', "In:" }, { 't', nacjd_doc->sec_title_ } }, '0', '8');
 
     return record;
 }
