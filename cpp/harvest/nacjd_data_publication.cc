@@ -1295,6 +1295,8 @@ void NotFoundOrPrinted(int argc, char **argv, const bool &debug_mode) {
 
 
 void InsertPlaceholder264(MARC::Record * const record) {
+    if (not record->isMonograph())
+        return;
     record->addSubfieldCreateFieldIfNotExists("264", 'a', "[Erscheinungsort nicht ermittelbar]", ' ', '1');
     record->addSubfieldCreateFieldIfNotExists("264", 'b', "[Verlag nicht ermittelbar]", ' ', '1');
 }
@@ -1318,8 +1320,6 @@ void UpdateMonograph(int argc, char **argv, const bool &debug_mode) {
     while (MARC::Record record = marc_reader.get()->read()) {
         if (!record.hasFieldWithTag("773") && record.isArticle()) {
             record.setLeader("00000cam a22000000  4500");
-            // Make sure 264 is not empty for monographs
-            InsertPlaceholder264(&record);
             update_article_to_book.emplace(record.getControlNumber());
         } else if (record.hasFieldWithTag("773") && record.isMonograph()) {
             record.setLeader("00000naa a22000002  4500");
@@ -1327,6 +1327,9 @@ void UpdateMonograph(int argc, char **argv, const bool &debug_mode) {
         } else {
             record_not_updated.emplace(record.getControlNumber());
         }
+
+        // Make sure 264 is not empty for monographs
+        InsertPlaceholder264(&record);
 
         marc_writer.get()->write(record);
     }
