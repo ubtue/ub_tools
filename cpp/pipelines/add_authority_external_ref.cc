@@ -63,6 +63,7 @@ struct GNDStructure {
 bool IsThisCloseBracketForId(const std::string &url) {
     int url_length = url.length();
     std::string is_about(url.substr(url_length - 5, 5));
+
     if (is_about.compare("about") == 0)
         return true;
 
@@ -94,8 +95,8 @@ bool GenerateGNDAuthorityExternalRef(char *argv[]) {
     std::string gnd_id;
     bool is_start_group(false);
     GNDStructure gnd_data;
-    int top_level_number(-1), second_level_number(-1), total_numbers_of_gnd_id_generated(0), total_line_parsed(0),
-        total_number_of_wikidata(0), total_number_of_wikipedia(0);
+    int top_level_number(-1), total_numbers_of_gnd_id_generated(0), total_line_parsed(0), total_number_of_wikidata(0),
+        total_number_of_wikipedia(0);
     const int dnb_add_str_length(dnb_address.length()), wikidata_address_str_length(wikidata_address.length());
     std::string line, id_annotaton(""), second_element_of_array;
     nlohmann::json line_parsed;
@@ -106,8 +107,8 @@ bool GenerateGNDAuthorityExternalRef(char *argv[]) {
     while (std::getline(input_file, line)) {
         line_parsed = nlohmann::json::parse(line);
         // get information on first element of array
-        if (line_parsed[0].is_array() && line_parsed[0][2].is_string()) {
-            id_annotaton = line_parsed[0][2].get<std::string>();
+        if (line_parsed[0].is_array() && line_parsed[0][1].is_string()) {
+            id_annotaton = line_parsed[0][1].get<std::string>();
             if (id_annotaton.compare("@id") == 0) {
                 // the second element of array is not an array nor object
                 if (!line_parsed[1].is_structured()) {
@@ -117,7 +118,6 @@ bool GenerateGNDAuthorityExternalRef(char *argv[]) {
                         // tmp_id = nlohmann::to_string(line_parsed[1]);
                         if (line_parsed[1].is_string()) {
                             top_level_number = line_parsed[0][0].get<int>();
-                            second_level_number = line_parsed[0][1].get<int>();
                             is_start_group = true;
                             gnd_id_temp_string = line_parsed[1].get<std::string>();
                             gnd_data.gnd_id =
@@ -134,7 +134,6 @@ bool GenerateGNDAuthorityExternalRef(char *argv[]) {
                     csv_file->write(TextUtil::CSVEscape(gnd_data.wikidata_personal_entity_id) + ";");
                     csv_file->write(TextUtil::CSVEscape(gnd_data.wikipedia_personal_address) + "\n");
                     top_level_number = -1;
-                    second_level_number = -1;
                     is_start_group = false;
                     gnd_id_temp_string = "";
                     gnd_data = {};
@@ -143,7 +142,7 @@ bool GenerateGNDAuthorityExternalRef(char *argv[]) {
 
             if (is_start_group) {
                 // std::cout << top_level_number << " , " << second_level_number << std::endl;
-                if (line_parsed[0][0].get<int>() == top_level_number && line_parsed[0][1].get<int>() == second_level_number) {
+                if (line_parsed[0][0].get<int>() == top_level_number) {
                     if (!line_parsed[1].is_structured()) {
                         if (line_parsed[1].is_string()) {
                             if (DoesTheUrlAddressMatch(wikipedia_address, line_parsed[1].get<std::string>())) {
@@ -165,12 +164,7 @@ bool GenerateGNDAuthorityExternalRef(char *argv[]) {
                 }
             }
         }
-        std::cout << "\r"
-                  << "Parsed: " << total_line_parsed << " line(s), "
-                  << " Total GND-ID: " << total_numbers_of_gnd_id_generated << ", Total GND with Wikidata: " << total_number_of_wikidata
-                  << ", Total GND with Wikipedia: " << total_number_of_wikipedia;
-        //   << "GND-ID url: " << tmp_id;
-        std::cout.flush();
+
         ++total_line_parsed;
     }
 
