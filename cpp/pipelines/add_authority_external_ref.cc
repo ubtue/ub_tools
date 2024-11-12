@@ -95,8 +95,7 @@ bool GenerateGNDAuthorityExternalRef(char *argv[]) {
     std::string gnd_id;
     bool is_start_group(false);
     GNDStructure gnd_data;
-    int top_level_number(-1), total_numbers_of_gnd_id_generated(0), total_line_parsed(0), total_number_of_wikidata(0),
-        total_number_of_wikipedia(0);
+    int top_level_number(-1), total_numbers_of_gnd_id_generated(0), total_number_of_wikidata(0), total_number_of_wikipedia(0);
     const int dnb_add_str_length(dnb_address.length()), wikidata_address_str_length(wikidata_address.length());
     std::string line, id_annotaton(""), second_element_of_array;
     nlohmann::json line_parsed;
@@ -164,8 +163,6 @@ bool GenerateGNDAuthorityExternalRef(char *argv[]) {
                 }
             }
         }
-
-        ++total_line_parsed;
     }
 
     const auto load_file_end(std::chrono::high_resolution_clock::now());
