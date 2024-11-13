@@ -49,6 +49,7 @@ declare -r OLD_NACJD_MISSING_STUDIES_ID_TITLE_AUTHOR="old_nacjd_missing_id_title
 declare -r NACJD_STUDIES="nacjd_data_publication_update_studies_$(date +%y%m%d).xml"
 declare -r NACJD_UPDATE_007_856="nacjd_data_publication_007_856$(date +%y%m%d).xml"
 declare -r NACJD_ADD_UVKN_SELECTOR="nacjd_data_publication_add_uvkn_selector$(date +%y%m%d).xml"
+declare -r NACJD_WITH_DOUBLE_AMP="nacjd_data_publication_double_amp$(date +%y%m%d).xml"
 declare -r NACJD_FINAL="nacjd_data_publication_$(date +%y%m%d).xml"
 
 
@@ -161,5 +162,19 @@ $ADD_UVKN_SELECTOR $NACJD_UPDATE_007_856 $NACJD_ADD_UVKN_SELECTOR
 # Otherwise, when field 773 exists, and the record type is a book, the assumption is that the record should be an article. In this case, the leader annotation must be updated from book to article. 
 echo "Update leader to a monograph when the 773 is not present."
 
-$NACJD_TOOL "--verbose" "update_monograph" $NACJD_ADD_UVKN_SELECTOR $NACJD_FINAL
+$NACJD_TOOL "--verbose" "update_monograph" $NACJD_ADD_UVKN_SELECTOR $NACJD_WITH_DOUBLE_AMP
+
+echo "Replace the Ampersand"
+marc_augmentor $NACJD_WITH_DOUBLE_AMP $NACJD_FINAL \
+    --replace-subfield-if-regex '024a:/&amp;/&/g' '024a:&amp;' \
+    --replace-subfield-if-regex '100a:/&amp;/&/g' '100a:&amp;' \
+    --replace-subfield-if-regex '245a:/&amp;/&/g' '245a:&amp;' \
+    --replace-subfield-if-regex '264b:/&amp;/&/g' '264b:&amp;' \
+    --replace-subfield-if-regex '700a:/&amp;/&/g' '700a:&amp;' \
+    --replace-subfield-if-regex '773t:/&amp;/&/g' '773t:&amp;' \
+    --replace-subfield-if-regex '773g:/&amp;/&/g' '773g:&amp;' \
+    --replace-subfield-if-regex '856u:/&amp;/&/g' '856u:&amp;' \
+    --replace-subfield-if-regex '936e:/&amp;/&/g' '936e:&amp;'
+
+
 
