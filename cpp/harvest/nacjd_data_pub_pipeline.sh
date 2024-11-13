@@ -174,7 +174,6 @@ marc_augmentor $NACJD_WITH_DOUBLE_AMP $NACJD_FINAL \
     --replace-subfield-if-regex '773t:/&amp;/&/g' '773t:&amp;' \
     --replace-subfield-if-regex '773g:/&amp;/&/g' '773g:&amp;' \
     --replace-subfield-if-regex '856u:/&amp;/&/g' '856u:&amp;' \
-    --replace-subfield-if-regex '887a:/&amp;/&/g' '887a:&amp;' \
     --replace-subfield-if-regex '936e:/&amp;/&/g' '936e:&amp;'
 
 
