@@ -164,6 +164,18 @@ echo "Update leader to a monograph when the 773 is not present."
 
 $NACJD_TOOL "--verbose" "update_monograph" $NACJD_ADD_UVKN_SELECTOR $NACJD_WITH_DOUBLE_AMP
 
-echo "Replace '&amp;amp;' with '&amp;'"
-sed -r 's/\&amp\;amp\;/\&amp\;/g' $NACJD_WITH_DOUBLE_AMP > $NACJD_FINAL
+echo "Replace the Ampersand"
+marc_augmentor $NACJD_WITH_DOUBLE_AMP $NACJD_FINAL \
+    --replace-subfield-if-regex '024a:/&amp;/&/g' '024a:&amp;' \
+    --replace-subfield-if-regex '100a:/&amp;/&/g' '100a:&amp;' \
+    --replace-subfield-if-regex '245a:/&amp;/&/g' '245a:&amp;' \
+    --replace-subfield-if-regex '264b:/&amp;/&/g' '264b:&amp;' \
+    --replace-subfield-if-regex '700a:/&amp;/&/g' '700a:&amp;' \
+    --replace-subfield-if-regex '773t:/&amp;/&/g' '773t:&amp;' \
+    --replace-subfield-if-regex '773g:/&amp;/&/g' '773g:&amp;' \
+    --replace-subfield-if-regex '856u:/&amp;/&/g' '856u:&amp;' \
+    --replace-subfield-if-regex '887a:/&amp;/&/g' '887a:&amp;' \
+    --replace-subfield-if-regex '936e:/&amp;/&/g' '936e:&amp;'
+
+
 
