@@ -26,6 +26,7 @@ declare -r WORKING_DIR="/usr/local/ub_tools/cpp/harvest"
 declare -r NACJD_TOOL="$WORKING_DIR/nacjd_data_publication"
 declare -r AUGMENTING_787_TOOL="$WORKING_DIR/add_non_k10plus_787_information"
 declare -r ISSN_LOOKUP_K10_PLUS_TOOL="$WORKING_DIR/issn_lookup.py"
+declare -r ADD_UVKN_SELECTOR="$WORKING_DIR/add_uvkn_selector.sh"
 declare -r NACJD_WITH_MISSING_SOME_STUDY_LINK="nacjd_data_incomplete_$(date +%y%m%d).xml"
 declare -r ISSN_TO_BE_CONSIDERED="issn_to_be_considered_$(date +%y%m%d).txt"
 declare -r ISSN_ALTERNATIVE_NEED_FROM_K10PLUS="alternative_issn_needed_to_be_download_from_k10plus_$(date +%y%m%d).txt"
@@ -47,6 +48,7 @@ declare -r OPEN_ACCESS_INFO_ISSN_BASED_CSV="open_access_info_issn_based_$(date +
 declare -r OLD_NACJD_MISSING_STUDIES_ID_TITLE_AUTHOR="old_nacjd_missing_id_title_author_$(date +%y%m%d).txt"
 declare -r NACJD_STUDIES="nacjd_data_publication_update_studies_$(date +%y%m%d).xml"
 declare -r NACJD_UPDATE_007_856="nacjd_data_publication_007_856$(date +%y%m%d).xml"
+declare -r NACJD_ADD_UVKN_SELECTOR="nacjd_data_publication_add_uvkn_selector$(date +%y%m%d).xml"
 declare -r NACJD_FINAL="nacjd_data_publication_$(date +%y%m%d).xml"
 
 
@@ -152,8 +154,12 @@ echo "Update 007 to online when online information exists in 856u."
 echo "Add 787i:Forschungsdaten when 787 is present."
 marc_augmentor $NACJD_STUDIES $NACJD_UPDATE_007_856 --replace-field-if '007:cr|||||' '856u:\W+' --add-subfield-if '787i:Forschungsdaten' '787:\W+'
 
+echo "Add uvkn selector"
+$ADD_UVKN_SELECTOR $NACJD_UPDATE_007_856 $NACJD_ADD_UVKN_SELECTOR
+
 # When field 773 is missing and the record type is an article, the assumption is that the record should be a monograph. In this case, the leader annotation must be changed from article to book. 
 # Otherwise, when field 773 exists, and the record type is a book, the assumption is that the record should be an article. In this case, the leader annotation must be updated from book to article. 
 echo "Update leader to a monograph when the 773 is not present."
-$NACJD_TOOL "--verbose" "update_monograph" $NACJD_UPDATE_007_856 $NACJD_FINAL
+
+$NACJD_TOOL "--verbose" "update_monograph" $NACJD_ADD_UVKN_SELECTOR $NACJD_FINAL
 
