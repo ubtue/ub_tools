@@ -140,8 +140,9 @@ std::string URLBJSResolver(const std::string &ori_url) {
 
 
     UrlUtil::ParseUrl(ori_url, &scheme, &username_password, &authority, &port, &path, &params, &query, &fragment, &relative_url);
+    const std::string new_url_with_content = query.empty() ? new_url_address + path : new_url_address + path + "?" + query;
 
-    return (legacy_bjs_authority_matcher.match(authority) ? (new_url_address + path + "?" + query) : ori_url);
+    return (legacy_bjs_authority_matcher.match(authority) ? new_url_with_content : ori_url);
 }
 
 // This will act as an adapter for the URL resolver function.
@@ -1058,7 +1059,6 @@ void Augment773w(int argc, char **argv, const bool &debug_mode) {
 
 
     while (MARC::Record record = marc_reader.get()->read()) {
-        // 856u
         Update773w(&record, issn_to_ppn_from_k10plus, alternative_issn_cache, &missing_issn_in_k10plus);
         marc_writer.get()->write(record);
     }
