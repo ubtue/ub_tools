@@ -49,6 +49,7 @@ declare -r OLD_NACJD_MISSING_STUDIES_ID_TITLE_AUTHOR="old_nacjd_missing_id_title
 declare -r NACJD_STUDIES="nacjd_data_publication_update_studies_$(date +%y%m%d).xml"
 declare -r NACJD_UPDATE_007_856="nacjd_data_publication_007_856$(date +%y%m%d).xml"
 declare -r NACJD_ADD_UVKN_SELECTOR="nacjd_data_publication_add_uvkn_selector$(date +%y%m%d).xml"
+declare -r NACJD_UPDATE_MONOGRAPH="nacjd_data_publication_update_monograph$(date +%y%m%d).xml"
 declare -r NACJD_FIXED_AMPS="nacjd_data_publication_double_amp$(date +%y%m%d).xml"
 declare -r AUTHOR_ASSOCIATIONS_FILE="author_associations_full_241113.txt"
 declare -r NACJD_WITH_ADDED_AUTHOR_ASSOCIATIONS="nacjd_data_publication_author_association-$(date +%y%m%d).xml"
@@ -167,7 +168,7 @@ echo "Update leader to a monograph when the 773 is not present."
 $NACJD_TOOL "--verbose" "update_monograph" $NACJD_ADD_UVKN_SELECTOR $NACJD_UPDATE_MONOGRAPH
 
 echo "Fix probably erroneous ampersands"
-marc_augmentor $ $NACJD_UPDATE_MONOGRAPH $NACJD_FIXED_AMPS \
+marc_augmentor $NACJD_UPDATE_MONOGRAPH $NACJD_FIXED_AMPS \
     --replace-subfield-if-regex '024a:/&amp;/&/g' '024a:&amp;' \
     --replace-subfield-if-regex '100a:/&amp;/&/g' '100a:&amp;' \
     --replace-subfield-if-regex '245a:/&amp;/&/g' '245a:&amp;' \
