@@ -1,7 +1,6 @@
-# Script to add the uvkn-Abrufzeichen (=unverknüpft/unlinked selector)
-# for records where there is no 773$w (i.e. linking to a superior work
 #!/bin/bash
-
+# Script to add the uvkn-Abrufzeichen (=unverknüpft/unlinked selector)
+# for records where there is no 773$w (i.e. linking to a superior work)
 
 if [ $# != 2 ]; then
     echo "Usage: $0 infile outfile"
