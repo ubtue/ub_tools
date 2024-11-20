@@ -313,7 +313,7 @@ struct NACJDDoc {
 
     void ConvertYear(MARC::Record * const record) {
         if (not year_pub_.empty())
-            record->insertField("264", 'c', year_pub_, ' ', '1');
+            record->addSubfieldCreateFieldIfNotExists("264", 'c', year_pub_, ' ', '1');
     }
 
     void ConvertPublisher(MARC::Record * const record) {
