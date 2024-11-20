@@ -715,7 +715,7 @@ const ThreadSafeRegexMatcher CORPORATE_AUTHOR_MATCHER(
     "Association|International|Centers?|Centre|Administration|"
     "Bureau?|Committee|National\\s+Survey|Research\\s+Forum|Commission|"
     "County|Workgroup|Secretariat|Community|Consortium|Statistics\\s+Project|"
-    "Department|Services"
+    "Department|Services|Academ(?:y|ies)|Project|Team|Statistics?"
     ")\\b",
     ThreadSafeRegexMatcher::Option::ENABLE_UTF8 | ThreadSafeRegexMatcher::Option::CASE_INSENSITIVE);
 
