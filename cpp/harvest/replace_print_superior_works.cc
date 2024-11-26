@@ -82,6 +82,8 @@ void ProcessRecord(const bool verbose, MARC::Record * const record, const Online
         const auto print_superior_ppn(online_to_print.at(online_superior_ppn));
         _773subfields.replaceFirstSubfield('w', "(DE-627)" + print_superior_ppn);
         _773field.setSubfields(_773subfields);
+        // Remove now invalid ISSN
+        _773field.deleteAllSubfieldsWithCode('x');
 
         if (verbose)
             LOG_INFO("Mapped " + online_superior_ppn + " to " + print_superior_ppn);
