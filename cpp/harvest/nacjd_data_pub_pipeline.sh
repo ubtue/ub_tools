@@ -53,8 +53,9 @@ declare -r NACJD_UPDATE_MONOGRAPH="nacjd_data_publication_update_monograph$(date
 declare -r NACJD_FIXED_AMPS="nacjd_data_publication_double_amp$(date +%y%m%d).xml"
 declare -r AUTHOR_ASSOCIATIONS_FILE="author_associations_full_241113.txt"
 declare -r NACJD_WITH_ADDED_AUTHOR_ASSOCIATIONS="nacjd_data_publication_author_association-$(date +%y%m%d).xml"
+declare -r NACJD_FIX_PRINT_SUPERIOR="nacjd_data_publication_print_superior_$(date +%y%m%d).xml"
+declare -r PRINT_SUPERIOR_MAP_FILE="print_superior_$(date +%y%m%d).txt"
 declare -r NACJD_FINAL="nacjd_data_publication_$(date +%y%m%d).xml"
-
 
 remove_error_message(){
     FILE_NAME=$1
@@ -182,5 +183,8 @@ marc_augmentor $NACJD_UPDATE_MONOGRAPH $NACJD_FIXED_AMPS \
 echo "Add author associations"
 add_author_associations --no-ixtheom $NACJD_FIXED_AMPS $NACJD_WITH_ADDED_AUTHOR_ASSOCIATIONS $AUTHOR_ASSOCIATIONS_FILE
 
+echo "Fix superior PPNs for print works"
+replace_print_superior_works $NACJD_WITH_ADDED_AUTHOR_ASSOCIATIONS $PRINT_SUPERIOR_MAP_FILE $NACJD_FIX_PRINT_SUPERIOR
+
 echo "Generating final file"
-cp --archive --verbose $NACJD_WITH_ADDED_AUTHOR_ASSOCIATIONS $NACJD_FINAL
+cp --archive --verbose $NACJD_FIX_PRINT_SUPERIOR $NACJD_FINAL
