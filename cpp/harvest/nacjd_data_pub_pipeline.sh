@@ -159,14 +159,12 @@ echo "Update 007 to online when online information exists in 856u."
 echo "Add 787i:Forschungsdaten when 787 is present."
 marc_augmentor $NACJD_STUDIES $NACJD_UPDATE_007_856 --replace-field-if '007:cr|||||' '856u:\W+' --add-subfield-if '787i:Forschungsdaten' '787:\W+'
 
-echo "Add uvkn selector"
-$ADD_UVKN_SELECTOR $NACJD_UPDATE_007_856 $NACJD_ADD_UVKN_SELECTOR
 
 # When field 773 is missing and the record type is an article, the assumption is that the record should be a monograph. In this case, the leader annotation must be changed from article to book. 
 # Otherwise, when field 773 exists, and the record type is a book, the assumption is that the record should be an article. In this case, the leader annotation must be updated from book to article.
 echo "Update leader to a monograph when the 773 is not present."
 
-$NACJD_TOOL "--verbose" "update_monograph" $NACJD_ADD_UVKN_SELECTOR $NACJD_UPDATE_MONOGRAPH
+$NACJD_TOOL "--verbose" "update_monograph" $NACJD_UPDATE_007_856 $NACJD_UPDATE_MONOGRAPH
 
 echo "Fix probably erroneous ampersands"
 marc_augmentor $NACJD_UPDATE_MONOGRAPH $NACJD_FIXED_AMPS \
@@ -184,7 +182,11 @@ echo "Add author associations"
 add_author_associations --no-ixtheom $NACJD_FIXED_AMPS $NACJD_WITH_ADDED_AUTHOR_ASSOCIATIONS $AUTHOR_ASSOCIATIONS_FILE
 
 echo "Fix superior PPNs for print works"
+echo replace_print_superior_works $NACJD_WITH_ADDED_AUTHOR_ASSOCIATIONS $PRINT_SUPERIOR_MAP_FILE $NACJD_FIX_PRINT_SUPERIOR
 replace_print_superior_works $NACJD_WITH_ADDED_AUTHOR_ASSOCIATIONS $PRINT_SUPERIOR_MAP_FILE $NACJD_FIX_PRINT_SUPERIOR
 
+echo "Add uvkn selector"
+$ADD_UVKN_SELECTOR $NACJD_FIX_PRINT_SUPERIOR $NACJD_ADD_UVKN_SELECTOR
+
 echo "Generating final file"
-cp --archive --verbose $NACJD_FIX_PRINT_SUPERIOR $NACJD_FINAL
+cp --archive --verbose $NACJD_ADD_UVKN_SELECTOR $NACJD_FINAL
