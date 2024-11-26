@@ -60,7 +60,7 @@ void ProcessRecord(const bool verbose, MARC::Record * const record, const Online
     if (not record->isPrintResource())
         return;
 
-    for (auto _773field : record->getTagRange("773")) {
+    for (auto &_773field : record->getTagRange("773")) {
         if (not(_773field.getIndicator1() == '0') or not(_773field.getIndicator2() == '8'))
             continue;
 
