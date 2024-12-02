@@ -217,7 +217,7 @@ inline bool IsRelBibRecord(const MARC::Record &record) {
 bool IsBibleStudiesRecord(const MARC::Record &record, const std::unordered_set<std::string> &bible_studies_gnd_numbers) {
     // 1. Abrufzeichen
     for (const auto &field : record.getTagRange("935")) {
-        if (field.hasSubfieldWithValue('a', "BIIN"))
+        if (field.hasSubfieldWithValue('a', "BIIN") or field.hasSubfieldWithValue('a', "BiBIL"))
             return true;
     }
 
@@ -446,9 +446,7 @@ void ExtractAuthorsIxtheo(MARC::Reader * const title_reader, std::unordered_map<
                           const std::unordered_set<std::string> &bible_studies_gnd_numbers,
                           const std::unordered_set<std::string> &canon_law_gnd_numbers) {
     static std::vector<std::string> tags_to_check{ "100", "110", "111", "700", "710", "711" };
-    unsigned record_count(0);
     while (const MARC::Record record = title_reader->read()) {
-        ++record_count;
         bool is_relbib_record = IsRelBibRecord(record);
         bool is_canonlaw_record = IsCanonLawRecord(record, canon_law_gnd_numbers);
         bool is_biblestudies_record = IsBibleStudiesRecord(record, bible_studies_gnd_numbers);
@@ -483,10 +481,7 @@ void ExtractAuthorsIxtheo(MARC::Reader * const title_reader, std::unordered_map<
 
 void ExtractAuthorsKrimdok(MARC::Reader * const title_reader, std::unordered_map<std::string, std::map<std::string, int>> * const authors) {
     static std::vector<std::string> tags_to_check{ "100", "110", "111", "700", "710", "711" };
-    unsigned record_count(0);
     while (const MARC::Record record = title_reader->read()) {
-        ++record_count;
-
         for (auto tag_to_check : tags_to_check) {
             for (auto &field : record.getTagRange(tag_to_check)) {
                 const std::string author(field.getFirstSubfieldWithCodeAndPrefix('0', "(DE-627)"));

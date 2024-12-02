@@ -249,9 +249,9 @@ bool SmartDownload(const std::string &url, const TimeLimit &time_limit, std::str
                    std::string * const http_header_charset, std::string * const error_message, const bool trace = false);
 
 /** \brief Like SmartDownload but trigger downloading with the first redirect hop resolved */
-bool SmartDownloadResolveFirstRedirectHop(const std::string &url, const TimeLimit &time_limit, std::string * const document,
-                                          std::string * const http_header_charset, std::string * const error_message,
-                                          const bool trace = false);
+bool SmartDownloadResolveFirstRedirectHop(const std::string &url, const TimeLimit &time_limit, const bool use_web_proxy,
+                                          std::string * const document, std::string * const http_header_charset,
+                                          std::string * const error_message, const bool trace = false);
 
 bool GetRedirectedUrl(const std::string &url, const TimeLimit &time_limit, std::string * const redirected_url);
 

@@ -630,39 +630,36 @@ void FullDumpDownloader::parseRows(const Params &params, const std::shared_ptr<J
 }
 
 
-bool IsCacheUpToDate(const std::string &zeder_cache_path, std::shared_ptr<JSON::ObjectNode> * const json_cached_data,
-                     bool * const cache_present) {
-    timespec mtim, now;
-    clock_gettime(CLOCK_REALTIME, &now);
+void ParseCacheFile(const std::string &zeder_cache_path, std::shared_ptr<JSON::ObjectNode> * const json_cached_data) {
     std::string json_document;
     if (not FileUtil::ReadString(zeder_cache_path, &json_document))
+        LOG_ERROR("Unable to read " + zeder_cache_path);
+    JSON::Parser json_parser(json_document);
+    std::shared_ptr<JSON::JSONNode> tree_root;
+    if (not json_parser.parse(&tree_root))
+        LOG_ERROR("Could not parse " + zeder_cache_path);
+    else {
+        const auto root_node_type(tree_root.get()->getType());
+        if (root_node_type == JSON::JSONNode::OBJECT_NODE)
+            *json_cached_data = JSON::JSONNode::CastToObjectNodeOrDie("tree_root", tree_root);
+        else
+            LOG_ERROR("Invalid Zeder File : Root Node is not of type 'ObjectNode'");
+    }
+}
+
+
+bool IsCacheFilePresentAndUpToDate(const std::string &zeder_cache_path) {
+    timespec mtim, now;
+    clock_gettime(CLOCK_REALTIME, &now);
+
+    if (not FileUtil::GetLastModificationTimestamp(zeder_cache_path, &mtim))
         return false;
     else {
-        JSON::Parser json_parser(json_document);
-        std::shared_ptr<JSON::JSONNode> tree_root;
-        if (not json_parser.parse(&tree_root))
+        double dif = std::difftime(now.tv_sec, mtim.tv_sec);
+        if (dif > 60.0 /*min*/ * 60.0 /*sec*/)
             return false;
-        else {
-            const auto root_node_type(tree_root.get()->getType());
-            if (root_node_type == JSON::JSONNode::OBJECT_NODE)
-                *json_cached_data = JSON::JSONNode::CastToObjectNodeOrDie("tree_root", tree_root);
-            else {
-                LOG_WARNING("Root Node is not of type 'ObjectNode'");
-                return false;
-            }
-
-            *cache_present = true;
-
-            if (not FileUtil::GetLastModificationTimestamp(zeder_cache_path, &mtim))
-                return false;
-            else {
-                double dif = std::difftime(now.tv_sec, mtim.tv_sec);
-                if (dif > 60.0 /*min*/ * 60.0 /*sec*/)
-                    return false;
-            }
-            return true;
-        }
     }
+    return true;
 }
 
 
@@ -673,35 +670,31 @@ bool FullDumpDownloader::download(EntryCollection * const collection, const bool
 
     std::unordered_map<std::string, ColumnMetadata> column_to_metadata_map;
     std::shared_ptr<JSON::ObjectNode> json_data;
-    std::shared_ptr<JSON::ObjectNode> json_cached_data;
-
-    bool use_cache = not disable_cache_mechanism;
-    bool cache_present = false;
+    bool use_cache_file = false;
     std::string zeder_cache_path = UBTools::GetTuelibPath();
     if (StringUtil::EndsWith(params->endpoint_url_, "ixtheo", true))
         zeder_cache_path += "zeder_ixtheo.json";
     else if (StringUtil::EndsWith(params->endpoint_url_, "krim", true))
         zeder_cache_path += "zeder_krimdok.json";
     else
-        use_cache = false;
+        LOG_ERROR("Invalid ZEDER type");
 
-    if (use_cache)
-        use_cache = IsCacheUpToDate(zeder_cache_path, &json_cached_data, &cache_present);
+    if (not disable_cache_mechanism) {
+        if (IsCacheFilePresentAndUpToDate(zeder_cache_path)) {
+            ParseCacheFile(zeder_cache_path, &json_data);
+            use_cache_file = true;
+            LOG_INFO("Using zeder cache file");
+        } else {
+            LOG_WARNING("No current Zeder cache file available");
+            use_cache_file = false;
+        }
+    }
 
-    if (not use_cache) {
-        if (not downloadData(params->endpoint_url_, &json_data)) {
-            if (not cache_present) {
-                LOG_WARNING("Zeder Download and also Zeder cache failed");
-                return false;
-            } else {
-                json_data = std::move(json_cached_data);
-                LOG_INFO("Used zeder cache file due to failed zeder download");
-            }
-        } else
+    if (not use_cache_file) {
+        if (not downloadData(params->endpoint_url_, &json_data))
+            LOG_ERROR("Failed to download Zeder data from " + params->endpoint_url_);
+        if (not disable_cache_mechanism)
             FileUtil::WriteString(zeder_cache_path, json_data->toString());
-    } else {
-        json_data = std::move(json_cached_data);
-        LOG_INFO("Used zeder cache file");
     }
 
     parseColumnMetadata(json_data, &column_to_metadata_map);

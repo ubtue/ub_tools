@@ -239,17 +239,17 @@ bool Elasticsearch::deleteRange(const std::string &field, const RangeOperator op
     const std::string range_node((operator2 == RO_NOOP or operand2.empty()) ?
                                     "{ \"query\":"
                                     "    { \"range\":"
-                                    "        \"" + field + "\": {"
-                                    "            \"" + ToString(operator1) + "\"" + operand1 + "\""
+                                    "        { \"" + field + "\": {"
+                                    "            \"" + ToString(operator1) + "\": \"" + operand1 + "\""
                                         + ((operator2 == RO_NOOP or operand2.empty())
                                                ? std::string()
-                                               : "      ,\"" + ToString(operator2) + "\"" + operand2 + "\"") +
-                                    "        }"
+                                               : "      ,\"" + ToString(operator2) + "\": \"" + operand2 + "\"") +
+                                    "        }}"
                                     "    }"
                                     "}"
                                                                             :
                                     "");
-    const auto result_node(query("_delete", REST::POST, range_node));
+    const auto result_node(query("_delete_by_query", REST::POST, range_node));
     return result_node->getIntegerNode("deleted")->getValue() > 0;
 }
 

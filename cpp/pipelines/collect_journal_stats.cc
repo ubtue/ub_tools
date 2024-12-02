@@ -57,6 +57,7 @@ inline auto SplitZederPPNs(const std::string &ppns) {
 struct ZederIdAndPPNType {
     unsigned zeder_id_;
     char type_; // 'p' or 'e' for "print" or "electronic"
+
 public:
     ZederIdAndPPNType(const unsigned zeder_id, const char type): zeder_id_(zeder_id), type_(type) { }
 };
@@ -234,7 +235,6 @@ void GenerateJson(const std::unordered_map<std::string, ZederIdAndPPNType> &ppns
     auto json_file(FileUtil::OpenOutputFileOrDie(json_output_file));
     const auto JOB_START_TIME(std::to_string(std::time(nullptr)));
     unsigned long outer_size = zeder_ids_plus_ppns_to_articles_map.size();
-    unsigned long outer_position = 0;
     std::vector<std::string> timestamps;
     std::vector<std::string> quellrechner;
     std::vector<std::string> zeder_ids;
@@ -246,15 +246,12 @@ void GenerateJson(const std::unordered_map<std::string, ZederIdAndPPNType> &ppns
     std::vector<std::string> hefte;
     std::vector<std::string> seitenbereiche;
     for (const auto &[zeder_id_plus_ppn, articles] : zeder_ids_plus_ppns_to_articles_map) {
-        ++outer_position;
         const auto ppn(GetPPN(zeder_id_plus_ppn));
         const auto ppn_and_zeder_id_and_ppn_type(ppns_to_zeder_ids_and_types_map.find(ppn));
         if (unlikely(ppn_and_zeder_id_and_ppn_type == ppns_to_zeder_ids_and_types_map.cend()))
             LOG_ERROR("no Zeder ID found for (Zeitschrift_)PPN \"" + ppn + "\"!");
         const auto zeder_id(std::to_string(ppn_and_zeder_id_and_ppn_type->second.zeder_id_));
-        unsigned long inner_position = 0;
         for (auto &article : articles) {
-            ++inner_position;
             const std::unordered_map<std::string, std::string> columns{
                 { "timestamp", JOB_START_TIME }, { "Quellrechner", HOSTNAME },
                 { "Zeder_ID", zeder_id },        { "Zeitschrift_PPN_Typ", std::string(1, ppn_and_zeder_id_and_ppn_type->second.type_) },

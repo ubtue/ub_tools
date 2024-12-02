@@ -662,6 +662,13 @@ void Record::merge(const Record &other) {
 }
 
 
+void Record::setLeader(const std::string new_leader) {
+    leader_ = new_leader;
+    if (not hasValidLeader())
+        LOG_ERROR("Invalid new leader: \"" + new_leader + "\"");
+}
+
+
 bool Record::isMonograph() const {
     for (const auto &_935_field : getTagRange("935")) {
         for (const auto &subfield : _935_field.getSubfields()) {
@@ -1237,8 +1244,12 @@ std::set<std::string> Record::getISSNs() const {
     std::set<std::string> issns;
     for (const auto &field : getTagRange("022")) {
         const std::string first_subfield_a(field.getFirstSubfieldWithCode('a'));
+        const std::string first_subfield_l(field.getFirstSubfieldWithCode('l'));
         std::string normalised_issn;
         if (MiscUtil::NormaliseISSN(first_subfield_a, &normalised_issn))
+            issns.insert(normalised_issn);
+
+        if (MiscUtil::NormaliseISSN(first_subfield_l, &normalised_issn))
             issns.insert(normalised_issn);
     }
 
@@ -1614,6 +1625,22 @@ bool Record::addSubfieldCreateFieldUnique(const Tag &field_tag, const char subfi
         return addSubfield(field_tag, subfield_code, subfield_value);
     }
     return false;
+}
+
+
+bool Record::addSubfieldCreateFieldIfNotExists(const Tag &field_tag, const char subfield_code, const std::string &subfield_value,
+                                               const char indicator1, const char indicator2) {
+    for (auto &field : getTagRange(field_tag)) {
+        if (field.getIndicator1() != indicator1 || field.getIndicator2() != indicator2)
+            continue;
+        if (field.hasSubfield(subfield_code))
+            return false;
+        Subfields subfields(field.getSubfields());
+        subfields.addSubfield(subfield_code, subfield_value);
+        field.setSubfields(subfields);
+        return true;
+    }
+    return insertField(field_tag, { { subfield_code, subfield_value } }, indicator1, indicator2);
 }
 
 

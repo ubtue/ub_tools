@@ -103,7 +103,9 @@ bool FullTextCache::dummyEntryExists(const std::string &id) {
 
 
 void FullTextCache::expireEntries() {
-    full_text_cache_urls_.deleteRange("expiration", Elasticsearch::RO_LTE, "now");
+    const time_t now(std::time(nullptr));
+    const std::string expiration = TimeUtil::TimeTToString(now, TimeUtil::ISO_8601_FORMAT);
+    full_text_cache_urls_.deleteRange("expiration", Elasticsearch::RO_LTE, expiration);
 }
 
 

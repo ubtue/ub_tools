@@ -149,6 +149,24 @@ bool DownloadID(std::ofstream &json_new_titles, const std::string &id, const boo
     const std::string DOWNLOAD_URL("https://pcms.icpsr.umich.edu/pcms/api/1.0/studies/" + id
                                    + "/versions/V1/dats?page=https://www.icpsr.umich.edu/web/NACJD/studies/" + id + "/export&user=");
 
+    /**
+     * Some data can't be downloaded because of the version of the data itself. The link above is working on data with version 1 (V1), but
+     * the link is not working for the newer one. These are two possible links when the data version is newer:
+     *
+     * V2: "https://pcms.icpsr.umich.edu/pcms/api/1.0/studies/" + id +
+     * "/versions/V2/dats?page=https://www.icpsr.umich.edu/web/NACJD/studies/" + id + "/export&user=");
+     *
+     * V3: "https://pcms.icpsr.umich.edu/pcms/api/1.0/studies/" + id +
+     * "/versions/V3/dats?page=https://www.icpsr.umich.edu/web/NACJD/studies/" + id + "/export&user=");
+     *
+     * Those links above are compatible
+     * with the current JSON parser, but a weakness is that it is necessary to check all candidate versions which is ineffective as it needs to try out all the links.
+     *
+     * This link `https://pcms.icpsr.umich.edu/pcms/api/1.0/studies/ + $id` offers the easiest way to download the data because it
+     * compatible with all version of data. The weakness is the current parser is not comply to the output (JSON) format of the link, it
+     * needs to update the parser to comply with it format. If adjustments are to be made adjusting the parser is probably the best way to go (!!!)-
+     */
+
     Downloader downloader(DOWNLOAD_URL, Downloader::Params(), TIMEOUT_IN_SECONDS * 1000);
     if (downloader.anErrorOccurred()) {
         LOG_WARNING("Error while downloading data for id " + id + ": " + downloader.getLastErrorMessage());
@@ -571,7 +589,6 @@ void getStatistics(int argc, char **argv) {
         } else {
             title = title_node->getValue();
 
-            int i = 0;
             bool find_category(false);
             for (const std::string &n : statistics_categories) {
                 size_t pos = title.find(n);
@@ -579,7 +596,6 @@ void getStatistics(int argc, char **argv) {
                     statistics_count.emplace(n, statistics_count[n]++);
                     find_category = true;
                 }
-                i++;
             }
             if (!find_category)
                 ++no_statistics_category;
@@ -706,10 +722,8 @@ void getStatistics(int argc, char **argv) {
              + std::to_string(no_initial_date) + "\n" + "\t\tKeywords not found or empty: " + std::to_string(no_keywords) + "\n");
 
     std::cout << "NACJD Statistics Categories: \n" << std::endl;
-    int ii(0);
     for (const std::string &n : statistics_categories) {
         std::cout << "\t" << n << " - " << statistics_count[n] << std::endl;
-        ii++;
     }
     std::cout << "\nStatistics category is not defined: " + std::to_string(no_statistics_category) + "\n" << std::endl;
 }

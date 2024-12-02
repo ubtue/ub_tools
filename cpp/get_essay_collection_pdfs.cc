@@ -99,7 +99,7 @@ std::string GetYear(const MARC::Record &record) {
 
 void ProcessRecords(MARC::Reader * const marc_reader, const unsigned pdf_limit_count) {
     unsigned record_count(0), until1999_count(0), from2000_to_2009_count(0), after2009_count(0), unhandled_url_count(0), good_count(0),
-        download_failure_count(0), pdf_success_count(0);
+        pdf_success_count(0);
     while (const MARC::Record record = marc_reader->read()) {
         ++record_count;
 
@@ -144,9 +144,7 @@ void ProcessRecords(MARC::Reader * const marc_reader, const unsigned pdf_limit_c
 
         if (pdf_success_count < pdf_limit_count) {
             std::string document;
-            if (not Download(pdf_url, 10000 /* ms */, &document))
-                ++download_failure_count;
-            else {
+            if (Download(pdf_url, 10000 /* ms */, &document)) {
                 const std::string media_type(MediaTypeUtil::GetMediaType(document));
                 if (media_type != "application/pdf") {
                     std::cout << url << " has wrong media type: " << media_type << '\n';

@@ -44,63 +44,65 @@ std::string TitleNormalization(const std::string &title) {
 
 void ExtractingData(const std::string &issn, const nlohmann::json &issn_info_json, ISSNInfo * const issn_info) {
     const std::string issn_uri("resource/ISSN/" + issn), issn_title_uri("resource/ISSN/" + issn + "#KeyTitle");
-    if (issn_info_json.at("@graph").is_structured()) {
-        for (const auto &ar : issn_info_json.at("@graph")) {
-            if (ar.is_structured()) {
-                if (ar.at("@id").get<std::string>() == issn_uri) {
-                    issn_info->issn_ = issn;
-                    for (const auto &[key, val] : ar.items()) {
-                        if (key == "mainTitle") {
-                            if (val.is_structured())
-                                for (const auto &val_item : val)
-                                    issn_info->main_titles_.emplace_back(TitleNormalization(val_item));
-                            else
-                                issn_info->main_titles_.emplace_back(TitleNormalization(val));
-                        }
+    if (issn_info_json.contains("@graph")) {
+        if (issn_info_json.at("@graph").is_structured()) {
+            for (const auto &ar : issn_info_json.at("@graph")) {
+                if (ar.is_structured()) {
+                    if (ar.at("@id").get<std::string>() == issn_uri) {
+                        issn_info->issn_ = issn;
+                        for (const auto &[key, val] : ar.items()) {
+                            if (key == "mainTitle") {
+                                if (val.is_structured())
+                                    for (const auto &val_item : val)
+                                        issn_info->main_titles_.emplace_back(TitleNormalization(val_item));
+                                else
+                                    issn_info->main_titles_.emplace_back(TitleNormalization(val));
+                            }
 
-                        if (key == "format")
-                            issn_info->format_ = val;
-                        if (key == "identifier")
-                            issn_info->identifier_ = val;
-                        if (key == "type")
-                            issn_info->type_ = val;
+                            if (key == "format")
+                                issn_info->format_ = val;
+                            if (key == "identifier")
+                                issn_info->identifier_ = val;
+                            if (key == "type")
+                                issn_info->type_ = val;
 
-                        if (key == "isPartOf") {
-                            if (val.is_structured())
-                                for (const auto &val_item : val)
-                                    issn_info->is_part_of_.emplace_back(val_item);
-                            else
-                                issn_info->is_part_of_.emplace_back(val);
-                        }
+                            if (key == "isPartOf") {
+                                if (val.is_structured())
+                                    for (const auto &val_item : val)
+                                        issn_info->is_part_of_.emplace_back(val_item);
+                                else
+                                    issn_info->is_part_of_.emplace_back(val);
+                            }
 
-                        if (key == "publication")
-                            issn_info->publication_ = val;
+                            if (key == "publication")
+                                issn_info->publication_ = val;
 
-                        if (key == "url") {
-                            if (val.is_structured())
-                                for (const auto &val_item : val)
-                                    issn_info->urls_.emplace_back(val_item);
-                            else
-                                issn_info->urls_.emplace_back(val);
-                        }
+                            if (key == "url") {
+                                if (val.is_structured())
+                                    for (const auto &val_item : val)
+                                        issn_info->urls_.emplace_back(val_item);
+                                else
+                                    issn_info->urls_.emplace_back(val);
+                            }
 
-                        if (key == "name") {
-                            if (val.is_structured())
-                                for (const auto &val_item : val)
-                                    issn_info->names_.emplace_back(TitleNormalization(val_item));
-                            else
-                                issn_info->names_.emplace_back(TitleNormalization(val));
+                            if (key == "name") {
+                                if (val.is_structured())
+                                    for (const auto &val_item : val)
+                                        issn_info->names_.emplace_back(TitleNormalization(val_item));
+                                else
+                                    issn_info->names_.emplace_back(TitleNormalization(val));
+                            }
                         }
                     }
-                }
-                if (ar.at("@id").get<std::string>() == issn_title_uri) {
-                    for (auto &[key, val] : ar.items()) {
-                        if (key == "value")
-                            if (val.is_structured())
-                                for (const auto &val_item : val)
-                                    issn_info->titles_.emplace_back(val_item);
-                            else
-                                issn_info->titles_.emplace_back(val);
+                    if (ar.at("@id").get<std::string>() == issn_title_uri) {
+                        for (auto &[key, val] : ar.items()) {
+                            if (key == "value")
+                                if (val.is_structured())
+                                    for (const auto &val_item : val)
+                                        issn_info->titles_.emplace_back(val_item);
+                                else
+                                    issn_info->titles_.emplace_back(val);
+                        }
                     }
                 }
             }

@@ -440,7 +440,7 @@ static void GenerateAndInstallVuFindServiceTemplate(const VuFindSystemType syste
     FileUtil::AutoTempDirectory temp_dir;
 
     Template::Map names_to_values_map;
-    names_to_values_map.insertScalar("solr_heap", system_type == KRIMDOK ? "4G" : "12G");
+    names_to_values_map.insertScalar("solr_heap", system_type == KRIMDOK ? "6G" : "12G");
     // names_to_values_map.insertScalar("solr_heap", system_type == KRIMDOK ? "4G" : "4G");
     const std::string vufind_service(Template::ExpandTemplate(
         FileUtil::ReadStringOrDie(INSTALLER_DATA_DIRECTORY + "/" + service_name + ".service.template"), names_to_values_map));
@@ -969,9 +969,11 @@ int Main(int argc, char **argv) {
     bool omit_systemctl(false);
     bool production(false);
 
-    if (std::strcmp("ub-tools-only", argv[1]) == 0)
+    if (std::strcmp("ub-tools-only", argv[1]) == 0) {
         installation_type = UB_TOOLS_ONLY;
-    else if (std::strcmp("fulltext-backend", argv[1]) == 0)
+        omit_systemctl = true;
+        omit_cronjobs = true;
+    } else if (std::strcmp("fulltext-backend", argv[1]) == 0)
         installation_type = FULLTEXT_BACKEND;
     else if (std::strcmp("vufind", argv[1]) == 0)
         installation_type = VUFIND;
@@ -1045,30 +1047,30 @@ int Main(int argc, char **argv) {
     Echo("Set global log_bin_trust_functions_creators");
     db_connection_root.queryOrDie("SET GLOBAL log_bin_trust_function_creators = 1");
 
-    Echo("Starting VUFIND installation");
     if (installation_type == VUFIND) {
+        Echo("Installing VuFind");
         FileUtil::MakeDirectoryOrDie("/mnt/zram");
-        Echo("Download vufind");
+        Echo("Downloading VuFind");
         DownloadVuFind();
 #ifndef __clang__
 #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
 #endif
-        Echo("Configure vufind");
+        Echo("Configuring VuFind");
         ConfigureVuFind(production, vufind_system_type, not omit_cronjobs, install_systemctl);
 #ifndef __clang__
 #pragma GCC diagnostic error "-Wmaybe-uninitialized"
 #endif
     }
-    Echo("installing ub_tools");
+    Echo("Installing ub_tools");
     InstallUBTools(/* make_install = */ true, &db_connection_root);
     if (installation_type == FULLTEXT_BACKEND)
         ConfigureFullTextBackend(production, not omit_cronjobs);
     else if (installation_type == VUFIND) {
-        Echo("start creating vufind database");
+        Echo("Start creating VuFind database");
         CreateVuFindDatabases(vufind_system_type, &db_connection_root);
-        Echo("finish install vufind database");
+        Echo("Finish install VuFind database");
     }
 
-    Echo("installation complete.");
+    Echo("Installation complete.");
     return EXIT_SUCCESS;
 }

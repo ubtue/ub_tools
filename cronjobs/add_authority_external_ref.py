@@ -134,7 +134,7 @@ def Main():
             #  c. Get the information needed by gnd_wiki and put it into the file
             print(
                 "Process 4/7 -- Parse the file and extract the essential information needed")
-            jq_prog_with_pipe = f"jq -c --stream '.' < /tmp/{newer_file_name} | grep -E 'https\:/\/d-nb\.info\/gnd\/|wikidata|wikipedia' > /tmp/{input_file_name_for_add_auth}"
+            jq_prog_with_pipe = f"jq -c --stream '[.[]]' < /tmp/{newer_file_name} | grep -E 'https\:/\/d-nb\.info\/gnd\/|wikidata|wikipedia' > /tmp/{input_file_name_for_add_auth}"
             if os.system(jq_prog_with_pipe) == 0:
                 # d. Run "add_authority_external_ref" program
                 print("Process 5/7 -- Generate a new gnd_wiki_file")

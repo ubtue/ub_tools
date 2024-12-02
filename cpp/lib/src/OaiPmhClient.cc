@@ -474,7 +474,6 @@ void Client::harvestSet(const std::string &set_spec, const std::string &from, co
     // Import statistics
     unsigned received_xml_page_count(0);
     unsigned received_record_count(0);
-    unsigned record_processed_count(0);
 
     std::string response_date, resumption_token;
     do {
@@ -524,8 +523,7 @@ void Client::harvestSet(const std::string &set_spec, const std::string &from, co
         received_record_count += list_records_parser.getRecordCount();
         const std::list<OaiPmh::Record> &records(list_records_parser.getRecords());
         for (std::list<OaiPmh::Record>::const_iterator record(records.begin()); record != records.end(); ++record) {
-            if (processRecord(*record, verbosity, logger))
-                ++record_processed_count;
+            processRecord(*record, verbosity, logger);
         }
 
         // Grab the new resumption token:
