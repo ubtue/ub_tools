@@ -582,7 +582,11 @@ void FullDumpDownloader::parseRows(const Params &params, const std::shared_ptr<J
                     resolved_value = match->second;
                 }
             } else if (column_metadata->second.column_type_ == "multi") {
-                const auto selected_values(JSON::JSONNode::CastToArrayNodeOrDie(column_name, field.second));
+                // Workaround for problems occuring because Zeder sends an empty object instead of an empty array in some cases
+                bool erroneous_empty_object(field.second->getType() == JSON::JSONNode::Type::OBJECT_NODE);
+
+                const auto selected_values(erroneous_empty_object ? std::make_shared<JSON::ArrayNode>()
+                                                                  : JSON::JSONNode::CastToArrayNodeOrDie(column_name, field.second));
                 std::vector<std::string> resolved_items;
 
                 for (const auto &entry : *selected_values) {
