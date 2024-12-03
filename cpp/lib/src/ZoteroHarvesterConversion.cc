@@ -1160,6 +1160,18 @@ std::string TruncateAbstractField(const std::string &abstract_field) {
 }
 
 
+bool IsAllAuthorsAutomaticallyAssociated(MARC::Record * const marc_record) {
+    const auto authors_and_ppns(marc_record->getAllAuthorsAndGNDCodes());
+    if (not authors_and_ppns.size())
+        return false;
+    for (const auto &[author, ppn] : authors_and_ppns) {
+        if (ppn.empty())
+            return false;
+    }
+    return true;
+}
+
+
 void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record, const ConversionParams &parameters,
                                           MARC::Record * const marc_record, std::string * const marc_record_hash) {
     *marc_record = MARC::Record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::SERIAL_COMPONENT_PART);
@@ -1424,8 +1436,12 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
     // Personalized Authors
     // c.f. https://github.com/ubtue/DatenProbleme/issues/1651
     if (parameters.download_item_.journal_.personalized_authors_ == "J" and marc_record->hasTag("100")
-        and (not marc_record->isReviewArticle()))
-        marc_record->insertFieldAtEnd("935", { { 'a', "tiep" }, { '2', "LOK" } });
+        and (not marc_record->isReviewArticle())) {
+        // Only add tiep if there is at least one author is only given verbally
+        // c.f. https://github.com/ubtue/DatenProbleme/issues/2185
+        if (not IsAllAuthorsAutomaticallyAssociated(marc_record))
+            marc_record->insertFieldAtEnd("935", { { 'a', "tiep" }, { '2', "LOK" } });
+    }
 
     // Book-keeping fields
     if (not metadata_record.url_.empty())
