@@ -561,6 +561,9 @@ public:
 private:
     Record(): record_size_(LEADER_LENGTH + 1 /* end-of-directory */ + 1 /* end-of-record */) { }
 
+protected:
+    std::map<std::string, std::string> getAllAuthorsAndCodes(auto &&) const;
+
 public:
     explicit Record(const std::string &leader); // Make an empty record that only has a leader and sets the record size to
                                                 // LEADER_LENGTH + 1 /* end-of-directory */ + 1 /* end-of-record */
@@ -675,6 +678,9 @@ public:
 
     /** \return All author names in fields 100$a and 700$a and their associated authority record PPN's. */
     std::map<std::string, std::string> getAllAuthorsAndPPNs() const;
+
+    /** \return All author names in fields 100$a and 700$a and their associated GND codes */
+    std::map<std::string, std::string> getAllAuthorsAndGNDCodes() const;
 
     /** \return All ISSN's including ISSN's of superior works */
     std::set<std::string> getAllISSNs() const;

@@ -87,4 +87,10 @@ IssueInfo ExtractYearVolumeIssue(const MARC::Record &record);
 std::string GetK10PlusPPNFromSubfield(const MARC::Record::Field &field, const char subfield_code);
 
 
+/** \brief Attempts to extract a GND number from a subfield.
+ *  \return The extracted GND or the empty string if nothing was found.
+ */
+std::string GetGNDNumberFromSubfield(const MARC::Record::Field &field, const char subfield_code);
+
+
 } // namespace BSZUtil
