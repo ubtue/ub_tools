@@ -1319,10 +1319,10 @@ void UpdateMonograph(int argc, char **argv, const bool &debug_mode) {
 
 
     while (MARC::Record record = marc_reader.get()->read()) {
-        if (not record.hasFieldWithTag("773") and record.isArticle() and not record.hasFieldWithSubfieldValue("935", 'c', "co")) {
+        if (not record.hasFieldWithTag("773") and record.isArticle() and not record.hasFieldWithSubfieldValue("935", 'c', "so")) {
             record.setLeader("00000cam a22000000  4500");
             update_article_to_book.emplace(record.getControlNumber());
-        } else if (record.hasFieldWithTag("773") and record.isMonograph() and not record.hasFieldWithSubfieldValue("935", 'c', "co")) {
+        } else if (record.hasFieldWithTag("773") and record.isMonograph() and not record.hasFieldWithSubfieldValue("935", 'c', "so")) {
             record.setLeader("00000naa a22000002  4500");
             update_book_to_article.emplace(record.getControlNumber());
         } else {

@@ -55,6 +55,7 @@ declare -r AUTHOR_ASSOCIATIONS_FILE="author_associations_full_241113.txt"
 declare -r NACJD_WITH_ADDED_AUTHOR_ASSOCIATIONS="nacjd_data_publication_author_association-$(date +%y%m%d).xml"
 declare -r NACJD_FIX_PRINT_SUPERIOR="nacjd_data_publication_print_superior_$(date +%y%m%d).xml"
 declare -r PRINT_SUPERIOR_MAP_FILE="print_superior_$(date +%y%m%d).txt"
+declare -r REVERT_SONDERDRUCK_FILE="nacjd_data_publication_sonderdruck_to_articles_$(date +%y%m%d).xml"
 declare -r NACJD_FINAL="nacjd_data_publication_$(date +%y%m%d).xml"
 
 remove_error_message(){
@@ -188,5 +189,8 @@ replace_print_superior_works $NACJD_WITH_ADDED_AUTHOR_ASSOCIATIONS $PRINT_SUPERI
 echo "Add uvkn selector"
 $ADD_UVKN_SELECTOR $NACJD_FIX_PRINT_SUPERIOR $NACJD_ADD_UVKN_SELECTOR
 
+echo "Revert Sonderdruck monographies"
+revert_sonderdruck_to_articles $NACJD_ADD_UVKN_SELECTOR $REVERT_SONDERDRUCK_FILE
+
 echo "Generating final file"
-cp --archive --verbose $NACJD_ADD_UVKN_SELECTOR $NACJD_FINAL
+cp --archive --verbose $REVERT_SONDERDRUCK_FILE $NACJD_FINAL
