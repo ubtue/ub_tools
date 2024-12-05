@@ -184,6 +184,7 @@ StartPhase "Remove Dangling References"
                             GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" \
                             dangling_references.log 2>&1 && \
 EndPhase || Abort) &
+wait
 
 
 StartPhase "Add Wikidata IDs to Authority Data"
