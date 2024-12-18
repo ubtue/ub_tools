@@ -656,7 +656,7 @@ bool IsCacheFilePresentAndUpToDate(const std::string &zeder_cache_path) {
         return false;
     else {
         double dif = std::difftime(now.tv_sec, mtim.tv_sec);
-        if (dif > 60.0 /*min*/ * 60.0 /*sec*/)
+        if (dif > 48.0 /* hours */ * 60.0 /*min*/ * 60.0 /*sec*/)
             return false;
     }
     return true;
