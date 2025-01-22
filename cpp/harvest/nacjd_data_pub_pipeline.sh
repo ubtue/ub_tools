@@ -13,7 +13,7 @@ if [ $# != 0 ]; then
     exit 1
 fi
 
-# please check the script 'extract_nacjd_json.sh' to produce NACJD_INPUT 
+# please check the script 'extract_nacjd_json.sh' to produce NACJD_INPUT
 declare -r NACJD_INPUT="nacjd_$(date +%y%m%d).json"
 declare -r NACJD_OUTPUT="nacjd_convert_$(date +%y%m%d).xml"
 declare -r ISSN_NOT_FOUND_IN_K10_PLUS="not_found_or_print_version_in_k10plus_$(date +%y%m%d).txt"
@@ -26,6 +26,7 @@ declare -r WORKING_DIR="/usr/local/ub_tools/cpp/harvest"
 declare -r NACJD_TOOL="$WORKING_DIR/nacjd_data_publication"
 declare -r AUGMENTING_787_TOOL="$WORKING_DIR/add_non_k10plus_787_information"
 declare -r ISSN_LOOKUP_K10_PLUS_TOOL="$WORKING_DIR/issn_lookup.py"
+declare -r ADD_UVKN_SELECTOR="$WORKING_DIR/add_uvkn_selector.sh"
 declare -r NACJD_WITH_MISSING_SOME_STUDY_LINK="nacjd_data_incomplete_$(date +%y%m%d).xml"
 declare -r ISSN_TO_BE_CONSIDERED="issn_to_be_considered_$(date +%y%m%d).txt"
 declare -r ISSN_ALTERNATIVE_NEED_FROM_K10PLUS="alternative_issn_needed_to_be_download_from_k10plus_$(date +%y%m%d).txt"
@@ -47,17 +48,24 @@ declare -r OPEN_ACCESS_INFO_ISSN_BASED_CSV="open_access_info_issn_based_$(date +
 declare -r OLD_NACJD_MISSING_STUDIES_ID_TITLE_AUTHOR="old_nacjd_missing_id_title_author_$(date +%y%m%d).txt"
 declare -r NACJD_STUDIES="nacjd_data_publication_update_studies_$(date +%y%m%d).xml"
 declare -r NACJD_UPDATE_007_856="nacjd_data_publication_007_856$(date +%y%m%d).xml"
+declare -r NACJD_ADD_UVKN_SELECTOR="nacjd_data_publication_add_uvkn_selector$(date +%y%m%d).xml"
+declare -r NACJD_UPDATE_MONOGRAPH="nacjd_data_publication_update_monograph$(date +%y%m%d).xml"
+declare -r NACJD_FIXED_AMPS="nacjd_data_publication_double_amp$(date +%y%m%d).xml"
+declare -r AUTHOR_ASSOCIATIONS_FILE="author_associations_full_241113.txt"
+declare -r NACJD_WITH_ADDED_AUTHOR_ASSOCIATIONS="nacjd_data_publication_author_association-$(date +%y%m%d).xml"
+declare -r NACJD_FIX_PRINT_SUPERIOR="nacjd_data_publication_print_superior_$(date +%y%m%d).xml"
+declare -r PRINT_SUPERIOR_MAP_FILE="print_superior_$(date +%y%m%d).txt"
+declare -r REVERT_SONDERDRUCK_FILE="nacjd_data_publication_sonderdruck_to_articles_$(date +%y%m%d).xml"
 declare -r NACJD_FINAL="nacjd_data_publication_$(date +%y%m%d).xml"
-
 
 remove_error_message(){
     FILE_NAME=$1
     echo "Removing unwanted information (error message) in the file $FILE_NAME"
-    sed -i '/doctype html/d' $FILE_NAME  
-    sed -i '/html lang=en/d' $FILE_NAME 
-    sed -i '/404 Not Found/d' $FILE_NAME 
-    sed -i '/The requested URL was not found/d' $FILE_NAME 
-    sed -i '/Not Found/d' $FILE_NAME 
+    sed -i '/doctype html/d' $FILE_NAME
+    sed -i '/html lang=en/d' $FILE_NAME
+    sed -i '/404 Not Found/d' $FILE_NAME
+    sed -i '/The requested URL was not found/d' $FILE_NAME
+    sed -i '/Not Found/d' $FILE_NAME
     sed -i "s/ //g" $FILE_NAME
 }
 
@@ -117,12 +125,12 @@ echo "Starting download data"
 while read DOI; do
     echo $DOI
     curl  -s "$BASE_OPENALEX_DOI_API$DOI?select=doi,open_access" >> $JSON_FROM_OPENALEX
-done < $NACJD_DOI 
+done < $NACJD_DOI
 
-echo "Removing error tag from $JSON_FROM_OPENALEX" 
+echo "Removing error tag from $JSON_FROM_OPENALEX"
 remove_error_message $JSON_FROM_OPENALEX
 
-echo "Creating open access info CSV: $OPEN_ACCESS_INFO_CSV" 
+echo "Creating open access info CSV: $OPEN_ACCESS_INFO_CSV"
 cat $JSON_FROM_OPENALEX |jq -r '[.doi, .open_access.is_oa, .open_access.any_repository_has_fulltext] | flatten | @csv' > $OPEN_ACCESS_INFO_CSV
 
 echo "Extracting ISSN for getting open access info"
@@ -132,7 +140,7 @@ echo "Getting open access information based on ISSN"
 cat $ISSN_FOR_GETTING_OPEN_ACCESS_INFO | xargs -I'{}' sh -c 'echo "$@" $(curl -L -s https://api.openalex.org/sources/issn:"$@" |jq -r .is_oa)' _ '{}' > $OPEN_ACCESS_INFO_ISSN_BASED_CSV
 
 echo "Updating open access info"
-$NACJD_TOOL "--verbose" "augment_open_access" $AUGMENTED_77w_OUTPUT $OPEN_ACCESS_INFO_CSV $OPEN_ACCESS_INFO_ISSN_BASED_CSV $NACJD_WITH_MISSING_SOME_STUDY_LINK 
+$NACJD_TOOL "--verbose" "augment_open_access" $AUGMENTED_77w_OUTPUT $OPEN_ACCESS_INFO_CSV $OPEN_ACCESS_INFO_ISSN_BASED_CSV $NACJD_WITH_MISSING_SOME_STUDY_LINK
 
 echo "Downloading NACJD studies referenced  were missing from the old approach"
 time cat $STUDY_NUMBER_NOT_FOUND | xargs -I '{}' sh -c 'curl -s https://pcms.icpsr.umich.edu/pcms/api/1.0/studies/$@ > $@.json' _ '{}'
@@ -148,12 +156,41 @@ $NACJD_TOOL "--verbose" "suggested_report" $NOT_FOUND_ISSN $SOURCE $ISSN_TO_BE_C
 
 # If field 856u is present in the record, it means that the record is an online version, so it is necessary to update the information in field 007 from print to online.
 # The field 787 contains information about related research with the record. Therefore, when the 787t is present, it is needed to add subfield i:Forschungsdaten.
-echo "Update 007 to online when online information exists in 856u." 
+echo "Update 007 to online when online information exists in 856u."
 echo "Add 787i:Forschungsdaten when 787 is present."
 marc_augmentor $NACJD_STUDIES $NACJD_UPDATE_007_856 --replace-field-if '007:cr|||||' '856u:\W+' --add-subfield-if '787i:Forschungsdaten' '787:\W+'
 
-# When field 773 is missing and the record type is an article, the assumption is that the record should be a monograph. In this case, the leader annotation must be changed from article to book. 
-# Otherwise, when field 773 exists, and the record type is a book, the assumption is that the record should be an article. In this case, the leader annotation must be updated from book to article. 
-echo "Update leader to a monograph when the 773 is not present."
-$NACJD_TOOL "--verbose" "update_monograph" $NACJD_UPDATE_007_856 $NACJD_FINAL
 
+# When field 773 is missing and the record type is an article, the assumption is that the record should be a monograph. In this case, the leader annotation must be changed from article to book. 
+# Otherwise, when field 773 exists, and the record type is a book, the assumption is that the record should be an article. In this case, the leader annotation must be updated from book to article.
+echo "Update leader to a monograph when the 773 is not present."
+
+$NACJD_TOOL "--verbose" "update_monograph" $NACJD_UPDATE_007_856 $NACJD_UPDATE_MONOGRAPH
+
+echo "Fix probably erroneous ampersands"
+marc_augmentor $NACJD_UPDATE_MONOGRAPH $NACJD_FIXED_AMPS \
+    --replace-subfield-if-regex '024a:/&amp;/&/g' '024a:&amp;' \
+    --replace-subfield-if-regex '100a:/&amp;/&/g' '100a:&amp;' \
+    --replace-subfield-if-regex '245a:/&amp;/&/g' '245a:&amp;' \
+    --replace-subfield-if-regex '264b:/&amp;/&/g' '264b:&amp;' \
+    --replace-subfield-if-regex '700a:/&amp;/&/g' '700a:&amp;' \
+    --replace-subfield-if-regex '773t:/&amp;/&/g' '773t:&amp;' \
+    --replace-subfield-if-regex '773g:/&amp;/&/g' '773g:&amp;' \
+    --replace-subfield-if-regex '856u:/&amp;/&/g' '856u:&amp;' \
+    --replace-subfield-if-regex '936e:/&amp;/&/g' '936e:&amp;'
+
+echo "Add author associations"
+add_author_associations --no-ixtheom $NACJD_FIXED_AMPS $NACJD_WITH_ADDED_AUTHOR_ASSOCIATIONS $AUTHOR_ASSOCIATIONS_FILE
+
+echo "Fix superior PPNs for print works"
+echo replace_print_superior_works $NACJD_WITH_ADDED_AUTHOR_ASSOCIATIONS $PRINT_SUPERIOR_MAP_FILE $NACJD_FIX_PRINT_SUPERIOR
+replace_print_superior_works $NACJD_WITH_ADDED_AUTHOR_ASSOCIATIONS $PRINT_SUPERIOR_MAP_FILE $NACJD_FIX_PRINT_SUPERIOR
+
+echo "Add uvkn selector"
+$ADD_UVKN_SELECTOR $NACJD_FIX_PRINT_SUPERIOR $NACJD_ADD_UVKN_SELECTOR
+
+echo "Revert Sonderdruck monographies"
+revert_sonderdruck_to_articles $NACJD_ADD_UVKN_SELECTOR $REVERT_SONDERDRUCK_FILE
+
+echo "Generating final file"
+cp --archive --verbose $REVERT_SONDERDRUCK_FILE $NACJD_FINAL

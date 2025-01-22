@@ -1193,21 +1193,31 @@ std::set<std::string> Record::getAllAuthors() const {
 }
 
 
-std::map<std::string, std::string> Record::getAllAuthorsAndPPNs() const {
-    std::map<std::string, std::string> author_names_to_authority_ppns_map;
+std::map<std::string, std::string> Record::getAllAuthorsAndCodes(auto &&extract_code_function) const {
+    std::map<std::string, std::string> author_names_to_code_map;
     std::set<std::string> already_seen_author_names;
     for (const auto &tag : AUTHOR_TAGS) {
         for (const auto &field : getTagRange(tag)) {
             for (const auto &subfield : field.getSubfields()) {
                 if (subfield.code_ == 'a' and already_seen_author_names.find(subfield.value_) == already_seen_author_names.end()) {
                     already_seen_author_names.emplace(subfield.value_);
-                    author_names_to_authority_ppns_map[subfield.value_] = BSZUtil::GetK10PlusPPNFromSubfield(field, '0');
+                    author_names_to_code_map[subfield.value_] = extract_code_function(field, '0');
                 }
             }
         }
     }
 
-    return author_names_to_authority_ppns_map;
+    return author_names_to_code_map;
+}
+
+
+std::map<std::string, std::string> Record::getAllAuthorsAndPPNs() const {
+    return getAllAuthorsAndCodes(BSZUtil::GetK10PlusPPNFromSubfield);
+}
+
+
+std::map<std::string, std::string> Record::getAllAuthorsAndGNDCodes() const {
+    return getAllAuthorsAndCodes(BSZUtil::GetGNDNumberFromSubfield);
 }
 
 

@@ -140,8 +140,9 @@ std::string URLBJSResolver(const std::string &ori_url) {
 
 
     UrlUtil::ParseUrl(ori_url, &scheme, &username_password, &authority, &port, &path, &params, &query, &fragment, &relative_url);
+    const std::string new_url_with_content = query.empty() ? new_url_address + path : new_url_address + path + "?" + query;
 
-    return (legacy_bjs_authority_matcher.match(authority) ? (new_url_address + path + "?" + query) : ori_url);
+    return (legacy_bjs_authority_matcher.match(authority) ? new_url_with_content : ori_url);
 }
 
 // This will act as an adapter for the URL resolver function.
@@ -237,7 +238,7 @@ struct NACJDDoc {
         }
 
         if (not publishing_info.empty())
-            publishing_info.addSubfield('i', "In:");
+            publishing_info.addSubfield('i', "Enthalten in");
 
         return publishing_info;
     }
@@ -312,7 +313,7 @@ struct NACJDDoc {
 
     void ConvertYear(MARC::Record * const record) {
         if (not year_pub_.empty())
-            record->insertField("264", 'c', year_pub_, ' ', '1');
+            record->addSubfieldCreateFieldIfNotExists("264", 'c', year_pub_, ' ', '1');
     }
 
     void ConvertPublisher(MARC::Record * const record) {
@@ -337,7 +338,7 @@ struct NACJDDoc {
         for (const auto &author_ : authors_split) {
             // Prevent generation of invalid field
             static ThreadSafeRegexMatcher invalid_authors_matcher(
-                "et\\s+al", ThreadSafeRegexMatcher::Option::ENABLE_UTF8 | ThreadSafeRegexMatcher::Option::CASE_INSENSITIVE);
+                "et[.]?\\s+al[.]?", ThreadSafeRegexMatcher::Option::ENABLE_UTF8 | ThreadSafeRegexMatcher::Option::CASE_INSENSITIVE);
             if (invalid_authors_matcher.match(author_))
                 continue;
 
@@ -486,7 +487,7 @@ MARC::Record *GenerateMarcForChapter(NACJDDoc * const nacjd_doc, std::map<std::s
         record->insertField("936", _936_content, 'u', 'w');
 
     if (not nacjd_doc->sec_title_.empty())
-        record->insertField("773", { { 'i', "In:" }, { 't', nacjd_doc->sec_title_ } }, '0', '8');
+        record->insertField("773", { { 'i', "Enthalten in" }, { 't', nacjd_doc->sec_title_ } }, '0', '8');
 
     return record;
 }
@@ -1006,36 +1007,40 @@ void BuildISSNAlternativeCache(const std::string &file_path, std::map<std::strin
 void Update773w(MARC::Record * const record, const std::map<std::string, PPNAndISSN> &issn_to_ppn_from_k10plus,
                 const std::map<std::string, std::set<std::string>> &alternative_issn_cache,
                 std::set<std::string> * const missing_issn_in_k10plus) {
-    for (auto &tag773 : record->getTagRange("773")) {
-        MARC::Subfields subfields(tag773.getContents());
-        if (subfields.hasSubfield('w'))
+    for (auto &_773field : record->getTagRange("773")) {
+        if (_773field.getIndicator1() != '0' or _773field.getIndicator2() != '8')
+            continue;
+        MARC::Subfields _773subfields(_773field.getSubfields());
+        if (_773subfields.hasSubfield('w'))
             return;
 
-        const std::string issn_x(subfields.getFirstSubfieldWithCode('x'));
+        const std::string issn_x(_773subfields.getFirstSubfieldWithCode('x'));
         const auto alternative_issns(alternative_issn_cache.find(issn_x));
-        if (alternative_issns == alternative_issn_cache.end())
-            return;
+        if (alternative_issns != alternative_issn_cache.end()) {
+            for (auto const &alternative_issn : alternative_issns->second) {
+                const auto ppn_issn_k10plus(issn_to_ppn_from_k10plus.find(alternative_issn));
 
-        for (auto const &alternative_issn : alternative_issns->second) {
-            const auto ppn_issn_k10plus(issn_to_ppn_from_k10plus.find(alternative_issn));
+                if (ppn_issn_k10plus != issn_to_ppn_from_k10plus.end()) {
+                    _773subfields.appendSubfield('w', ppn_issn_k10plus->second.ppn);
+                    _773subfields.replaceFirstSubfield('x', ppn_issn_k10plus->second.issn);
 
-            if (ppn_issn_k10plus != issn_to_ppn_from_k10plus.end()) {
-                subfields.appendSubfield('w', ppn_issn_k10plus->second.ppn);
-                subfields.replaceFirstSubfield('x', ppn_issn_k10plus->second.issn);
-
-                tag773.setSubfields(subfields);
-                return;
+                    _773field.setSubfields(_773subfields);
+                    return;
+                }
             }
         }
 
-        missing_issn_in_k10plus->insert(issn_x);
-
-        subfields.deleteFirstSubfieldWithCode('x');
-        subfields.deleteFirstSubfieldWithCode('i');
-        subfields.appendSubfield('i', "Sonderdruck aus");
-        tag773.setSubfields(subfields);
-        record->insertField("500", { { 'a', issn_x } });
+        _773subfields.deleteFirstSubfieldWithCode('x');
+        _773subfields.deleteFirstSubfieldWithCode('i');
+        _773subfields.appendSubfield('i', "Sonderdruck aus");
+        _773field.setSubfields(_773subfields);
+        record->setLeader("00000cam a22000000  4500");
         record->insertField("935", { { 'c', "so" } });
+
+        if (not issn_x.empty()) {
+            missing_issn_in_k10plus->insert(issn_x);
+            record->insertField("500", { { 'a', issn_x } });
+        }
     }
 }
 
@@ -1058,7 +1063,6 @@ void Augment773w(int argc, char **argv, const bool &debug_mode) {
 
 
     while (MARC::Record record = marc_reader.get()->read()) {
-        // 856u
         Update773w(&record, issn_to_ppn_from_k10plus, alternative_issn_cache, &missing_issn_in_k10plus);
         marc_writer.get()->write(record);
     }
@@ -1315,10 +1319,10 @@ void UpdateMonograph(int argc, char **argv, const bool &debug_mode) {
 
 
     while (MARC::Record record = marc_reader.get()->read()) {
-        if (!record.hasFieldWithTag("773") && record.isArticle()) {
+        if (not record.hasFieldWithTag("773") and record.isArticle() and not record.hasFieldWithSubfieldValue("935", 'c', "so")) {
             record.setLeader("00000cam a22000000  4500");
             update_article_to_book.emplace(record.getControlNumber());
-        } else if (record.hasFieldWithTag("773") && record.isMonograph()) {
+        } else if (record.hasFieldWithTag("773") and record.isMonograph() and not record.hasFieldWithSubfieldValue("935", 'c', "so")) {
             record.setLeader("00000naa a22000002  4500");
             update_book_to_article.emplace(record.getControlNumber());
         } else {
