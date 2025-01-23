@@ -27,12 +27,10 @@
 BeaconFile::BeaconFile(const std::string &filename): filename_(filename) {
     const auto input(FileUtil::OpenInputFileOrDie(filename));
 
-    unsigned line_no(0);
 
     std::string line(input->getLineAny());
     if (line != "#FORMAT: BEACON")
         LOG_ERROR("expected \"#FORMAT: BEACON\" as the first line in \"" + filename + "\"!");
-    ++line_no;
 
     line = input->getLineAny();
     if (line != "#PREFIX: http://d-nb.info/gnd/" and line != "#PREFIX: https://d-nb.info/gnd/")
@@ -40,7 +38,6 @@ BeaconFile::BeaconFile(const std::string &filename): filename_(filename) {
             "expected \"#PREFIX: http://d-nb.info/gnd/\" or "
             "line != #PREFIX: https://d-nb.info/gnd/ as the second line in \""
             + filename + "\"!");
-    ++line_no;
 
     do {
         line = input->getLineAny();
@@ -49,7 +46,6 @@ BeaconFile::BeaconFile(const std::string &filename): filename_(filename) {
             if (first_colon_pos != std::string::npos)
                 keys_and_values_[line.substr(1, first_colon_pos - 1)] = StringUtil::TrimWhite(line.substr(first_colon_pos + 1));
         }
-        ++line_no;
     } while (not line.empty() and line[0] == '#');
 
     const auto target(keys_and_values_.find("TARGET"));
@@ -85,7 +81,6 @@ BeaconFile::BeaconFile(const std::string &filename): filename_(filename) {
         entries_.emplace(gnd_number, count, id_or_url);
 
         line = input->getLineAny();
-        ++line_no;
     } while (not input->eof());
 }
 

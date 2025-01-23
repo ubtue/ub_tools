@@ -563,9 +563,8 @@ void FindBibRefCandidates(
 
     RangeUtil::BibleBookCanoniser bible_book_canoniser(UBTools::GetTuelibPath() + "bibleRef/books_of_the_bible_to_canonical_form.map");
     RangeUtil::BibleBookToCodeMapper bible_book_to_code_mapper(UBTools::GetTuelibPath() + "bibleRef/books_of_the_bible_to_code.map");
-    unsigned total_count(0), addition_title_reference_count(0);
+    unsigned addition_title_reference_count(0);
     while (const MARC::Record record = marc_reader->read()) {
-        ++total_count;
 
         if (excluded_ppns.find(record.getControlNumber()) != excluded_ppns.cend())
             continue;

@@ -1455,11 +1455,9 @@ inline unsigned Join(const StringContainer &source, const char separator, std::s
 template <typename StringContainer>
 void Join(const StringContainer &source_begin, const StringContainer &source_end, const std::string &separator, std::string * const dest) {
     *dest = "";
-    unsigned word_count = 0;
 
     for (StringContainer i = source_begin; i != source_end; ++i) {
         *dest += *i;
-        ++word_count;
         if (i != source_end)
             *dest += separator;
     }
