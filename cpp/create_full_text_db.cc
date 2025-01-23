@@ -43,8 +43,10 @@ constexpr unsigned DEFAULT_PDF_EXTRACTION_TIMEOUT = 120; // seconds
 
 
 [[noreturn]] void Usage() {
-    ::Usage("[--min-log-level=min_verbosity] [--process-count-low-and-high-watermarks low:high] [--pdf-extraction-timeout=timeout]\n"
-            "[--only-open-access] [--store-pdfs-as-html] marc_input marc_output\n"
+    ::Usage("[--min-log-level=min_verbosity] [--process-count-low-and-high-watermarks low:high]\n"
+            "[--pdf-extraction-timeout=timeout] [--only-open-access] [--store-pdfs-as-html] [--use-separate-entries-per-url]\n"
+            "[--include-all-tocs] [--include-list-of-references] [--only-pdf-fulltexts] [--use-web-proxy] marc_input marc_output\n"
+            "\n"
             "\"--process-count-low-and-high-watermarks\" sets the maximum and minimum number of spawned\n"
             "    child processes.  When we hit the high water mark we wait for child processes to exit\n"
             "    until we reach the low watermark.\n"
@@ -57,6 +59,8 @@ constexpr unsigned DEFAULT_PDF_EXTRACTION_TIMEOUT = 120; // seconds
             "\"--include-all-tocs\": Extract TOCs even if they are not matched by the only-open-access-filter\n"
             "\"--include-list-of-references\": Extract list of references\n"
             "\"--only-pdf-fulltexts\": Download real Fulltexts only if the link points to a PDF\n"
+            "\"--use-web-proxy\": Use ZDV Web Proxy to download files\n"
+            "\n"
            );
 
     std::exit(EXIT_FAILURE);
@@ -161,7 +165,8 @@ void ScheduleSubprocess(const std::string &server_hostname, const off_t marc_rec
                         std::map<int, off_t> * const process_id_to_record_start_map, MARC::Reader * const marc_reader,
                         MARC::Writer * const marc_writer, unsigned * const child_reported_failure_count,
                         unsigned * const active_child_count, const bool store_pdfs_as_html, const bool use_separate_entries_per_url,
-                        const bool include_all_tocs, const bool include_list_of_references, const bool only_pdf_fulltexts)
+                        const bool include_all_tocs, const bool include_list_of_references, const bool only_pdf_fulltexts,
+                        const bool use_web_proxy)
 
 {
     constexpr unsigned MAX_CONCURRENT_DOWNLOADS_PER_SERVER = 2;
@@ -195,6 +200,8 @@ void ScheduleSubprocess(const std::string &server_hostname, const off_t marc_rec
         args.emplace_back("--include-list-of-references");
     if (only_pdf_fulltexts)
         args.emplace_back("--only-pdf-fulltexts");
+    if (use_web_proxy)
+        args.emplace_back("--use-web-proxy");
     args.emplace_back(std::to_string(marc_record_start));
     args.emplace_back(marc_input_filename);
     args.emplace_back(marc_output_filename);
@@ -214,7 +221,7 @@ void ProcessDownloadRecords(MARC::Reader * const marc_reader, MARC::Writer * con
                             const std::vector<std::pair<off_t, std::string>> &download_record_offsets_and_urls,
                             const unsigned process_count_low_watermark, const unsigned process_count_high_watermark,
                             const bool store_pdfs_as_html, const bool use_separate_entries_per_url, const bool include_all_tocs,
-                            const bool include_list_of_references, const bool only_pdf_fulltexts) {
+                            const bool include_list_of_references, const bool only_pdf_fulltexts, const bool use_web_proxy) {
     Semaphore semaphore("full_text_cached_counter", Semaphore::CREATE);
     unsigned active_child_count(0), child_reported_failure_count(0);
 
@@ -244,7 +251,7 @@ void ProcessDownloadRecords(MARC::Reader * const marc_reader, MARC::Writer * con
                            marc_writer->getFile().getPath(), &hostname_to_outstanding_request_count_map, &process_id_to_hostname_map,
                            &process_id_to_record_start_map, marc_reader, marc_writer, &child_reported_failure_count, &active_child_count,
                            store_pdfs_as_html, use_separate_entries_per_url, include_all_tocs, include_list_of_references,
-                           only_pdf_fulltexts);
+                           only_pdf_fulltexts, use_web_proxy);
 
         if (active_child_count > process_count_high_watermark)
             CleanUpZombies(active_child_count - process_count_low_watermark, &hostname_to_outstanding_request_count_map,
@@ -335,10 +342,15 @@ int Main(int argc, char **argv) {
         ++argv, --argc;
     }
 
-
     bool only_pdf_fulltexts(false);
-    if (argc > 1 and std::strcmp(argv[1], "--only-pdf-fulltexts") == 0) {
+    if (argc > 1 and StringUtil::StartsWith(argv[1], "--only-pdf-fulltexts")) {
         only_pdf_fulltexts = true;
+        ++argv, --argc;
+    }
+
+    bool use_web_proxy(false);
+    if (argc > 1 and StringUtil::StartsWith(argv[1], "--use-web-proxy")) {
+        use_web_proxy = true;
         ++argv, --argc;
     }
 
@@ -364,7 +376,7 @@ int Main(int argc, char **argv) {
 
         ProcessDownloadRecords(marc_reader.get(), marc_writer.get(), pdf_extraction_timeout, download_record_offsets_and_urls,
                                process_count_low_watermark, process_count_high_watermark, store_pdfs_as_html, use_separate_entries_per_url,
-                               include_all_tocs, include_list_of_references, only_pdf_fulltexts);
+                               include_all_tocs, include_list_of_references, only_pdf_fulltexts, use_web_proxy);
     } catch (const std::exception &e) {
         LOG_ERROR("Caught exception: " + std::string(e.what()));
     }

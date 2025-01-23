@@ -33,6 +33,7 @@
 #include <stdexcept>
 #include <string>
 #include <cassert>
+#include <cstdint>
 
 
 /** \class  Url

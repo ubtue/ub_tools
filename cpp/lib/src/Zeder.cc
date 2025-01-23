@@ -582,7 +582,11 @@ void FullDumpDownloader::parseRows(const Params &params, const std::shared_ptr<J
                     resolved_value = match->second;
                 }
             } else if (column_metadata->second.column_type_ == "multi") {
-                const auto selected_values(JSON::JSONNode::CastToArrayNodeOrDie(column_name, field.second));
+                // Workaround for problems occuring because Zeder sends an empty object instead of an empty array in some cases
+                bool erroneous_empty_object(field.second->getType() == JSON::JSONNode::Type::OBJECT_NODE);
+
+                const auto selected_values(erroneous_empty_object ? std::make_shared<JSON::ArrayNode>()
+                                                                  : JSON::JSONNode::CastToArrayNodeOrDie(column_name, field.second));
                 std::vector<std::string> resolved_items;
 
                 for (const auto &entry : *selected_values) {
@@ -691,10 +695,17 @@ bool FullDumpDownloader::download(EntryCollection * const collection, const bool
     }
 
     if (not use_cache_file) {
-        if (not downloadData(params->endpoint_url_, &json_data))
-            LOG_ERROR("Failed to download Zeder data from " + params->endpoint_url_);
-        if (not disable_cache_mechanism)
-            FileUtil::WriteString(zeder_cache_path, json_data->toString());
+        if (downloadData(params->endpoint_url_, &json_data)) {
+            if (not disable_cache_mechanism)
+                FileUtil::WriteString(zeder_cache_path, json_data->toString());
+
+        } else {
+            LOG_WARNING("Failed to download Zeder data from " + params->endpoint_url_);
+            if (disable_cache_mechanism)
+                LOG_ERROR("Using cache file as fall back disabled - aborting...");
+            LOG_WARNING("Trying fall back to cache file");
+            ParseCacheFile(zeder_cache_path, &json_data);
+        }
     }
 
     parseColumnMetadata(json_data, &column_to_metadata_map);

@@ -97,6 +97,7 @@ public:
     inline const std::string toString() const { return std::string(c_str(), 3); }
     inline uint32_t to_int() const { return htonl(tag_.as_int_); }
 
+
     inline bool isTagOfControlField() const { return tag_.as_cstring_[0] == '0' and tag_.as_cstring_[1] == '0'; }
     bool isLocal() const;
     Tag &swap(Tag &other);
@@ -176,6 +177,9 @@ public:
     inline size_t size() const { return subfields_.size(); }
     inline void reserve(const size_t size) { subfields_.reserve(size); }
     void clear() { return subfields_.clear(); }
+
+    typedef std::vector<Subfield>::value_type value_type;
+    inline void push_back(const Subfield &subfield) { subfields_.push_back(subfield); }
 
     inline bool hasSubfield(const char subfield_code) const {
         return std::find_if(subfields_.cbegin(), subfields_.cend(),
@@ -557,6 +561,9 @@ public:
 private:
     Record(): record_size_(LEADER_LENGTH + 1 /* end-of-directory */ + 1 /* end-of-record */) { }
 
+protected:
+    std::map<std::string, std::string> getAllAuthorsAndCodes(auto &&) const;
+
 public:
     explicit Record(const std::string &leader); // Make an empty record that only has a leader and sets the record size to
                                                 // LEADER_LENGTH + 1 /* end-of-directory */ + 1 /* end-of-record */
@@ -600,6 +607,7 @@ public:
     void merge(const Record &other);
     inline size_t getNumberOfFields() const { return fields_.size(); }
     inline const std::string &getLeader() const { return leader_; }
+    void setLeader(const std::string new_leader);
     inline std::string &getLeader() { return leader_; }
     inline bool hasValidLeader() const { return leader_.length() == LEADER_LENGTH; }
     bool isMonograph() const;
@@ -670,6 +678,9 @@ public:
 
     /** \return All author names in fields 100$a and 700$a and their associated authority record PPN's. */
     std::map<std::string, std::string> getAllAuthorsAndPPNs() const;
+
+    /** \return All author names in fields 100$a and 700$a and their associated GND codes */
+    std::map<std::string, std::string> getAllAuthorsAndGNDCodes() const;
 
     /** \return All ISSN's including ISSN's of superior works */
     std::set<std::string> getAllISSNs() const;
@@ -823,6 +834,12 @@ public:
      *  \return True if a subfield and optionally field created or if subfield with value is already present.
      */
     bool addSubfieldCreateFieldUnique(const Tag &field_tag, const char subfield_code, const std::string &subfield_value);
+
+    /** \brief  Adds a subfield to the first existing field with tag "field_tag". Field is created if it does not exist.
+     *  \return True if the subfield was inserted false otherwise
+     */
+    bool addSubfieldCreateFieldIfNotExists(const Tag &field_tag, const char subfield_code, const std::string &subfield_value,
+                                           const char indicator1 = ' ', const char indicator2 = ' ');
 
     /** \brief  Checks if a specified field exists which additionally contains a subfield with a given value.
      */

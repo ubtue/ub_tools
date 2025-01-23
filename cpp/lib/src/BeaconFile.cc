@@ -27,7 +27,6 @@
 BeaconFile::BeaconFile(const std::string &filename): filename_(filename) {
     const auto input(FileUtil::OpenInputFileOrDie(filename));
 
-
     std::string line(input->getLineAny());
     if (line != "#FORMAT: BEACON")
         LOG_ERROR("expected \"#FORMAT: BEACON\" as the first line in \"" + filename + "\"!");

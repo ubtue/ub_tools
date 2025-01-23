@@ -2,7 +2,8 @@ FROM ub_tools-deps
 LABEL maintainer="Mario Trojan <mario.trojan@uni-tuebingen.de>"
 
 # add needed configuration files
-# (+simulate mounted /mnt/ZE020150)
+# (+simulate mounted directories)
+COPY mnt/ZE020110 /mnt/ZE020110
 COPY mnt/ZE020150 /mnt/ZE020150
 
 # download & run ubtools installation script

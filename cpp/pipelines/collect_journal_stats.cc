@@ -57,6 +57,7 @@ inline auto SplitZederPPNs(const std::string &ppns) {
 struct ZederIdAndPPNType {
     unsigned zeder_id_;
     char type_; // 'p' or 'e' for "print" or "electronic"
+
 public:
     ZederIdAndPPNType(const unsigned zeder_id, const char type): zeder_id_(zeder_id), type_(type) { }
 };

@@ -37,6 +37,7 @@
 #include <unordered_map>
 #include <vector>
 #include <cassert>
+#include <cstdint>
 
 
 // Forward declaration:
