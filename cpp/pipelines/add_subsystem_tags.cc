@@ -482,7 +482,6 @@ void ExtractAuthorsIxtheo(MARC::Reader * const title_reader, std::unordered_map<
 void ExtractAuthorsKrimdok(MARC::Reader * const title_reader, std::unordered_map<std::string, std::map<std::string, int>> * const authors) {
     static std::vector<std::string> tags_to_check{ "100", "110", "111", "700", "710", "711" };
     while (const MARC::Record record = title_reader->read()) {
-
         for (auto tag_to_check : tags_to_check) {
             for (auto &field : record.getTagRange(tag_to_check)) {
                 const std::string author(field.getFirstSubfieldWithCodeAndPrefix('0', "(DE-627)"));

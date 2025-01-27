@@ -160,7 +160,6 @@ void ProcessRecords(MARC::Reader * const marc_reader, const unsigned pdf_limit_c
         }
     }
 
-    std::cout << "Download failure: " << download_failure_count << std::endl;
     std::cout << "Data set contains " << record_count << " MARC record(s).\n";
     std::cout << good_count << " records survived all conditions and " << pdf_success_count << " PDFs were sucessfully downloaded.\n";
     std::cout << "Didn't know how to handle " << unhandled_url_count << " URLs.\n";

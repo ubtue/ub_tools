@@ -44,7 +44,6 @@ void ProcessRecords(MARC::Reader * const marc_reader) {
 
     std::set<std::string> gnd_reference_tags;
     while (const MARC::Record record = marc_reader->read()) {
-
         for (const auto &field : record) {
             if (matcher->matched(field.getContents()))
                 gnd_reference_tags.emplace(field.getTag().toString());
