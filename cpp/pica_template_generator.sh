@@ -1,0 +1,85 @@
+#!/bin/bash
+set -o errexit -o nounset
+
+tmpdir=$(mktemp --directory -t pica_generator_XXXXXX)
+trap "find ${tmpdir} -mindepth 1 -delete && rmdir ${tmpdir}" EXIT
+BIN_BASE_PATH=/usr/local/bin
+PROGRAM_BASE_NAME=$(basename ${0%.sh})
+CONFIG_BASE_PATH=/usr/local/var/lib/tuelib/${PROGRAM_BASE_NAME}
+CONFIG_FILE=${CONFIG_BASE_PATH}/${PROGRAM_BASE_NAME}.conf
+
+
+function GetIniEntry() {
+    local section="$1"
+    local entry="$2"
+    ${BIN_BASE_PATH}/inifile_lookup ${CONFIG_FILE} ${section} ${entry}
+}
+
+function GetFormFile() {
+    local mail_content_dir="$1"
+    echo $(ls --directory ${mail_content_dir}/*.txt | head -n 1)
+}
+
+function GetTextType() {
+    local form_file="$1"
+    echo $(basename ${form_file%.txt})
+}
+
+function GetSystemType() {
+    local form_file="$1"
+    echo $(head -n 1 ${form_file} | sed -e 's/.*=//')
+}
+
+function GetTemplateFiles() {
+    local form_type="$1"
+    echo ${CONFIG_BASE_PATH}/${form_type}_a.template ${CONFIG_BASE_PATH}/${form_type}_o.template
+}
+
+function GetOutFiles() {
+    local tmpdir="$1"
+    local form_type="$2"
+    local pica_file_suffix=$(GetIniEntry "FileSpecs" "pica_file_suffix")
+    echo ${tmpdir}/${form_type}_a${pica_file_suffix} ${tmpdir}/${form_type}_o${pica_file_suffix}
+}
+
+function GetTargetMailAddress() {
+    local system_type="$1"
+    echo $(GetIniEntry "Mail" ${system_type})
+}
+
+
+function ExpandPicaTemplate() {
+   local tmpdir="$1"
+   local form_file="$2"
+   local form_type="$3"
+
+   # Read in file and split on first '='
+   local keys=()
+   while read line; do
+     IFS="=" read -r key value <<<"$line"
+       export "$key"="$value"
+       # Needed because we have to explicitly specify variables to be expanded, c.f. envsubst call
+       keys+=(\\\$$key)
+   done < ${form_file}
+
+   local template_files=($(GetTemplateFiles ${form_type}))
+   local out_files=($(GetOutFiles ${tmpdir} ${form_type}))
+   envsubst $(IFS=','; echo "${keys[*]}") < ${template_files[0]} > ${out_files[0]}
+   envsubst $(IFS=','; echo "${keys[*]}") < ${template_files[1]} > ${out_files[1]}
+}
+
+cat | munpack -q -t -C ${tmpdir}
+
+
+form_file=$(GetFormFile ${tmpdir})
+form_type=$(GetTextType ${form_file})
+system_type=$(GetSystemType ${form_file})
+
+#Skip first line in form_file as the system type does not have to be expanded
+ExpandPicaTemplate ${tmpdir} <(tail -n +2 ${form_file}) ${form_type}
+out_files=($(GetOutFiles ${tmpdir} ${form_type}))
+
+
+echo | mutt -a ${out_files[0]} -a ${out_files[1]} \
+       -e 'my_hdr From:UB NoReply <noreply@ub.uni-tuebingen.de>' \
+       -s "New Pica Title" -- $(GetTargetMailAddress ${system_type})
