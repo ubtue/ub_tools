@@ -48,6 +48,17 @@ function GetTargetMailAddress() {
 }
 
 
+function GetSubject() {
+    local mailfile="$1"
+    grep -i '^subject' ${mailfile} | sed -re 's/^subject:\s+//i'
+}
+
+function GetBodyFile() {
+   local tmpdir="$1"
+   echo ${tmpdir}/part1
+}
+
+
 function ExpandPicaTemplate() {
    local tmpdir="$1"
    local form_file="$2"
@@ -68,8 +79,8 @@ function ExpandPicaTemplate() {
    envsubst $(IFS=','; echo "${keys[*]}") < ${template_files[1]} > ${out_files[1]}
 }
 
-cat | munpack -q -t -C ${tmpdir}
-
+entire_mail_file=${tmpdir}/mail.eml
+cat | tee ${entire_mail_file} | munpack -q -t -C ${tmpdir}
 
 form_file=$(GetFormFile ${tmpdir})
 form_type=$(GetTextType ${form_file})
@@ -78,8 +89,10 @@ system_type=$(GetSystemType ${form_file})
 #Skip first line in form_file as the system type does not have to be expanded
 ExpandPicaTemplate ${tmpdir} <(tail -n +2 ${form_file}) ${form_type}
 out_files=($(GetOutFiles ${tmpdir} ${form_type}))
+subject=$(GetSubject ${entire_mail_file})
+body_file=$(GetBodyFile ${tmpdir})
 
 
-echo | mutt -a ${out_files[0]} -a ${out_files[1]} \
+cat ${body_file} | mutt -a ${out_files[0]} -a ${out_files[1]} \
        -e 'my_hdr From:UB NoReply <noreply@ub.uni-tuebingen.de>' \
-       -s "New Pica Title" -- $(GetTargetMailAddress ${system_type})
+       -s "${subject}" -- $(GetTargetMailAddress ${system_type})
