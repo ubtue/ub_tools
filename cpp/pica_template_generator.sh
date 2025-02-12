@@ -50,7 +50,8 @@ function GetTargetMailAddress() {
 
 function GetSubject() {
     local mailfile="$1"
-    grep -i '^subject' ${mailfile} | sed -re 's/^subject:\s+//i'
+    grep --ignore-case '^subject' ${mailfile} | sed -re 's/^subject:\s+//i' \
+        | perl -CS -MEncode -ne 'print decode("MIME-Header", $_)'
 }
 
 function GetBodyFile() {
@@ -93,6 +94,9 @@ subject=$(GetSubject ${entire_mail_file})
 body_file=$(GetBodyFile ${tmpdir})
 
 
-cat ${body_file} | mutt -a ${out_files[0]} -a ${out_files[1]} \
+cat ${body_file} | mutt \
        -e 'my_hdr From:UB NoReply <noreply@ub.uni-tuebingen.de>' \
-       -s "${subject}" -- $(GetTargetMailAddress ${system_type})
+       -e 'set charset="utf-8"' \
+       -s "${subject}" \
+       -a ${out_files[0]} -a ${out_files[1]} \
+       -- $(GetTargetMailAddress ${system_type})
