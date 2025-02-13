@@ -27,6 +27,7 @@
 #pragma once
 
 
+#include <cstdint>
 #include <fstream>
 #include <list>
 #include <stdexcept>
