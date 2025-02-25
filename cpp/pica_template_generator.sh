@@ -7,6 +7,7 @@ BIN_BASE_PATH=/usr/local/bin
 PROGRAM_BASE_NAME=$(basename ${0%.sh})
 CONFIG_BASE_PATH=/usr/local/var/lib/tuelib/${PROGRAM_BASE_NAME}
 CONFIG_FILE=${CONFIG_BASE_PATH}/${PROGRAM_BASE_NAME}.conf
+TEMPLATE_DIR=/usr/local/var/lib/tuelib/${PROGRAM_BASE_NAME}/pica_generator_templates
 
 
 function GetIniEntry() {
@@ -32,7 +33,7 @@ function GetSystemType() {
 
 function GetTemplateFiles() {
     local form_type="$1"
-    echo ${CONFIG_BASE_PATH}/${form_type}_a.template ${CONFIG_BASE_PATH}/${form_type}_o.template
+    echo ${TEMPLATE_DIR}/${form_type}_a.template ${TEMPLATE_DIR}/${form_type}_o.template
 }
 
 function GetOutFiles() {
