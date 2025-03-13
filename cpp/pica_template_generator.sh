@@ -45,7 +45,9 @@ function GetOutFiles() {
 
 function GetTargetMailAddress() {
     local system_type="$1"
-    echo $(GetIniEntry "Mail" ${system_type})
+    local form_type="$2"
+    local text_type=${form_type%%_*}
+    echo $(GetIniEntry "Mail" ${system_type}_${text_type})
 }
 
 
@@ -100,4 +102,4 @@ cat ${body_file} | mutt \
        -e 'set charset="utf-8"' \
        -s "${subject}" \
        -a ${out_files[0]} -a ${out_files[1]} \
-       -- $(GetTargetMailAddress ${system_type})
+       -- $(GetTargetMailAddress ${system_type} ${form_type})
