@@ -44,11 +44,41 @@ struct GNDAndName {
     std::string name_;
 };
 
+
+struct PPNAndISBNType {
+    enum class ISBN_TYPE { PRINT_ISBN, ONLINE_ISBN };
+    std::string ppn_;
+    ISBN_TYPE type_;
+};
+
+
+struct PPNAndType {
+    enum class PPN_TYPE { PRINT, ONLINE };
+    std::string ppn_;
+    PPN_TYPE type_;
+};
+
+
+struct BookInformation {
+    std::string book_id_;
+    std::string title_;
+    std::string subtitle_;
+    std::string language_;
+    std::string description_;
+    std::string print_isbn_;
+    std::string online_isbn_;
+    std::string total_pages_;
+    std::string size_information_;
+    std::string publisher_;
+};
+
+
 using DPTIDToGNDAndNameMap = std::unordered_map<std::string, GNDAndName>;
+using DPTBookIdsToPPNsMap = std::unordered_multimap<std::string, PPNAndISBNType>;
 
 
 [[noreturn]] void Usage() {
-    ::Usage("dpt_books.json author_dpt_id_gnd_mapping.txt marc_output");
+    ::Usage("dpt_books.json author_dpt_id_gnd_mapping.txt book_ppn_mapping.txt marc_output");
 }
 
 
@@ -88,7 +118,6 @@ void InsertTitle(MARC::Record * const marc_record, const std::string &title) {
 void InsertAuthors(MARC::Record * const marc_record, const auto &authors, const DPTIDToGNDAndNameMap &dpt_to_gnds_and_names) {
     bool is_first_author(true);
     for (const auto &author : authors) {
-        std::cout << "Author: " << author << '\n';
         const std::string author_id(author["ID"]);
         const auto gnd_and_name(dpt_to_gnds_and_names.find(author_id));
         if (gnd_and_name == dpt_to_gnds_and_names.end()) {
@@ -114,21 +143,88 @@ void InsertAuthors(MARC::Record * const marc_record, const auto &authors, const 
     }
 }
 
+PPNAndType GetSuperiorPPN(const BookInformation &book_information, const DPTBookIdsToPPNsMap &dpt_book_ids_to_ppns) {
+    PPNAndType superior_ppn_and_type;
+    const auto begin_end(dpt_book_ids_to_ppns.equal_range(book_information.book_id_));
+    if (begin_end.first != begin_end.second) {
+        for (auto pair(begin_end.first); pair != begin_end.second; ++pair) {
+            if (pair->second.type_ == PPNAndISBNType::ISBN_TYPE::ONLINE_ISBN)
+                return PPNAndType({ pair->second.ppn_, PPNAndType::PPN_TYPE::ONLINE });
+            superior_ppn_and_type =
+                superior_ppn_and_type.ppn_.empty() ? PPNAndType({ pair->second.ppn_, PPNAndType::PPN_TYPE::PRINT }) : superior_ppn_and_type;
+        }
+    }
+    return superior_ppn_and_type;
+}
 
-void ConvertArticles(MARC::Writer * const marc_writer, File * const dpt_books_file, const DPTIDToGNDAndNameMap &dpt_to_gnds_and_names) {
+
+void InsertSuperiorWorkInformation(MARC::Record * const marc_record, const BookInformation &book_information,
+                                   const DPTBookIdsToPPNsMap &dpt_book_ids_to_ppns) {
+    PPNAndType superior_ppn_and_type(GetSuperiorPPN(book_information, dpt_book_ids_to_ppns));
+    marc_record->insertField("773", { { 'i', "Enthalten in" },
+                                      { 't', book_information.title_ },
+                                      { 'd', book_information.publisher_ },
+                                      { 'g', "XXXX" },
+                                      { 'h', book_information.total_pages_ },
+                                      { 'w', "(DE-627)" + superior_ppn_and_type.ppn_ } });
+}
+
+
+void ExtractBookInformation(auto &book, BookInformation * const book_information) {
+    book_information->book_id_ = StringUtil::TrimWhite(std::to_string(book.value("ID", 0)));
+    book_information->title_ = StringUtil::TrimWhite(book.value("Titel", ""));
+    book_information->subtitle_ = StringUtil::TrimWhite(book.value("Untertitel", ""));
+    book_information->language_ = StringUtil::TrimWhite(book.value("Sprache", ""));
+    book_information->description_ = StringUtil::TrimWhite(book.value("Beschreibung", ""));
+    book_information->print_isbn_ = StringUtil::TrimWhite(book.value("ISBN-Print", ""));
+    book_information->online_isbn_ = StringUtil::TrimWhite(book.value("ISBN-eBook", ""));
+    book_information->total_pages_ = StringUtil::TrimWhite(std::to_string(book.value("Seiten", 0)));
+    book_information->size_information_ = StringUtil::TrimWhite(book.value("Groesse", ""));
+    book_information->publisher_ = StringUtil::TrimWhite(book.value("Verlag", ""));
+}
+
+
+void CreateBookIDToPPNMap(File * const mapping_file, DPTBookIdsToPPNsMap * const dpt_book_ids_to_ppns) {
+    bool in_print_part = true;
+    while (not mapping_file->eof()) {
+        std::string line;
+        mapping_file->getline(&line);
+        StringUtil::Trim(&line);
+        // Split one separator
+        static ThreadSafeRegexMatcher part_separator("^---+$");
+        if (part_separator.match(line)) {
+            in_print_part = false;
+            continue;
+        }
+
+        std::vector<std::string> mapping;
+        StringUtil::SplitThenTrim(line, ',', " \t", &mapping);
+        if (unlikely(mapping.size() < 3)) {
+            LOG_WARNING("Invalid line \"" + line + "\"");
+            continue;
+        }
+
+        std::string ppn(mapping.size() >= 4 ? mapping[3] : "");
+        dpt_book_ids_to_ppns->emplace(std::make_pair(
+            mapping[0],
+            PPNAndISBNType({ ppn, in_print_part ? PPNAndISBNType::ISBN_TYPE::PRINT_ISBN : PPNAndISBNType::ISBN_TYPE::ONLINE_ISBN })));
+    }
+}
+
+
+void ConvertArticles(MARC::Writer * const marc_writer, File * const dpt_books_file, const DPTIDToGNDAndNameMap &dpt_to_gnds_and_names,
+                     const DPTBookIdsToPPNsMap &dpt_book_ids_to_ppns) {
     std::ifstream dpt_books(dpt_books_file->getPath());
     nlohmann::json books_json(nlohmann::json::parse(dpt_books));
 
     for (const auto &book : books_json["Bücher"]) {
+        BookInformation book_information;
+        ExtractBookInformation(book, &book_information);
         for (const auto &chapter : book["Kapitel"]) {
-            std::cout << chapter << "\n\n";
-            const std::string dpt_id(chapter["ID"]);
-            std::cout << "ID: " << chapter["ID"] << '\n';
-            MARC::Record * const new_record(CreateNewRecord(dpt_id));
-            const std::string title(chapter["Titel"]);
-            std::cout << "Titel: " << chapter["Titel"] << '\n';
+            MARC::Record * const new_record(CreateNewRecord(chapter["ID"]));
             InsertTitle(new_record, chapter["Titel"]);
             InsertAuthors(new_record, chapter["Autoren"], dpt_to_gnds_and_names);
+            InsertSuperiorWorkInformation(new_record, book_information, dpt_book_ids_to_ppns);
             marc_writer->write(*new_record);
             delete new_record;
         }
@@ -139,18 +235,22 @@ void ConvertArticles(MARC::Writer * const marc_writer, File * const dpt_books_fi
 
 
 int Main(int argc, char *argv[]) {
-    if (argc != 4)
+    if (argc != 5)
         Usage();
     const std::string dpt_books_file_path(argv[1]);
     const std::string dpt_id_gnd_mapping_file_path(argv[2]);
-    const std::string marc_output_path(argv[3]);
+    const std::string dpt_id_and_isbn_to_ppn_mapping_file_path(argv[3]);
+    const std::string marc_output_path(argv[4]);
 
     std::unique_ptr<File> dpt_books_file(FileUtil::OpenInputFileOrDie(dpt_books_file_path));
     std::unique_ptr<File> dpt_id_gnd_mapping_file(FileUtil::OpenInputFileOrDie(dpt_id_gnd_mapping_file_path));
+    std::unique_ptr<File> dpt_id_and_isbn_to_ppn_mapping_file(FileUtil::OpenInputFileOrDie(dpt_id_and_isbn_to_ppn_mapping_file_path));
     const std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_path));
     std::unordered_map<std::string, GNDAndName> dpt_ids_to_gnds_and_names;
     CreateIDToGNDAndNameMap(dpt_id_gnd_mapping_file.get(), &dpt_ids_to_gnds_and_names);
-    ConvertArticles(marc_writer.get(), dpt_books_file.get(), dpt_ids_to_gnds_and_names);
+    DPTBookIdsToPPNsMap dpt_book_ids_to_ppns;
+    CreateBookIDToPPNMap(dpt_id_and_isbn_to_ppn_mapping_file.get(), &dpt_book_ids_to_ppns);
+    ConvertArticles(marc_writer.get(), dpt_books_file.get(), dpt_ids_to_gnds_and_names, dpt_book_ids_to_ppns);
 
     return EXIT_SUCCESS;
 }
