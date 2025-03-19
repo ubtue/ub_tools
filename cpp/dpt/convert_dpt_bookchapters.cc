@@ -124,7 +124,16 @@ MARC::Record *CreateNewRecord(const std::string &dpt_id) {
 void InsertTitle(MARC::Record * const marc_record, const std::string &title) {
     if (title.empty())
         return;
-    marc_record->insertField("245", 'a', title);
+    marc_record->insertField("245", 'a', title, '1', '0');
+}
+
+
+std::string GetAuthorTag(const bool is_first_author, const auto &gnd_and_name) {
+    if (gnd_and_name->second.type_ == GNDAndName::ENTITY_TYPE::CORPORATE)
+        return is_first_author ? "110" : "710";
+    if (gnd_and_name->second.type_ == GNDAndName::ENTITY_TYPE::CONGRESS)
+        return is_first_author ? "111" : "711";
+    return is_first_author ? "100" : "700";
 }
 
 
@@ -137,7 +146,7 @@ void InsertAuthors(MARC::Record * const marc_record, const auto &authors, const 
             LOG_WARNING("Unable to associate author with ID " + author_id);
             continue;
         }
-        const std::string author_tag(is_first_author ? "100" : "700");
+        std::string author_tag(GetAuthorTag(is_first_author, gnd_and_name));
         const std::string &name(gnd_and_name->second.name_);
         const std::string &gnd(gnd_and_name->second.gnd_);
 
@@ -155,6 +164,7 @@ void InsertAuthors(MARC::Record * const marc_record, const auto &authors, const 
         is_first_author = is_first_author ? false : is_first_author;
     }
 }
+
 
 PPNAndType GetSuperiorPPN(const BookInformation &book_information, const DPTBookIdsToPPNsMap &dpt_book_ids_to_ppns) {
     PPNAndType superior_ppn_and_type;
@@ -177,9 +187,15 @@ void InsertSuperiorWorkInformation(MARC::Record * const marc_record, const BookI
     marc_record->insertField("773", { { 'i', "Enthalten in" },
                                       { 't', book_information.title_ },
                                       { 'd', book_information.publisher_ },
-                                      { 'g', "XXXX" },
                                       { 'h', book_information.total_pages_ },
                                       { 'w', "(DE-627)" + superior_ppn_and_type.ppn_ } });
+}
+
+
+const std::string DPT_ARTICLE_BASE_URL("https://www.praeventionstag.de/nano.cms/vortraege/id/");
+
+void InsertLinks(MARC::Record * const marc_record, const std::string dpt_id) {
+    marc_record->insertField("856", 'u', DPT_ARTICLE_BASE_URL + dpt_id, '4', '0');
 }
 
 
@@ -234,10 +250,13 @@ void ConvertArticles(MARC::Writer * const marc_writer, File * const dpt_books_fi
         BookInformation book_information;
         ExtractBookInformation(book, &book_information);
         for (const auto &chapter : book["Kapitel"]) {
-            MARC::Record * const new_record(CreateNewRecord(chapter["ID"]));
+            const std::string dpt_id(chapter["ID"]);
+            MARC::Record * const new_record(CreateNewRecord(dpt_id));
+
             InsertTitle(new_record, chapter["Titel"]);
             InsertAuthors(new_record, chapter["Autoren"], dpt_to_gnds_and_names);
             InsertSuperiorWorkInformation(new_record, book_information, dpt_book_ids_to_ppns);
+            InsertLinks(new_record, dpt_id);
             marc_writer->write(*new_record);
             delete new_record;
         }
