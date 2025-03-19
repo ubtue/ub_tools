@@ -42,6 +42,8 @@ const char SEPARATOR_CHAR('|');
 struct GNDAndName {
     std::string gnd_;
     std::string name_;
+    enum class ENTITY_TYPE { PERSON, CORPORATE, CONGRESS };
+    ENTITY_TYPE type_;
 };
 
 
@@ -82,6 +84,15 @@ using DPTBookIdsToPPNsMap = std::unordered_multimap<std::string, PPNAndISBNType>
 }
 
 
+GNDAndName::ENTITY_TYPE GetEntityType(const std::string &entity) {
+    if (StringUtil::ASCIIToLower(entity) == "corporate")
+        return GNDAndName::ENTITY_TYPE::CORPORATE;
+    if (StringUtil::ASCIIToLower(entity) == "congress")
+        return GNDAndName::ENTITY_TYPE::CONGRESS;
+    LOG_ERROR("Unknown entity type: \"" + entity + "\"");
+}
+
+
 void CreateIDToGNDAndNameMap(File * const mapping_file, DPTIDToGNDAndNameMap * const dpt_to_gnds_and_names) {
     while (not mapping_file->eof()) {
         std::string line;
@@ -89,11 +100,13 @@ void CreateIDToGNDAndNameMap(File * const mapping_file, DPTIDToGNDAndNameMap * c
         StringUtil::Trim(&line);
         std::vector<std::string> mapping;
         StringUtil::SplitThenTrim(line, SEPARATOR_CHAR, " \t", &mapping);
-        if (unlikely(mapping.size() != 3)) {
+        if (unlikely(mapping.size() != 3 && mapping.size() != 4)) {
             LOG_WARNING("Invalid line \"" + line + "\"");
             continue;
         }
-        dpt_to_gnds_and_names->emplace(std::make_pair(mapping[0], GNDAndName({ mapping[1], mapping[2] })));
+
+        GNDAndName::ENTITY_TYPE type((mapping.size() == 4) ? GetEntityType(mapping[3]) : GNDAndName::ENTITY_TYPE::PERSON);
+        dpt_to_gnds_and_names->emplace(std::make_pair(mapping[0], GNDAndName({ mapping[1], mapping[2], type })));
     }
 }
 
