@@ -72,6 +72,25 @@ struct BookInformation {
     std::string total_pages_;
     std::string size_information_;
     std::string publisher_;
+    inline std::string toString() const {
+        std::string as_string;
+        as_string += "book_id: " + book_id_ + '\n';
+        as_string += "title: " + title_ + '\n';
+        as_string += "subtitle: " + subtitle_ + '\n';
+        as_string += "language: " + language_ + '\n';
+        as_string += "description: " + description_ + '\n';
+        as_string += "print_isbn: " + print_isbn_ + '\n';
+        as_string += "online_isbn: " + online_isbn_ + '\n';
+        as_string += "total_pages: " + total_pages_ + '\n';
+        as_string += "size_information: " + size_information_ + '\n';
+        as_string += "publisher: " + publisher_ + '\n';
+
+        return as_string;
+    }
+    std::ostream &operator<<(std::ostream &os) const { return os << toString(); };
+    friend std::ostream &operator<<(std::ostream &output, const BookInformation &book_information) {
+        return output << book_information.toString();
+    }
 };
 
 
@@ -276,6 +295,10 @@ void ConvertArticles(MARC::Writer * const marc_writer, File * const dpt_books_fi
     for (const auto &book : books_json["Bücher"]) {
         BookInformation book_information;
         ExtractBookInformation(book, &book_information);
+        // Uncomment to extract only book information:
+        // std::cout << book_information << "##############################\n\n";
+        // continue;
+
         for (const auto &chapter : book["Kapitel"]) {
             const std::string dpt_id(chapter["ID"]);
             MARC::Record * const new_record(CreateNewRecord(dpt_id));
