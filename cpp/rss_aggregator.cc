@@ -46,7 +46,7 @@ namespace {
 
 [[noreturn]] void Usage() {
     ::Usage(
-        "optional:[--use-web-proxy] subsystem_type email_address xml_output_path\n"
+        "optional:[--download-feeds] optional:[--use-web-proxy] subsystem_type email_address xml_output_path\n"
         "where subsystem_type must be one of {ixtheo,relbib,krimdok}");
 }
 
@@ -314,15 +314,18 @@ void GenerateSubsystemSpecificXML(const std::string &subsystem_type, const std::
 
 
 int Main(int argc, char *argv[]) {
-    if (argc != 4 and argc != 5)
+    if (argc < 4 || argc > 6)
         Usage();
 
     Downloader::Params params;
-    bool use_web_proxy = false;
+    bool download_feeds = false;
 
-    if (argc == 5) {
+    if (argc >= 5) {
+        if (std::strcmp(argv[1], "--download-feeds") == 0) {
+            download_feeds = true;
+            --argc, ++argv;
+        }
         if (std::strcmp(argv[1], "--use-web-proxy") == 0) {
-            use_web_proxy = true;
             --argc, ++argv;
             params.proxy_host_and_port_ = UBTools::GetUBWebProxyURL();
             params.ignore_ssl_certificates_ = true;
@@ -345,7 +348,7 @@ int Main(int argc, char *argv[]) {
     int number_feeds_with_error = 0;
 
     try {
-        if (use_web_proxy) {
+        if (download_feeds) {
             number_feeds_with_error = ProcessFeeds(&db_connection, &downloader);
         }
 
