@@ -128,7 +128,8 @@ MARC::Record *CreateNewRecord(const std::string &dpt_id) {
 void InsertTitle(MARC::Record * const marc_record, const std::string &title) {
     if (title.empty())
         return;
-    marc_record->insertField("245", 'a', title, '1', '0');
+    std::string title_clean(HtmlUtil::ReplaceEntitiesUTF8(title));
+    marc_record->insertField("245", 'a', title_clean, '1', '0');
 }
 
 
@@ -202,7 +203,7 @@ void InsertSuperiorWorkInformation(MARC::Record * const marc_record, const BookI
 void InsertSelectors(MARC::Record * const marc_record) {
     marc_record->insertField("084", { { 'a', "2,1" }, { '2', "ssgn" } });
     marc_record->insertField("935", { { 'a', "mkri" } });
-    marc_record->insertField("935", { { 'a', "dptlXXXXX" }, { '2', "LOK" } });
+    marc_record->insertField("935", { { 'a', "XXXXXXX" }, { '2', "LOK" } });
 }
 
 
@@ -226,10 +227,11 @@ void InsertLanguage(MARC::Record * const marc_record, const std::string dpt_lang
 
 void ExtractBookInformation(auto &book, BookInformation * const book_information) {
     book_information->book_id_ = StringUtil::TrimWhite(std::to_string(book.value("ID", 0)));
-    book_information->title_ = StringUtil::TrimWhite(book.value("Titel", ""));
-    book_information->subtitle_ = StringUtil::TrimWhite(book.value("Untertitel", ""));
+    book_information->title_ = HtmlUtil::ReplaceEntitiesUTF8(StringUtil::TrimWhite(book.value("Titel", "")));
+    book_information->subtitle_ = HtmlUtil::ReplaceEntitiesUTF8(StringUtil::TrimWhite(book.value("Untertitel", "")));
     book_information->language_ = StringUtil::TrimWhite(book.value("Sprache", ""));
-    book_information->description_ = StringUtil::TrimWhite(book.value("Beschreibung", ""));
+    book_information->description_ =
+        HtmlUtil::ReplaceEntitiesUTF8(HtmlUtil::StripHtmlTags(StringUtil::TrimWhite(book.value("Beschreibung", ""))));
     book_information->print_isbn_ = StringUtil::TrimWhite(book.value("ISBN-Print", ""));
     book_information->online_isbn_ = StringUtil::TrimWhite(book.value("ISBN-eBook", ""));
     book_information->total_pages_ = StringUtil::TrimWhite(std::to_string(book.value("Seiten", 0)));
