@@ -117,7 +117,11 @@ MARC::Record *CreateNewRecord(const std::string &dpt_id) {
     const std::string prefix("DPT");
     const std::string ppn(prefix + formatted_number.str());
 
-    return new MARC::Record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::SERIAL_COMPONENT_PART, ppn);
+    MARC::Record *new_record(
+        new MARC::Record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::MONOGRAPHIC_COMPONENT_PART, ppn));
+    new_record->insertField("007", "cr|||||");
+    new_record->insertField("912", 'a', "NOMM");
+    return new_record;
 }
 
 
@@ -159,7 +163,8 @@ void InsertAuthors(MARC::Record * const marc_record, const auto &authors, const 
             LOG_WARNING("No name given for Author ID " + author_id);
         }
 
-        marc_record->insertField(author_tag, { { 'a', name }, { '0', "(DE-588)" + gnd } });
+        marc_record->insertField(author_tag, { { 'a', name }, { 'e', "VerfasserIn" }, { '0', "(DE-588)" + gnd }, { '4', "aut" } }, '1',
+                                 ' ');
 
         is_first_author = is_first_author ? false : is_first_author;
     }
@@ -184,11 +189,20 @@ PPNAndType GetSuperiorPPN(const BookInformation &book_information, const DPTBook
 void InsertSuperiorWorkInformation(MARC::Record * const marc_record, const BookInformation &book_information,
                                    const DPTBookIdsToPPNsMap &dpt_book_ids_to_ppns) {
     PPNAndType superior_ppn_and_type(GetSuperiorPPN(book_information, dpt_book_ids_to_ppns));
-    marc_record->insertField("773", { { 'i', "Enthalten in" },
-                                      { 't', book_information.title_ },
-                                      { 'd', book_information.publisher_ },
-                                      { 'h', book_information.total_pages_ },
-                                      { 'w', "(DE-627)" + superior_ppn_and_type.ppn_ } });
+    marc_record->insertField("773",
+                             { { 'i', "Enthalten in" },
+                               { 't', book_information.title_ },
+                               { 'd', book_information.publisher_ },
+                               { 'h', book_information.total_pages_ },
+                               { 'w', "(DE-627)" + superior_ppn_and_type.ppn_ } },
+                             '0', '8');
+}
+
+
+void InsertSelectors(MARC::Record * const marc_record) {
+    marc_record->insertField("084", { { 'a', "2,1" }, { '2', "ssgn" } });
+    marc_record->insertField("935", { { 'a', "mkri" } });
+    marc_record->insertField("935", { { 'a', "dptlXXXXX" }, { '2', "LOK" } });
 }
 
 
@@ -196,6 +210,17 @@ const std::string DPT_ARTICLE_BASE_URL("https://www.praeventionstag.de/nano.cms/
 
 void InsertLinks(MARC::Record * const marc_record, const std::string dpt_id) {
     marc_record->insertField("856", 'u', DPT_ARTICLE_BASE_URL + dpt_id, '4', '0');
+}
+
+void InsertLanguage(MARC::Record * const marc_record, const std::string dpt_language) {
+    std::string lang;
+    if (dpt_language == "Deutsch")
+        lang = "ger";
+    else if (dpt_language == "Englisch")
+        lang = "eng";
+    else
+        lang = "mis";
+    marc_record->insertField("041", { { 'a', lang } });
 }
 
 
@@ -252,11 +277,12 @@ void ConvertArticles(MARC::Writer * const marc_writer, File * const dpt_books_fi
         for (const auto &chapter : book["Kapitel"]) {
             const std::string dpt_id(chapter["ID"]);
             MARC::Record * const new_record(CreateNewRecord(dpt_id));
-
-            InsertTitle(new_record, chapter["Titel"]);
+            InsertLanguage(new_record, book_information.language_);
             InsertAuthors(new_record, chapter["Autoren"], dpt_to_gnds_and_names);
+            InsertTitle(new_record, chapter["Titel"]);
             InsertSuperiorWorkInformation(new_record, book_information, dpt_book_ids_to_ppns);
             InsertLinks(new_record, dpt_id);
+            InsertSelectors(new_record);
             marc_writer->write(*new_record);
             delete new_record;
         }
