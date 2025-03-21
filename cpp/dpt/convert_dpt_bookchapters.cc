@@ -42,6 +42,8 @@ const char SEPARATOR_CHAR('|');
 struct GNDAndName {
     std::string gnd_;
     std::string name_;
+    enum class ENTITY_TYPE { PERSON, CORPORATE, CONGRESS };
+    ENTITY_TYPE type_;
 };
 
 
@@ -70,6 +72,25 @@ struct BookInformation {
     std::string total_pages_;
     std::string size_information_;
     std::string publisher_;
+    inline std::string toString() const {
+        std::string as_string;
+        as_string += "book_id: " + book_id_ + '\n';
+        as_string += "title: " + title_ + '\n';
+        as_string += "subtitle: " + subtitle_ + '\n';
+        as_string += "language: " + language_ + '\n';
+        as_string += "description: " + description_ + '\n';
+        as_string += "print_isbn: " + print_isbn_ + '\n';
+        as_string += "online_isbn: " + online_isbn_ + '\n';
+        as_string += "total_pages: " + total_pages_ + '\n';
+        as_string += "size_information: " + size_information_ + '\n';
+        as_string += "publisher: " + publisher_ + '\n';
+
+        return as_string;
+    }
+    std::ostream &operator<<(std::ostream &os) const { return os << toString(); };
+    friend std::ostream &operator<<(std::ostream &output, const BookInformation &book_information) {
+        return output << book_information.toString();
+    }
 };
 
 
@@ -82,6 +103,15 @@ using DPTBookIdsToPPNsMap = std::unordered_multimap<std::string, PPNAndISBNType>
 }
 
 
+GNDAndName::ENTITY_TYPE GetEntityType(const std::string &entity) {
+    if (StringUtil::ASCIIToLower(entity) == "corporate")
+        return GNDAndName::ENTITY_TYPE::CORPORATE;
+    if (StringUtil::ASCIIToLower(entity) == "congress")
+        return GNDAndName::ENTITY_TYPE::CONGRESS;
+    LOG_ERROR("Unknown entity type: \"" + entity + "\"");
+}
+
+
 void CreateIDToGNDAndNameMap(File * const mapping_file, DPTIDToGNDAndNameMap * const dpt_to_gnds_and_names) {
     while (not mapping_file->eof()) {
         std::string line;
@@ -89,11 +119,13 @@ void CreateIDToGNDAndNameMap(File * const mapping_file, DPTIDToGNDAndNameMap * c
         StringUtil::Trim(&line);
         std::vector<std::string> mapping;
         StringUtil::SplitThenTrim(line, SEPARATOR_CHAR, " \t", &mapping);
-        if (unlikely(mapping.size() != 3)) {
+        if (unlikely(mapping.size() != 3 && mapping.size() != 4)) {
             LOG_WARNING("Invalid line \"" + line + "\"");
             continue;
         }
-        dpt_to_gnds_and_names->emplace(std::make_pair(mapping[0], GNDAndName({ mapping[1], mapping[2] })));
+
+        GNDAndName::ENTITY_TYPE type((mapping.size() == 4) ? GetEntityType(mapping[3]) : GNDAndName::ENTITY_TYPE::PERSON);
+        dpt_to_gnds_and_names->emplace(std::make_pair(mapping[0], GNDAndName({ mapping[1], mapping[2], type })));
     }
 }
 
@@ -104,14 +136,28 @@ MARC::Record *CreateNewRecord(const std::string &dpt_id) {
     const std::string prefix("DPT");
     const std::string ppn(prefix + formatted_number.str());
 
-    return new MARC::Record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::SERIAL_COMPONENT_PART, ppn);
+    MARC::Record *new_record(
+        new MARC::Record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::MONOGRAPHIC_COMPONENT_PART, ppn));
+    new_record->insertField("007", "cr|||||");
+    new_record->insertField("912", 'a', "NOMM");
+    return new_record;
 }
 
 
 void InsertTitle(MARC::Record * const marc_record, const std::string &title) {
     if (title.empty())
         return;
-    marc_record->insertField("245", 'a', title);
+    std::string title_clean(HtmlUtil::ReplaceEntitiesUTF8(title));
+    marc_record->insertField("245", 'a', title_clean, '1', '0');
+}
+
+
+std::string GetAuthorTag(const bool is_first_author, const auto &gnd_and_name) {
+    if (gnd_and_name->second.type_ == GNDAndName::ENTITY_TYPE::CORPORATE)
+        return is_first_author ? "110" : "710";
+    if (gnd_and_name->second.type_ == GNDAndName::ENTITY_TYPE::CONGRESS)
+        return is_first_author ? "111" : "711";
+    return is_first_author ? "100" : "700";
 }
 
 
@@ -124,7 +170,7 @@ void InsertAuthors(MARC::Record * const marc_record, const auto &authors, const 
             LOG_WARNING("Unable to associate author with ID " + author_id);
             continue;
         }
-        const std::string author_tag(is_first_author ? "100" : "700");
+        std::string author_tag(GetAuthorTag(is_first_author, gnd_and_name));
         const std::string &name(gnd_and_name->second.name_);
         const std::string &gnd(gnd_and_name->second.gnd_);
 
@@ -137,11 +183,13 @@ void InsertAuthors(MARC::Record * const marc_record, const auto &authors, const 
             LOG_WARNING("No name given for Author ID " + author_id);
         }
 
-        marc_record->insertField(author_tag, { { 'a', name }, { '0', "(DE-588)" + gnd } });
+        marc_record->insertField(author_tag, { { 'a', name }, { 'e', "VerfasserIn" }, { '0', "(DE-588)" + gnd }, { '4', "aut" } }, '1',
+                                 ' ');
 
         is_first_author = is_first_author ? false : is_first_author;
     }
 }
+
 
 PPNAndType GetSuperiorPPN(const BookInformation &book_information, const DPTBookIdsToPPNsMap &dpt_book_ids_to_ppns) {
     PPNAndType superior_ppn_and_type;
@@ -161,21 +209,48 @@ PPNAndType GetSuperiorPPN(const BookInformation &book_information, const DPTBook
 void InsertSuperiorWorkInformation(MARC::Record * const marc_record, const BookInformation &book_information,
                                    const DPTBookIdsToPPNsMap &dpt_book_ids_to_ppns) {
     PPNAndType superior_ppn_and_type(GetSuperiorPPN(book_information, dpt_book_ids_to_ppns));
-    marc_record->insertField("773", { { 'i', "Enthalten in" },
-                                      { 't', book_information.title_ },
-                                      { 'd', book_information.publisher_ },
-                                      { 'g', "XXXX" },
-                                      { 'h', book_information.total_pages_ },
-                                      { 'w', "(DE-627)" + superior_ppn_and_type.ppn_ } });
+    marc_record->insertField("773",
+                             { { 'i', "Enthalten in" },
+                               { 't', book_information.title_ },
+                               { 'd', book_information.publisher_ },
+                               { 'h', book_information.total_pages_ },
+                               { 'w', "(DE-627)" + superior_ppn_and_type.ppn_ } },
+                             '0', '8');
+}
+
+
+void InsertSelectors(MARC::Record * const marc_record) {
+    marc_record->insertField("084", { { 'a', "2,1" }, { '2', "ssgn" } });
+    marc_record->insertField("935", { { 'a', "mkri" } });
+    marc_record->insertField("935", { { 'a', "XXXXXXX" }, { '2', "LOK" } });
+}
+
+
+const std::string DPT_ARTICLE_BASE_URL("https://www.praeventionstag.de/nano.cms/vortraege/id/");
+
+void InsertLinks(MARC::Record * const marc_record, const std::string dpt_id) {
+    marc_record->insertField("856", 'u', DPT_ARTICLE_BASE_URL + dpt_id, '4', '0');
+}
+
+void InsertLanguage(MARC::Record * const marc_record, const std::string dpt_language) {
+    std::string lang;
+    if (dpt_language == "Deutsch")
+        lang = "ger";
+    else if (dpt_language == "Englisch")
+        lang = "eng";
+    else
+        lang = "mis";
+    marc_record->insertField("041", { { 'a', lang } });
 }
 
 
 void ExtractBookInformation(auto &book, BookInformation * const book_information) {
     book_information->book_id_ = StringUtil::TrimWhite(std::to_string(book.value("ID", 0)));
-    book_information->title_ = StringUtil::TrimWhite(book.value("Titel", ""));
-    book_information->subtitle_ = StringUtil::TrimWhite(book.value("Untertitel", ""));
+    book_information->title_ = HtmlUtil::ReplaceEntitiesUTF8(StringUtil::TrimWhite(book.value("Titel", "")));
+    book_information->subtitle_ = HtmlUtil::ReplaceEntitiesUTF8(StringUtil::TrimWhite(book.value("Untertitel", "")));
     book_information->language_ = StringUtil::TrimWhite(book.value("Sprache", ""));
-    book_information->description_ = StringUtil::TrimWhite(book.value("Beschreibung", ""));
+    book_information->description_ =
+        HtmlUtil::ReplaceEntitiesUTF8(HtmlUtil::StripHtmlTags(StringUtil::TrimWhite(book.value("Beschreibung", ""))));
     book_information->print_isbn_ = StringUtil::TrimWhite(book.value("ISBN-Print", ""));
     book_information->online_isbn_ = StringUtil::TrimWhite(book.value("ISBN-eBook", ""));
     book_information->total_pages_ = StringUtil::TrimWhite(std::to_string(book.value("Seiten", 0)));
@@ -220,11 +295,19 @@ void ConvertArticles(MARC::Writer * const marc_writer, File * const dpt_books_fi
     for (const auto &book : books_json["Bücher"]) {
         BookInformation book_information;
         ExtractBookInformation(book, &book_information);
+        // Uncomment to extract only book information:
+        // std::cout << book_information << "##############################\n\n";
+        // continue;
+
         for (const auto &chapter : book["Kapitel"]) {
-            MARC::Record * const new_record(CreateNewRecord(chapter["ID"]));
-            InsertTitle(new_record, chapter["Titel"]);
+            const std::string dpt_id(chapter["ID"]);
+            MARC::Record * const new_record(CreateNewRecord(dpt_id));
+            InsertLanguage(new_record, book_information.language_);
             InsertAuthors(new_record, chapter["Autoren"], dpt_to_gnds_and_names);
+            InsertTitle(new_record, chapter["Titel"]);
             InsertSuperiorWorkInformation(new_record, book_information, dpt_book_ids_to_ppns);
+            InsertLinks(new_record, dpt_id);
+            InsertSelectors(new_record);
             marc_writer->write(*new_record);
             delete new_record;
         }
