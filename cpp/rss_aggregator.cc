@@ -46,7 +46,7 @@ namespace {
 
 [[noreturn]] void Usage() {
     ::Usage(
-        "[--use-web-proxy] subsystem_type email_address xml_output_path\n"
+        "[--download-feeds [--use-web-proxy]] subsystem_type email_address xml_output_path\n"
         "where subsystem_type must be one of {ixtheo,relbib,krimdok}");
 }
 
@@ -275,11 +275,9 @@ constexpr unsigned DEFAULT_XML_INDENT_AMOUNT = 2;
 constexpr unsigned SECONDS_TO_MILLISECONDS = 1000;
 
 
-int ProcessFeeds(const std::string &subsystem_type, const std::string &xml_output_filename, DbConnection * const db_connection,
-                 Downloader * const downloader) {
+int ProcessFeeds(DbConnection * const db_connection, Downloader * const downloader) {
     unsigned number_feeds_with_error = 0;
-    db_connection->queryOrDie("SELECT * FROM tuefind_rss_feeds WHERE FIND_IN_SET('" + subsystem_type
-                              + "', subsystem_types) > 0 AND active = '1'");
+    db_connection->queryOrDie("SELECT * FROM tuefind_rss_feeds WHERE active = '1'");
     auto result_set(db_connection->getLastResultSet());
     while (const auto row = result_set.getNextRow()) {
         LOG_INFO("Processing feed \"" + row["feed_name"] + "\".");
@@ -293,19 +291,22 @@ int ProcessFeeds(const std::string &subsystem_type, const std::string &xml_outpu
             LOG_INFO("Downloaded " + std::to_string(new_item_count) + " new items.");
     }
 
-    std::vector<HarvestedRSSItem> harvested_items;
-    const auto feed_item_count(SelectItems(subsystem_type, db_connection, &harvested_items));
+    return number_feeds_with_error;
+}
 
-    // scoped here so that we flush and close the output file right away
-    {
-        XmlWriter xml_writer(FileUtil::OpenOutputFileOrDie(xml_output_filename).release(), XmlWriter::WriteTheXmlDeclaration,
-                             DEFAULT_XML_INDENT_AMOUNT);
-        WriteRSSFeedXMLOutput(subsystem_type, harvested_items, &xml_writer);
-    }
+
+void GenerateSubsystemSpecificXML(const std::string &subsystem_type, const std::string &xml_output_filename,
+                                  DbConnection * const db_connection) {
+    std::vector<HarvestedRSSItem> harvested_items;
+
+    const auto feed_item_count = SelectItems(subsystem_type, db_connection, &harvested_items);
+
+    XmlWriter xml_writer(FileUtil::OpenOutputFileOrDie(xml_output_filename).release(), XmlWriter::WriteTheXmlDeclaration,
+                         DEFAULT_XML_INDENT_AMOUNT);
+    WriteRSSFeedXMLOutput(subsystem_type, harvested_items, &xml_writer);
+
     LOG_INFO("Created our feed with " + std::to_string(feed_item_count) + " items from the last " + std::to_string(HARVEST_TIME_WINDOW)
              + " days.");
-
-    return number_feeds_with_error;
 }
 
 
@@ -313,49 +314,70 @@ int ProcessFeeds(const std::string &subsystem_type, const std::string &xml_outpu
 
 
 int Main(int argc, char *argv[]) {
-    if (argc != 4 and argc != 5)
+    if (argc < 4 || argc > 6)
         Usage();
 
     Downloader::Params params;
-    if (argc == 5) {
-        if (std::strcmp(argv[1], "--use-web-proxy") != 0)
-            Usage();
-        --argc, ++argv;
-        params.proxy_host_and_port_ = UBTools::GetUBWebProxyURL();
-        params.ignore_ssl_certificates_ = true;
+    bool download_feeds = false;
+
+    if (argc >= 5) {
+        if (std::strcmp(argv[1], "--download-feeds") == 0) {
+            download_feeds = true;
+            --argc, ++argv;
+        }
+        if (std::strcmp(argv[1], "--use-web-proxy") == 0) {
+            if (!download_feeds) {
+                Usage();
+            }
+            --argc, ++argv;
+            params.proxy_host_and_port_ = UBTools::GetUBWebProxyURL();
+            params.ignore_ssl_certificates_ = true;
+        }
     }
+
     Downloader downloader(params);
 
     const std::string subsystem_type(argv[1]);
-    if (subsystem_type != "ixtheo" and subsystem_type != "relbib" and subsystem_type != "krimdok")
+    if (subsystem_type != "ixtheo" and subsystem_type != "relbib" and subsystem_type != "krimdok") {
+        Usage();
         LOG_ERROR("subsystem_type must be one of {ixtheo,relbib,krimdok}!");
+    }
 
     const auto program_basename(FileUtil::GetBasename(::progname));
     const std::string email_address(argv[2]);
     const std::string xml_output_filename(argv[3]);
 
     auto db_connection(DbConnection::VuFindMySQLFactory());
+    int number_feeds_with_error = 0;
 
     try {
-        int number_feeds_with_error = ProcessFeeds(subsystem_type, xml_output_filename, &db_connection, &downloader);
+        if (download_feeds) {
+            number_feeds_with_error = ProcessFeeds(&db_connection, &downloader);
+        }
+
+        GenerateSubsystemSpecificXML(subsystem_type, xml_output_filename, &db_connection);
+
         if (number_feeds_with_error > 0) {
             const auto subject(program_basename + " on " + DnsUtil::GetHostname() + " (subsystem_type: " + subsystem_type + ")");
-            const auto message_body("number of feeds that could not be downloaded: " + std::to_string(number_feeds_with_error));
+            const auto message_body("Number of feeds that could not be downloaded: " + std::to_string(number_feeds_with_error));
             if (EmailSender::SimplerSendEmail("no_reply@ub.uni-tuebingen.de", { email_address }, subject, message_body,
                                               EmailSender::VERY_HIGH)
-                < 299)
+                < 299) {
                 return EXIT_FAILURE;
-            else
-                LOG_ERROR("failed to send an email error report!");
+            } else {
+                LOG_ERROR("Failed to send an email error report!");
+            }
         }
+
         return EXIT_SUCCESS;
     } catch (const std::runtime_error &x) {
         const auto subject(program_basename + " failed on " + DnsUtil::GetHostname() + " (subsystem_type: " + subsystem_type + ")");
-        const auto message_body("caught exception: " + std::string(x.what()));
+        const auto message_body("Caught exception: " + std::string(x.what()));
         if (EmailSender::SimplerSendEmail("no_reply@ub.uni-tuebingen.de", { email_address }, subject, message_body, EmailSender::VERY_HIGH)
-            < 299)
+            < 299) {
             return EXIT_FAILURE;
-        else
-            LOG_ERROR("failed to send an email error report!");
+        } else {
+            LOG_ERROR("Failed to send an email error report!");
+        }
     }
 }
