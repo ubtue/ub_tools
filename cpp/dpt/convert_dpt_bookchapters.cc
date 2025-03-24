@@ -99,7 +99,9 @@ using DPTBookIdsToPPNsMap = std::unordered_multimap<std::string, PPNAndISBNType>
 
 
 [[noreturn]] void Usage() {
-    ::Usage("dpt_books.json author_dpt_id_gnd_mapping.txt book_ppn_mapping.txt marc_output");
+    ::Usage(
+        "--extract-only-book-information dpt_books.json |\n"
+        "dpt_books.json author_dpt_id_gnd_mapping.txt book_ppn_mapping.txt marc_output]");
 }
 
 
@@ -291,14 +293,9 @@ void ConvertArticles(MARC::Writer * const marc_writer, File * const dpt_books_fi
                      const DPTBookIdsToPPNsMap &dpt_book_ids_to_ppns) {
     std::ifstream dpt_books(dpt_books_file->getPath());
     nlohmann::json books_json(nlohmann::json::parse(dpt_books));
-
     for (const auto &book : books_json["Bücher"]) {
         BookInformation book_information;
         ExtractBookInformation(book, &book_information);
-        // Uncomment to extract only book information:
-        // std::cout << book_information << "##############################\n\n";
-        // continue;
-
         for (const auto &chapter : book["Kapitel"]) {
             const std::string dpt_id(chapter["ID"]);
             MARC::Record * const new_record(CreateNewRecord(dpt_id));
@@ -314,18 +311,45 @@ void ConvertArticles(MARC::Writer * const marc_writer, File * const dpt_books_fi
     }
 }
 
+
+void ExtractBookInformation(File * const dpt_books_file) {
+    std::ifstream dpt_books(dpt_books_file->getPath());
+    nlohmann::json books_json(nlohmann::json::parse(dpt_books));
+    for (const auto &book : books_json["Bücher"]) {
+        BookInformation book_information;
+        ExtractBookInformation(book, &book_information);
+        std::cout << book_information << "##############################\n\n";
+    }
+}
+
 } // unnamed namespace
 
 
 int Main(int argc, char *argv[]) {
+    if (argc < 2)
+        Usage();
+
+    bool extract_only_book_information(false);
+    if (std::strcmp("--extract-only-book-information", argv[1]) == 0) {
+        extract_only_book_information = true;
+        ++argv, --argc;
+    }
+
+    const std::string dpt_books_file_path(argv[1]);
+    std::unique_ptr<File> dpt_books_file(FileUtil::OpenInputFileOrDie(dpt_books_file_path));
+
+    if (extract_only_book_information) {
+        ExtractBookInformation(dpt_books_file.get());
+        std::exit(0);
+    }
+
     if (argc != 5)
         Usage();
-    const std::string dpt_books_file_path(argv[1]);
+
     const std::string dpt_id_gnd_mapping_file_path(argv[2]);
     const std::string dpt_id_and_isbn_to_ppn_mapping_file_path(argv[3]);
     const std::string marc_output_path(argv[4]);
 
-    std::unique_ptr<File> dpt_books_file(FileUtil::OpenInputFileOrDie(dpt_books_file_path));
     std::unique_ptr<File> dpt_id_gnd_mapping_file(FileUtil::OpenInputFileOrDie(dpt_id_gnd_mapping_file_path));
     std::unique_ptr<File> dpt_id_and_isbn_to_ppn_mapping_file(FileUtil::OpenInputFileOrDie(dpt_id_and_isbn_to_ppn_mapping_file_path));
     const std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_path));
