@@ -46,7 +46,7 @@ namespace {
 
 [[noreturn]] void Usage() {
     ::Usage(
-        "optional:[--download-feeds] optional:[--use-web-proxy] subsystem_type email_address xml_output_path\n"
+        "[--download-feeds [--use-web-proxy]] subsystem_type email_address xml_output_path\n"
         "where subsystem_type must be one of {ixtheo,relbib,krimdok}");
 }
 
@@ -326,6 +326,9 @@ int Main(int argc, char *argv[]) {
             --argc, ++argv;
         }
         if (std::strcmp(argv[1], "--use-web-proxy") == 0) {
+            if (!download_feeds) {
+                Usage();
+            }
             --argc, ++argv;
             params.proxy_host_and_port_ = UBTools::GetUBWebProxyURL();
             params.ignore_ssl_certificates_ = true;
