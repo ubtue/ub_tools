@@ -68,17 +68,87 @@ function GetSessionToken($config) {
 }
 
 
+
+function GetMetadataFromK10Plus($ppn) {
+    $url = 'https://sru.k10plus.de/opac-de-627?version=1.1&operation=searchRetrieve&query=pica.ppn%3D' . $ppn .
+        '&maximumRecords=10&recordSchema=marcxml';
+
+    $sruResponse = file_get_contents($url);
+    $xml = simplexml_load_string($sruResponse);
+
+    $xml->registerXPathNamespace('zs', 'http://www.loc.gov/zing/srw/');
+    $xml->registerXPathNamespace('marc', 'http://www.loc.gov/MARC21/slim');
+    $marcRecords = $xml->xpath('//zs:recordData/marc:record');
+
+    if (count($marcRecords) != 1) {
+        die("Could not determine unique record for PPN " . $ppn);
+    }
+    return $marcRecords[0];
+}
+
+
+function ExtractMetadataInformation($record) {
+    $MARCToDCStylesheet = 'marcxml_to_dc.xslt';
+    $xsl = new DOMDocument();
+    $xsl->load($MARCToDCStylesheet);
+    $xsltProcessor = new XSLTProcessor();
+    $xsltProcessor->importStylesheet($xsl);
+
+    $dc_json = $xsltProcessor->transformToXML($record);
+    return json_decode($dc_json);
+}
+
+
+function ConvertToDSpaceStructure($dc_metadata) {
+    $dc_metadata = array_merge(...$dc_metadata);
+    $title = $dc_metadata["dc.title"];
+    $dspace_metadata_structure = [];
+    foreach ($dc_metadata as $key => $value) {
+        array_push($dspace_metadata_structure, [ 'key' => $key, 'value' => $value]);
+    }
+    return [ 'name' => $title, 'metadata' => $dspace_metadata_structure ];
+}
+
+
+function GenerateDSpaceMetadata($ppn, $metadata) {
+    $dc_metadata = [];
+    foreach($metadata as $key => $value) {
+         if ($key == 'dc.contributor.author') {
+             foreach ($value as $author_object) {
+                 $author_object = json_decode(json_encode($author_object), true);
+                 if (!array_key_exists("name", $author_object))
+                     die("Missing author in name for ppn " . $ppn . ":\n" . print_r($metadata, true));
+                 $name = $author_object["name"];
+                 if (array_key_exists("role", $author_object)) {
+                     $role = $author_object["role"];
+                     switch($role) {
+                         case "edt":
+                             array_push($dc_metadata, [ 'dc.contributor.editor' => $name]);
+                             break;
+                         case "oth":
+                             array_push($dc_metadata, [ 'dc.contributor.other' => $name]);
+                             break;
+                         default:
+                             array_push($dc_metadata, [ 'dc.contributor.author' => $name]);
+                      }
+                 } else {
+                      array_push($dc_metadata, [ 'dc.contributor.author' => $name]);
+                 }
+             }
+             continue;
+         }
+         array_push($dc_metadata, [ $key => $value ]);
+    }
+    array_push($dc_metadata, [ "utue.artikel.ppn" => $ppn ]);
+
+    return ConvertToDSpaceStructure($dc_metadata);
+}
+
+
 function GetMetadataForPPN($ppn) {
-    // Example metadata and PDF file
-     $metadata = [
-         'name' => 'Sample Item',
-         'metadata' => [
-             ['key' => 'dc.title', 'value' => 'Krim DPT Upload Testtitel 9'],
-             ['key' => 'dc.contributor.author', 'value' => 'Krim Testautor 9'],
-             ['key' => 'dc.date.issued', 'value' => '2025-03-26']
-         ]
-     ];
-     return json_encode($metadata);
+     $k10plus_metadata = ExtractMetadataInformation(GetMetadataFromK10Plus($ppn));
+     $dc_metadata = GenerateDSpaceMetadata($ppn, $k10plus_metadata);
+     return json_encode($dc_metadata);
 }
 
 
@@ -163,6 +233,13 @@ function CloseSession($config, $sessionToken) {
         "Cookie: JSESSIONID=$sessionToken",
 
     ]);
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    if ($httpCode != 200) {
+        echo "Failed to close session\n";
+    }
 }
 
 
@@ -232,11 +309,13 @@ function Main($argc, $argv) {
 
     $sessionToken = GetSessionToken($config);
     foreach ($ppns_to_filenames as $ppn => $pdfFilePath) {
+        GetMetadataForPPN($ppn);
         $uuid = CreateItem($config, $sessionToken, $ppn);
         UploadPDFFile($config, $sessionToken, $uuid, $pdfFilePath);
+
         WriteLogEntry($uploaded_log, $ppn . " => " . $pdfFilePath . "\n");
     }
-    CloseSession();
+    CloseSession($config, $sessionToken);
     CloseFile($uploaded_log);
 }
 
