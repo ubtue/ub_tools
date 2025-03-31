@@ -102,7 +102,8 @@ using SuperiorPPNToYearMap = std::unordered_map<std::string, std::string>;
 [[noreturn]] void Usage() {
     ::Usage(
         "--extract-only-book-information dpt_books.json |\n"
-        "dpt_books.json author_dpt_id_gnd_mapping.txt book_ppn_mapping.txt superior_ppn_to_year_mapping.txt marc_output]");
+        "[--skip-derive-years] dpt_books.json author_dpt_id_gnd_mapping.txt book_ppn_mapping.txt superior_ppn_to_year_mapping.txt "
+        "marc_output]");
 }
 
 
@@ -358,8 +359,9 @@ int Main(int argc, char *argv[]) {
         Usage();
 
     bool skip_derive_years(false);
-    if (std::strcmp("--skip_derive_years", argv[1]) == 0) {
+    if (std::strcmp("--skip-derive-years", argv[1]) == 0) {
         skip_derive_years = true;
+        ++argv, --argc;
     }
 
     bool extract_only_book_information(false);
@@ -376,10 +378,7 @@ int Main(int argc, char *argv[]) {
         std::exit(0);
     }
 
-    if (argc < 5)
-        Usage();
-
-    if (not skip_derive_years and argc < 6)
+    if (argc < 6)
         Usage();
 
     const std::string dpt_id_gnd_mapping_file_path(argv[2]);
