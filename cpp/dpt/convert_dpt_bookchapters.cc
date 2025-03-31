@@ -96,10 +96,14 @@ struct BookInformation {
 
 using DPTIDToGNDAndNameMap = std::unordered_map<std::string, GNDAndName>;
 using DPTBookIdsToPPNsMap = std::unordered_multimap<std::string, PPNAndISBNType>;
+using SuperiorPPNToYearMap = std::unordered_map<std::string, std::string>;
 
 
 [[noreturn]] void Usage() {
-    ::Usage("dpt_books.json author_dpt_id_gnd_mapping.txt book_ppn_mapping.txt marc_output");
+    ::Usage(
+        "--extract-only-book-information dpt_books.json |\n"
+        "[--skip-derive-years] dpt_books.json author_dpt_id_gnd_mapping.txt book_ppn_mapping.txt superior_ppn_to_year_mapping.txt "
+        "marc_output]");
 }
 
 
@@ -138,6 +142,7 @@ MARC::Record *CreateNewRecord(const std::string &dpt_id) {
 
     MARC::Record *new_record(
         new MARC::Record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::MONOGRAPHIC_COMPONENT_PART, ppn));
+    new_record->insertField("003", "DE-2619");
     new_record->insertField("007", "cr|||||");
     new_record->insertField("912", 'a', "NOMM");
     return new_record;
@@ -222,7 +227,7 @@ void InsertSuperiorWorkInformation(MARC::Record * const marc_record, const BookI
 void InsertSelectors(MARC::Record * const marc_record) {
     marc_record->insertField("084", { { 'a', "2,1" }, { '2', "ssgn" } });
     marc_record->insertField("935", { { 'a', "mkri" } });
-    marc_record->insertField("935", { { 'a', "XXXXXXX" }, { '2', "LOK" } });
+    marc_record->insertField("935", { { 'a', "kdpt" }, { '2', "LOK" } });
 }
 
 
@@ -241,6 +246,17 @@ void InsertLanguage(MARC::Record * const marc_record, const std::string dpt_lang
     else
         lang = "mis";
     marc_record->insertField("041", { { 'a', lang } });
+}
+
+
+void InsertYear(MARC::Record * const marc_record, const SuperiorPPNToYearMap &superior_ppn_to_year) {
+    const std::string superior_ppn(marc_record->getSuperiorControlNumber());
+    if (superior_ppn_to_year.find(superior_ppn) != superior_ppn_to_year.end()) {
+        const std::string year(superior_ppn_to_year.at(superior_ppn));
+        marc_record->insertField("264", { { 'c', year } }, ' ', '1');
+        marc_record->addSubfield("773", 'g', "(" + year + ")");
+        marc_record->insertField("936", 'j', year, 'u', 'w');
+    }
 }
 
 
@@ -287,18 +303,27 @@ void CreateBookIDToPPNMap(File * const mapping_file, DPTBookIdsToPPNsMap * const
 }
 
 
+void CreateSuperiorPPNToYearMap(File * const mapping_file, SuperiorPPNToYearMap * const superior_ppn_to_year) {
+    while (not mapping_file->eof()) {
+        std::string line;
+        mapping_file->getline(&line);
+        StringUtil::Trim(&line);
+        std::vector<std::string> mapping;
+        StringUtil::SplitThenTrim(line, ':', " \t", &mapping);
+        if (unlikely(mapping.size() != 2))
+            LOG_WARNING("Invalid line \"" + line + "\"");
+        superior_ppn_to_year->emplace(std::make_pair(mapping[0], mapping[1]));
+    }
+}
+
+
 void ConvertArticles(MARC::Writer * const marc_writer, File * const dpt_books_file, const DPTIDToGNDAndNameMap &dpt_to_gnds_and_names,
-                     const DPTBookIdsToPPNsMap &dpt_book_ids_to_ppns) {
+                     const DPTBookIdsToPPNsMap &dpt_book_ids_to_ppns, const SuperiorPPNToYearMap &superior_ppn_to_year) {
     std::ifstream dpt_books(dpt_books_file->getPath());
     nlohmann::json books_json(nlohmann::json::parse(dpt_books));
-
     for (const auto &book : books_json["Bücher"]) {
         BookInformation book_information;
         ExtractBookInformation(book, &book_information);
-        // Uncomment to extract only book information:
-        // std::cout << book_information << "##############################\n\n";
-        // continue;
-
         for (const auto &chapter : book["Kapitel"]) {
             const std::string dpt_id(chapter["ID"]);
             MARC::Record * const new_record(CreateNewRecord(dpt_id));
@@ -306,6 +331,7 @@ void ConvertArticles(MARC::Writer * const marc_writer, File * const dpt_books_fi
             InsertAuthors(new_record, chapter["Autoren"], dpt_to_gnds_and_names);
             InsertTitle(new_record, chapter["Titel"]);
             InsertSuperiorWorkInformation(new_record, book_information, dpt_book_ids_to_ppns);
+            InsertYear(new_record, superior_ppn_to_year);
             InsertLinks(new_record, dpt_id);
             InsertSelectors(new_record);
             marc_writer->write(*new_record);
@@ -314,26 +340,67 @@ void ConvertArticles(MARC::Writer * const marc_writer, File * const dpt_books_fi
     }
 }
 
+
+void ExtractBookInformation(File * const dpt_books_file) {
+    std::ifstream dpt_books(dpt_books_file->getPath());
+    nlohmann::json books_json(nlohmann::json::parse(dpt_books));
+    for (const auto &book : books_json["Bücher"]) {
+        BookInformation book_information;
+        ExtractBookInformation(book, &book_information);
+        std::cout << book_information << "##############################\n\n";
+    }
+}
+
 } // unnamed namespace
 
 
 int Main(int argc, char *argv[]) {
-    if (argc != 5)
+    if (argc < 2)
         Usage();
+
+    bool skip_derive_years(false);
+    if (std::strcmp("--skip-derive-years", argv[1]) == 0) {
+        skip_derive_years = true;
+        ++argv, --argc;
+    }
+
+    bool extract_only_book_information(false);
+    if (std::strcmp("--extract-only-book-information", argv[1]) == 0) {
+        extract_only_book_information = true;
+        ++argv, --argc;
+    }
+
     const std::string dpt_books_file_path(argv[1]);
+    std::unique_ptr<File> dpt_books_file(FileUtil::OpenInputFileOrDie(dpt_books_file_path));
+
+    if (extract_only_book_information) {
+        ExtractBookInformation(dpt_books_file.get());
+        std::exit(0);
+    }
+
+    if (argc < 6)
+        Usage();
+
     const std::string dpt_id_gnd_mapping_file_path(argv[2]);
     const std::string dpt_id_and_isbn_to_ppn_mapping_file_path(argv[3]);
-    const std::string marc_output_path(argv[4]);
+    const std::string marc_output_path(argv[argc - 1]);
 
-    std::unique_ptr<File> dpt_books_file(FileUtil::OpenInputFileOrDie(dpt_books_file_path));
     std::unique_ptr<File> dpt_id_gnd_mapping_file(FileUtil::OpenInputFileOrDie(dpt_id_gnd_mapping_file_path));
     std::unique_ptr<File> dpt_id_and_isbn_to_ppn_mapping_file(FileUtil::OpenInputFileOrDie(dpt_id_and_isbn_to_ppn_mapping_file_path));
+
+    SuperiorPPNToYearMap superior_ppn_to_year;
+    if (not skip_derive_years) {
+        const std::string superior_ppn_to_year_mapping_file_path(argv[4]);
+        std::unique_ptr<File> superior_ppn_to_year_mapping_file(FileUtil::OpenInputFileOrDie(superior_ppn_to_year_mapping_file_path));
+        CreateSuperiorPPNToYearMap(superior_ppn_to_year_mapping_file.get(), &superior_ppn_to_year);
+    }
+
     const std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_path));
     std::unordered_map<std::string, GNDAndName> dpt_ids_to_gnds_and_names;
     CreateIDToGNDAndNameMap(dpt_id_gnd_mapping_file.get(), &dpt_ids_to_gnds_and_names);
     DPTBookIdsToPPNsMap dpt_book_ids_to_ppns;
     CreateBookIDToPPNMap(dpt_id_and_isbn_to_ppn_mapping_file.get(), &dpt_book_ids_to_ppns);
-    ConvertArticles(marc_writer.get(), dpt_books_file.get(), dpt_ids_to_gnds_and_names, dpt_book_ids_to_ppns);
+    ConvertArticles(marc_writer.get(), dpt_books_file.get(), dpt_ids_to_gnds_and_names, dpt_book_ids_to_ppns, superior_ppn_to_year);
 
     return EXIT_SUCCESS;
 }
