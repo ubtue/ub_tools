@@ -355,7 +355,7 @@ void ExtractBookInformation(File * const dpt_books_file) {
 
 
 int Main(int argc, char *argv[]) {
-    if (argc < 2)
+    if (argc < 3)
         Usage();
 
     bool skip_derive_years(false);
