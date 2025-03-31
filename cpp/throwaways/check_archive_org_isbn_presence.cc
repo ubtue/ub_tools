@@ -88,9 +88,7 @@ void WorkerThread(Downloader * const downloader, std::deque<std::set<std::string
 
 void ProcessRecords(MARC::Reader * const marc_reader, std::deque<std::set<std::string>> * const task_queue,
                     std::mutex * const task_queue_mutex) {
-    unsigned record_count(0);
     while (const MARC::Record record = marc_reader->read()) {
-        ++record_count;
         const auto isbns(record.getISBNs());
         if (isbns.empty())
             continue;
