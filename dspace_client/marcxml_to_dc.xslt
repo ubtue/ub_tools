@@ -15,7 +15,7 @@
             <xsl:text>"name": "</xsl:text><xsl:value-of select='./marc:subfield[@code="a"]'/><xsl:text>",</xsl:text>
             <xsl:choose>
                 <xsl:when test="starts-with(marc:subfield[@code='0'], '(DE-588)')">
-                    <xsl:text>"gdn": "</xsl:text><xsl:value-of select="substring-after(marc:subfield[@code='0'], '(DE-588)')"/>
+                    <xsl:text>"gnd": "</xsl:text><xsl:value-of select="substring-after(marc:subfield[@code='0'], '(DE-588)')"/>
                     <xsl:text>",</xsl:text>
                 </xsl:when>
             </xsl:choose>     

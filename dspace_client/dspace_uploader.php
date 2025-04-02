@@ -148,6 +148,8 @@ function GenerateDSpaceMetadata($ppn, $metadata) {
                  } else {
                       array_push($dc_metadata, [ 'dc.contributor.author' => $name]);
                  }
+                 if (isset($author_object["gnd"]))
+                     array_push($dc_metadata, [ 'utue.personen.pnd' => $name . '/' . $author_object["gnd"] ]);
              }
              continue;
          }
