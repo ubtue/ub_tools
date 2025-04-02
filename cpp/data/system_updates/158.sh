@@ -13,7 +13,7 @@ if [[ $TUEFIND_FLAVOUR == "krimdok" ]]; then
         exit 1
     fi
 
-    cron_job="10 22 * * * php $VUFIND_HOME/public/index.php scheduledsearch notify"
+    cron_job='10 22 * * * php "$VUFIND_HOME/public/index.php" scheduledsearch notify > "$LOG_DIR/scheduledsearch_notify.log" 2>&1'
     if crontab -l | grep -Fxq "$cron_job"; then
         echo "Cron job already exists - Skipping"
     else
