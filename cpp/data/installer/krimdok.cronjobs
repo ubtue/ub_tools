@@ -28,5 +28,6 @@ LOG_DIR=/usr/local/var/log/tuefind
 0 20 * * * "$BIN/mail_krimdok_newsletter.sh" > "$LOG_DIR/mail_krimdok_newsletter.log" 2>&1
 45 22 * * 4 "$BIN/generate_kalliope_originators.py" > "${LOG_DIR}/generate_kalliope_originators.py" 2>&1
 0 22 * * 4 "$BIN/update_beacon_files.sh" > "$LOG_DIR/update_beacon_files.log" 2>&1
+10 22 * * * php "$VUFIND_HOME/public/index.php" scheduledsearch notify > "$LOG_DIR/scheduledsearch_notify.log" 2>&1
 30 22 * * Fri cd "$BSZ_DATEN" && "$BIN/collect_journal_stats.sh" "$TUEFIND_FLAVOUR" > "$LOG_DIR/collect_journal_stats.log" 2>&1; "$BIN/send_status_email.sh" $? "$EMAIL" collect_journal_stats "$LOG_DIR"
 0 23 * * * "$BIN/clean_file_sessions.sh" "$EMAIL"
