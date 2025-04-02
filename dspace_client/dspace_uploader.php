@@ -98,9 +98,23 @@ function ExtractMetadataInformation($record) {
     return json_decode($dc_json);
 }
 
+function FlattenArrayWithDuplicates($data) {
+    return array_reduce($data, function ($carry, $entry) {
+        foreach ($entry as $key => $value) {
+            if (isset($carry[$key])) {
+                $carry[$key] = (array) $carry[$key];
+                $carry[$key][] = $value;
+            } else {
+                $carry[$key] = $value;
+            }
+        }
+        return $carry;
+    }, []);
+}
+
 
 function ConvertToDSpaceStructure($dc_metadata) {
-    $dc_metadata = array_merge(...$dc_metadata);
+    $dc_metadata = FlattenArrayWithDuplicates($dc_metadata);
     $title = $dc_metadata["dc.title"];
     $dspace_metadata_structure = [];
     foreach ($dc_metadata as $key => $value) {
