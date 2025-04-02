@@ -1,5 +1,5 @@
 <?php
-/** \file translation_db_tool.cc
+/** \file dspace_uploader.php
  *  \brief A tool for creating DSpace records and uploading fulltexts
  *         based on a PPN to fulltext file list
  *
@@ -20,7 +20,9 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+require 'Symfony/Component/Intl/autoload.php';
 
+use Symfony\Component\Intl\Languages;
 
 function GetConfig() {
     $configFile = 'dspace_uploader.ini';
@@ -68,10 +70,9 @@ function GetSessionToken($config) {
 }
 
 
-
 function GetMetadataFromK10Plus($ppn) {
     $url = 'https://sru.k10plus.de/opac-de-627?version=1.1&operation=searchRetrieve&query=pica.ppn%3D' . $ppn .
-        '&maximumRecords=10&recordSchema=marcxml';
+        '&maximumRecords=1&recordSchema=marcxml';
 
     $sruResponse = file_get_contents($url);
     $xml = simplexml_load_string($sruResponse);
@@ -97,6 +98,7 @@ function ExtractMetadataInformation($record) {
     $dc_json = $xsltProcessor->transformToXML($record);
     return json_decode($dc_json);
 }
+
 
 function FlattenArrayWithDuplicates($data) {
     return array_reduce($data, function ($carry, $entry) {
@@ -153,10 +155,15 @@ function GenerateDSpaceMetadata($ppn, $metadata) {
              }
              continue;
          }
+
+         if ($key == 'dc.language.iso') {
+             $value = Languages::getAlpha2Code($value);
+         }
+
          array_push($dc_metadata, [ $key => $value ]);
     }
-    array_push($dc_metadata, [ "utue.artikel.ppn" => $ppn ]);
 
+    array_push($dc_metadata, [ 'utue.artikel.ppn' => $ppn ]);
     return ConvertToDSpaceStructure($dc_metadata);
 }
 
