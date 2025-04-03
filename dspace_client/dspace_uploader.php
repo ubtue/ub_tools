@@ -100,29 +100,16 @@ function ExtractMetadataInformation($record) {
 }
 
 
-function FlattenArrayWithDuplicates($data) {
-    return array_reduce($data, function ($carry, $entry) {
-        foreach ($entry as $key => $value) {
-            if (isset($carry[$key])) {
-                $carry[$key] = (array) $carry[$key];
-                $carry[$key][] = $value;
-            } else {
-                $carry[$key] = $value;
-            }
-        }
-        return $carry;
-    }, []);
+function ConvertToDSpaceStructure($dc_metadata) {
+    return [ 'name' => 'Title', 'metadata' => $dc_metadata ];
 }
 
 
-function ConvertToDSpaceStructure($dc_metadata) {
-    $dc_metadata = FlattenArrayWithDuplicates($dc_metadata);
-    $title = $dc_metadata["dc.title"];
-    $dspace_metadata_structure = [];
-    foreach ($dc_metadata as $key => $value) {
-        array_push($dspace_metadata_structure, [ 'key' => $key, 'value' => $value]);
-    }
-    return [ 'name' => $title, 'metadata' => $dspace_metadata_structure ];
+function GetGND($author_object) {
+    return [] ; // REMOVE ME
+    if (isset($author_object["gnd"]))
+        return [ 'authority' => $author_object["gnd"] ];
+    return [];
 }
 
 
@@ -139,19 +126,17 @@ function GenerateDSpaceMetadata($ppn, $metadata) {
                      $role = $author_object["role"];
                      switch($role) {
                          case "edt":
-                             array_push($dc_metadata, [ 'dc.contributor.editor' => $name]);
+                             array_push($dc_metadata, [ 'key' => 'dc.contributor.editor', 'value' => $name,  ] + GetGND($author_object));
                              break;
                          case "oth":
-                             array_push($dc_metadata, [ 'dc.contributor.other' => $name]);
+                             array_push($dc_metadata, [ 'key' => 'dc.contributor.other' , 'value' => $name  ] + GetGND($author_object));
                              break;
                          default:
-                             array_push($dc_metadata, [ 'dc.contributor.author' => $name]);
+                             array_push($dc_metadata, [ 'key' => 'dc.contributor.author' ,  'value' => $name ] + GetGnd($author_object));
                       }
                  } else {
-                      array_push($dc_metadata, [ 'dc.contributor.author' => $name]);
+                      array_push($dc_metadata, [ 'key' => 'dc.contributor.author', 'value' =>  $name]);
                  }
-                 if (isset($author_object["gnd"]))
-                     array_push($dc_metadata, [ 'utue.personen.pnd' => $name . '/' . $author_object["gnd"] ]);
              }
              continue;
          }
@@ -160,10 +145,9 @@ function GenerateDSpaceMetadata($ppn, $metadata) {
              $value = Languages::getAlpha2Code($value);
          }
 
-         array_push($dc_metadata, [ $key => $value ]);
+         array_push($dc_metadata, [ 'key' => $key, 'value' => $value ]);
     }
 
-    array_push($dc_metadata, [ 'utue.artikel.ppn' => $ppn ]);
     return ConvertToDSpaceStructure($dc_metadata);
 }
 
@@ -332,10 +316,8 @@ function Main($argc, $argv) {
 
     $sessionToken = GetSessionToken($config);
     foreach ($ppns_to_filenames as $ppn => $pdfFilePath) {
-        GetMetadataForPPN($ppn);
         $uuid = CreateItem($config, $sessionToken, $ppn);
         UploadPDFFile($config, $sessionToken, $uuid, $pdfFilePath);
-
         WriteLogEntry($uploaded_log, $ppn . " => " . $pdfFilePath . "\n");
     }
     CloseSession($config, $sessionToken);
