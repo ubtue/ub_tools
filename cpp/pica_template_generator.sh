@@ -100,6 +100,7 @@ body_file=$(GetBodyFile ${tmpdir})
 cat ${body_file} | mutt \
        -e 'my_hdr From:UB NoReply <noreply@ub.uni-tuebingen.de>' \
        -e 'set charset="utf-8"' \
+       -e 'set send_charset="utf-8"' \
        -s "${subject}" \
        -a ${out_files[0]} -a ${out_files[1]} \
        -- $(GetTargetMailAddress ${system_type} ${form_type})
