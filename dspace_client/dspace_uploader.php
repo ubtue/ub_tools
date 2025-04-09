@@ -1,5 +1,5 @@
 <?php
-/** \file translation_db_tool.cc
+/** \file dspace_uploader.php
  *  \brief A tool for creating DSpace records and uploading fulltexts
  *         based on a PPN to fulltext file list
  *
@@ -20,7 +20,9 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+require 'Symfony/Component/Intl/autoload.php';
 
+use Symfony\Component\Intl\Languages;
 
 function GetConfig() {
     $configFile = 'dspace_uploader.ini';
@@ -68,10 +70,9 @@ function GetSessionToken($config) {
 }
 
 
-
 function GetMetadataFromK10Plus($ppn) {
     $url = 'https://sru.k10plus.de/opac-de-627?version=1.1&operation=searchRetrieve&query=pica.ppn%3D' . $ppn .
-        '&maximumRecords=10&recordSchema=marcxml';
+        '&maximumRecords=1&recordSchema=marcxml';
 
     $sruResponse = file_get_contents($url);
     $xml = simplexml_load_string($sruResponse);
@@ -100,13 +101,15 @@ function ExtractMetadataInformation($record) {
 
 
 function ConvertToDSpaceStructure($dc_metadata) {
-    $dc_metadata = array_merge(...$dc_metadata);
-    $title = $dc_metadata["dc.title"];
-    $dspace_metadata_structure = [];
-    foreach ($dc_metadata as $key => $value) {
-        array_push($dspace_metadata_structure, [ 'key' => $key, 'value' => $value]);
-    }
-    return [ 'name' => $title, 'metadata' => $dspace_metadata_structure ];
+    return [ 'name' => 'Title', 'metadata' => $dc_metadata ];
+}
+
+
+function GetGND($author_object) {
+    return [] ; // REMOVE ME
+    if (isset($author_object["gnd"]))
+        return [ 'authority' => $author_object["gnd"] ];
+    return [];
 }
 
 
@@ -123,23 +126,27 @@ function GenerateDSpaceMetadata($ppn, $metadata) {
                      $role = $author_object["role"];
                      switch($role) {
                          case "edt":
-                             array_push($dc_metadata, [ 'dc.contributor.editor' => $name]);
+                             array_push($dc_metadata, [ 'key' => 'dc.contributor.editor', 'value' => $name,  ] + GetGND($author_object));
                              break;
                          case "oth":
-                             array_push($dc_metadata, [ 'dc.contributor.other' => $name]);
+                             array_push($dc_metadata, [ 'key' => 'dc.contributor.other' , 'value' => $name  ] + GetGND($author_object));
                              break;
                          default:
-                             array_push($dc_metadata, [ 'dc.contributor.author' => $name]);
+                             array_push($dc_metadata, [ 'key' => 'dc.contributor.author' ,  'value' => $name ] + GetGnd($author_object));
                       }
                  } else {
-                      array_push($dc_metadata, [ 'dc.contributor.author' => $name]);
+                      array_push($dc_metadata, [ 'key' => 'dc.contributor.author', 'value' =>  $name]);
                  }
              }
              continue;
          }
-         array_push($dc_metadata, [ $key => $value ]);
+
+         if ($key == 'dc.language.iso') {
+             $value = Languages::getAlpha2Code($value);
+         }
+
+         array_push($dc_metadata, [ 'key' => $key, 'value' => $value ]);
     }
-    array_push($dc_metadata, [ "utue.artikel.ppn" => $ppn ]);
 
     return ConvertToDSpaceStructure($dc_metadata);
 }
@@ -309,10 +316,8 @@ function Main($argc, $argv) {
 
     $sessionToken = GetSessionToken($config);
     foreach ($ppns_to_filenames as $ppn => $pdfFilePath) {
-        GetMetadataForPPN($ppn);
         $uuid = CreateItem($config, $sessionToken, $ppn);
         UploadPDFFile($config, $sessionToken, $uuid, $pdfFilePath);
-
         WriteLogEntry($uploaded_log, $ppn . " => " . $pdfFilePath . "\n");
     }
     CloseSession($config, $sessionToken);
