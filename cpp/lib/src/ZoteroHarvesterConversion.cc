@@ -579,7 +579,10 @@ void StripLanguageSubcodes(std::set<std::string> * const languages) {
 void NormalizeGivenLanguages(MetadataRecord * const metadata_record) {
     // Normalize given languages
     // We cant remove during iteration, so we use a copy
-    std::set<std::string> languages(metadata_record->languages_);
+
+    std::set<std::string> languages;
+    std::transform(metadata_record->languages_.begin(), metadata_record->languages_.end(), std::inserter(languages, languages.end()),
+                   [](const std::string language) { return StringUtil::ASCIIToLower(language); });
     metadata_record->languages_.clear();
     StripLanguageSubcodes(&languages);
     for (const auto &language : languages) {
