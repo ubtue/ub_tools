@@ -548,6 +548,8 @@ bool IsNormalizedLanguage(const std::string &language) {
 
 std::string GetNormalizedLanguage(const std::string &language) {
     std::string normalized_language(language);
+    std::transform(normalized_language.begin(), normalized_language.end(), normalized_language.begin(),
+                   [](unsigned char c) { return std::tolower(c); });
     if (TranslationUtil::IsValidInternational2LetterCode(normalized_language))
         normalized_language = TranslationUtil::MapInternational2LetterCodeToGerman3Or4LetterCode(normalized_language);
     // Here we do NOT use elseif, since we want to continue the conversion if the first mapping was successful
