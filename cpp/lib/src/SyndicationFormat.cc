@@ -96,10 +96,17 @@ SyndicationFormatType GetFormatType(const std::string &xml_document) {
 
 static std::string ExtractText(XMLParser &parser, const std::string &closing_tag, const std::string &extra = "") {
     XMLParser::XMLPart part;
+    std::string extracted_text;
+
+    // Workaround for DatenProbleme/issues/2276
+    if (parser.peek(&part) and (part.type_ == XMLParser::XMLPart::OPENING_TAG and (part.data_ == "i" or part.data_ == "p"))) {
+        parser.extractTextBetweenTags(part.data_, &extracted_text);
+        return extracted_text;
+    }
+
     if (unlikely(not parser.getNext(&part)))
         throw std::runtime_error("in ExtractText(SyndicationFormat.cc): parse error while looking for characters for \"" + closing_tag
                                  + "\" tag!" + extra);
-    std::string extracted_text;
     if (part.type_ == XMLParser::XMLPart::CHARACTERS)
         extracted_text = part.data_;
     else if (part.type_ == XMLParser::XMLPart::CLOSING_TAG) {
