@@ -99,7 +99,7 @@ static std::string ExtractText(XMLParser &parser, const std::string &closing_tag
     std::string extracted_text;
 
     // Workaround for DatenProbleme/issues/2276
-    if (parser.peek(&part) and (part.type_ == XMLParser::XMLPart::OPENING_TAG and (part.data_ == "i" or part.data_ == "p"))) {
+    if (parser.peek(&part) and (part.type_ == XMLParser::XMLPart::OPENING_TAG and (part.data_ != closing_tag))) {
         parser.extractTextBetweenTags(part.data_, &extracted_text);
         return extracted_text;
     }
