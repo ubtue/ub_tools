@@ -97,6 +97,7 @@ struct BookInformation {
 using DPTIDToGNDAndNameMap = std::unordered_map<std::string, GNDAndName>;
 using DPTBookIdsToPPNsMap = std::unordered_multimap<std::string, PPNAndISBNType>;
 using SuperiorPPNToYearMap = std::unordered_map<std::string, std::string>;
+using UsedPseudoPPNs = std::unordered_set<std::string>;
 
 
 [[noreturn]] void Usage() {
@@ -134,7 +135,7 @@ void CreateIDToGNDAndNameMap(File * const mapping_file, DPTIDToGNDAndNameMap * c
 }
 
 
-MARC::Record *CreateNewRecord(const std::string &dpt_id) {
+MARC::Record *CreateNewRecord(const std::string &dpt_id, UsedPseudoPPNs * const used_pseudo_ppns) {
     std::ostringstream formatted_number;
     formatted_number << std::setfill('0') << std::setw(8) << std::atoi(dpt_id.c_str());
     const std::string prefix("DPT");
@@ -144,6 +145,7 @@ MARC::Record *CreateNewRecord(const std::string &dpt_id) {
         new MARC::Record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::MONOGRAPHIC_COMPONENT_PART, ppn));
     new_record->insertField("003", "DE-2619");
     new_record->insertField("007", "cr|||||");
+    new_record->insertField("852", 'a', "DE-2619");
     new_record->insertField("912", 'a', "NOMM");
     return new_record;
 }

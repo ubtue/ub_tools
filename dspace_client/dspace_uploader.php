@@ -132,7 +132,7 @@ function GenerateDSpaceMetadata($ppn, $metadata) {
                              array_push($dc_metadata, [ 'key' => 'dc.contributor.other' , 'value' => $name  ] + GetGND($author_object));
                              break;
                          default:
-                             array_push($dc_metadata, [ 'key' => 'dc.contributor.author' ,  'value' => $name ] + GetGnd($author_object));
+                             array_push($dc_metadata, [ 'key' => 'dc.contributor.author' ,  'value' => $name ] + GetGND($author_object));
                       }
                  } else {
                       array_push($dc_metadata, [ 'key' => 'dc.contributor.author', 'value' =>  $name]);
