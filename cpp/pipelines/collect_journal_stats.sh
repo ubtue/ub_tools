@@ -18,11 +18,6 @@ if [[  ${system_type} != ixtheo && ${system_type} != krimdok ]]; then
     Usage
 fi
 
-# Sets up the log file:
-logdir=/usr/local/var/log/tuefind
-log="${logdir}/collect_journal_stats.log"
-rm -f "${log}"
-
 title_file=$(ls -1 GesamtTiteldaten-post-pipeline-* | sort --reverse | head --lines 1)
 if [[ ! "${title_file}" =~ GesamtTiteldaten-post-pipeline-[0-9][0-9][0-9][0-9][0-9][0-9].mrc ]]; then
     echo 'Could not identify a file matching GesamtTiteldaten-post-pipeline-[0-9][0-9][0-9][0-9][0-9][0-9].mrc!'
