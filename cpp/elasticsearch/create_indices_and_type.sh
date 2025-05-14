@@ -8,6 +8,6 @@ host_and_port=$(inifile_lookup /usr/local/var/lib/tuelib/Elasticsearch.conf Elas
 # Create the indices and types:
 for schema in *_schema.json; do
     index="${schema%_schema.json}"
-    curl --request PUT --header 'Content-Type: application/json' "${host_and_port}/${index}" --data @"$schema"
+    curl --fail --request PUT --header 'Content-Type: application/json' "${host_and_port}/${index}" --data @"$schema"
     echo
 done

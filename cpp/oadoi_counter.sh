@@ -16,7 +16,7 @@ declare -A origin=()
 while IFS='' read -r doi || [[ -n "$doi" ]]; do
     if [ ! -z "$doi" ]; then
         echo "Processing $doi"
-        contents=$(curl 'https://api.oadoi.org/'"$doi?email=$EMAIL" --silent --output -)
+        contents=$(curl --fail 'https://api.oadoi.org/'"$doi?email=$EMAIL" --silent --output -)
         oa_color=$(echo $contents | jq --monochrome-output '.results[0].oa_color')
         echo $oa_color
         ((++total))

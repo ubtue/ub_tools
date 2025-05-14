@@ -8,7 +8,7 @@ COPY mnt/ZE020150 /mnt/ZE020150
 
 # download & run ubtools installation script
 # (use curl because it's part of standard centos installation)
-RUN curl https://raw.githubusercontent.com/ubtue/ub_tools/master/cpp/data/installer/scripts/install_ubtools.sh -o /tmp/install_ubtools.sh \
+RUN curl --fail https://raw.githubusercontent.com/ubtue/ub_tools/master/cpp/data/installer/scripts/install_ubtools.sh -o /tmp/install_ubtools.sh \
     && chmod 700 /tmp/install_ubtools.sh
 RUN /tmp/install_ubtools.sh ub-tools-only
 

@@ -28,7 +28,7 @@ interval=1000
 tmpfilee=()
 GenerateTmpFiles
 marc_grep ${marc_data} '"035"'  control_number_and_traditional | grep OCoLC  | sed -re 's/:035:\s+\$a\(OCoLC\)/:/' > ${tmpfiles[0]}
-curl http://${solr_base_url}':8983/solr/biblio/select?fl=id&fq=publishDate%3A%5B*%20TO%201920%5D&indent=true&q.op=OR&q=*%3A*&rows=1000000&wt=csv' > ${tmpfiles[1]}
+curl --fail http://${solr_base_url}':8983/solr/biblio/select?fl=id&fq=publishDate%3A%5B*%20TO%201920%5D&indent=true&q.op=OR&q=*%3A*&rows=1000000&wt=csv' > ${tmpfiles[1]}
 cat ${tmpfiles[1]} | tail -n +2 | sed -re 's/,$//' > ${tmpfiles[2]}
 (join -t: <(sort -t: ${tmpfiles[2]})  <(sort ${tmpfiles[0]}) > ${tmpfiles[3]})
 
