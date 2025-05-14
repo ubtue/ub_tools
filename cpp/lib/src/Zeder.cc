@@ -772,8 +772,8 @@ void UploadArticleList(const std::string &json_path, const std::string &data_sou
     // - The "Stamm" parameter which is shown in the frontend can be ignored completely.
     // - Therefore, we must add "s_stufe=2", which triggers the processing of the uploaded file (can't be added to the URL.)
     const std::string curl(ExecUtil::Which("curl"));
-    ExecUtil::ExecOrDie(curl, { "--request", "POST", "--header", "Content-Type: multipart/form-data", "--form", "s_stufe=2", "--form",
-                                "Datenquelle=" + data_source, "--form", "Datei=@" + json_path, upload_url });
+    ExecUtil::ExecOrDie(curl, { "--fail", "--request", "POST", "--header", "Content-Type: multipart/form-data", "--form", "s_stufe=2",
+                                "--form", "Datenquelle=" + data_source, "--form", "Datei=@" + json_path, upload_url });
 }
 
 
