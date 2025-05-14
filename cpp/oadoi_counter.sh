@@ -8,7 +8,7 @@ if [ $# -ne 1 ]; then
 fi
 
 # Who gets the bad news?
-EMAIL="johannes.ruscheinski@uni-tuebingen.de"
+EMAIL="ixtheo-team@ub.uni-tuebingen.de"
 
 declare -i total=0
 declare -i found=0
