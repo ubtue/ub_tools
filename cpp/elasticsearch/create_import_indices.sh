@@ -13,7 +13,7 @@ function GetExistingFulltextIndices {
     existing_fulltext_indices=()
     for schema in *_schema.json; do
         index="${schema%_schema.json}"
-        http_code=$(curl --silent --output /dev/null --head --write "%{http_code}" ${host_and_port}/${index})
+        http_code=$(curl --fail --silent --output /dev/null --head --write "%{http_code}" ${host_and_port}/${index})
         if [ ${http_code} == "200" ]; then
             existing_fulltext_indices+=("${index}")
         else
@@ -29,7 +29,7 @@ function GetExistingFulltextAliases {
     existing_fulltext_indices=$@
     check_output=()
     for index in ${existing_fulltext_indices[@]}; do
-        check_output+=($(curl --silent --request GET "${host_and_port}/_cat/aliases/${index}" --header 'Content-Type: application/json'))
+        check_output+=($(curl --fail --silent --request GET "${host_and_port}/_cat/aliases/${index}" --header 'Content-Type: application/json'))
     done
     echo ${check_output[@]}
 }
@@ -38,17 +38,17 @@ function GetExistingFulltextAliases {
 function CreateReadWriteIndicesAndAliases {
     indices=$@
     for index in ${indices[@]}; do
-        curl --silent --request PUT "${host_and_port}/${index}/_settings" --header 'Content-Type: application/json'  \
+        curl --fail --silent --request PUT "${host_and_port}/${index}/_settings" --header 'Content-Type: application/json'  \
             --data '{ "settings": { "index.blocks.write": true } }'
 
-        curl --silent --request POST "${host_and_port}/${index}/_clone/${index}_read" --header 'Content-Type: application/json'
-        curl --silent --request GET "${host_and_port}/_cluster/health/${index}_read?wait_for_status=yellow&timeout=30s" --header 'Content-Type: application/json'
+        curl --fail --silent --request POST "${host_and_port}/${index}/_clone/${index}_read" --header 'Content-Type: application/json'
+        curl --fail --silent --request GET "${host_and_port}/_cluster/health/${index}_read?wait_for_status=yellow&timeout=30s" --header 'Content-Type: application/json'
 
-        curl --silent --request POST "${host_and_port}/${index}/_clone/${index}_write" --header 'Content-Type: application/json'
-        curl --silent --request GET "${host_and_port}/_cluster/health/${index}_write?wait_for_status=yellow&timeout=30s" --header 'Content-Type: application/json'
-        curl --silent --request PUT "${host_and_port}/${index}_write/_settings" --header 'Content-Type: application/json'  \
+        curl --fail --silent --request POST "${host_and_port}/${index}/_clone/${index}_write" --header 'Content-Type: application/json'
+        curl --fail --silent --request GET "${host_and_port}/_cluster/health/${index}_write?wait_for_status=yellow&timeout=30s" --header 'Content-Type: application/json'
+        curl --fail --silent --request PUT "${host_and_port}/${index}_write/_settings" --header 'Content-Type: application/json'  \
             --data '{ "settings": { "index.blocks.write": null } }'
-        curl --silent --request POST "${host_and_port}/_aliases" --header 'Content-Type: application/json' --data-binary @- << ENDJSON
+        curl --fail --silent --request POST "${host_and_port}/_aliases" --header 'Content-Type: application/json' --data-binary @- << ENDJSON
                        { "actions" :
                           [
                              { "remove_index" : { "index" : "${index}" } },
