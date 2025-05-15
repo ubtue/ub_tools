@@ -763,18 +763,4 @@ SimpleZeder::SimpleZeder(const Flavour flavour, const std::unordered_set<std::st
 }
 
 
-void UploadArticleList(const std::string &json_path, const std::string &data_source) {
-    // The URL is shared by all instances.
-    static const std::string upload_url("http://www-ub.ub.uni-tuebingen.de/zeder/cgi-bin/index.cgi/artikelliste_hochladen");
-
-    // POSTing a file via the Downloader is not yet supported, so we use a shell command instead.
-    // Note:
-    // - The "Stamm" parameter which is shown in the frontend can be ignored completely.
-    // - Therefore, we must add "s_stufe=2", which triggers the processing of the uploaded file (can't be added to the URL.)
-    const std::string curl(ExecUtil::Which("curl"));
-    ExecUtil::ExecOrDie(curl, { "--fail", "--request", "POST", "--header", "Content-Type: multipart/form-data", "--form", "s_stufe=2",
-                                "--form", "Datenquelle=" + data_source, "--form", "Datei=@" + json_path, upload_url });
-}
-
-
 } // namespace Zeder
