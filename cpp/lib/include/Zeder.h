@@ -77,6 +77,7 @@ class Entry {
     unsigned id_;
     tm last_modified_timestamp_;
     AttributeMap attributes_; // column name => content
+
 public:
     using iterator = AttributeMap::iterator;
     using const_iterator = AttributeMap::const_iterator;
@@ -520,12 +521,6 @@ public:
     inline const_iterator begin() const { return entries_.begin(); }
     inline const_iterator end() const { return entries_.end(); }
 };
-
-
-// \brief Upload information about new journal articles
-// \param path         path of the JSON file to upload
-// \param data_source  source label, e.g. the script name, or just "test".
-void UploadArticleList(const std::string &json_path, const std::string &data_source);
 
 
 } // end namespace Zeder

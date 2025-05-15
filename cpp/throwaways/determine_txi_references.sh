@@ -33,7 +33,7 @@ read -r -d '' tpi_query_script <<'EOF' || true
 
    function GetHitNum {
       request="$1"
-      echo $(curl -s "${request}" | jq '.response.numFound')
+      echo $(curl --fail -s "${request}" | jq '.response.numFound')
    }
 
    server="$1"
@@ -57,7 +57,7 @@ read -r -d '' topic_query_script <<'EOF' || true
 
    function GetHitNum {
       request="$1"
-      echo $(curl -s "${request}" | jq '.response.numFound')
+      echo $(curl --fail -s "${request}" | jq '.response.numFound')
    }
 
    server="$1"

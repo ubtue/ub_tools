@@ -6,7 +6,7 @@ set -o errexit -o nounset -o pipefail
 function GetSolrResults {
     local year_to_query="$1"
     local query="http://${host_and_port}/solr/biblio/select?fl=id%2Cauthor%2Ctitle%2Cpages%2Cissue%2Cvolume&fq=publishDate%3A%5B${year_to_query}%20TO%20${year_to_query}%5D&indent=true&q.op=OR&q=superior_ppn%3A166751685&rows=1000&wt=json"
-   curl --silent "${query}" | jq -r '.response.docs[] | "\(.id)|\(.title)|\(.volume) \(.pages)"'
+   curl --fail --silent "${query}" | jq -r '.response.docs[] | "\(.id)|\(.title)|\(.volume) \(.pages)"'
 }
 
 if [ $# != 2 ]; then
