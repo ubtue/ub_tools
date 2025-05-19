@@ -88,7 +88,7 @@ void SendNotificationsForItem(const DSpaceItem &dspace_item, const std::vector<s
         subject = StringUtil::Join(dspace_item.authors_, ", ");
     const std::string body(dspace_item.title_ + "\n" + DOI_URL_PREFIX + dspace_item.doi_);
 
-    if (EmailSender::SimplerSendEmail(EMAIL_SENDER, notification_mail_addresses, subject, body, EmailSender::MEDIUM) > 299)
+    if (EmailSender::SimplerSendEmail(EMAIL_SENDER, notification_mail_addresses, subject, body, EmailSender::VERY_HIGH) > 299)
         LOG_ERROR("Failed to send the DOI notification email!");
 }
 
@@ -115,7 +115,7 @@ void DownloadAndUpdate(DbConnection * const &db_writer, const std::string &dspac
         // to avoid meistertask items being created in this case.
         EmailSender::SimplerSendEmail(EMAIL_SENDER, "ixtheo-team@ub.uni-tuebingen.de", "Error while downloading data from DSpace API",
                                       "Error while downloading data for id " + publication_id + ": " + downloader.getLastErrorMessage(),
-                                      EmailSender::MEDIUM);
+                                      EmailSender::VERY_HIGH);
         return;
     }
 
