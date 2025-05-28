@@ -233,8 +233,14 @@ protected:
             if (q_pos != std::string::npos) {
                 path = path.substr(0, q_pos);
             }
+
             if (!path.empty() && path[0] == '/')
                 path.erase(0, 1);
+
+            if (path.find('.') != std::string::npos) {
+                send_response(http::status::not_found, "Invalid feed name");
+                return;
+            }
 
             auto query_params = parse_query_params(full_path);
             std::string entry_option;
@@ -248,14 +254,57 @@ protected:
                 return;
             }
 
+            if (query_params.count("info") && query_params["info"] == "1") {
+                int page_size = query_params.count("page_size") ? std::stoi(query_params["page_size"]) : 10;
+
+                std::vector<std::string> entries;
+                size_t pos = 0;
+                while (true) {
+                    size_t start = feed_data.find("<entry>", pos);
+                    if (start == std::string::npos)
+                        break;
+                    size_t end = feed_data.find("</entry>", start);
+                    if (end == std::string::npos)
+                        break;
+
+                    end += 8;
+                    entries.push_back(feed_data.substr(start, end - start));
+                    pos = end;
+                }
+
+                int total_entries = entries.size();
+                int total_pages = (total_entries + page_size - 1) / page_size;
+
+                std::ostringstream json;
+                json << "{ \"total_entries\": " << total_entries << ", \"page_size\": " << page_size << ", \"total_pages\": " << total_pages
+                     << " }";
+
+                send_response(http::status::ok, json.str());
+                return;
+            }
+
             if (entry_option == "first" || entry_option == "last") {
                 std::string single_entry_feed = extract_single_entry_feed(feed_data, entry_option);
                 send_response(http::status::ok, single_entry_feed);
                 return;
             }
 
-            int page_size = query_params.count("page_size") ? std::stoi(query_params["page_size"]) : 10;
-            int page_num = query_params.count("page_num") ? std::stoi(query_params["page_num"]) : 1;
+            int page_size = 10;
+            int page_num = 1;
+
+            try {
+                if (query_params.count("page_size"))
+                    page_size = std::stoi(query_params["page_size"]);
+
+                if (query_params.count("page_num"))
+                    page_num = std::stoi(query_params["page_num"]);
+
+                if (page_size <= 0 || page_num <= 0)
+                    throw std::invalid_argument("Non-positive values");
+            } catch (const std::exception& e) {
+                send_response(http::status::bad_request, "Invalid page_size or page_num parameter");
+                return;
+            }
 
             if (feeds_.count(path)) {
                 std::string paginated_feed = paginate_feed(feeds_[path], page_size, page_num);
