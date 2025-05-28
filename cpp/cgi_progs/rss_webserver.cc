@@ -228,27 +228,22 @@ protected:
             }
         } else if (req_.method() == http::verb::get) {
             std::string full_path = req_.target().to_string();
-            std::string path = full_path;
-            auto q_pos = path.find('?');
-            if (q_pos != std::string::npos) {
-                path = path.substr(0, q_pos);
-            }
+            auto query_params = parse_query_params(full_path);
 
-            if (!path.empty() && path[0] == '/')
-                path.erase(0, 1);
-
-            if (path.find('.') != std::string::npos) {
-                send_response(http::status::not_found, "Invalid feed name");
+            std::string path = full_path.substr(0, full_path.find('?'));
+            if (path != "/retrokat_webserver") {
+                send_response(http::status::not_found, "Unknown endpoint");
                 return;
             }
 
-            auto query_params = parse_query_params(full_path);
-            std::string entry_option;
-            if (query_params.count("entry")) {
-                entry_option = query_params["entry"];
+            if (!query_params.count("journal")) {
+                send_response(http::status::bad_request, "Missing 'journal' parameter");
+                return;
             }
 
-            std::string feed_data = feeds_.count(path) ? feeds_[path] : fetch_feed_from_db(path);
+            std::string feed_name = query_params["journal"];
+            std::string feed_data = feeds_.count(feed_name) ? feeds_[feed_name] : fetch_feed_from_db(feed_name);
+
             if (feed_data.empty()) {
                 send_response(http::status::not_found, "Feed not found");
                 return;
@@ -283,10 +278,13 @@ protected:
                 return;
             }
 
-            if (entry_option == "first" || entry_option == "last") {
-                std::string single_entry_feed = extract_single_entry_feed(feed_data, entry_option);
-                send_response(http::status::ok, single_entry_feed);
-                return;
+            if (query_params.count("entry")) {
+                std::string which = query_params["entry"];
+                if (which == "first" || which == "last") {
+                    std::string single_entry_feed = extract_single_entry_feed(feed_data, which);
+                    send_response(http::status::ok, single_entry_feed);
+                    return;
+                }
             }
 
             int page_size = 10;
@@ -295,28 +293,18 @@ protected:
             try {
                 if (query_params.count("page_size"))
                     page_size = std::stoi(query_params["page_size"]);
-
                 if (query_params.count("page_num"))
                     page_num = std::stoi(query_params["page_num"]);
 
                 if (page_size <= 0 || page_num <= 0)
                     throw std::invalid_argument("Non-positive values");
-            } catch (const std::exception& e) {
-                send_response(http::status::bad_request, "Invalid page_size or page_num parameter");
+            } catch (...) {
+                send_response(http::status::bad_request, "Invalid page_size or page_num");
                 return;
             }
 
-            if (feeds_.count(path)) {
-                std::string paginated_feed = paginate_feed(feeds_[path], page_size, page_num);
-                send_response(http::status::ok, paginated_feed);
-            } else {
-                if (!feed_data.empty()) {
-                    std::string paginated_feed = paginate_feed(feed_data, page_size, page_num);
-                    send_response(http::status::ok, paginated_feed);
-                } else {
-                    send_response(http::status::not_found, "Feed not found");
-                }
-            }
+            std::string paginated_feed = paginate_feed(feed_data, page_size, page_num);
+            send_response(http::status::ok, paginated_feed);
         } else {
             send_response(http::status::bad_request, "Unsupported request");
         }
