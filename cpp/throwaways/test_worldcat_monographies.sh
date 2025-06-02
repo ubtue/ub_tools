@@ -22,12 +22,12 @@ function GetAccessToken {
     key=$(inifile_lookup ${credentials_file} Credentials key)
     secret=$(inifile_lookup ${credentials_file} Credentials secret)
     id=$(inifile_lookup ${credentials_file} Credentials id)
-    echo $(curl -s -u "${key}:${secret}" -X POST -H 'Accept: application/json' 'https://oauth.oclc.org/token?grant_type=client_credentials&scope=wcapi%20context:'"${id}" | jq --raw-output .access_token)
+    echo $(curl --fail -s -u "${key}:${secret}" -X POST -H 'Accept: application/json' 'https://oauth.oclc.org/token?grant_type=client_credentials&scope=wcapi%20context:'"${id}" | jq --raw-output .access_token)
 }
 
 function QueryISBN {
     local isbn="$1"
-    echo $(curl -s -S "https://americas.discovery.api.oclc.org/worldcat/search/v2/bibs?q=bn%3A%20${isbn}&itemType=&itemSubType=&retentionCommitments=false&facets=creator&groupRelatedEditions=false&groupVariantRecords=false&orderBy=bestMatch" -H 'accept: application/json' -H "Authorization: Bearer ${access_token}")
+    echo $(curl --fail -s -S "https://americas.discovery.api.oclc.org/worldcat/search/v2/bibs?q=bn%3A%20${isbn}&itemType=&itemSubType=&retentionCommitments=false&facets=creator&groupRelatedEditions=false&groupVariantRecords=false&orderBy=bestMatch" -H 'accept: application/json' -H "Authorization: Bearer ${access_token}")
 }
 
 

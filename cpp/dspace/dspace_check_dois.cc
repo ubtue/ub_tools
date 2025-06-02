@@ -115,7 +115,7 @@ void DownloadAndUpdate(DbConnection * const &db_writer, const std::string &dspac
         // to avoid meistertask items being created in this case.
         EmailSender::SimplerSendEmail(EMAIL_SENDER, "ixtheo-team@ub.uni-tuebingen.de", "Error while downloading data from DSpace API",
                                       "Error while downloading data for id " + publication_id + ": " + downloader.getLastErrorMessage(),
-                                      EmailSender::MEDIUM);
+                                      EmailSender::VERY_HIGH);
         return;
     }
 

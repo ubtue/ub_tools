@@ -94,7 +94,7 @@ function IsSolrAvailable() {
    # https://github.com/solrmarc/solrmarc/blob/master/src/org/solrmarc/solr/SolrCoreLoader.java
    local SOLR_PING_URL=$1
    for i in $(seq 1 5); do
-      SOLR_UP=$(curl --get --silent "$SOLR_PING_URL" | grep '.*status.*OK.*')
+      SOLR_UP=$(curl --fail --get --silent "$SOLR_PING_URL" | grep '.*status.*OK.*')
       if [[ ! -z $SOLR_UP ]]; then
           return 0 #true
       fi

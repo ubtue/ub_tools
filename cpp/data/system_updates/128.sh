@@ -5,9 +5,9 @@ set -o errexit -o nounset -o pipefail
 echo "Trying to extend full_text_cache_html"
 if systemctl is-active --quiet elasticsearch; then
    echo "Detected running elasticsearch instance"
-   if [ -n $(curl -s 'localhost:9200/_cat/indices?v' | \
+   if [ -n $(curl --fail -s 'localhost:9200/_cat/indices?v' | \
        awk '{print $3}' | grep -E '^full_text_cache_html$') ]; then
-       curl --silent -XPUT localhost:9200/full_text_cache_html/_mapping \
+       curl --fail --silent -XPUT localhost:9200/full_text_cache_html/_mapping \
                   -H 'Content-Type: application/json' --data-binary @- <<EOF
            {
              "properties": {
@@ -17,7 +17,7 @@ if systemctl is-active --quiet elasticsearch; then
               }
            }  
 EOF
-       curl --silent -XPOST localhost:9200/full_text_cache_html/_update_by_query \
+       curl --fail --silent -XPOST localhost:9200/full_text_cache_html/_update_by_query \
            -H 'Content-Type: application/json' --data-binary @- <<EOF
         {
            "query": {

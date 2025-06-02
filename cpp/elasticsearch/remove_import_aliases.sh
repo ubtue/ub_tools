@@ -14,7 +14,7 @@ function GetFulltextReadWriteIndices {
 
     existing_read_write_indices=()
     for index in ${fulltext_read_write_indices[@]}; do
-        http_code=$(curl --silent --output /dev/null --head --write "%{http_code}" ${host_and_port}/${index})
+        http_code=$(curl --fail --silent --output /dev/null --head --write "%{http_code}" ${host_and_port}/${index})
         if [ ${http_code} == "200" ]; then
             existing_read_write_indices+=("${index}")
         else
@@ -29,7 +29,7 @@ function GetFulltextReadWriteIndices {
 function RemoveAliases {
     fulltext_read_write_indices=$@
     for index in ${fulltext_read_write_indices[@]}; do
-        curl --silent --request POST "${host_and_port}/_aliases" --header 'Content-Type: application/json' --data-binary @- << ENDJSON
+        curl --fail --silent --request POST "${host_and_port}/_aliases" --header 'Content-Type: application/json' --data-binary @- << ENDJSON
                   { "actions" :
                      [
                         { "remove" : { "index" : "${index}",
@@ -50,11 +50,11 @@ function RenameWriteIndices {
     fulltext_read_write_indices=$@
     for index in ${fulltext_read_write_indices[@]}; do
         if [[ ${index} =~ ^.*_write$ ]]; then
-            curl --silent --request PUT "${host_and_port}/${index}/_settings" --header 'Content-Type: application/json'  \
+            curl --fail --silent --request PUT "${host_and_port}/${index}/_settings" --header 'Content-Type: application/json'  \
             --data '{ "settings": { "index.blocks.write": true } }'
-            curl --silent --request POST "${host_and_port}/${index}/_clone/${index%_write}" --header 'Content-Type: application/json'
-            curl --silent --request GET "${host_and_port}/_cluster/health/${index%_write}?wait_for_status=yellow&timeout=30s" --header 'Content-Type: application/json'
-            curl --silent --request PUT "${host_and_port}/${index%_write}/_settings" --header 'Content-Type: application/json'  \
+            curl --fail --silent --request POST "${host_and_port}/${index}/_clone/${index%_write}" --header 'Content-Type: application/json'
+            curl --fail --silent --request GET "${host_and_port}/_cluster/health/${index%_write}?wait_for_status=yellow&timeout=30s" --header 'Content-Type: application/json'
+            curl --fail --silent --request PUT "${host_and_port}/${index%_write}/_settings" --header 'Content-Type: application/json'  \
             --data '{ "settings": { "index.blocks.write": null } }'
         fi
     done
@@ -64,7 +64,7 @@ function RenameWriteIndices {
 function DeleteImportIndices {
     fulltext_read_write_indices=$@
     for index in ${fulltext_read_write_indices[@]}; do
-        curl --silent --request DELETE "${host_and_port}/${index}"
+        curl --fail --silent --request DELETE "${host_and_port}/${index}"
     done
 }
 
