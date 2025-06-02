@@ -76,10 +76,9 @@ def DownloadUpdateFiles(download_list, json_update_objects, api_key, target_dire
     if not target_directory is None:
        os.chdir(target_directory)
 
-    oadoi_downloader = urllib.request.URLopener()
     for url, filename in zip(download_urls_and_filenames['urls'], download_urls_and_filenames['filenames']):
         print("Downloading \"" + url + "\" to \"" + filename + "\"")
-        oadoi_downloader.retrieve(url, filename)
+        urllib.request.urlretrieve(url, filename)
 
 
 def CreateImportedSymlink(filename, dest):
