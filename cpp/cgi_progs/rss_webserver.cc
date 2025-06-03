@@ -182,143 +182,151 @@ protected:
 
     void handle_request() {
         DbConnection db_connection(DbConnection::MySQLFactory(db_name_, db_user_, db_pass_));
-
         if (db_connection.isNullConnection()) {
             send_response(http::status::internal_server_error, "Database connection failed");
             return;
         }
 
         if (req_.method() == http::verb::post && req_.target() == "/submit_feed") {
-            std::istringstream stream(req_.body());
-            std::string line, key, value, feed_name;
-            std::vector<Entry> entries;
-            Entry current_entry;
-
-            while (std::getline(stream, line)) {
-                if (line.empty()) {
-                    if (!current_entry.link.empty()) {
-                        current_entry.id = current_entry.link;
-                        entries.push_back(current_entry);
-                        current_entry = Entry();
-                    }
-                    continue;
-                }
-
-                auto delim_pos = line.find('=');
-                if (delim_pos == std::string::npos)
-                    continue;
-                key = line.substr(0, delim_pos);
-                value = line.substr(delim_pos + 1);
-
-                if (key == "feed_name")
-                    feed_name = value;
-                else if (key == "title")
-                    current_entry.title = value;
-                else if (key == "link")
-                    current_entry.link = value;
-            }
-
-            if (!current_entry.link.empty()) {
-                current_entry.id = current_entry.link;
-                entries.push_back(current_entry);
-            }
-
-            if (feed_name.empty()) {
-                send_response(http::status::bad_request, "Missing feed_name");
-                return;
-            }
-
-            if (feeds_.count(feed_name)) {
-                append_to_feed(feed_name, entries, db_connection);
-                send_response(http::status::ok, "Appended to existing feed: " + feed_name);
-            } else {
-                create_new_feed(feed_name, entries, db_connection);
-                send_response(http::status::created, "Created new feed: " + feed_name);
-            }
+            handle_post_request(db_connection);
         } else if (req_.method() == http::verb::get) {
-            std::string full_path = req_.target().to_string();
-            auto query_params = parse_query_params(full_path);
-
-            std::string path = full_path.substr(0, full_path.find('?'));
-            if (path != "/retrokat_webserver") {
-                send_response(http::status::not_found, "Unknown endpoint");
-                return;
-            }
-
-            if (!query_params.count("journal")) {
-                send_response(http::status::bad_request, "Missing 'journal' parameter");
-                return;
-            }
-
-            std::string feed_name = query_params["journal"];
-            std::string feed_data = feeds_.count(feed_name) ? feeds_[feed_name] : fetch_feed_from_db(feed_name, db_connection);
-
-
-            if (feed_data.empty()) {
-                send_response(http::status::not_found, "Feed not found");
-                return;
-            }
-
-            if (query_params.count("info") && query_params["info"] == "1") {
-                int page_size = query_params.count("page_size") ? std::stoi(query_params["page_size"]) : 10;
-
-                std::vector<std::string> entries;
-                size_t pos = 0;
-                while (true) {
-                    size_t start = feed_data.find("<entry>", pos);
-                    if (start == std::string::npos)
-                        break;
-                    size_t end = feed_data.find("</entry>", start);
-                    if (end == std::string::npos)
-                        break;
-
-                    end += 8;
-                    entries.push_back(feed_data.substr(start, end - start));
-                    pos = end;
-                }
-
-                int total_entries = entries.size();
-                int total_pages = (total_entries + page_size - 1) / page_size;
-
-                std::ostringstream json;
-                json << "{ \"total_entries\": " << total_entries << ", \"page_size\": " << page_size << ", \"total_pages\": " << total_pages
-                     << " }";
-
-                send_response(http::status::ok, json.str());
-                return;
-            }
-
-            if (query_params.count("entry")) {
-                std::string which = query_params["entry"];
-                if (which == "first" || which == "last") {
-                    std::string single_entry_feed = extract_single_entry_feed(feed_data, which);
-                    send_response(http::status::ok, single_entry_feed);
-                    return;
-                }
-            }
-
-            int page_size = 10;
-            int page_num = 1;
-
-            try {
-                if (query_params.count("page_size"))
-                    page_size = std::stoi(query_params["page_size"]);
-                if (query_params.count("page_num"))
-                    page_num = std::stoi(query_params["page_num"]);
-
-                if (page_size <= 0 || page_num <= 0)
-                    throw std::invalid_argument("Non-positive values");
-            } catch (...) {
-                send_response(http::status::bad_request, "Invalid page_size or page_num");
-                return;
-            }
-
-            std::string paginated_feed = paginate_feed(feed_data, page_size, page_num);
-            send_response(http::status::ok, paginated_feed);
+            handle_get_request(db_connection);
         } else {
             send_response(http::status::bad_request, "Unsupported request");
         }
     }
+
+    void handle_post_request(DbConnection& db_connection) {
+        std::istringstream stream(req_.body());
+        std::string line, key, value, feed_name;
+        std::vector<Entry> entries;
+        Entry current_entry;
+
+        while (std::getline(stream, line)) {
+            if (line.empty()) {
+                if (!current_entry.link.empty()) {
+                    current_entry.id = current_entry.link;
+                    entries.push_back(current_entry);
+                    current_entry = Entry();
+                }
+                continue;
+            }
+
+            auto delim_pos = line.find('=');
+            if (delim_pos == std::string::npos)
+                continue;
+            key = line.substr(0, delim_pos);
+            value = line.substr(delim_pos + 1);
+
+            if (key == "feed_name")
+                feed_name = value;
+            else if (key == "title")
+                current_entry.title = value;
+            else if (key == "link")
+                current_entry.link = value;
+        }
+
+        if (!current_entry.link.empty()) {
+            current_entry.id = current_entry.link;
+            entries.push_back(current_entry);
+        }
+
+        if (feed_name.empty()) {
+            send_response(http::status::bad_request, "Missing feed_name");
+            return;
+        }
+
+        if (feeds_.count(feed_name)) {
+            append_to_feed(feed_name, entries, db_connection);
+            send_response(http::status::ok, "Appended to existing feed: " + feed_name);
+        } else {
+            create_new_feed(feed_name, entries, db_connection);
+            send_response(http::status::created, "Created new feed: " + feed_name);
+        }
+    }
+
+    void handle_get_request(DbConnection& db_connection) {
+        std::string full_path = req_.target().to_string();
+        auto query_params = parse_query_params(full_path);
+
+        std::string path = full_path.substr(0, full_path.find('?'));
+        if (path != "/retrokat_webserver") {
+            send_response(http::status::not_found, "Unknown endpoint");
+            return;
+        }
+
+        if (!query_params.count("journal")) {
+            send_response(http::status::bad_request, "Missing 'journal' parameter");
+            return;
+        }
+
+        std::string feed_name = query_params["journal"];
+        std::string feed_data = feeds_.count(feed_name) ? feeds_[feed_name] : fetch_feed_from_db(feed_name, db_connection);
+
+
+        if (feed_data.empty()) {
+            send_response(http::status::not_found, "Feed not found");
+            return;
+        }
+
+        if (query_params.count("info") && query_params["info"] == "1") {
+            int page_size = query_params.count("page_size") ? std::stoi(query_params["page_size"]) : 10;
+
+            std::vector<std::string> entries;
+            size_t pos = 0;
+            while (true) {
+                size_t start = feed_data.find("<entry>", pos);
+                if (start == std::string::npos)
+                    break;
+                size_t end = feed_data.find("</entry>", start);
+                if (end == std::string::npos)
+                    break;
+
+                end += 8;
+                entries.push_back(feed_data.substr(start, end - start));
+                pos = end;
+            }
+
+            int total_entries = entries.size();
+            int total_pages = (total_entries + page_size - 1) / page_size;
+
+            std::ostringstream json;
+            json << "{ \"total_entries\": " << total_entries << ", \"page_size\": " << page_size << ", \"total_pages\": " << total_pages
+                 << " }";
+
+            send_response(http::status::ok, json.str());
+            return;
+        }
+
+        if (query_params.count("entry")) {
+            std::string which = query_params["entry"];
+            if (which == "first" || which == "last") {
+                std::string single_entry_feed = extract_single_entry_feed(feed_data, which);
+                send_response(http::status::ok, single_entry_feed);
+                return;
+            }
+        }
+
+        int page_size = 10;
+        int page_num = 1;
+
+        try {
+            if (query_params.count("page_size"))
+                page_size = std::stoi(query_params["page_size"]);
+            if (query_params.count("page_num"))
+                page_num = std::stoi(query_params["page_num"]);
+
+            if (page_size <= 0 || page_num <= 0)
+                throw std::invalid_argument("Non-positive values");
+        } catch (...) {
+            send_response(http::status::bad_request, "Invalid page_size or page_num");
+            return;
+        }
+
+        std::string paginated_feed = paginate_feed(feed_data, page_size, page_num);
+        send_response(http::status::ok, paginated_feed);
+    }
+
 
     void send_response(http::status status, const std::string& content) {
         auto res = std::make_shared<http::response<http::string_body>>(status, req_.version());
