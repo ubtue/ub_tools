@@ -13,7 +13,7 @@
 #include "IniFile.h"
 #include "UBTools.h"
 
-const std::string CONF_FILE_PATH(UBTools::GetTuelibPath() + "translations.conf");
+const std::string CONF_FILE_PATH(UBTools::GetTuelibPath() + "ub_tools.conf");
 
 namespace beast = boost::beast;
 namespace http = beast::http;
@@ -139,7 +139,7 @@ std::string paginate_feed(const std::string& feed_xml, int page_size, int page_n
 }
 
 void load_feeds(DbConnection& db_connection, std::map<std::string, std::string>& feeds) {
-    std::string query = "SELECT feed_name, feed_content FROM rss_feeds;";
+    std::string query = "SELECT feed_name, feed_content FROM retrokat_feeds;";
     DbResultSet result = db_connection.selectOrDie(query);
 
     for (DbRow row = result.getNextRow(); row; row = result.getNextRow()) {
@@ -156,8 +156,9 @@ void load_feeds(DbConnection& db_connection, std::map<std::string, std::string>&
 
 class session : public std::enable_shared_from_this<session> {
 public:
-    session(tcp::socket socket, std::map<std::string, std::string>& feeds, DbConnection& db_connection)
-        : socket_(std::move(socket)), feeds_(feeds), db_connection_(db_connection) { }
+    session(tcp::socket socket, std::map<std::string, std::string>& feeds, std::string db_name, std::string db_user, std::string db_pass)
+        : socket_(std::move(socket)), feeds_(feeds), db_name_(std::move(db_name)), db_user_(std::move(db_user)),
+          db_pass_(std::move(db_pass)) { }
 
     void start() { read_request(); }
 
@@ -166,7 +167,8 @@ protected:
     beast::flat_buffer buffer_;
     http::request<http::string_body> req_;
     std::map<std::string, std::string>& feeds_;
-    DbConnection& db_connection_;
+
+    std::string db_name_, db_user_, db_pass_;
 
     void read_request() {
         http::async_read(socket_, buffer_, req_, [self = shared_from_this()](beast::error_code ec, std::size_t) {
@@ -179,6 +181,13 @@ protected:
     }
 
     void handle_request() {
+        DbConnection db_connection(DbConnection::MySQLFactory(db_name_, db_user_, db_pass_));
+
+        if (db_connection.isNullConnection()) {
+            send_response(http::status::internal_server_error, "Database connection failed");
+            return;
+        }
+
         if (req_.method() == http::verb::post && req_.target() == "/submit_feed") {
             std::istringstream stream(req_.body());
             std::string line, key, value, feed_name;
@@ -220,10 +229,10 @@ protected:
             }
 
             if (feeds_.count(feed_name)) {
-                append_to_feed(feed_name, entries);
+                append_to_feed(feed_name, entries, db_connection);
                 send_response(http::status::ok, "Appended to existing feed: " + feed_name);
             } else {
-                create_new_feed(feed_name, entries);
+                create_new_feed(feed_name, entries, db_connection);
                 send_response(http::status::created, "Created new feed: " + feed_name);
             }
         } else if (req_.method() == http::verb::get) {
@@ -242,7 +251,8 @@ protected:
             }
 
             std::string feed_name = query_params["journal"];
-            std::string feed_data = feeds_.count(feed_name) ? feeds_[feed_name] : fetch_feed_from_db(feed_name);
+            std::string feed_data = feeds_.count(feed_name) ? feeds_[feed_name] : fetch_feed_from_db(feed_name, db_connection);
+
 
             if (feed_data.empty()) {
                 send_response(http::status::not_found, "Feed not found");
@@ -328,20 +338,20 @@ protected:
         });
     }
 
-    void insert_feed_into_db(const std::string& feed_name, const std::string& content) {
+    void insert_feed_into_db(const std::string& feed_name, const std::string& content, DbConnection& db_connection) {
         std::string safe_feed_name = escape_sql(feed_name);
         std::string safe_content = escape_sql(content);
 
         std::string query =
-            "INSERT INTO rss_feeds (feed_name, feed_content) VALUES ('" + safe_feed_name + "', '" + safe_content + "') "
+            "INSERT INTO retrokat_feeds (feed_name, feed_content) VALUES ('" + safe_feed_name + "', '" + safe_content + "') "
             "ON DUPLICATE KEY UPDATE feed_content = VALUES(feed_content);";
 
-        db_connection_.queryOrDie(query);
+        db_connection.queryOrDie(query);
     }
 
-    std::string fetch_feed_from_db(const std::string& feed_name) {
-        std::string query = "SELECT feed_content FROM rss_feeds WHERE feed_name = '" + feed_name + "';";
-        DbResultSet result = db_connection_.selectOrDie(query);
+    std::string fetch_feed_from_db(const std::string& feed_name, DbConnection& db_connection) {
+        std::string query = "SELECT feed_content FROM retrokat_feeds WHERE feed_name = '" + feed_name + "';";
+        DbResultSet result = db_connection.selectOrDie(query);
 
         if (!result.empty()) {
             DbRow row = result.getNextRow();
@@ -356,7 +366,7 @@ protected:
         return "";
     }
 
-    void create_new_feed(const std::string& feed_name, const std::vector<Entry>& entries) {
+    void create_new_feed(const std::string& feed_name, const std::vector<Entry>& entries, DbConnection& db_connection) {
         std::ostringstream rss;
         rss << "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n";
         rss << "<feed xmlns=\"http://www.w3.org/2005/Atom\">\n";
@@ -380,10 +390,10 @@ protected:
 
         std::string content = rss.str();
         feeds_[feed_name] = content;
-        insert_feed_into_db(feed_name, content);
+        insert_feed_into_db(feed_name, content, db_connection);
     }
 
-    void append_to_feed(const std::string& feed_name, const std::vector<Entry>& new_entries) {
+    void append_to_feed(const std::string& feed_name, const std::vector<Entry>& new_entries, DbConnection& db_connection) {
         std::string& existing_feed = feeds_[feed_name];
 
         std::set<std::string> existing_ids;
@@ -424,14 +434,15 @@ protected:
         new_feed << "</feed>\n";
 
         feeds_[feed_name] = new_feed.str();
-        insert_feed_into_db(feed_name, feeds_[feed_name]);
+        insert_feed_into_db(feed_name, feeds_[feed_name], db_connection);
     }
 };
 
 class listener : public std::enable_shared_from_this<listener> {
 public:
-    listener(net::io_context& ioc, tcp::endpoint endpoint, std::map<std::string, std::string>& feeds, DbConnection& db_connection)
-        : acceptor_(ioc), feeds_(feeds), db_connection_(db_connection) {
+    listener(net::io_context& ioc, tcp::endpoint endpoint, std::map<std::string, std::string>& feeds, std::string db_name,
+             std::string db_user, std::string db_pass)
+        : acceptor_(ioc), feeds_(feeds), db_name_(std::move(db_name)), db_user_(std::move(db_user)), db_pass_(std::move(db_pass)) {
         boost::system::error_code ec;
         acceptor_.open(endpoint.protocol(), ec);
         acceptor_.set_option(net::socket_base::reuse_address(true), ec);
@@ -444,13 +455,13 @@ public:
 protected:
     tcp::acceptor acceptor_;
     std::map<std::string, std::string>& feeds_;
-    DbConnection& db_connection_;
+    std::string db_name_, db_user_, db_pass_;
 
     void accept() {
         acceptor_.async_accept([self = shared_from_this()](beast::error_code ec, tcp::socket socket) {
             if (!ec) {
                 std::cout << "Accepted connection from: " << socket.remote_endpoint() << "\n";
-                std::make_shared<session>(std::move(socket), self->feeds_, self->db_connection_)->start();
+                std::make_shared<session>(std::move(socket), self->feeds_, self->db_name_, self->db_user_, self->db_pass_)->start();
             } else {
                 std::cerr << "Accept error: " << ec.message() << "\n";
             }
@@ -468,18 +479,19 @@ int main() {
         const std::string sql_database(ini_file.getString("Database", "sql_database"));
         const std::string sql_username(ini_file.getString("Database", "sql_username"));
         const std::string sql_password(ini_file.getString("Database", "sql_password"));
-        DbConnection db_connection(DbConnection::MySQLFactory("retrokat_feeds", sql_username, sql_password));
+        {
+            DbConnection db_connection(DbConnection::MySQLFactory(sql_database, sql_username, sql_password));
+            if (db_connection.isNullConnection()) {
+                std::cerr << "Failed to connect to the MySQL database.\n";
+                return 1;
+            }
 
-        if (db_connection.isNullConnection()) {
-            std::cerr << "Failed to connect to the MySQL database.\n";
-            return 1;
+            std::cout << "Loading existing feeds from the database...\n";
+            load_feeds(db_connection, feeds);
         }
 
-        std::cout << "Loading existing feeds from the database...\n";
-        load_feeds(db_connection, feeds);
-
         auto endpoint = tcp::endpoint(tcp::v4(), 8080);
-        std::make_shared<listener>(ioc, endpoint, feeds, db_connection)->run();
+        std::make_shared<listener>(ioc, endpoint, feeds, sql_database, sql_username, sql_password)->run();
 
         std::cout << "Server running on http://localhost:8080\n";
         ioc.run();
