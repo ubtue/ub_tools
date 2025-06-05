@@ -52,6 +52,26 @@ std::string escape_sql(const std::string& input) {
     return escaped;
 }
 
+std::string url_decode(const std::string& in) {
+    std::string out;
+    out.reserve(in.size());
+    for (std::size_t i = 0; i < in.size(); ++i) {
+        if (in[i] == '%') {
+            if (i + 2 < in.size()) {
+                std::string hex = in.substr(i + 1, 2);
+                char decoded_char = static_cast<char>(std::strtol(hex.c_str(), nullptr, 16));
+                out += decoded_char;
+                i += 2;
+            }
+        } else if (in[i] == '+') {
+            out += ' ';
+        } else {
+            out += in[i];
+        }
+    }
+    return out;
+}
+
 std::map<std::string, std::string> parse_query_params(const std::string& target) {
     std::map<std::string, std::string> params;
     auto pos = target.find('?');
@@ -65,13 +85,27 @@ std::map<std::string, std::string> parse_query_params(const std::string& target)
     while (std::getline(query_stream, pair, '&')) {
         auto eq_pos = pair.find('=');
         if (eq_pos != std::string::npos) {
-            std::string key = pair.substr(0, eq_pos);
-            std::string value = pair.substr(eq_pos + 1);
+            std::string key = url_decode(pair.substr(0, eq_pos));
+            std::string value = url_decode(pair.substr(eq_pos + 1));
             params[key] = value;
         }
     }
 
     return params;
+}
+
+std::map<std::string, std::string> lookup_journal_info(DbConnection& db_connection, std::string journal_name) {
+    std::map<std::string, std::string> journal_info;
+    std::string query = "SELECT zeder_id, zeder_instance FROM retrokat_journals WHERE journal_name = '" + escape_sql(journal_name) + "';";
+    DbResultSet result = db_connection.selectOrDie(query);
+
+    if (!result.empty()) {
+        DbRow row = result.getNextRow();
+        journal_info["zeder_id"] = row.getValue("zeder_id", "");
+        journal_info["zeder_instance"] = row.getValue("zeder_instance", "");
+    }
+
+    return journal_info;
 }
 
 class session : public std::enable_shared_from_this<session> {
@@ -131,49 +165,49 @@ protected:
             }
 
             auto delim_pos = line.find('=');
-            if (delim_pos == std::string::npos)
-                continue;
-
-            key = line.substr(0, delim_pos);
-            value = line.substr(delim_pos + 1);
-
-            current_entry[key] = value;
+            if (delim_pos != std::string::npos) {
+                key = line.substr(0, delim_pos);
+                value = line.substr(delim_pos + 1);
+                current_entry[key] = value;
+            }
         }
 
         if (!current_entry.empty())
             entries.push_back(current_entry);
 
         int inserted_count = 0;
+
         for (const auto& entry : entries) {
-            if (!entry.count("article_link") || !entry.count("zeder_journal_id") || !entry.count("zeder_instance")) {
-                std::cerr << "Skipping entry due to missing fields.\n";
+            if (!entry.count("article_link") || !entry.count("journal")) {
+                std::cerr << "Skipping entry due to missing article_link or journal.\n";
                 continue;
             }
 
-            std::string main_title = escape_sql(entry.at("main_title"));
             std::string article_link = escape_sql(entry.at("article_link"));
-            std::string journal_id = escape_sql(entry.at("zeder_journal_id"));
-            std::string instance = escape_sql(entry.at("zeder_instance"));
-            std::string delivered_at;
-            if (entry.count("delivered_at")) {
-                std::string raw = entry.at("delivered_at");
-                std::replace(raw.begin(), raw.end(), 'T', ' ');
-                if (!raw.empty() && raw.back() == 'Z')
-                    raw.pop_back();
+            std::string main_title = entry.count("main_title") ? escape_sql(entry.at("main_title")) : article_link;
+            std::string journal_name = entry.at("journal");
 
-                if (!is_valid_mysql_datetime(raw)) {
-                    std::cerr << "Invalid datetime format: " << raw << ". Skipping entry.\n";
-                    continue;
-                }
-                delivered_at = "'" + escape_sql(raw) + "'";
-            } else {
-                delivered_at = "NOW()";
+            auto journal_info = lookup_journal_info(db_connection, journal_name);
+            if (journal_info.empty()) {
+                send_response(http::status::not_found, "Journal not found.\n");
+                continue;
             }
 
+            std::string zeder_id = escape_sql(journal_info["zeder_id"]);
+            std::string zeder_instance = escape_sql(journal_info["zeder_instance"]);
+
+            std::string delivered_at = "NOW()";
+            if (entry.count("delivered_at")) {
+                std::string ts = entry.at("delivered_at");
+                std::replace(ts.begin(), ts.end(), 'T', ' ');
+                if (!ts.empty() && ts.back() == 'Z')
+                    ts.pop_back();
+                delivered_at = "'" + escape_sql(ts) + "'";
+            }
 
             std::string insert_query =
                 "INSERT INTO retrokat_articles (main_title, article_link, zeder_journal_id, zeder_instance, delivered_at) "
-                "VALUES ('" + main_title + "', '" + article_link + "', " + journal_id + ", '" + instance + "', " + delivered_at + ") "
+                "VALUES ('" + main_title + "', '" + article_link + "', " + zeder_id + ", '" + zeder_instance + "', " + delivered_at + ") "
                 "ON DUPLICATE KEY UPDATE main_title = VALUES(main_title), delivered_at = VALUES(delivered_at);";
 
             try {
@@ -195,17 +229,25 @@ protected:
 
         std::string path = full_path.substr(0, full_path.find('?'));
         if (path != "/retrokat_webserver") {
-            send_response(http::status::not_found, "Unknown endpoint");
+            send_response(http::status::not_found, "Unknown endpoint.\n");
             return;
         }
 
-        if (!query_params.count("journal") || !query_params.count("instance")) {
-            send_response(http::status::bad_request, "Missing 'journal' and/or 'instance' parameter");
+        if (!query_params.count("journal")) {
+            send_response(http::status::bad_request, "Missing 'journal' parameter.\n");
             return;
         }
 
-        int journal_id = std::stoi(query_params["journal"]);
-        std::string zeder_instance = query_params["instance"];
+        auto journal_params = lookup_journal_info(db_connection, query_params["journal"]);
+
+        if (journal_params.empty()) {
+            send_response(http::status::not_found, "Journal not found.\n");
+            return;
+        }
+
+        std::string zeder_id = journal_params["zeder_id"];
+        std::string zeder_instance = journal_params["zeder_instance"];
+        std::string journal_name = query_params["journal"];
 
         int page_size = 10;
         int page_num = 1;
@@ -224,8 +266,8 @@ protected:
         }
 
         if (query_params.count("info") && query_params["info"] == "1") {
-            std::string count_query = "SELECT COUNT(*) AS total FROM retrokat_articles WHERE zeder_journal_id = "
-                                      + std::to_string(journal_id) + " AND zeder_instance = '" + escape_sql(zeder_instance) + "';";
+            std::string count_query = "SELECT COUNT(*) AS total FROM retrokat_articles WHERE zeder_journal_id = " + escape_sql(zeder_id)
+                                      + " AND zeder_instance = '" + escape_sql(zeder_instance) + "';";
             DbResultSet count_result = db_connection.selectOrDie(count_query);
             int total_entries = 0;
 
@@ -248,24 +290,23 @@ protected:
 
         std::ostringstream query;
         query << "SELECT main_title, article_link, delivered_at FROM retrokat_articles "
-              << "WHERE zeder_journal_id = " << journal_id << " AND zeder_instance = '" << escape_sql(zeder_instance) << "' "
+              << "WHERE zeder_journal_id = " << zeder_id << " AND zeder_instance = '" << escape_sql(zeder_instance) << "' "
               << "LIMIT " << page_size << " OFFSET " << offset << ";";
 
         DbResultSet result = db_connection.selectOrDie(query.str());
 
         if (result.empty()) {
-            send_response(http::status::not_found, "No articles found for given journal_id");
+            send_response(http::status::not_found, "No articles found for given journal_id.\n");
             return;
         }
 
         std::ostringstream feed;
         feed << "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n";
         feed << "<feed xmlns=\"http://www.w3.org/2005/Atom\">\n";
-        feed << "  <title>Feed for Journal ID " << journal_id << "</title>\n";
-        feed << "  <id>http://localhost:8080/retrokat_webserver?journal=" << journal_id << "&instance=" << zeder_instance << "</id>\n";
+        feed << "  <title>Feed for Journal ID " << journal_name << "</title>\n";
+        feed << "  <id>http://localhost:8080/retrokat_webserver?journal=" << journal_name << "</id>\n";
         feed << "  <updated>" << get_current_timestamp() << "</updated>\n";
-        feed << "  <link href=\"http://localhost:8080/retrokat_webserver?journal=" << journal_id << "&instance=" << zeder_instance
-             << "\" />\n";
+        feed << "  <link href=\"http://localhost:8080/retrokat_webserver?journal=" << journal_name << "\" />\n";
 
         for (DbRow row = result.getNextRow(); row; row = result.getNextRow()) {
             std::string link = row.getValue("article_link", "");
