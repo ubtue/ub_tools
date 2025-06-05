@@ -199,12 +199,13 @@ protected:
             return;
         }
 
-        if (!query_params.count("journal")) {
-            send_response(http::status::bad_request, "Missing 'journal' parameter");
+        if (!query_params.count("journal") || !query_params.count("instance")) {
+            send_response(http::status::bad_request, "Missing 'journal' and/or 'instance' parameter");
             return;
         }
 
         int journal_id = std::stoi(query_params["journal"]);
+        std::string zeder_instance = query_params["instance"];
 
         int page_size = 10;
         int page_num = 1;
@@ -223,8 +224,8 @@ protected:
         }
 
         if (query_params.count("info") && query_params["info"] == "1") {
-            std::string count_query =
-                "SELECT COUNT(*) AS total FROM retrokat_articles WHERE zeder_journal_id = " + std::to_string(journal_id) + ";";
+            std::string count_query = "SELECT COUNT(*) AS total FROM retrokat_articles WHERE zeder_journal_id = "
+                                      + std::to_string(journal_id) + " AND zeder_instance = '" + escape_sql(zeder_instance) + "';";
             DbResultSet count_result = db_connection.selectOrDie(count_query);
             int total_entries = 0;
 
@@ -247,7 +248,7 @@ protected:
 
         std::ostringstream query;
         query << "SELECT main_title, article_link, delivered_at FROM retrokat_articles "
-              << "WHERE zeder_journal_id = " << journal_id << " "
+              << "WHERE zeder_journal_id = " << journal_id << " AND zeder_instance = '" << escape_sql(zeder_instance) << "' "
               << "LIMIT " << page_size << " OFFSET " << offset << ";";
 
         DbResultSet result = db_connection.selectOrDie(query.str());
@@ -261,9 +262,10 @@ protected:
         feed << "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n";
         feed << "<feed xmlns=\"http://www.w3.org/2005/Atom\">\n";
         feed << "  <title>Feed for Journal ID " << journal_id << "</title>\n";
-        feed << "  <id>http://localhost:8080/retrokat_webserver?journal=" << journal_id << "</id>\n";
+        feed << "  <id>http://localhost:8080/retrokat_webserver?journal=" << journal_id << "&instance=" << zeder_instance << "</id>\n";
         feed << "  <updated>" << get_current_timestamp() << "</updated>\n";
-        feed << "  <link href=\"http://localhost:8080/retrokat_webserver?journal=" << journal_id << "\" />\n";
+        feed << "  <link href=\"http://localhost:8080/retrokat_webserver?journal=" << journal_id << "&instance=" << zeder_instance
+             << "\" />\n";
 
         for (DbRow row = result.getNextRow(); row; row = result.getNextRow()) {
             std::string link = row.getValue("article_link", "");
