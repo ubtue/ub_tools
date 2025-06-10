@@ -25,7 +25,7 @@ def GetChangelists(url, api_key):
     print("Get Changelists")
     for attempt_number in range(3):
         try:
-            response = urllib.request.urlopen(url + '?api_key=' + api_key)
+            response = urllib.request.urlopen(url + '?api_key=' + api_key + '&interval=week')
             jdata = json.load(response)
             # Get only JSON update entries, no CSV
             json_update_objects = [item for item in jdata['list'] if item['filetype'] == 'jsonl']
