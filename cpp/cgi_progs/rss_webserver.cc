@@ -12,6 +12,8 @@
 #include "DbConnection.h"
 #include "IniFile.h"
 #include "UBTools.h"
+#include "UrlUtil.h"
+#include "XmlUtil.h"
 
 const std::string CONF_FILE_PATH(UBTools::GetTuelibPath() + "ub_tools.conf");
 
@@ -319,9 +321,10 @@ protected:
         feed << "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n";
         feed << "<feed xmlns=\"http://www.w3.org/2005/Atom\">\n";
         feed << "  <title>Feed for Journal ID " << journal_name << "</title>\n";
-        feed << "  <id>http://localhost:8080/retrokat_webserver?journal=" << journal_name << "</id>\n";
+        feed << "  <id>http://localhost:8080/retrokat_webserver?journal=" << UrlUtil::UrlEncode(journal_name) << "</id>\n";
         feed << "  <updated>" << get_current_timestamp() << "</updated>\n";
-        feed << "  <link href=\"http://localhost:8080/retrokat_webserver?journal=" << journal_name << "\" />\n";
+        feed << "  <link rel=\"self\" type=\"application/atom+xml\" href=\"http://localhost:8080/retrokat_webserver?journal="
+             << UrlUtil::UrlEncode(journal_name) << "\" />\n";
 
         for (DbRow row = result.getNextRow(); row; row = result.getNextRow()) {
             std::string link = row.getValue("article_link", "");
@@ -334,7 +337,7 @@ protected:
             }
 
             feed << "  <entry>\n";
-            feed << "    <title>" << title << "</title>\n";
+            feed << "    <title>" << XmlUtil::XmlEscape(title) << "</title>\n";
             feed << "    <link href=\"" << link << "\" />\n";
             feed << "    <id>" << link << "</id>\n";
             feed << "    <updated>" << updated << "</updated>\n";
