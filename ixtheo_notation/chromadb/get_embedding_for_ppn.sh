@@ -16,9 +16,8 @@ function GetSolrConfig {
 function GetRecordData {
     record_data=$(curl --silent "http://${solr_server}:${solr_port}/solr/biblio/select?fl=*&q.op=OR&q=id%3A${ppn}" | \
               jq '.response.docs[] | { id, title_full, author, topic_standardized, topic_non_standardized,
-                 ixtheo_notation, era_facet, topic_facet, "summary" : .fullrecord | fromjson | .fields[]
-                 | to_entries[] | select(.key=="520") | .value.subfields[].a }' | \
-              jq 'tojson | {"model" : "'"${model}"'", "input": .}')
+                 ixtheo_notation, era_facet, topic_facet, summary : ((.fullrecord | fromjson | .fields[]
+                 | to_entries[] | select(.key=="520") | .value?.subfields[]?.a) // null)} | tojson | {"model" : "'"${model}"'", "input": .}')
 
     echo "${record_data}"
 }
@@ -32,7 +31,7 @@ function GetEmbedding {
     echo "${embedding}"
 }
 
-if [ $# < 1 ]; then
+if [ $# -lt 1 ]; then
     echo "Usage: $0 ppns"
     exit 1
 fi
