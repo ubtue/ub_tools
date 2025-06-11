@@ -8,6 +8,7 @@
 #include <boost/asio.hpp>
 #include <boost/beast.hpp>
 #include <boost/filesystem.hpp>
+#include <nlohmann/json.hpp>
 #include "DbConnection.h"
 #include "IniFile.h"
 #include "UBTools.h"
@@ -46,6 +47,8 @@ std::string escape_sql(const std::string& input) {
             escaped += "\\'";
         else if (c == '\\')
             escaped += "\\\\";
+        else if (c == '"')
+            escaped += "\\\"";
         else
             escaped += c;
     }
@@ -186,6 +189,18 @@ protected:
             std::string article_link = escape_sql(entry.at("article_link"));
             std::string main_title = entry.count("main_title") ? escape_sql(entry.at("main_title")) : article_link;
             std::string journal_name = entry.at("journal");
+            std::string pattern = entry.count("pattern") ? entry.at("pattern") : "";
+            std::string extraction_pattern = entry.count("extraction_pattern") ? entry.at("extraction_pattern") : "";
+            std::string crawl_pattern = entry.count("crawl_pattern") ? entry.at("crawl_pattern") : "";
+            std::string volume_pattern = entry.count("volume_pattern") ? entry.at("volume_pattern") : "";
+
+            nlohmann::json json_obj = { { "pattern", pattern },
+                                        { "regexes",
+                                          { { "extraction_pattern", extraction_pattern },
+                                            { "crawl_pattern", crawl_pattern },
+                                            { "volume_pattern", volume_pattern } } } };
+
+            std::string extraction_patterns = escape_sql(json_obj.dump(2));
 
             auto journal_info = lookup_journal_info(db_connection, journal_name);
             if (journal_info.empty()) {
@@ -206,9 +221,9 @@ protected:
             }
 
             std::string insert_query =
-                "INSERT INTO retrokat_articles (main_title, article_link, zeder_journal_id, zeder_instance, delivered_at) "
-                "VALUES ('" + main_title + "', '" + article_link + "', " + zeder_id + ", '" + zeder_instance + "', " + delivered_at + ") "
-                "ON DUPLICATE KEY UPDATE main_title = VALUES(main_title), delivered_at = VALUES(delivered_at);";
+                "INSERT INTO retrokat_articles (main_title, article_link, zeder_journal_id, zeder_instance, delivered_at, extraction_patterns) "
+                "VALUES ('" + main_title + "', '" + article_link + "', " + zeder_id + ", '" + zeder_instance + "', " + delivered_at +  ", '" + extraction_patterns + "') "
+                "ON DUPLICATE KEY UPDATE main_title = VALUES(main_title), delivered_at = VALUES(delivered_at), extraction_patterns = VALUES(extraction_patterns);";
 
             try {
                 db_connection.queryOrDie(insert_query);
@@ -289,7 +304,7 @@ protected:
         int offset = (page_num - 1) * page_size;
 
         std::ostringstream query;
-        query << "SELECT main_title, article_link, delivered_at FROM retrokat_articles "
+        query << "SELECT main_title, article_link, delivered_at, extraction_patterns FROM retrokat_articles "
               << "WHERE zeder_journal_id = " << zeder_id << " AND zeder_instance = '" << escape_sql(zeder_instance) << "' "
               << "LIMIT " << page_size << " OFFSET " << offset << ";";
 
@@ -312,6 +327,7 @@ protected:
             std::string link = row.getValue("article_link", "");
             std::string title = row.getValue("main_title", link);
             std::string updated = row.getValue("delivered_at", get_current_timestamp());
+            std::string json = row.getValue("extraction_patterns", "");
             if (updated.find(' ') != std::string::npos) {
                 std::replace(updated.begin(), updated.end(), ' ', 'T');
                 updated += "Z";
@@ -324,6 +340,13 @@ protected:
             feed << "    <updated>" << updated << "</updated>\n";
             feed << "    <author><name>Feed Generator</name></author>\n";
             feed << "    <summary>Link to article: " << link << "</summary>\n";
+            if (!json.empty()) {
+                feed << "    <content type=\"html\">\n";
+                feed << "      <![CDATA[\n";
+                feed << "      <pre>" << json << "</pre>\n";
+                feed << "      ]]>\n";
+                feed << "    </content>\n";
+            }
             feed << "  </entry>\n";
         }
 
