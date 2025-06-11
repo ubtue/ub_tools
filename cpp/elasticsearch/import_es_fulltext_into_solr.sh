@@ -48,7 +48,7 @@ function get_hit_count() {
 function upload_fulltext_to_solr() {
     response=$@
     echo $response | jq  '[.hits.hits[]."_source"]  | . as $t | group_by(.id) | map({id:.[0].id, fulltext : { set : (map(.full_text) | join(" ")) } } )' | \
-        curl -s  http://$SOLR_HOST:$SOLR_PORT/solr/$SOLR_INDEX/update?commit=true -H "Content-Type: application/json" --data @-
+        curl --fail -s  http://$SOLR_HOST:$SOLR_PORT/solr/$SOLR_INDEX/update?commit=true -H "Content-Type: application/json" --data @-
 }
 
 
@@ -90,7 +90,7 @@ fi
 
 # Handle potential chunking
 # Extract the data from Elasticsearch, flatten it in case there are several chunks and transform it to a valid Solr-Fulltext field and load it up to Solr
-response=$(curl -s -X GET -H "Content-Type: application/json" 'http://'$ES_HOST:$ES_PORT/$ES_INDEX'/_search/?scroll=1m' --data '{ "size" : 5000, "query":'"$(generate_match_query $PPN)"'} }')
+response=$(curl --fail -s -X GET -H "Content-Type: application/json" 'http://'$ES_HOST:$ES_PORT/$ES_INDEX'/_search/?scroll=1m' --data '{ "size" : 5000, "query":'"$(generate_match_query $PPN)"'} }')
 get_download_stats "$response"
 scroll_id=$(get_scroll_id "$response")
 hit_count=$(get_hit_count "$response")
@@ -102,7 +102,7 @@ solr_response_handler "$solr_response"
 # Continue until there are no further results
 while [ "$hit_count" != "0" ]; do
     echo "Importing batch with "$hit_count" items"
-    response=$(curl -s -X GET -H "Content-Type: application/json" 'http://'$ES_HOST:$ES_PORT'/_search/scroll' --data '{ "scroll" : "1m", "scroll_id": "'$scroll_id'" }')
+    response=$(curl --fail -s -X GET -H "Content-Type: application/json" 'http://'$ES_HOST:$ES_PORT'/_search/scroll' --data '{ "scroll" : "1m", "scroll_id": "'$scroll_id'" }')
     get_download_stats "$response"
     scroll_id=$(get_scroll_id "$response")
     hit_count=$(get_hit_count "$response")

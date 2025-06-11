@@ -27,14 +27,14 @@ EOF
 
 for index in "full_text_cache" "full_text_cache_urls" "full_text_cache_html"
 do
-   curl --silent -XPOST "http://${FT_SERVER}:9200/${index}/_delete_by_query" -H "Content-Type: application/json" -d $(printf "%s" $bunch_query)
+   curl --fail --silent -XPOST "http://${FT_SERVER}:9200/${index}/_delete_by_query" -H "Content-Type: application/json" -d $(printf "%s" $bunch_query)
 done
 }
 
 
 function QueryRefWork {
    superior_ppn="$1"
-   all_refwork_ppns=$(curl --silent \
+   all_refwork_ppns=$(curl --fail --silent \
     'http://'${IXTHEO_SERVER}':8983/solr/biblio/select?fl=id%2Ctitle&indent=true&q.op=OR&q=superior_ppn%3A'${superior_ppn}'&rows=10000&sort=title%20asc&start=0' \
     | jq .response.docs[].id | sed -r -e 's/"//g')
 

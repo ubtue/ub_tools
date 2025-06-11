@@ -58,7 +58,7 @@ echo "Checking write access to output file..."
 >> "$id_output_file" || (echo "Cannot write to $id_output_file" && exit 1)
 
 echo "Querying Elasticsearch..."
-response=$(curl --silent --request GET --header "Content-Type: application/json" $ES_HOST_AND_PORT/$ES_INDEX'/_search/?scroll=1m' --data '{ "_source": ["id"], "size" : 1000,
+response=$(curl --fail --silent --request GET --header "Content-Type: application/json" $ES_HOST_AND_PORT/$ES_INDEX'/_search/?scroll=1m' --data '{ "_source": ["id"], "size" : 1000,
  "query" : {
     "constant_score" : {
         "filter" : {
@@ -85,7 +85,7 @@ id_arrays=$(ObtainIds "$response")
 # Continue until there are no further results
 while [ "$hit_count" != "0" ]; do
     echo "Obtaining batch with "$hit_count" items"
-    response=$(curl --silent --request GET --header "Content-Type: application/json" $ES_HOST_AND_PORT'/_search/scroll' --data '{ "scroll" : "1m", "scroll_id": "'$scroll_id'" }')
+    response=$(curl --fail --silent --request GET --header "Content-Type: application/json" $ES_HOST_AND_PORT'/_search/scroll' --data '{ "scroll" : "1m", "scroll_id": "'$scroll_id'" }')
     GetDownloadStats "$response"
     scroll_id=$(GetScrollId "$response")
     hit_count=$(GetHitCount "$response")

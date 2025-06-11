@@ -62,6 +62,7 @@ public:
     static const std::string DEFAULT_ACCEPTABLE_LANGUAGES;
     static const unsigned DEFAULT_TIME_LIMIT = 20000;       // In ms.
     static const long DEFAULT_META_REDIRECT_THRESHOLD = 30; // In s
+
 private:
     CURLcode curl_error_code_;
     mutable std::string last_error_message_;
@@ -112,7 +113,7 @@ public:
                         const bool ignore_ssl_certificates = false, const std::string &proxy_host_and_port = "",
                         const std::vector<std::string> &additional_headers = {}, const std::string &post_data = "",
                         const std::string &authentication_username = "", const std::string &authentication_password = "",
-                        const bool use_cookies_txt = false, const bool fail_on_error = true);
+                        const bool use_cookies_txt = true, const bool fail_on_error = true);
     };
 
     typedef size_t (*WriteFunc)(void *data, size_t size, size_t nmemb, void *this_pointer);
