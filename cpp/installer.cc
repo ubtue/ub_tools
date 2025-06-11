@@ -812,7 +812,8 @@ void ConfigureVuFind(const bool production, const VuFindSystemType vufind_system
 
     // execv will exit with -1 when creating a sub-process
     int exit_code;
-    const std::string exec_composer = ExecUtil::LocateOrDie("php") + " " + ExecUtil::LocateOrDie("composer") + " install";
+    const std::string exec_composer =
+        ExecUtil::LocateOrDie("php") + " -d default_socket_timeout=600 " + ExecUtil::LocateOrDie("composer") + " install";
     if ((exit_code = ::system(exec_composer.c_str())) != 0) {
         LOG_ERROR("Failed to execute composer install (exit code was " + std::to_string(exit_code) + ")");
     }
