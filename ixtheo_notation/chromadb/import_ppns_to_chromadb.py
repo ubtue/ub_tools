@@ -18,7 +18,7 @@ def GetConfig():
 
 
 def GetRecordData(ppn):
-    solr  = requests.get("http://ptah:8983/solr/biblio/select?fl=*&q.op=OR&q=id%3A" + ppn)
+    solr  = requests.get("http://" + config.get("Solr", "server_and_port") + "/solr/biblio/select?fl=*&q.op=OR&q=id%3A" + ppn)
     return pyjq.first('''.response.docs[] | { id, title_full, author, topic_standardized, topic_non_standardized,
                  ixtheo_notation, era_facet, topic_facet, summary : ((.fullrecord | fromjson | .fields[]
                  | to_entries[] | select(.key=="520") | .value?.subfields[]?.a) // null)}''',  solr.json())
