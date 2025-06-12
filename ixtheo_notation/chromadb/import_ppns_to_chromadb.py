@@ -4,7 +4,7 @@ import json
 import os
 from chromadb.utils.embedding_functions import TogetherAIEmbeddingFunction
 import requests
-import pyjq
+import jq
 import sys
 import util
 
@@ -19,9 +19,10 @@ def GetConfig():
 
 def GetRecordData(ppn):
     solr  = requests.get("http://" + config.get("Solr", "server_and_port") + "/solr/biblio/select?fl=*&q.op=OR&q=id%3A" + ppn)
-    return pyjq.first('''.response.docs[] | { id, title_full, author, topic_standardized, topic_non_standardized,
+    return jq.compile('''.response.docs[] | walk(if . == ["[Unassigned]"] then null else . end) |
+                 { id, title_full, author, topic_standardized, topic_non_standardized,
                  ixtheo_notation, era_facet, topic_facet, summary : ((.fullrecord | fromjson | .fields[]
-                 | to_entries[] | select(.key=="520") | .value?.subfields[]?.a) // null)}''',  solr.json())
+                 | to_entries[] | select(.key=="520") | .value?.subfields[]?.a) // null)}''').input_value(solr.json()).first()
 
 
 def ReadPPNFile(ppn_file):
