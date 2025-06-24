@@ -37,12 +37,14 @@ embedding_function = TogetherAIEmbeddingFunction(
     model_name=model_name
 )
 collection = client.get_collection(config.get("Chroma", "collection"), embedding_function=embedding_function)
+sys.stderr.write("Selection from " + str(collection.count()) + " records altogether")
 
 record_data = GetRecordData(ppn)
 results = collection.query(
-    query_texts=[ json.dumps(record_data)],
+#        query_texts=["Get similar records with respect to title and keywords " +  json.dumps(record_data)],
+        query_texts=[json.dumps(record_data)],
     n_results=10,
 )
 
-print(results)
+print(json.dumps(results))
 

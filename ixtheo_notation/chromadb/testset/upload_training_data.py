@@ -3,9 +3,13 @@
 from together import Together
 import os
 import json
+import sys
 
-FILENAME="test_samples_1000b.jsonl"
+if len(sys.argv) < 2:
+      print("Usage: " + sys.argv[0] + "upload_file")
+      sys.exit(1)
 
+FILENAME = sys.argv[1]
 TOGETHER_API_KEY = os.getenv("TOGETHER_API_KEY")
 
 # Check the file format
