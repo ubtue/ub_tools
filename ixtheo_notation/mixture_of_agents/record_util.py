@@ -34,11 +34,20 @@ def GetFulltext(ppn, text_type):
     text_type_num = ft_type_to_num[text_type];
     query = f"""{{"query" : {{ "bool" : {{ "must" : [ {{ "match" :  {{ "id" : "{ppn}" }} }}, {{ "match" : {{ "text_type" : {text_type_num} }} }} ] }} }} }}"""
     elasticsearch = requests.post("http://" + config.get("Elasticsearch", "server_and_port") + "/full_text_cache/_search", json=json.loads(query))
-    return jq.compile('''.''').input_value(elasticsearch.json()).first()
+    return jq.compile('''.hits.hits[]._source | select(.is_publisher_provided == "false")  | .full_text''').input_value(elasticsearch.json()).first()
     
 
 def GetTOC(ppn):
     return GetFulltext(ppn, "Table of Contents")
+
+
+def GetRecordDataWithTOC(ppn):
+    record=GetRecordData(ppn)
+    print(record)
+    if 'fulltext_types' in record and record['fulltext_types'] is not None and 'Table of Contents' in record['fulltext_types']:
+        toc = jq.compile('@json').input(GetTOC(ppn)).first()
+        return jq.compile('''. + {toc:''' + (toc) + '''}''').input_value(record).first()
+    return record
 
 config = GetConfig()
 

@@ -28,7 +28,8 @@ def GetSystemPrompt():
 
 
 def GetUserPrompt(ppn):
-   return  """Determine the classes for the following record: """ + json.dumps(record_util.GetRecordDataWithoutIxTheoNotation(ppn))  + """Give an explanation an meticulously check that you are correct"""
+   print(json.dumps(record_util.GetRecordDataWithTOC(ppn)))
+   return  """Determine the classes for the following record: """ + json.dumps(record_util.GetRecordDataWithTOC(ppn))  + """Give an explanation an meticulously check that you are correct"""
 
 reference_models = []
 reference_models.append(record_util.config.get("Mixture of Agents", "reference_model"))
