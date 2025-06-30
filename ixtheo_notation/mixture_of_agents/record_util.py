@@ -23,11 +23,7 @@ def GetRecordData(ppn):
 
 
 def GetRecordDataWithoutIxTheoNotation(ppn):
-    solr  = requests.get("http://" + config.get("Solr", "server_and_port") + "/solr/biblio/select?fl=*&q.op=OR&q=id%3A" + ppn)
-    return jq.compile('''.response.docs[] | walk(if . == ["[Unassigned]"] then null else . end) |
-                 { id, title_full, author, topic_standardized, topic_non_standardized,
-                 era_facet, topic_facet, summary : ((.fullrecord | fromjson | .fields[]
-                 | to_entries[] | select(.key=="520") | .value?.subfields[]?.a) // null)}''').input_value(solr.json()).first()
+    return jq.compile(''' . | del(.ixtheo_notation) ''').input_value(GetRecordData(ppn)).first()
 
 
 def GetFulltext(ppn, text_type):
@@ -43,11 +39,14 @@ def GetTOC(ppn):
 
 def GetRecordDataWithTOC(ppn):
     record=GetRecordData(ppn)
-    print(record)
     if 'fulltext_types' in record and record['fulltext_types'] is not None and 'Table of Contents' in record['fulltext_types']:
         toc = jq.compile('@json').input(GetTOC(ppn)).first()
         return jq.compile('''. + {toc:''' + (toc) + '''}''').input_value(record).first()
     return record
+
+def GetRecordDataWithTOCWithoutIxTheoNotation(ppn):
+    return jq.compile(''' . | del(.ixtheo_notation) ''').input_value(GetRecordDataWithTOC(ppn)).first()
+
 
 config = GetConfig()
 
