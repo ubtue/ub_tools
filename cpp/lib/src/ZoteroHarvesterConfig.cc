@@ -358,6 +358,10 @@ const std::map<JournalParams::IniKey, std::string> JournalParams::KEY_TO_STRING_
     { EMAILCRAWL_SUBJECT_REGEX, "emailcrawl_subject_regex" },
     { ADDITIONAL_SELECTORS, "additional_selectors" },
     { PAGES_NOT_ONLINE_FIRST, "pages_not_online_first" },
+    { PAGED_RSS, "paged_rss" },
+    { PAGED_RSS_SIZE, "paged_rss_size" },
+    { PAGED_RSS_RANGE, "paged_rss_range" },
+    { PAGED_RSS_DELAY_TIME, "paged_rss_delay_time" }
 };
 
 const std::map<std::string, JournalParams::IniKey> JournalParams::STRING_TO_KEY_MAP{
@@ -389,6 +393,10 @@ const std::map<std::string, JournalParams::IniKey> JournalParams::STRING_TO_KEY_
     { "emailcrawl_subject_regex", EMAILCRAWL_SUBJECT_REGEX },
     { "additional_selectors", ADDITIONAL_SELECTORS },
     { "pages_not_online_first", PAGES_NOT_ONLINE_FIRST },
+    { "paged_rss", PAGED_RSS },
+    { "paged_rss_size", PAGED_RSS_SIZE },
+    { "paged_rss_range", PAGED_RSS_RANGE },
+    { "paged_rss_delay_time", PAGED_RSS_DELAY_TIME }
 
 };
 
@@ -456,6 +464,30 @@ JournalParams::JournalParams(const IniFile::Section &journal_section, const Glob
     // repeatable fields
     zotero_metadata_params_ = ZoteroMetadataParams(journal_section);
     marc_metadata_params_ = MarcMetadataParams(journal_section);
+
+    paged_rss_ = journal_section.getBool(GetIniKeyString(PAGED_RSS), false);
+    paged_rss_size_ = journal_section.getUnsigned(GetIniKeyString(PAGED_RSS_SIZE), 0);
+    paged_rss_delay_time_ = journal_section.getUnsigned(GetIniKeyString(PAGED_RSS_DELAY_TIME), 0);
+
+    const std::string range_str = journal_section.getString(GetIniKeyString(PAGED_RSS_RANGE), "");
+    paged_rss_range_.clear();
+
+    if (!range_str.empty()) {
+        std::vector<std::string> tokens;
+        StringUtil::SplitThenTrimWhite(range_str, ",", &tokens);
+
+        for (const std::string &token : tokens) {
+            if (token.find('-') != std::string::npos) {
+                const auto dash_pos = token.find('-');
+                const unsigned start = StringUtil::ToUnsigned(token.substr(0, dash_pos));
+                const unsigned end = StringUtil::ToUnsigned(token.substr(dash_pos + 1));
+                for (unsigned i = start; i <= end; ++i)
+                    paged_rss_range_.push_back(i);
+            } else {
+                paged_rss_range_.push_back(StringUtil::ToUnsigned(token));
+            }
+        }
+    }
 
     CheckIniSection(journal_section, JournalParams::KEY_TO_STRING_MAP,
                     { ZoteroMetadataParams::IsValidIniEntry, MarcMetadataParams::IsValidIniEntry });
