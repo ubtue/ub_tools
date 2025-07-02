@@ -681,10 +681,8 @@ void WriteConversionResultsToDisk(JournalDatastore * const journal_datastore, Ou
 unsigned RequestPageCount(const Config::JournalParams &journal) {
     const TimeLimit DEFAULT_TIME_LIMIT(3000);
     std::ostringstream url;
-    // url << journal.entry_point_url_ << "?journal=" << UrlUtil::UrlEncode(journal.name_) << "&page_size=" << journal.paged_rss_size_ <<
-    // "&info=1";
-    url << journal.entry_point_url_ << "?journal=The%20Muslim%20World"
-        << "&page_size=" << journal.paged_rss_size_ << "&info=1";
+    url << journal.entry_point_url_ << "?journal=" << UrlUtil::UrlEncode(journal.name_) << "&page_size=" << journal.paged_rss_size_
+        << "&info=1";
 
     std::string result;
     if (!::Download(url.str(), DEFAULT_TIME_LIMIT, &result)) {
@@ -709,8 +707,7 @@ unsigned RequestPageCount(const Config::JournalParams &journal) {
 std::string ExpandPaginationUrl(const Config::JournalParams &journal, unsigned page_size, unsigned page_num) {
     std::ostringstream url;
     url << journal.entry_point_url_;
-    // url << "?journal=" << UrlUtil::UrlEncode(journal.name_)
-    url << "?journal=" << UrlUtil::UrlEncode("The Muslim World") << "&page_size=" << page_size << "&page_num=" << page_num;
+    url << "?journal=" << UrlUtil::UrlEncode(journal.name_) << "&page_size=" << page_size << "&page_num=" << page_num;
 
     return url.str();
 }
