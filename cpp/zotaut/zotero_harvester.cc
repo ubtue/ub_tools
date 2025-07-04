@@ -21,10 +21,10 @@
 #include <sstream>
 #include <unordered_map>
 #include <cstdlib>
-#include <nlohmann/json.hpp>
 #include "Downloader.h"
 #include "FileUtil.h"
 #include "IniFile.h"
+#include "JSON.h"
 #include "StringUtil.h"
 #include "UrlUtil.h"
 #include "ZoteroHarvesterConfig.h"
@@ -367,12 +367,13 @@ std::string Metrics::toString() const {
 }
 
 
-struct PagedJournalState {
+struct JournalProcessingState {
     std::shared_ptr<Config::JournalParams> journal;
     std::vector<unsigned> pages;
     size_t current_page_index = 0;
     std::unique_ptr<JournalDatastore> current_datastore;
-    unsigned paged_rss_delay_time;
+    unsigned paged_rss_delay_time = 0;
+    bool first_page_queued = false;
 };
 
 
@@ -680,36 +681,35 @@ void WriteConversionResultsToDisk(JournalDatastore * const journal_datastore, Ou
 
 unsigned RequestPageCount(const Config::JournalParams &journal) {
     const TimeLimit DEFAULT_TIME_LIMIT(3000);
-    std::ostringstream url;
-    url << journal.entry_point_url_ << "?journal=" << UrlUtil::UrlEncode(journal.name_) << "&page_size=" << journal.paged_rss_size_
-        << "&info=1";
+
+    std::string url = journal.entry_point_url_ + "?journal=" + UrlUtil::UrlEncode(journal.name_)
+                      + "&page_size=" + std::to_string(journal.paged_rss_size_) + "&info=1";
 
     std::string result;
-    if (!::Download(url.str(), DEFAULT_TIME_LIMIT, &result)) {
-        LOG_ERROR("Download failed for page count URL: " + url.str());
+    if (!::Download(url, DEFAULT_TIME_LIMIT, &result)) {
+        LOG_ERROR("Download failed for page count URL: " + url);
         return 1;
     }
 
-    try {
-        nlohmann::json parsed = nlohmann::json::parse(result);
-        if (parsed.contains("total_pages")) {
-            return parsed["total_pages"].get<unsigned>();
-        } else {
-            LOG_ERROR("Missing 'total_pages' in response JSON: " + result);
-            return 1;
-        }
-    } catch (const std::exception &ex) {
-        LOG_ERROR("JSON parse error: " + std::string(ex.what()) + " | Response: " + result);
+    JSON::Parser parser(result);
+    std::shared_ptr<JSON::JSONNode> root;
+    if (!parser.parse(&root)) {
+        LOG_ERROR("JSON parse error: " + parser.getErrorMessage() + " | Response: " + result);
+        return 1;
+    }
+
+    std::shared_ptr<JSON::ObjectNode> obj = JSON::JSONNode::CastToObjectNodeOrDie("root", root);
+    if (obj->hasNode("total_pages")) {
+        return static_cast<unsigned>(obj->getIntegerValue("total_pages"));
+    } else {
+        LOG_ERROR("Missing 'total_pages' in response JSON: " + result);
         return 1;
     }
 }
 
 std::string ExpandPaginationUrl(const Config::JournalParams &journal, unsigned page_size, unsigned page_num) {
-    std::ostringstream url;
-    url << journal.entry_point_url_;
-    url << "?journal=" << UrlUtil::UrlEncode(journal.name_) << "&page_size=" << page_size << "&page_num=" << page_num;
-
-    return url.str();
+    return journal.entry_point_url_ + "?journal=" + UrlUtil::UrlEncode(journal.name_) + "&page_size=" + std::to_string(page_size)
+           + "&page_num=" + std::to_string(page_num);
 }
 
 } // unnamed namespace
@@ -740,12 +740,10 @@ int Main(int argc, char *argv[]) {
     Util::UploadTracker upload_tracker;
     Metrics harvester_metrics;
 
-    std::vector<std::unique_ptr<JournalDatastore>> journal_datastores;
-    journal_datastores.reserve(harvester_config.journal_params_.size());
     std::unordered_set<std::string> urls_harvested_during_current_session;
 
     // Queue downloads for selection.
-    std::vector<PagedJournalState> paged_journal_states;
+    std::vector<JournalProcessingState> journal_states;
     switch (commandline_args.selection_mode_) {
     case CommandLineArgs::SelectionMode::UPLOAD:
     case CommandLineArgs::SelectionMode::JOURNAL:
@@ -801,34 +799,35 @@ int Main(int argc, char *argv[]) {
                     unsigned delay_usec = delay_ms * 1000;
 
                     std::shared_ptr<Config::JournalParams> journal_shared = std::move(journal);
-                    paged_journal_states.push_back(
-                        PagedJournalState{ std::move(journal_shared), std::move(pages), 0, nullptr, delay_usec });
+                    journal_states.push_back(JournalProcessingState{ std::move(journal_shared), std::move(pages), 0, nullptr, delay_usec });
                 }
             } else {
-                auto current_journal_datastore(
-                    QueueDownloadsForJournal(*journal, harvester_config, &harvestable_manager, &download_manager, &harvester_metrics));
-                journal_datastores.emplace_back(std::move(current_journal_datastore));
+                std::shared_ptr<Config::JournalParams> journal_shared = std::move(journal);
+                auto current_journal_datastore = QueueDownloadsForJournal(*journal_shared, harvester_config, &harvestable_manager,
+                                                                          &download_manager, &harvester_metrics);
+                journal_states.push_back(
+                    JournalProcessingState{ std::move(journal_shared), {}, 0, std::move(current_journal_datastore), 0, true });
             }
         }
 
         break;
     case CommandLineArgs::SelectionMode::URL: {
-        const auto parent_journal(harvester_config.lookupJournal(commandline_args.selected_url_parent_journal_));
-        if (parent_journal == nullptr) {
-            harvester_config.default_journal_params_->entry_point_url_ = commandline_args.selected_url_;
-            auto current_journal_datastore(QueueDownloadsForJournal(*harvester_config.default_journal_params_, harvester_config,
-                                                                    &harvestable_manager, &download_manager, &harvester_metrics));
-            journal_datastores.emplace_back(std::move(current_journal_datastore));
-        } else {
-            // We are permanently modifying the JournalParams instance as it will not
-            // be reused for the remainder of this session.
+        std::shared_ptr<Config::JournalParams> journal_ptr;
+
+        if (auto parent_journal = harvester_config.lookupJournal(commandline_args.selected_url_parent_journal_)) {
             parent_journal->harvester_operation_ = Config::HarvesterOperation::DIRECT;
             parent_journal->entry_point_url_ = commandline_args.selected_url_;
-            auto current_journal_datastore(
-                QueueDownloadsForJournal(*parent_journal, harvester_config, &harvestable_manager, &download_manager, &harvester_metrics));
-            journal_datastores.emplace_back(std::move(current_journal_datastore));
+
+            journal_ptr = std::shared_ptr<Config::JournalParams>(parent_journal, [](Config::JournalParams *) {});
+        } else {
+            harvester_config.default_journal_params_->entry_point_url_ = commandline_args.selected_url_;
+            journal_ptr = std::shared_ptr<Config::JournalParams>(harvester_config.default_journal_params_, [](Config::JournalParams *) {});
         }
 
+        auto current_journal_datastore =
+            QueueDownloadsForJournal(*journal_ptr, harvester_config, &harvestable_manager, &download_manager, &harvester_metrics);
+
+        journal_states.push_back(JournalProcessingState{ journal_ptr, {}, 0, std::move(current_journal_datastore), 0, true });
         break;
     }
     default:
@@ -842,19 +841,7 @@ int Main(int argc, char *argv[]) {
     while (true) {
         bool jobs_running = false;
 
-        for (auto &journal_datastore : journal_datastores) {
-            EnqueueCrawlAndRssResults(journal_datastore.get(), &jobs_running, &harvester_metrics);
-            EnqueueCompletedDownloadsForConversion(journal_datastore.get(), &jobs_running, &conversion_manager, harvester_config,
-                                                   urls_harvested_during_current_session, &harvester_metrics);
-            WriteConversionResultsToDisk(journal_datastore.get(), &output_file_cache, upload_tracker, download_manager,
-                                         commandline_args.force_downloads_, conversion_manager, &urls_harvested_during_current_session,
-                                         &harvester_metrics);
-
-            if (!jobs_running)
-                jobs_running = !journal_datastore->queued_downloads_.empty() || !journal_datastore->queued_marc_records_.empty();
-        }
-
-        for (auto &state : paged_journal_states) {
+        for (auto &state : journal_states) {
             if (state.current_datastore) {
                 EnqueueCrawlAndRssResults(state.current_datastore.get(), &jobs_running, &harvester_metrics);
                 EnqueueCompletedDownloadsForConversion(state.current_datastore.get(), &jobs_running, &conversion_manager, harvester_config,
@@ -863,30 +850,44 @@ int Main(int argc, char *argv[]) {
                                              commandline_args.force_downloads_, conversion_manager, &urls_harvested_during_current_session,
                                              &harvester_metrics);
 
-                bool finished_current_page = state.current_datastore->queued_downloads_.empty()
-                                             && state.current_datastore->queued_marc_records_.empty()
-                                             && !download_manager.downloadInProgress();
+                bool finished = state.current_datastore->queued_downloads_.empty() && state.current_datastore->queued_marc_records_.empty()
+                                && !download_manager.downloadInProgress();
 
-                if (finished_current_page) {
-                    ::usleep(static_cast<__useconds_t>(state.paged_rss_delay_time));
-                    state.current_page_index++;
-                    if (state.current_page_index < state.pages.size()) {
-                        unsigned next_page = state.pages[state.current_page_index];
-                        std::string paged_url = ExpandPaginationUrl(*state.journal, state.journal->paged_rss_size_, next_page);
-                        state.current_datastore = QueueDownloadsForJournal(*state.journal, harvester_config, &harvestable_manager,
-                                                                           &download_manager, &harvester_metrics, paged_url);
-                        jobs_running = true;
+                if (finished) {
+                    if (!state.pages.empty()) {
+                        if (state.paged_rss_delay_time > 0) {
+                            ::usleep(static_cast<__useconds_t>(state.paged_rss_delay_time));
+                        }
+
+                        state.current_page_index++;
+                        if (state.current_page_index < state.pages.size()) {
+                            unsigned next_page = state.pages[state.current_page_index];
+                            std::string paged_url = ExpandPaginationUrl(*state.journal, state.journal->paged_rss_size_, next_page);
+                            state.current_datastore = QueueDownloadsForJournal(*state.journal, harvester_config, &harvestable_manager,
+                                                                               &download_manager, &harvester_metrics, paged_url);
+                            jobs_running = true;
+                        } else {
+                            state.current_datastore.reset();
+                        }
                     } else {
                         state.current_datastore.reset();
                     }
                 } else {
                     jobs_running = true;
                 }
-            } else if (state.current_page_index == 0) {
-                unsigned first_page = state.pages[state.current_page_index];
-                std::string paged_url = ExpandPaginationUrl(*state.journal, state.journal->paged_rss_size_, first_page);
-                state.current_datastore = QueueDownloadsForJournal(*state.journal, harvester_config, &harvestable_manager,
-                                                                   &download_manager, &harvester_metrics, paged_url);
+            } else if (!state.first_page_queued) {
+                state.first_page_queued = true;
+
+                if (!state.pages.empty()) {
+                    unsigned first_page = state.pages[state.current_page_index];
+                    std::string paged_url = ExpandPaginationUrl(*state.journal, state.journal->paged_rss_size_, first_page);
+                    state.current_datastore = QueueDownloadsForJournal(*state.journal, harvester_config, &harvestable_manager,
+                                                                       &download_manager, &harvester_metrics, paged_url);
+                } else {
+                    state.current_datastore = QueueDownloadsForJournal(*state.journal, harvester_config, &harvestable_manager,
+                                                                       &download_manager, &harvester_metrics);
+                }
+
                 jobs_running = true;
             }
         }

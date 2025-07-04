@@ -1,5 +1,5 @@
 #!/bin/bash
-# Runs through the phases of the Zotero Harvester delivery pipeline.
+# Runs through the phases of the Zotero Harvester delivery pipeline in the Retrokat context.
 set -o errexit -o nounset -o pipefail
 
 
@@ -12,7 +12,7 @@ function SendEmail {
     else
         send_email --priority=high --recipients="$EMAIL_ADDRESS" \
                    --subject="$0 failed on $(hostname)" \
-                   --message-body="Check the log file at /usr/local/var/log/tuefind/zts_harvester_delivery_pipeline.log for details."
+                   --message-body="Check the log file at /usr/local/var/log/tuefind/zts_retrokat_harvester_delivery_pipeline.log for details."
         echo "*** ZTS_HARVESTER DELIVERY PIPELINE FAILED ***" | tee --append "$LOG"
         exit 1
     fi
