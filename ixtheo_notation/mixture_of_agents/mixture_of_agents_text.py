@@ -19,7 +19,7 @@ with open(record_util.config.get("Mixture of Agents", "ixtheo_notations_file")) 
 
 
 def GetSystemPrompt():
-    return f"""You are a classifier that assigns the best matching labels to bibliographic records. Pay special attention
+    return f"""You are a classifier that assigns the best matching labels from a classification scheme to bibliographic records. Pay special attention
              to the keywords. If additional information like abstracts, TOCs or fulltext summarizations are given, include them.
              The taxonomy is hierarchical, so check whether the main classes apply. However, one letter classes are forbidden in the final result.
              Return a JSON object with the class and its description. The classes are
@@ -28,8 +28,10 @@ def GetSystemPrompt():
 
 
 def GetUserPrompt(ppn):
-   print(json.dumps(record_util.GetRecordDataWithTOC(ppn)))
-   return  """Determine the classes for the following record: """ + json.dumps(record_util.GetRecordDataWithTOC(ppn))  + """Give an explanation an meticulously check that you are correct"""
+#   print(json.dumps(record_util.GetRecordDataWithTOC(ppn)))
+   print(json.dumps(record_util.GetRecordDataWithTOCWithoutIxTheoNotation(ppn)))
+#   return  """Determine the classes for the following record: """ + json.dumps(record_util.GetRecordDataWithTOC(ppn))  + """Give an explanation an meticulously check that you are correct"""
+   return  """Determine the classes for the following record: """ + json.dumps(record_util.GetRecordDataWithoutIxTheoNotation(ppn))  + """Give an explanation an meticulously check that you are correct"""
 
 reference_models = []
 reference_models.append(record_util.config.get("Mixture of Agents", "reference_model"))
@@ -46,7 +48,7 @@ def getFinalSystemPrompt(system_prompt, results):
     )
 
 async def run_llm(model, prev_response=None):
-    print("Entering run llm")
+    #print("Entering run llm")
     """Run a single LLM call with a model while accounting for previous responses + rate limits."""
     for sleep_time in [1, 2, 4]:
         try:
@@ -69,10 +71,11 @@ async def run_llm(model, prev_response=None):
                 model=model,
                 messages=messages,
                 temperature=0.1,
-                max_tokens=8192,
+                #max_tokens=8192,
+                max_tokens=16384,
             )
-            print("Model: ", model)
-            print("response: " + str(response))
+            #print("Model: ", model)
+            #print("response: " + str(response))
             break
         except together.error.RateLimitError as e:
             print(e)
@@ -91,7 +94,7 @@ async def main():
     user_prompt = GetUserPrompt(sys.argv[1])
     """Run the main loop of the MOA process."""
     results = await asyncio.gather(*[run_llm(model) for model in reference_models])
-    print("REFERENCE RESULTS:" + str(results))
+    print("<reference_results>" + str(results) + "</reference_results>")
 
     for _ in range(1, layers - 1):
         results = await asyncio.gather(
@@ -108,6 +111,9 @@ async def main():
             },
             {"role": "user", "content": AssembleResults(results) },
         ],
+        temperature=0.1,
+        #max_tokens=8192,
+        max_tokens=16384,
         stream=True,
     )
     for chunk in finalStream:
