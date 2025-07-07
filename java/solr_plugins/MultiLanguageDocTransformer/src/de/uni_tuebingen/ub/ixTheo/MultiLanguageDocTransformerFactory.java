@@ -31,7 +31,7 @@ public class MultiLanguageDocTransformerFactory extends TransformerFactory {
     public void init(NamedList args) {
         super.init(args);
         if (args != null) {
-            SolrParams params = SolrParams.toSolrParams(args);
+            SolrParams params = args.toSolrParams();
             enabled = params.getBool("enabled", false);
             String str = params.get("fields");
             if (str != null) {
