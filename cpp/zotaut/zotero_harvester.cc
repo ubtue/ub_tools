@@ -367,18 +367,16 @@ std::string Metrics::toString() const {
 }
 
 
-struct PagedJournalState {
+struct PagedRSSJournalState {
     std::shared_ptr<Config::JournalParams> journal;
-    std::vector<unsigned> pages;
-    size_t current_index = 0;
+    std::deque<std::string> urls;
 };
 
 
 std::unique_ptr<JournalDatastore> QueueDownloadsForJournal(const Config::JournalParams &journal_params,
                                                            const HarvesterConfigData &harvester_config,
                                                            Util::HarvestableItemManager * const harvestable_manager,
-                                                           Download::DownloadManager * const download_manager, Metrics * const metrics,
-                                                           const std::optional<std::string> &override_url = std::nullopt) {
+                                                           Download::DownloadManager * const download_manager, Metrics * const metrics) {
     const auto &group_params(harvester_config.lookupJournalGroup(journal_params));
     std::unique_ptr<JournalDatastore> current_journal_datastore(new JournalDatastore(journal_params));
 
@@ -392,8 +390,7 @@ std::unique_ptr<JournalDatastore> QueueDownloadsForJournal(const Config::Journal
         break;
     }
     case Config::HarvesterOperation::RSS: {
-        const std::string &entry_url = override_url.has_value() ? override_url.value() : journal_params.entry_point_url_;
-        const auto download_item = harvestable_manager->newHarvestableItem(entry_url, journal_params);
+        const auto download_item(harvestable_manager->newHarvestableItem(journal_params.entry_point_url_, journal_params));
         auto future(download_manager->rss(download_item, group_params.user_agent_));
         current_journal_datastore->current_rss_feed_.reset(future.release());
         ++metrics->num_journals_with_harvest_operation_rss_;
@@ -690,14 +687,16 @@ unsigned RequestPageCount(const Config::JournalParams &journal) {
     JSON::Parser parser(result);
     std::shared_ptr<JSON::JSONNode> root;
     if (not parser.parse(&root)) {
-        LOG_ERROR("JSON parse error: " + parser.getErrorMessage() + " | Response: " + result);
+        LOG_WARNING("JSON parse error: " + parser.getErrorMessage() + " | Response: " + result);
+        return 1;
     }
 
     std::shared_ptr<JSON::ObjectNode> obj = JSON::JSONNode::CastToObjectNodeOrDie("root", root);
     if (obj->hasNode("total_pages")) {
         return static_cast<unsigned>(obj->getIntegerValue("total_pages"));
     } else {
-        LOG_ERROR("Missing 'total_pages' in response JSON: " + result);
+        LOG_WARNING("Missing 'total_pages' in response JSON: " + result);
+        return 1;
     }
 }
 
@@ -708,68 +707,31 @@ std::string ExpandPaginationUrl(const Config::JournalParams &journal, unsigned p
 }
 
 
-std::optional<PagedJournalState> AddPagedJournal(std::shared_ptr<Config::JournalParams> journal,
-                                                 const HarvesterConfigData &harvester_config,
-                                                 Util::HarvestableItemManager *harvestable_manager,
-                                                 Download::DownloadManager *download_manager, Metrics *harvester_metrics,
-                                                 std::vector<std::unique_ptr<JournalDatastore>> &journal_datastores) {
-    std::vector<unsigned> pages;
+std::optional<PagedRSSJournalState> AddPagedJournal(std::shared_ptr<Config::JournalParams> journal) {
     unsigned total_pages = RequestPageCount(*journal);
+    if (total_pages == 0) {
+        LOG_WARNING("No pages available for journal '" + journal->name_ + "'");
+        return std::nullopt;
+    }
+
+    std::deque<std::string> urls;
 
     if (journal->paged_rss_range_.empty()) {
-        for (unsigned i = 1; i <= total_pages; ++i)
-            pages.push_back(i);
-    } else if (total_pages > 0) {
+        for (unsigned page = 1; page <= total_pages; ++page) {
+            urls.push_back(ExpandPaginationUrl(*journal, journal->paged_rss_size_, page));
+        }
+    } else {
         for (unsigned page : journal->paged_rss_range_) {
             if (page >= 1 && page <= total_pages) {
-                pages.push_back(page);
+                urls.push_back(ExpandPaginationUrl(*journal, journal->paged_rss_size_, page));
             } else {
                 LOG_WARNING("Requested page " + std::to_string(page) + " is out of range for journal '" + journal->name_
                             + "' (total pages: " + std::to_string(total_pages) + ")");
             }
         }
-    } else {
-        LOG_WARNING("No pages available for journal '" + journal->name_ + "' (total pages: " + std::to_string(total_pages) + ")");
-        return std::nullopt;
     }
 
-    if (pages.empty())
-        return std::nullopt;
-
-    std::string first_url = ExpandPaginationUrl(*journal, journal->paged_rss_size_, pages[0]);
-    auto datastore =
-        QueueDownloadsForJournal(*journal, harvester_config, harvestable_manager, download_manager, harvester_metrics, first_url);
-    journal_datastores.push_back(std::move(datastore));
-
-    return PagedJournalState{ std::move(journal), std::move(pages), 0 };
-}
-
-
-bool QueueNextPage(PagedJournalState &paged, std::vector<std::unique_ptr<JournalDatastore>> &journal_datastores,
-                   HarvesterConfigData &harvester_config, Util::HarvestableItemManager &harvestable_manager,
-                   Download::DownloadManager &download_manager, Metrics &harvester_metrics) {
-    bool is_datastore_active = std::any_of(journal_datastores.begin(), journal_datastores.end(),
-                                           [&paged, &download_manager](const std::unique_ptr<JournalDatastore> &ds) {
-                                               return &ds->journal_params_ == paged.journal.get() && download_manager.downloadInProgress();
-                                           });
-
-    if (is_datastore_active)
-        return false;
-
-    paged.current_index++;
-    if (paged.current_index >= paged.pages.size())
-        return false;
-
-    unsigned next_page = paged.pages[paged.current_index];
-    std::string paged_url = ExpandPaginationUrl(*paged.journal, paged.journal->paged_rss_size_, next_page);
-
-    ::usleep(static_cast<__useconds_t>(paged.journal->paged_rss_delay_time_ * 1000));
-
-    auto datastore =
-        QueueDownloadsForJournal(*paged.journal, harvester_config, &harvestable_manager, &download_manager, &harvester_metrics, paged_url);
-    journal_datastores.push_back(std::move(datastore));
-
-    return true;
+    return PagedRSSJournalState{ std::move(journal), std::move(urls) };
 }
 
 } // unnamed namespace
@@ -805,7 +767,7 @@ int Main(int argc, char *argv[]) {
     std::unordered_set<std::string> urls_harvested_during_current_session;
 
     // Queue downloads for selection.
-    std::optional<PagedJournalState> paged_journal_state;
+    std::optional<PagedRSSJournalState> paged_journal_state;
     switch (commandline_args.selection_mode_) {
     case CommandLineArgs::SelectionMode::UPLOAD:
     case CommandLineArgs::SelectionMode::JOURNAL:
@@ -831,13 +793,11 @@ int Main(int argc, char *argv[]) {
             }
 
             if (journal->zeder_id_ != Config::DEFAULT_ZEDER_ID)
-                LOG_INFO(journal->name_);
-            upload_tracker.registerZederJournal(journal->zeder_id_, StringUtil::ASCIIToLower(journal->group_), journal->name_);
+                upload_tracker.registerZederJournal(journal->zeder_id_, StringUtil::ASCIIToLower(journal->group_), journal->name_);
 
             if (journal->paged_rss_) {
                 std::shared_ptr<Config::JournalParams> journal_shared = std::move(journal);
-                paged_journal_state = AddPagedJournal(journal_shared, harvester_config, &harvestable_manager, &download_manager,
-                                                      &harvester_metrics, journal_datastores);
+                paged_journal_state = AddPagedJournal(journal_shared);
             } else {
                 auto current_journal_datastore =
                     QueueDownloadsForJournal(*journal, harvester_config, &harvestable_manager, &download_manager, &harvester_metrics);
@@ -885,20 +845,23 @@ int Main(int argc, char *argv[]) {
                                          &harvester_metrics);
 
             if (not jobs_running)
-                jobs_running = not journal_datastore->queued_downloads_.empty()
-                               or not journal_datastore->queued_marc_records_.empty() && download_manager.downloadInProgress();
+                jobs_running = not journal_datastore->queued_downloads_.empty() or not journal_datastore->queued_marc_records_.empty();
         }
 
-        if (not jobs_running && not download_manager.downloadInProgress() && not conversion_manager.conversionInProgress()) {
-            bool any_page_queued = false;
+        if (not jobs_running) {
+            if (paged_journal_state && !paged_journal_state->urls.empty()) {
+                std::string next_url = std::move(paged_journal_state->urls.front());
+                paged_journal_state->urls.pop_front();
 
-            if (paged_journal_state && paged_journal_state->current_index + 1 < paged_journal_state->pages.size()) {
-                any_page_queued = QueueNextPage(*paged_journal_state, journal_datastores, harvester_config, harvestable_manager,
-                                                download_manager, harvester_metrics);
+                paged_journal_state->journal->SetEntryUrl(next_url);
+                ::usleep(static_cast<__useconds_t>(paged_journal_state->journal->paged_rss_delay_time_ * 1000));
+
+                auto datastore = QueueDownloadsForJournal(*paged_journal_state->journal, harvester_config, &harvestable_manager,
+                                                          &download_manager, &harvester_metrics);
+                journal_datastores.emplace_back(std::move(datastore));
+                continue;
             }
-
-            if (not any_page_queued)
-                break;
+            break;
         }
 
         const auto num_active_direct_downloads(download_manager.numActiveDirectDownloads());
