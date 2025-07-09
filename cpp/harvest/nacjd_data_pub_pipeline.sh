@@ -55,6 +55,7 @@ declare -r AUTHOR_ASSOCIATIONS_FILE="author_associations_full_241113.txt"
 declare -r NACJD_WITH_ADDED_AUTHOR_ASSOCIATIONS="nacjd_data_publication_author_association-$(date +%y%m%d).xml"
 declare -r NACJD_FIX_PRINT_SUPERIOR="nacjd_data_publication_print_superior_$(date +%y%m%d).xml"
 declare -r PRINT_SUPERIOR_MAP_FILE="print_superior_$(date +%y%m%d).txt"
+declare -r REVERT_SONDERDRUCK_FILE="nacjd_data_publication_sonderdruck_to_articles_$(date +%y%m%d).xml"
 declare -r NACJD_FINAL="nacjd_data_publication_$(date +%y%m%d).xml"
 
 remove_error_message(){
@@ -90,7 +91,7 @@ echo "" > $ISSN_ALTERNATIVE_FROM_OPENALEX
 echo "Starting download data"
 while read ISSN; do
     echo "$BASE_OPENALEX_ISSN_API$ISSN?select=issn_l,issn"
-    curl -L "$BASE_OPENALEX_ISSN_API$ISSN?select=issn_l,issn" >> $ISSN_ALTERNATIVE_FROM_OPENALEX
+    curl --fail -L "$BASE_OPENALEX_ISSN_API$ISSN?select=issn_l,issn" >> $ISSN_ALTERNATIVE_FROM_OPENALEX
 done < $ISSN_NOT_FOUND_IN_K10_PLUS
 
 echo "Removing error in  $ISSN_ALTERNATIVE_FROM_OPENALEX"
@@ -123,7 +124,7 @@ echo "" > $JSON_FROM_OPENALEX
 echo "Starting download data"
 while read DOI; do
     echo $DOI
-    curl  -s "$BASE_OPENALEX_DOI_API$DOI?select=doi,open_access" >> $JSON_FROM_OPENALEX
+    curl --fail -s "$BASE_OPENALEX_DOI_API$DOI?select=doi,open_access" >> $JSON_FROM_OPENALEX
 done < $NACJD_DOI
 
 echo "Removing error tag from $JSON_FROM_OPENALEX"
@@ -136,13 +137,13 @@ echo "Extracting ISSN for getting open access info"
 marc_grep $AUGMENTED_77w_OUTPUT '"773x"' traditional | sed -re 's/773 //' | sort | uniq > $ISSN_FOR_GETTING_OPEN_ACCESS_INFO
 
 echo "Getting open access information based on ISSN"
-cat $ISSN_FOR_GETTING_OPEN_ACCESS_INFO | xargs -I'{}' sh -c 'echo "$@" $(curl -L -s https://api.openalex.org/sources/issn:"$@" |jq -r .is_oa)' _ '{}' > $OPEN_ACCESS_INFO_ISSN_BASED_CSV
+cat $ISSN_FOR_GETTING_OPEN_ACCESS_INFO | xargs -I'{}' sh -c 'echo "$@" $(curl --fail -L -s https://api.openalex.org/sources/issn:"$@" |jq -r .is_oa)' _ '{}' > $OPEN_ACCESS_INFO_ISSN_BASED_CSV
 
 echo "Updating open access info"
 $NACJD_TOOL "--verbose" "augment_open_access" $AUGMENTED_77w_OUTPUT $OPEN_ACCESS_INFO_CSV $OPEN_ACCESS_INFO_ISSN_BASED_CSV $NACJD_WITH_MISSING_SOME_STUDY_LINK
 
 echo "Downloading NACJD studies referenced  were missing from the old approach"
-time cat $STUDY_NUMBER_NOT_FOUND | xargs -I '{}' sh -c 'curl -s https://pcms.icpsr.umich.edu/pcms/api/1.0/studies/$@ > $@.json' _ '{}'
+time cat $STUDY_NUMBER_NOT_FOUND | xargs -I '{}' sh -c 'curl --fail -s https://pcms.icpsr.umich.edu/pcms/api/1.0/studies/$@ > $@.json' _ '{}'
 
 echo "Extracting downloaded information"
 ls -1 *.json | xargs -I'{}' sh -c 'echo ${@%%.json}\\t$(cat $@ | jq -r -C .projectTitle)\\t$(cat $@ | jq -r '"'"'.creators | map("\(.orgName), \(.personName)") | join("; ")'"'"')' _ '{}' | sed -re 's/([, ]+)?null([, ]+)?//g' > $OLD_NACJD_MISSING_STUDIES_ID_TITLE_AUTHOR
@@ -188,5 +189,8 @@ replace_print_superior_works $NACJD_WITH_ADDED_AUTHOR_ASSOCIATIONS $PRINT_SUPERI
 echo "Add uvkn selector"
 $ADD_UVKN_SELECTOR $NACJD_FIX_PRINT_SUPERIOR $NACJD_ADD_UVKN_SELECTOR
 
+echo "Revert Sonderdruck monographies"
+revert_sonderdruck_to_articles $NACJD_ADD_UVKN_SELECTOR $REVERT_SONDERDRUCK_FILE
+
 echo "Generating final file"
-cp --archive --verbose $NACJD_ADD_UVKN_SELECTOR $NACJD_FINAL
+cp --archive --verbose $REVERT_SONDERDRUCK_FILE $NACJD_FINAL

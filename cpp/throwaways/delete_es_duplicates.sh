@@ -22,6 +22,6 @@ done < <(paste -d' ' <(printf '%s\n' ${indices[@]}) <(printf '%s\n' ${deletion_f
 for key in ${!indices_and_deletion_files[@]}; do
     cat  ${indices_and_deletion_files["$key"]} | xargs -I'{}' bash -c 'echo '"'"'{"delete" : { "_index" : '"'"'\"$1\"'"'"', "_id" : '"'"'\"$2\"'"'"'} }'"'"'' _ $key '{}' | \
     xargs -d '\n' -n 1000 bash -c \
-    'curl --trace /tmp/trace.log -X POST "http://localhost:9200/_bulk" \
+    'curl --fail --trace /tmp/trace.log -X POST "http://localhost:9200/_bulk" \
      -H "Content-Type: application/x-ndjson" --data-binary @<(echo $@ | sed -re '"'"'s/\{"delete/\n&/g'"'"' | sed -re '"'"'/^$/d'"'"')'
 done

@@ -32,8 +32,8 @@ function ConvertNewMohrData {
         echo "Extracting item ${item} to ${MOHR_EXTRACTED}/${item}"
         unzip -o ${MOHR_ARCHIVE_DIR}/${item}.zip -d ${MOHR_EXTRACTED}/${item}
         echo "Converting item ${item}"
-        marcxml_metadata_processor ${MOHR_EXTRACTED}/${item}/catalogue_md.xml \
-            ${MOHR_EXTRACTED}/${item}/content/${item}.pdf ${MOHR_EXTRACTED}/${item}.txt
+        marcxml_metadata_processor ${MOHR_EXTRACTED}/${item}/*atalogue_md.xml \
+            ${MOHR_EXTRACTED}/${item}/*ontent/${item}.pdf ${MOHR_EXTRACTED}/${item}.txt
     done;
 }
 
@@ -41,7 +41,7 @@ function ConvertNewMohrData {
 function ExtractMohrBookRecords {
     local readonly mohr_books_marc_file="/tmp/mohr_books.mrc"
     #find ${MOHR_EXTRACTED} -maxdepth 1 -type d -exec marc_grep '{}'/catalogue_md.xml 'if "020" exists extract * marc_binary' \; 2>/tmp/null
-    find ${MOHR_EXTRACTED}  -maxdepth 1 -type d -print0 | xargs -0 -I'{}'  marc_grep '{}'/catalogue_md.xml \
+    find ${MOHR_EXTRACTED}  -maxdepth 2 -name '*atalogue_md.xml' -print0 | xargs -0 -I'{}'  marc_grep '{}' \
          'if "020" exists extract *' marc_binary 2>/tmp/null | cat > ${mohr_books_marc_file}
     echo ${mohr_books_marc_file}
 }

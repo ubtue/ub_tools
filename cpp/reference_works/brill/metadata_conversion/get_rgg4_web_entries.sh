@@ -13,7 +13,7 @@ BASE_URL='https://referenceworks.brillonline.com/browse/religion-in-geschichte-u
 
 function GetPage {
     local url="$1"
-    curl --silent --show-error ${url}
+    curl --fail --silent --show-error ${url}
 }
 
 
@@ -21,7 +21,7 @@ function GetLinks {
     local url="$1"
     local filter="$2"
     #c.f. https://superuser.com/questions/372155/how-do-i-extract-all-the-external-links-of-a-web-page-and-save-them-to-a-file (230223)
-    curl --silent --show-error ${url}  \
+    curl --fail --silent --show-error ${url}  \
         | xmllint --html --xpath  '//a[starts-with(@href, "http")]/@href' 2>/dev/null - \
         | sed -re 's/^ href="|"$//g' \
         | grep "${filter}"
@@ -47,7 +47,7 @@ function GetRangePages {
 function GetNextLink {
     local url="$1"
     local xpath=$(printf "%s" '//a[contains(.,'"'"'Next'"'"')]/@href')
-    curl --silent --show-error ${url} \
+    curl --fail --silent --show-error ${url} \
         | xmllint --html --xpath "${xpath}"  2>/dev/null - \
         | sed -re 's/^ href="|"$//g' \
         | sed -re 's/\&amp;/\&/g'

@@ -156,8 +156,10 @@ public class MultiLanguageQueryParser extends QParser {
             }
             newExpression.append(fieldNamesAndArguments[fieldNamesAndArgumentsLength - 1]); // No modifications needed
             return newExpression.toString();
-        } else
-            throw new MultiLanguageQueryParserException("Cannot appropriately rewrite expression \"" + expression + "\"");
+        }
+        // Compatibility for the system that uses filter query (fq) without using the MultiLanguageQueryParser in a specific way, i.e., KrimDok. KrimDok will use the Multilanguagequeryparser in the near future.
+         else
+            return expression; 
     }
 
 
