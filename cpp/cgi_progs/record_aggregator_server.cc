@@ -54,14 +54,14 @@ struct ArticleEntry {
 };
 
 std::map<std::string, std::string> parse_query_params(const std::string& target) {
+    std::string scheme, username_password, authority, port, path, params, query, fragment, relative_url;
     std::map<std::string, std::string> query_map;
 
-    std::string::size_type q_pos = target.find('?');
-    if (q_pos == std::string::npos || q_pos + 1 >= target.size()) {
-        return query_map;
+    if (not UrlUtil::ParseUrl(target, &scheme, &username_password, &authority, &port, &path, &params, &query, &fragment, &relative_url)) {
+        query = "";
     }
 
-    std::string query = target.substr(q_pos + 1);
+    if (query.empty()) return query_map;
 
     std::istringstream query_stream(query);
     std::string pair;
@@ -85,7 +85,7 @@ std::vector<std::map<std::string, std::string>> parse_entries(const std::string&
 
     while (std::getline(stream, line)) {
         if (line.empty()) {
-            if (!current_entry.empty()) {
+            if (not current_entry.empty()) {
                 entries.push_back(current_entry);
                 current_entry.clear();
             }
@@ -102,36 +102,42 @@ std::vector<std::map<std::string, std::string>> parse_entries(const std::string&
         }
     }
 
-    if (!current_entry.empty())
+    if (not current_entry.empty())
         entries.push_back(current_entry);
 
     return entries;
 }
 
 std::optional<ArticleEntry> parse_entry(const std::map<std::string, std::string>& entry) {
-    if (!entry.count("article_link") || !entry.count("journal")) {
+    if (not entry.contains("article_link") || not entry.contains("journal")) {
         std::cerr << "Skipping entry due to missing article_link or journal.\n";
         return std::nullopt;
     }
 
     ArticleEntry article_entry;
     article_entry.article_link = entry.at("article_link");
-    article_entry.main_title = entry.count("main_title") ? entry.at("main_title") : article_entry.article_link;
+    article_entry.main_title = entry.contains("main_title") ? entry.at("main_title") : article_entry.article_link;
     article_entry.journal_name = entry.at("journal");
-    article_entry.pattern = entry.count("pattern") ? entry.at("pattern") : "";
-    article_entry.extraction_pattern = entry.count("extraction_pattern") ? entry.at("extraction_pattern") : "";
-    article_entry.crawl_pattern = entry.count("crawl_pattern") ? entry.at("crawl_pattern") : "";
-    article_entry.volume_pattern = entry.count("volume_pattern") ? entry.at("volume_pattern") : "";
+    article_entry.pattern = entry.contains("pattern") ? entry.at("pattern") : "";
+    article_entry.extraction_pattern = entry.contains("extraction_pattern") ? entry.at("extraction_pattern") : "";
+    article_entry.crawl_pattern = entry.contains("crawl_pattern") ? entry.at("crawl_pattern") : "";
+    article_entry.volume_pattern = entry.contains("volume_pattern") ? entry.at("volume_pattern") : "";
 
     article_entry.delivered_at = "NOW()";
-    if (entry.count("delivered_at")) {
-        std::string ts = entry.at("delivered_at");
-        std::replace(ts.begin(), ts.end(), 'T', ' ');
-        if (!ts.empty() && ts.back() == 'Z')
-            ts.pop_back();
 
-        if (SqlUtil::IsValidDatetime(ts)) {
-            article_entry.delivered_at = ts;
+    if (entry.contains("delivered_at")) {
+        const std::string& ts_input = entry.at("delivered_at");
+        try {
+            time_t ts = static_cast<time_t>(std::stoll(ts_input));
+            std::string datetime_str = SqlUtil::TimeTToDatetime(ts);
+
+            if (SqlUtil::IsValidDatetime(datetime_str)) {
+                article_entry.delivered_at = datetime_str;
+            } else {
+                std::cerr << "Converted datetime string is invalid: " << datetime_str << "\n";
+            }
+        } catch (...) {
+            std::cerr << "Invalid delivered_at time_t format: " << ts_input << "\n";
         }
     }
 
@@ -143,9 +149,9 @@ bool parse_pagination(const std::map<std::string, std::string>& query_params, in
     page_num = 1;
 
     try {
-        if (query_params.count("page_size"))
+        if (query_params.contains("page_size"))
             page_size = std::stoi(query_params.at("page_size"));
-        if (query_params.count("page_num"))
+        if (query_params.contains("page_num"))
             page_num = std::stoi(query_params.at("page_num"));
         if (page_size <= 0 || page_num <= 0)
             return false;
@@ -167,7 +173,7 @@ std::map<std::string, std::string> lookup_journal_info(DbConnection& db_connecti
                         + db_connection.escapeAndQuoteString(journal_name) + ";";
     DbResultSet result = db_connection.selectOrDie(query);
 
-    if (!result.empty()) {
+    if (not result.empty()) {
         DbRow row = result.getNextRow();
         journal_info["zeder_id"] = row.getValue("zeder_id", "");
         journal_info["zeder_instance"] = row.getValue("zeder_instance", "");
@@ -223,7 +229,7 @@ int process_entries(DbConnection& db_connection, const std::vector<std::map<std:
 
     for (const auto& entry : entries) {
         auto article_entry = parse_entry(entry);
-        if (!article_entry)
+        if (not article_entry)
             continue;
 
         const ArticleEntry& article = *article_entry;
@@ -254,7 +260,7 @@ std::string build_info_json(DbConnection& db_connection, const std::map<std::str
     DbResultSet result = db_connection.selectOrDie(query);
     int total_entries = 0;
 
-    if (!result.empty()) {
+    if (not result.empty()) {
         DbRow row = result.getNextRow();
         total_entries = std::stoi(row.getValue("total", "0"));
     }
@@ -262,7 +268,7 @@ std::string build_info_json(DbConnection& db_connection, const std::map<std::str
     int total_pages = (total_entries + page_size - 1) / page_size;
 
     std::ostringstream json;
-    json << "{ \"total_entries\": " << total_entries << ", \"page_size\": " << page_size << ", \"total_pages\": " << total_pages << " \n}";
+    json << "{ \"total_entries\": " << total_entries << ", \"page_size\": " << page_size << ", \"total_pages\": " << total_pages << " } \n";
     return json.str();
 }
 
@@ -308,7 +314,7 @@ std::string build_feed(DbConnection& db_connection, const std::string& journal_n
         feed << "    <author><name>Feed Generator</name></author>\n";
         feed << "    <summary>Link to article: " << link << "</summary>\n";
 
-        if (!json.empty()) {
+        if (not json.empty()) {
             feed << "    <content type=\"html\">\n";
             feed << "      <![CDATA[\n";
             feed << "      <pre>" << json << "</pre>\n";
@@ -339,7 +345,7 @@ protected:
 
     void read_request() {
         http::async_read(socket_, buffer_, req_, [self = shared_from_this()](beast::error_code ec, std::size_t) {
-            if (!ec) {
+            if (not ec) {
                 self->handle_request();
             } else {
                 std::cerr << "Read error: " << ec.message() << "\n";
@@ -370,7 +376,9 @@ protected:
     }
 
     void handle_get_request(DbConnection& db_connection) {
-        auto query_params = parse_query_params(req_.target().to_string());
+        std::string host = req_.base()["Host"].to_string();
+        std::string full_url = "http://" + host + req_.target().to_string();
+        auto query_params = parse_query_params(full_url);
         std::string path = get_path(req_.target().to_string());
 
         if (path != "/retrokat_webserver") {
@@ -378,7 +386,7 @@ protected:
             return;
         }
 
-        if (!query_params.count("journal")) {
+        if (not query_params.contains("journal")) {
             send_response(http::status::bad_request, "Missing 'journal' parameter.\n");
             return;
         }
@@ -390,12 +398,12 @@ protected:
         }
 
         int page_size, page_num;
-        if (!parse_pagination(query_params, page_size, page_num)) {
+        if (not parse_pagination(query_params, page_size, page_num)) {
             send_response(http::status::bad_request, "Invalid page_size or page_num");
             return;
         }
 
-        if (query_params.count("info") && query_params["info"] == "1") {
+        if (query_params.contains("info") && query_params["info"] == "1") {
             send_response(http::status::ok, build_info_json(db_connection, journal_info, page_size), "application/json");
             return;
         }
@@ -443,7 +451,7 @@ protected:
 
     void accept() {
         acceptor_.async_accept([self = shared_from_this()](beast::error_code ec, tcp::socket socket) {
-            if (!ec) {
+            if (not ec) {
                 std::cout << "Accepted connection from: " << socket.remote_endpoint() << "\n";
                 std::make_shared<session>(std::move(socket), self->db_name_, self->db_user_, self->db_pass_)->start();
             } else {

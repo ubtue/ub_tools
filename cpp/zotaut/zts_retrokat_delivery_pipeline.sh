@@ -191,12 +191,12 @@ while [ "$counter" -lt "$file_count" ]; do
 done
 EndPhase
 
-:<<DISABLED
+
 StartPhase "Commit and Push to Git"
 
 cd "$LOCAL_REPO_PATH"
 
-git add "$JOURNAL_NAME/" >> "$LOG" 2>&1
+git add . >> "$LOG" 2>&1
 
 if ! git diff --cached --quiet; then
     git commit -m "Update: Records for $JOURNAL_NAME on $(date +%Y-%m-%d)" >> "$LOG" 2>&1
@@ -206,7 +206,7 @@ else
 fi
 
 EndPhase
-DISABLED
+
 
 StartPhase "Archive Sent Records"
 for source_filepath in "${source_filepaths[@]}"; do
