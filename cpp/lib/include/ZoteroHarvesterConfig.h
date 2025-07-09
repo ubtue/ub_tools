@@ -344,6 +344,7 @@ public:
 
     static std::string GetIniKeyString(const IniKey ini_key);
     static IniKey GetIniKey(const std::string &ini_key_string);
+    void SetEntryUrl(const std::string &entry_url);
 
 private:
     static const std::map<IniKey, std::string> KEY_TO_STRING_MAP;

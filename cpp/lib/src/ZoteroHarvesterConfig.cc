@@ -510,6 +510,11 @@ JournalParams::IniKey JournalParams::GetIniKey(const std::string &ini_key_string
 }
 
 
+void JournalParams::SetEntryUrl(const std::string &entry_url) {
+    entry_point_url_ = entry_url;
+}
+
+
 void LoadHarvesterConfigFile(const std::string &config_filepath, std::unique_ptr<GlobalParams> * const global_params,
                              std::vector<std::unique_ptr<GroupParams>> * const group_params,
                              std::vector<std::unique_ptr<SubgroupParams>> * const subgroup_params,

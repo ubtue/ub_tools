@@ -25,6 +25,7 @@
 #include "FileUtil.h"
 #include "IniFile.h"
 #include "JSON.h"
+#include "PagedJournalUtil.h"
 #include "StringUtil.h"
 #include "UrlUtil.h"
 #include "ZoteroHarvesterConfig.h"
@@ -367,12 +368,6 @@ std::string Metrics::toString() const {
 }
 
 
-struct PagedRSSJournalState {
-    std::shared_ptr<Config::JournalParams> journal;
-    std::deque<std::string> urls;
-};
-
-
 std::unique_ptr<JournalDatastore> QueueDownloadsForJournal(const Config::JournalParams &journal_params,
                                                            const HarvesterConfigData &harvester_config,
                                                            Util::HarvestableItemManager * const harvestable_manager,
@@ -672,68 +667,6 @@ void WriteConversionResultsToDisk(JournalDatastore * const journal_datastore, Ou
     }
 }
 
-
-unsigned RequestPageCount(const Config::JournalParams &journal) {
-    const TimeLimit DEFAULT_TIME_LIMIT(3000);
-
-    std::string url = journal.entry_point_url_ + "?journal=" + UrlUtil::UrlEncode(journal.name_)
-                      + "&page_size=" + std::to_string(journal.paged_rss_size_) + "&info=1";
-
-    std::string result;
-    if (not ::Download(url, DEFAULT_TIME_LIMIT, &result)) {
-        LOG_ERROR("Download failed for page count URL: " + url);
-    }
-
-    JSON::Parser parser(result);
-    std::shared_ptr<JSON::JSONNode> root;
-    if (not parser.parse(&root)) {
-        LOG_WARNING("JSON parse error: " + parser.getErrorMessage() + " | Response: " + result);
-        return 1;
-    }
-
-    std::shared_ptr<JSON::ObjectNode> obj = JSON::JSONNode::CastToObjectNodeOrDie("root", root);
-    if (obj->hasNode("total_pages")) {
-        return static_cast<unsigned>(obj->getIntegerValue("total_pages"));
-    } else {
-        LOG_WARNING("Missing 'total_pages' in response JSON: " + result);
-        return 1;
-    }
-}
-
-
-std::string ExpandPaginationUrl(const Config::JournalParams &journal, unsigned page_size, unsigned page_num) {
-    return journal.entry_point_url_ + "?journal=" + UrlUtil::UrlEncode(journal.name_) + "&page_size=" + std::to_string(page_size)
-           + "&page_num=" + std::to_string(page_num);
-}
-
-
-std::optional<PagedRSSJournalState> AddPagedJournal(std::shared_ptr<Config::JournalParams> journal) {
-    unsigned total_pages = RequestPageCount(*journal);
-    if (total_pages == 0) {
-        LOG_WARNING("No pages available for journal '" + journal->name_ + "'");
-        return std::nullopt;
-    }
-
-    std::deque<std::string> urls;
-
-    if (journal->paged_rss_range_.empty()) {
-        for (unsigned page = 1; page <= total_pages; ++page) {
-            urls.push_back(ExpandPaginationUrl(*journal, journal->paged_rss_size_, page));
-        }
-    } else {
-        for (unsigned page : journal->paged_rss_range_) {
-            if (page >= 1 && page <= total_pages) {
-                urls.push_back(ExpandPaginationUrl(*journal, journal->paged_rss_size_, page));
-            } else {
-                LOG_WARNING("Requested page " + std::to_string(page) + " is out of range for journal '" + journal->name_
-                            + "' (total pages: " + std::to_string(total_pages) + ")");
-            }
-        }
-    }
-
-    return PagedRSSJournalState{ std::move(journal), std::move(urls) };
-}
-
 } // unnamed namespace
 
 
@@ -797,7 +730,7 @@ int Main(int argc, char *argv[]) {
 
             if (journal->paged_rss_) {
                 std::shared_ptr<Config::JournalParams> journal_shared = std::move(journal);
-                paged_journal_state = AddPagedJournal(journal_shared);
+                paged_journal_state = PagedRSSAddJournal(journal_shared);
             } else {
                 auto current_journal_datastore =
                     QueueDownloadsForJournal(*journal, harvester_config, &harvestable_manager, &download_manager, &harvester_metrics);
@@ -856,9 +789,9 @@ int Main(int argc, char *argv[]) {
                 paged_journal_state->journal->SetEntryUrl(next_url);
                 ::usleep(static_cast<__useconds_t>(paged_journal_state->journal->paged_rss_delay_time_ * 1000));
 
-                auto datastore = QueueDownloadsForJournal(*paged_journal_state->journal, harvester_config, &harvestable_manager,
-                                                          &download_manager, &harvester_metrics);
-                journal_datastores.emplace_back(std::move(datastore));
+                auto current_journal_datastore = QueueDownloadsForJournal(*paged_journal_state->journal, harvester_config,
+                                                                          &harvestable_manager, &download_manager, &harvester_metrics);
+                journal_datastores.emplace_back(std::move(current_journal_datastore));
                 continue;
             }
             break;
