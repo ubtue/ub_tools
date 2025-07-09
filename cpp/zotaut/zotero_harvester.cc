@@ -25,12 +25,12 @@
 #include "FileUtil.h"
 #include "IniFile.h"
 #include "JSON.h"
-#include "PagedJournalUtil.h"
 #include "StringUtil.h"
 #include "UrlUtil.h"
 #include "ZoteroHarvesterConfig.h"
 #include "ZoteroHarvesterConversion.h"
 #include "ZoteroHarvesterDownload.h"
+#include "ZoteroHarvesterRecordAggregator.h"
 #include "ZoteroHarvesterUtil.h"
 #include "util.h"
 
@@ -700,7 +700,7 @@ int Main(int argc, char *argv[]) {
     std::unordered_set<std::string> urls_harvested_during_current_session;
 
     // Queue downloads for selection.
-    std::optional<PagedRSSJournalState> paged_journal_state;
+    std::optional<RecordAggregator::PagedRSSJournalState> paged_journal_state;
     switch (commandline_args.selection_mode_) {
     case CommandLineArgs::SelectionMode::UPLOAD:
     case CommandLineArgs::SelectionMode::JOURNAL:
@@ -730,7 +730,7 @@ int Main(int argc, char *argv[]) {
 
             if (journal->paged_rss_) {
                 std::shared_ptr<Config::JournalParams> journal_shared = std::move(journal);
-                paged_journal_state = PagedRSSAddJournal(journal_shared);
+                paged_journal_state = RecordAggregator::AddPagedJournal(journal_shared);
             } else {
                 auto current_journal_datastore =
                     QueueDownloadsForJournal(*journal, harvester_config, &harvestable_manager, &download_manager, &harvester_metrics);

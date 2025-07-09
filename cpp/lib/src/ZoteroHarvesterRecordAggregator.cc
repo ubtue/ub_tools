@@ -16,16 +16,20 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "PagedJournalUtil.h"
 #include "JSON.h"
 #include "TimeUtil.h"
 #include "UrlUtil.h"
 #include "ZoteroHarvesterDownload.h"
+#include "ZoteroHarvesterRecordAggregator.h"
 #include "util.h"
 
-using namespace ZoteroHarvester;
 
-std::optional<unsigned> PagedRSSRequestPageCount(const Config::JournalParams &journal) {
+namespace ZoteroHarvester {
+
+namespace RecordAggregator {
+
+
+std::optional<unsigned> RequestPageCount(const Config::JournalParams &journal) {
     const TimeLimit DEFAULT_TIME_LIMIT(3000);
 
     std::string url = journal.entry_point_url_ + "?journal=" + UrlUtil::UrlEncode(journal.name_)
@@ -53,13 +57,13 @@ std::optional<unsigned> PagedRSSRequestPageCount(const Config::JournalParams &jo
     }
 }
 
-std::string PagedRSSExpandUrl(const Config::JournalParams &journal, unsigned page_size, unsigned page_num) {
+std::string ExpandPaginationUrl(const Config::JournalParams &journal, unsigned page_size, unsigned page_num) {
     return journal.entry_point_url_ + "?journal=" + UrlUtil::UrlEncode(journal.name_) + "&page_size=" + std::to_string(page_size)
            + "&page_num=" + std::to_string(page_num);
 }
 
-std::optional<PagedRSSJournalState> PagedRSSAddJournal(std::shared_ptr<Config::JournalParams> journal) {
-    auto total_pages_opt = PagedRSSRequestPageCount(*journal);
+std::optional<PagedRSSJournalState> AddPagedJournal(std::shared_ptr<Config::JournalParams> journal) {
+    auto total_pages_opt = RequestPageCount(*journal);
     if (!total_pages_opt || *total_pages_opt == 0) {
         LOG_WARNING("Failed to retrieve page count or no pages for journal '" + journal->name_ + "'");
         return std::nullopt;
@@ -71,12 +75,12 @@ std::optional<PagedRSSJournalState> PagedRSSAddJournal(std::shared_ptr<Config::J
 
     if (journal->paged_rss_range_.empty()) {
         for (unsigned page = 1; page <= total_pages; ++page) {
-            urls.push_back(PagedRSSExpandUrl(*journal, journal->paged_rss_size_, page));
+            urls.push_back(ExpandPaginationUrl(*journal, journal->paged_rss_size_, page));
         }
     } else {
         for (unsigned page : journal->paged_rss_range_) {
             if (page >= 1 && page <= total_pages) {
-                urls.push_back(PagedRSSExpandUrl(*journal, journal->paged_rss_size_, page));
+                urls.push_back(ExpandPaginationUrl(*journal, journal->paged_rss_size_, page));
             } else {
                 LOG_WARNING("Requested page " + std::to_string(page) + " is out of range for journal '" + journal->name_
                             + "' (total pages: " + std::to_string(total_pages) + ")");
@@ -86,3 +90,9 @@ std::optional<PagedRSSJournalState> PagedRSSAddJournal(std::shared_ptr<Config::J
 
     return PagedRSSJournalState{ std::move(journal), std::move(urls) };
 }
+
+
+} // end namespace RecordAggregator
+
+
+} // end namespace ZoteroHarvester
