@@ -377,7 +377,7 @@ protected:
     }
 
     void handle_get_request(DbConnection& db_connection) {
-        std::string host = req_.base()["Host"];
+        std::string host = std::string(req_.base()["Host"]);
         std::string full_url = "http://" + host + std::string(req_.target());
         auto query_params = parse_query_params(full_url);
         std::string path = get_path(std::string(req_.target()));
