@@ -195,7 +195,6 @@ EndPhase
 StartPhase "Commit and Push to Git"
 
 cd "$LOCAL_REPO_PATH"
-
 git add . >> "$LOG" 2>&1
 
 if ! git diff --cached --quiet; then

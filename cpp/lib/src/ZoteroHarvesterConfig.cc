@@ -472,15 +472,17 @@ JournalParams::JournalParams(const IniFile::Section &journal_section, const Glob
     const std::string range_str = journal_section.getString(GetIniKeyString(PAGED_RSS_RANGE), "");
     paged_rss_range_.clear();
 
-    if (!range_str.empty()) {
+    if (not range_str.empty()) {
         std::vector<std::string> tokens;
         StringUtil::SplitThenTrimWhite(range_str, ",", &tokens);
 
         for (const std::string &token : tokens) {
-            if (token.find('-') != std::string::npos) {
-                const auto dash_pos = token.find('-');
-                const unsigned start = StringUtil::ToUnsigned(token.substr(0, dash_pos));
-                const unsigned end = StringUtil::ToUnsigned(token.substr(dash_pos + 1));
+            std::vector<std::string> range_parts;
+            StringUtil::Split<std::string, std::vector<std::string>>(token, "-", &range_parts, true);
+
+            if (range_parts.size() == 2) {
+                unsigned start = StringUtil::ToUnsigned(range_parts[0]);
+                unsigned end = StringUtil::ToUnsigned(range_parts[1]);
                 for (unsigned i = start; i <= end; ++i)
                     paged_rss_range_.push_back(i);
             } else {

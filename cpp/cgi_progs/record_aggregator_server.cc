@@ -61,7 +61,8 @@ std::map<std::string, std::string> parse_query_params(const std::string& target)
         query = "";
     }
 
-    if (query.empty()) return query_map;
+    if (query.empty())
+        return query_map;
 
     std::istringstream query_stream(query);
     std::string pair;
@@ -291,9 +292,9 @@ std::string build_feed(DbConnection& db_connection, const std::string& journal_n
     feed << "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n";
     feed << "<feed xmlns=\"http://www.w3.org/2005/Atom\">\n";
     feed << "  <title>Feed for Journal " << journal_name << "</title>\n";
-    feed << "  <id>http://localhost:8080/retrokat_webserver?journal=" << UrlUtil::UrlEncode(journal_name) << "</id>\n";
+    feed << "  <id>http://localhost:9500/record_aggregator_server?journal=" << UrlUtil::UrlEncode(journal_name) << "</id>\n";
     feed << "  <updated>" << TimeUtil::GetCurrentDateAndTime(TimeUtil::ZULU_FORMAT, TimeUtil::UTC) << "</updated>\n";
-    feed << "  <link rel=\"self\" type=\"application/atom+xml\" href=\"http://localhost:8080/retrokat_webserver?journal="
+    feed << "  <link rel=\"self\" type=\"application/atom+xml\" href=\"http://localhost:9500/record_aggregator_server?journal="
          << UrlUtil::UrlEncode(journal_name) << "\" />\n";
 
     for (DbRow row = result.getNextRow(); row; row = result.getNextRow()) {
@@ -376,12 +377,12 @@ protected:
     }
 
     void handle_get_request(DbConnection& db_connection) {
-        std::string host = req_.base()["Host"].to_string();
-        std::string full_url = "http://" + host + req_.target().to_string();
+        std::string host = req_.base()["Host"];
+        std::string full_url = "http://" + host + std::string(req_.target());
         auto query_params = parse_query_params(full_url);
-        std::string path = get_path(req_.target().to_string());
+        std::string path = get_path(std::string(req_.target()));
 
-        if (path != "/retrokat_webserver") {
+        if (path != "/record_aggregator_server") {
             send_response(http::status::not_found, "Unknown endpoint.\n");
             return;
         }
@@ -471,10 +472,10 @@ int main() {
         const std::string sql_username(ini_file.getString("Database", "sql_username"));
         const std::string sql_password(ini_file.getString("Database", "sql_password"));
 
-        auto endpoint = tcp::endpoint(tcp::v4(), 8080);
+        auto endpoint = tcp::endpoint(tcp::v4(), 9500);
         std::make_shared<listener>(ioc, endpoint, sql_database, sql_username, sql_password)->run();
 
-        std::cout << "Server running on http://localhost:8080\n";
+        std::cout << "Server running on http://localhost:9500\n";
         ioc.run();
     } catch (const std::exception& e) {
         std::cerr << "Fatal error: " << e.what() << "\n";
