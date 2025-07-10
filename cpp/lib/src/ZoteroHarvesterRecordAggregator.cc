@@ -29,7 +29,7 @@ namespace ZoteroHarvester {
 namespace RecordAggregator {
 
 
-std::unique_ptr<unsigned> RequestPageCount(const Config::JournalParams &journal) {
+unsigned RequestPageCount(const Config::JournalParams &journal) {
     const TimeLimit DEFAULT_TIME_LIMIT(3000);
 
     std::string url = journal.entry_point_url_ + "?journal=" + UrlUtil::UrlEncode(journal.name_)
@@ -38,22 +38,22 @@ std::unique_ptr<unsigned> RequestPageCount(const Config::JournalParams &journal)
     std::string result;
     if (not ::Download(url, DEFAULT_TIME_LIMIT, &result)) {
         LOG_WARNING("Download failed for page count URL: " + url);
-        return nullptr;
+        return 0;
     }
 
     JSON::Parser parser(result);
     std::shared_ptr<JSON::JSONNode> root;
     if (not parser.parse(&root)) {
         LOG_WARNING("JSON parse error: " + parser.getErrorMessage() + " | Response: " + result);
-        return nullptr;
+        return 0;
     }
 
     std::shared_ptr<JSON::ObjectNode> obj = JSON::JSONNode::CastToObjectNodeOrDie("root", root);
     if (obj->hasNode("total_pages")) {
-        return std::make_unique<unsigned>(static_cast<unsigned>(obj->getIntegerValue("total_pages")));
+        return static_cast<unsigned>(obj->getIntegerValue("total_pages"));
     } else {
         LOG_WARNING("Missing 'total_pages' in response JSON: " + result);
-        return nullptr;
+        return 0;
     }
 }
 
@@ -63,12 +63,10 @@ std::string ExpandPaginationUrl(const Config::JournalParams &journal, unsigned p
 }
 
 void AddPagedJournal(PagedRSSJournalState *paged_rss_journal_state) {
-    auto total_pages_opt = RequestPageCount(*paged_rss_journal_state->journal_);
-    if (not total_pages_opt || *total_pages_opt == 0) {
+    unsigned total_pages = RequestPageCount(*paged_rss_journal_state->journal_);
+    if (total_pages == 0) {
         LOG_ERROR("Failed to retrieve page count or no pages for journal '" + paged_rss_journal_state->journal_->name_ + "'");
     }
-
-    unsigned total_pages = *total_pages_opt;
 
     if (paged_rss_journal_state->journal_->paged_rss_range_.empty()) {
         for (unsigned page = 1; page <= total_pages; ++page) {

@@ -39,7 +39,7 @@ struct PagedRSSJournalState {
         : journal_(journal), urls_(urls) { }
 };
 
-std::unique_ptr<unsigned> RequestPageCount(const Config::JournalParams &journal);
+unsigned RequestPageCount(const Config::JournalParams &journal);
 
 // Constructs a URL for a specific page of a paged journal.
 std::string ExpandPaginationUrl(const ZoteroHarvester::Config::JournalParams &journal, unsigned page_size, unsigned page_num);
