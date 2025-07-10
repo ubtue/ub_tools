@@ -289,7 +289,11 @@ struct JournalParams {
         PERSONALIZED_AUTHORS,
         EMAILCRAWL_SUBJECT_REGEX,
         ADDITIONAL_SELECTORS,
-        PAGES_NOT_ONLINE_FIRST
+        PAGES_NOT_ONLINE_FIRST,
+        PAGED_RSS,
+        PAGED_RSS_SIZE,
+        PAGED_RSS_RANGE,
+        PAGED_RSS_DELAY_TIME
     };
 
     unsigned zeder_id_;
@@ -327,6 +331,10 @@ struct JournalParams {
     std::shared_ptr<ThreadSafeRegexMatcher> emailcrawl_subject_regex_;
     std::string additional_selectors_;
     bool pages_not_online_first_;
+    bool paged_rss_;
+    unsigned paged_rss_size_;
+    std::vector<unsigned> paged_rss_range_;
+    unsigned paged_rss_delay_time_;
 
 public:
     JournalParams(const GlobalParams &global_params);
@@ -336,6 +344,7 @@ public:
 
     static std::string GetIniKeyString(const IniKey ini_key);
     static IniKey GetIniKey(const std::string &ini_key_string);
+    void SetEntryUrl(const std::string &entry_url);
 
 private:
     static const std::map<IniKey, std::string> KEY_TO_STRING_MAP;
