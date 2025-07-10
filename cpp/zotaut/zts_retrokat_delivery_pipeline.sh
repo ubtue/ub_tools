@@ -13,7 +13,7 @@ function SendEmail {
         send_email --priority=high --recipients="$EMAIL_ADDRESS" \
                    --subject="$0 failed on $(hostname)" \
                    --message-body="Check the log file at /usr/local/var/log/tuefind/zts_retrokat_harvester_delivery_pipeline.log for details."
-        echo "*** ZTS_HARVESTER DELIVERY PIPELINE FAILED ***" | tee --append "$LOG"
+        echo "*** ZTS_RETROKAT_HARVESTER DELIVERY PIPELINE FAILED ***" | tee --append "$LOG"
         exit 1
     fi
 }
@@ -35,10 +35,10 @@ fi
 
 readonly JOURNAL_NAME="$1"
 readonly EMAIL_ADDRESS="$2"
-readonly WORKING_DIRECTORY="/tmp/zts_harvester_delivery_pipeline"
+readonly WORKING_DIRECTORY="/tmp/zts_retrokat_harvester_delivery_pipeline"
 
 readonly HARVESTER_OUTPUT_DIRECTORY="$WORKING_DIRECTORY"
-readonly HARVESTER_OUTPUT_FILENAME="zts_harvester-$(date +%y%m%d).xml"
+readonly HARVESTER_OUTPUT_FILENAME="zts_retrokat_harvester-$(date +%y%m%d).xml"
 readonly HARVESTER_CONFIG_FILE="/usr/local/var/lib/tuelib/zotero-enhancement-maps/zotero_harvester.conf"
 
 readonly GIT_REPO_URL="/mnt/ZE020110/FID-Projekte/Retrokat-Daten/retrokatat-daten.git"
@@ -77,7 +77,7 @@ function EndPhase {
 
 function EndPipeline {
     echo -e "\n\nPipeline done after $(CalculateTimeDifference $OVERALL_START $(date +%s.%N)) minutes." | tee --append "$LOG"
-    echo "*** ZTS_HARVESTER DELIVERY PIPELINE DONE ***" | tee --append "$LOG"
+    echo "*** ZTS_RETROKAT_HARVESTER DELIVERY PIPELINE DONE ***" | tee --append "$LOG"
     no_problems_found=0
     exit 0
 }

@@ -1,4 +1,4 @@
-/** \file    rss_webserver.cc
+/** \file    record_aggregator_server.cc
  *  \brief   Webserver for saving journal articles and delivering feeds
  *  \author  Hjordis Lindeboom (hjordis.lindeboom@uni-tuebingen.de)
  *
@@ -35,7 +35,7 @@
 #include "UrlUtil.h"
 #include "XmlUtil.h"
 
-const std::string CONF_FILE_PATH(UBTools::GetTuelibPath() + "ub_tools.conf");
+const std::string DB_CONF_FILE_PATH(UBTools::GetTuelibPath() + "ub_tools.conf");
 
 namespace beast = boost::beast;
 namespace http = beast::http;
@@ -467,7 +467,7 @@ int main() {
     try {
         net::io_context ioc;
 
-        const IniFile ini_file(CONF_FILE_PATH);
+        const IniFile ini_file(DB_CONF_FILE_PATH);
         const std::string sql_database(ini_file.getString("Database", "sql_database"));
         const std::string sql_username(ini_file.getString("Database", "sql_username"));
         const std::string sql_password(ini_file.getString("Database", "sql_password"));
