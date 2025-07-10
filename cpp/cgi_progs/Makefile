@@ -7,7 +7,7 @@ APACHE_SYSTEMCTL_ARGUMENT := $(shell if [ -f /etc/debian_version ]; then echo "a
 
 .PHONY: all .deps install clean
 
-all: .deps $(PROGS)
+all: .deps $(PROGS) record_aggregator_server
 
 %.o: %.cc Makefile
 	@echo "Compiling $< $(OPTIMISATIONS_STATE)..."
@@ -17,6 +17,10 @@ $(PROGS): % : %.o ../lib/libubtue.a Makefile
 	@echo "Linking $@..."
 	@$(CCC) -rdynamic $(LD_FLAGS) $< -o $@ $(LIBS)
 
+record_aggregator_server: record_aggregator_server.o ../lib/libubtue.a
+	@echo "Linking $@ with Boost..."
+	@$(CCC) -rdynamic $(LD_FLAGS) record_aggregator_server.o -o $@ -lboost_system -lboost_filesystem -lpthread $(LIBS)
+
 -include .deps
 .deps: *.cc $(INC)/*.h
 	$(MAKE_DEPS) -I $(INC) *.cc
@@ -24,7 +28,7 @@ $(PROGS): % : %.o ../lib/libubtue.a Makefile
 ../lib/libubtue.a: $(wildcard ../lib/src/*.cc) $(wildcard ../lib/include/*.h)
 	$(MAKE) -C ../lib
 
-install: $(PROGS)
+install: $(PROGS) record_aggregator_server
 	@echo "Installing CGI programs..."
 	mkdir --parents $(CGI_DIR)
 ifndef APACHE_SYSTEMCTL_ARGUMENT
