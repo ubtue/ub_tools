@@ -291,7 +291,7 @@ std::string build_feed(DbConnection& db_connection, const std::string& journal_n
     std::ostringstream feed;
     feed << "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n";
     feed << "<feed xmlns=\"http://www.w3.org/2005/Atom\">\n";
-    feed << "  <title>Feed for Journal " << journal_name << "</title>\n";
+    feed << "  <title>Feed for Journal " << XmlUtil::XmlEscape(journal_name) << "</title>\n";
     feed << "  <id>http://localhost:9500/record_aggregator_server?journal=" << UrlUtil::UrlEncode(journal_name) << "</id>\n";
     feed << "  <updated>" << TimeUtil::GetCurrentDateAndTime(TimeUtil::ZULU_FORMAT, TimeUtil::UTC) << "</updated>\n";
     feed << "  <link rel=\"self\" type=\"application/atom+xml\" href=\"http://localhost:9500/record_aggregator_server?journal="
