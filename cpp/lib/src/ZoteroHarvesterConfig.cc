@@ -478,7 +478,7 @@ JournalParams::JournalParams(const IniFile::Section &journal_section, const Glob
 
         for (const std::string &token : tokens) {
             std::vector<std::string> range_parts;
-            StringUtil::Split<std::string, std::vector<std::string>>(token, "-", &range_parts, true);
+            StringUtil::Split(token, '-', &range_parts, true);
 
             if (range_parts.size() == 2) {
                 unsigned start = StringUtil::ToUnsigned(range_parts[0]);
