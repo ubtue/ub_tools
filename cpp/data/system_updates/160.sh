@@ -2,5 +2,5 @@
 set -o errexit
 
 if [ -r /etc/debian_version ]; then
-    apt-get --yes install libboost1.74-tools-dev
+    apt-get --yes install libboost-all-dev
 fi

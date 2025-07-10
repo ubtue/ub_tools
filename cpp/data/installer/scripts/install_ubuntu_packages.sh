@@ -40,7 +40,7 @@ apt-get --quiet --yes --allow-unauthenticated install \
         libxml2-dev libxml2-utils locales-all make mawk mutt nlohmann-json3-dev openjdk-17-jdk p7zip-full poppler-utils postgresql-client \
         python3 python3-paramiko \
         tesseract-ocr tesseract-ocr-all rsync sqlite3 tcl-expect-dev tidy unzip mpack \
-        uuid-dev xsltproc libsystemd-dev libboost1.74-tools-dev
+        uuid-dev xsltproc libsystemd-dev libboost-all-dev
 
 # Explicitly enable mod_cgi. If we would use `a2enmod cgi`, it would enable mod_cgid, which would fail on apache startup.
 a2enmod cgi
