@@ -32,17 +32,20 @@ namespace RecordAggregator {
 
 
 struct PagedRSSJournalState {
-    std::shared_ptr<ZoteroHarvester::Config::JournalParams> journal;
-    std::deque<std::string> urls;
+    std::shared_ptr<ZoteroHarvester::Config::JournalParams> journal_;
+    std::deque<std::string> urls_;
+
+    PagedRSSJournalState(std::shared_ptr<ZoteroHarvester::Config::JournalParams> journal, std::deque<std::string> urls)
+        : journal_(journal), urls_(urls) { }
 };
 
-std::optional<unsigned> RequestPageCount(const ZoteroHarvester::Config::JournalParams &journal);
+std::unique_ptr<unsigned> RequestPageCount(const Config::JournalParams &journal);
 
 // Constructs a URL for a specific page of a paged journal.
 std::string ExpandPaginationUrl(const ZoteroHarvester::Config::JournalParams &journal, unsigned page_size, unsigned page_num);
 
 // Generates the state for a paged journal based on the total pages and range specified.
-std::optional<PagedRSSJournalState> AddPagedJournal(std::shared_ptr<ZoteroHarvester::Config::JournalParams> journal);
+void AddPagedJournal(PagedRSSJournalState *paged_rss_journal_state);
 
 
 } // end namespace RecordAggregator

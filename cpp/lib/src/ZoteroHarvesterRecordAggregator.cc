@@ -16,11 +16,11 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include "ZoteroHarvesterRecordAggregator.h"
 #include "JSON.h"
 #include "TimeUtil.h"
 #include "UrlUtil.h"
 #include "ZoteroHarvesterDownload.h"
-#include "ZoteroHarvesterRecordAggregator.h"
 #include "util.h"
 
 
@@ -29,31 +29,31 @@ namespace ZoteroHarvester {
 namespace RecordAggregator {
 
 
-std::optional<unsigned> RequestPageCount(const Config::JournalParams &journal) {
+std::unique_ptr<unsigned> RequestPageCount(const Config::JournalParams &journal) {
     const TimeLimit DEFAULT_TIME_LIMIT(3000);
 
     std::string url = journal.entry_point_url_ + "?journal=" + UrlUtil::UrlEncode(journal.name_)
                       + "&page_size=" + std::to_string(journal.paged_rss_size_) + "&info=1";
 
     std::string result;
-    if (!::Download(url, DEFAULT_TIME_LIMIT, &result)) {
+    if (not ::Download(url, DEFAULT_TIME_LIMIT, &result)) {
         LOG_WARNING("Download failed for page count URL: " + url);
-        return std::nullopt;
+        return nullptr;
     }
 
     JSON::Parser parser(result);
     std::shared_ptr<JSON::JSONNode> root;
-    if (!parser.parse(&root)) {
+    if (not parser.parse(&root)) {
         LOG_WARNING("JSON parse error: " + parser.getErrorMessage() + " | Response: " + result);
-        return std::nullopt;
+        return nullptr;
     }
 
     std::shared_ptr<JSON::ObjectNode> obj = JSON::JSONNode::CastToObjectNodeOrDie("root", root);
     if (obj->hasNode("total_pages")) {
-        return static_cast<unsigned>(obj->getIntegerValue("total_pages"));
+        return std::make_unique<unsigned>(static_cast<unsigned>(obj->getIntegerValue("total_pages")));
     } else {
         LOG_WARNING("Missing 'total_pages' in response JSON: " + result);
-        return std::nullopt;
+        return nullptr;
     }
 }
 
@@ -62,33 +62,30 @@ std::string ExpandPaginationUrl(const Config::JournalParams &journal, unsigned p
            + "&page_num=" + std::to_string(page_num);
 }
 
-std::optional<PagedRSSJournalState> AddPagedJournal(std::shared_ptr<Config::JournalParams> journal) {
-    auto total_pages_opt = RequestPageCount(*journal);
-    if (!total_pages_opt || *total_pages_opt == 0) {
-        LOG_WARNING("Failed to retrieve page count or no pages for journal '" + journal->name_ + "'");
-        return std::nullopt;
+void AddPagedJournal(PagedRSSJournalState *paged_rss_journal_state) {
+    auto total_pages_opt = RequestPageCount(*paged_rss_journal_state->journal_);
+    if (not total_pages_opt || *total_pages_opt == 0) {
+        LOG_ERROR("Failed to retrieve page count or no pages for journal '" + paged_rss_journal_state->journal_->name_ + "'");
     }
 
     unsigned total_pages = *total_pages_opt;
 
-    std::deque<std::string> urls;
-
-    if (journal->paged_rss_range_.empty()) {
+    if (paged_rss_journal_state->journal_->paged_rss_range_.empty()) {
         for (unsigned page = 1; page <= total_pages; ++page) {
-            urls.push_back(ExpandPaginationUrl(*journal, journal->paged_rss_size_, page));
+            paged_rss_journal_state->urls_.push_back(
+                ExpandPaginationUrl(*paged_rss_journal_state->journal_, paged_rss_journal_state->journal_->paged_rss_size_, page));
         }
     } else {
-        for (unsigned page : journal->paged_rss_range_) {
+        for (unsigned page : paged_rss_journal_state->journal_->paged_rss_range_) {
             if (page >= 1 && page <= total_pages) {
-                urls.push_back(ExpandPaginationUrl(*journal, journal->paged_rss_size_, page));
+                paged_rss_journal_state->urls_.push_back(
+                    ExpandPaginationUrl(*paged_rss_journal_state->journal_, paged_rss_journal_state->journal_->paged_rss_size_, page));
             } else {
-                LOG_WARNING("Requested page " + std::to_string(page) + " is out of range for journal '" + journal->name_
-                            + "' (total pages: " + std::to_string(total_pages) + ")");
+                LOG_ERROR("Requested page " + std::to_string(page) + " is out of range for journal '"
+                          + paged_rss_journal_state->journal_->name_ + "' (total pages: " + std::to_string(total_pages) + ")");
             }
         }
     }
-
-    return PagedRSSJournalState{ std::move(journal), std::move(urls) };
 }
 
 

@@ -18,7 +18,6 @@
  */
 #include <iostream>
 #include <memory>
-#include <sstream>
 #include <unordered_map>
 #include <cstdlib>
 #include "Downloader.h"
@@ -263,6 +262,11 @@ struct JournalDatastore {
 
 public:
     JournalDatastore(const Config::JournalParams &journal_params): journal_params_(journal_params) { }
+};
+
+
+struct PagedRSSJournalStateDatastore {
+    std::deque<std::unique_ptr<RecordAggregator::PagedRSSJournalState>> paged_rss_journal_states_;
 };
 
 
@@ -693,6 +697,7 @@ int Main(int argc, char *argv[]) {
     Conversion::ConversionManager conversion_manager(*harvester_config.global_params_);
     OutputFileCache output_file_cache(commandline_args, harvester_config);
     Util::UploadTracker upload_tracker;
+    PagedRSSJournalStateDatastore paged_rss_journal_state_datastore;
     Metrics harvester_metrics;
 
     std::vector<std::unique_ptr<JournalDatastore>> journal_datastores;
@@ -700,11 +705,10 @@ int Main(int argc, char *argv[]) {
     std::unordered_set<std::string> urls_harvested_during_current_session;
 
     // Queue downloads for selection.
-    std::optional<RecordAggregator::PagedRSSJournalState> paged_journal_state;
     switch (commandline_args.selection_mode_) {
     case CommandLineArgs::SelectionMode::UPLOAD:
     case CommandLineArgs::SelectionMode::JOURNAL:
-        for (std::unique_ptr<Config::JournalParams> &journal : harvester_config.journal_params_) {
+        for (auto &journal : harvester_config.journal_params_) {
             if (commandline_args.selection_mode_ == CommandLineArgs::SelectionMode::UPLOAD
                 and commandline_args.selected_upload_operation_ != Config::UploadOperation::NONE
                 and journal->upload_operation_ != commandline_args.selected_upload_operation_)
@@ -729,8 +733,9 @@ int Main(int argc, char *argv[]) {
                 upload_tracker.registerZederJournal(journal->zeder_id_, StringUtil::ASCIIToLower(journal->group_), journal->name_);
 
             if (journal->paged_rss_) {
-                std::shared_ptr<Config::JournalParams> journal_shared = std::move(journal);
-                paged_journal_state = RecordAggregator::AddPagedJournal(journal_shared);
+                paged_rss_journal_state_datastore.paged_rss_journal_states_.emplace_back(
+                    new RecordAggregator::PagedRSSJournalState(std::move(journal), std::deque<std::string>{}));
+                RecordAggregator::AddPagedJournal((paged_rss_journal_state_datastore.paged_rss_journal_states_.back().get()));
             } else {
                 auto current_journal_datastore =
                     QueueDownloadsForJournal(*journal, harvester_config, &harvestable_manager, &download_manager, &harvester_metrics);
@@ -782,16 +787,21 @@ int Main(int argc, char *argv[]) {
         }
 
         if (not jobs_running) {
-            if (paged_journal_state && !paged_journal_state->urls.empty()) {
-                std::string next_url = std::move(paged_journal_state->urls.front());
-                paged_journal_state->urls.pop_front();
+            if (not paged_rss_journal_state_datastore.paged_rss_journal_states_.empty()) {
+                auto &paged_journal_state = paged_rss_journal_state_datastore.paged_rss_journal_states_.front();
+                if (not paged_journal_state->urls_.empty()) {
+                    std::string next_url = std::move(paged_journal_state->urls_.front());
+                    paged_journal_state->urls_.pop_front();
 
-                paged_journal_state->journal->SetEntryUrl(next_url);
-                ::usleep(static_cast<__useconds_t>(paged_journal_state->journal->paged_rss_delay_time_ * 1000));
+                    paged_journal_state->journal_->SetEntryUrl(next_url);
+                    ::usleep(static_cast<__useconds_t>(paged_journal_state->journal_->paged_rss_delay_time_ * 1000));
 
-                auto current_journal_datastore = QueueDownloadsForJournal(*paged_journal_state->journal, harvester_config,
-                                                                          &harvestable_manager, &download_manager, &harvester_metrics);
-                journal_datastores.emplace_back(std::move(current_journal_datastore));
+                    auto current_journal_datastore = QueueDownloadsForJournal(*paged_journal_state->journal_, harvester_config,
+                                                                              &harvestable_manager, &download_manager, &harvester_metrics);
+                    journal_datastores.emplace_back(std::move(current_journal_datastore));
+                } else
+                    paged_rss_journal_state_datastore.paged_rss_journal_states_.pop_front();
+
                 continue;
             }
             break;
