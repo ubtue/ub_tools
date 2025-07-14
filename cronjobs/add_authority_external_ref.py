@@ -150,9 +150,9 @@ def Main():
                 file_size = os.path.getsize(f"/tmp/{gnd_wiki_file}")
                 
                 if(file_size == 0):
-                    print("Process 6/7 -- Sending error message via email")
-                    util.SendEmail("gnd_wiki_file generator",
-                               "Error while create a mapping file: " + f"/tmp/{gnd_wiki_file}" + ", need to check: add_authority_external_ref.cc", priority=1)
+                    ERR_MSG = "Error while create a mapping file: " + f"/tmp/{gnd_wiki_file}" + ", need to check: add_authority_external_ref.cc"
+                    print(ERR_MSG)
+                    util.SendEmail("gnd_wiki_file generator", ERR_MSG, priority=1)
                 else:
                     print("Process 6/7 -- Copy the gnd_wiki_file to its destination")
                     util.ExecOrDie(util.Which("cp"), [
