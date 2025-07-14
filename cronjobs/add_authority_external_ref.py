@@ -141,24 +141,33 @@ def Main():
                 util.ExecOrDie(util.Which("add_authority_external_ref"), [
                                "--create_mapping_file", f"/tmp/{input_file_name_for_add_auth}", f"/tmp/{gnd_wiki_file}"])
 
-                print("Process 6/7 -- Copy the gnd_wiki_file to its destination")
-                util.ExecOrDie(util.Which("cp"), [
-                               "-f", f"/tmp/{gnd_wiki_file}", f"{share_folder}{gnd_wiki_file}"])
-
-                #  e. Update the latest version date on the config file (the second line)
-                print(
-                    "Process 7/7 -- Updating the config file and remove temporary files")
-                UpdateConfigFile(
-                    config_file, current_file_date_int)
+                
                 util.ExecOrDie(util.Which("rm"), [
                                "-f", f"/tmp/{newer_file_name}"])
                 util.ExecOrDie(util.Which("rm"), [
                                "-f", f"/tmp/{input_file_name_for_add_auth}"])
+            
+                file_size = os.path.getsize(f"/tmp/{gnd_wiki_file}")
+                
+                if(file_size == 0):
+                    print("Process 6/7 -- Sending error message via email")
+                    util.SendEmail("gnd_wiki_file generator",
+                               "Error while create a mapping file: " + f"/tmp/{gnd_wiki_file}" + ", need to check: add_authority_external_ref.cc", priority=5)
+                else:
+                    print("Process 6/7 -- Copy the gnd_wiki_file to its destination")
+                    util.ExecOrDie(util.Which("cp"), [
+                               "-f", f"/tmp/{gnd_wiki_file}", f"{share_folder}{gnd_wiki_file}"])
+                    
+                    #  e. Update the latest version date on the config file (the second line)
+                    print(
+                    "Process 7/7 -- Updating the config file and remove temporary files")
+                    UpdateConfigFile(
+                    config_file, current_file_date_int)
+                    util.SendEmail("gnd_wiki_file generator",
+                               "Successfully generated gnd_wiki_file.", priority=5)
+                    
                 util.ExecOrDie(util.Which("rm"), [
                                "-f", f"/tmp/{gnd_wiki_file}"])
-
-                util.SendEmail("gnd_wiki_file generator",
-                               "Successfully generated gnd_wiki_file.", priority=5)
 
             else:
                 util.SendEmail("gnd_wiki_file generator",
