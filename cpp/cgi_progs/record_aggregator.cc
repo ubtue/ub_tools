@@ -1,5 +1,5 @@
 /** \file    record_aggregator.cc
- *  \brief   Webserver for saving journal articles and delivering feeds
+ *  \brief   A CGI-Tool for saving journal articles and delivering feeds
  *  \author  Hjordis Lindeboom (hjordis.lindeboom@uni-tuebingen.de)
  *
  *  \copyright 2025 Tübingen University Library.  All rights reserved.
