@@ -41,9 +41,9 @@ readonly HARVESTER_OUTPUT_DIRECTORY="$WORKING_DIRECTORY"
 readonly HARVESTER_OUTPUT_FILENAME="zts_retrokat_harvester-$(date +%y%m%d).xml"
 readonly HARVESTER_CONFIG_FILE="/usr/local/var/lib/tuelib/zotero-enhancement-maps/zotero_harvester.conf"
 
-readonly GIT_REPO_URL="/mnt/ZE020110/FID-Projekte/Retrokat-Daten/retrokat-daten.git"
 readonly GIT_REPO_NAME="retrokat-daten"
-readonly LOCAL_REPO_PATH="$WORKING_DIRECTORY/retrokat-daten"
+readonly GIT_REPO_URL="/mnt/ZE020110/FID-Projekte/Retrokat-Daten/$GIT_REPO_NAME.git"
+readonly LOCAL_REPO_PATH="$WORKING_DIRECTORY/$GIT_REPO_NAME"
 readonly DEST_DIR_LOCAL_RETROKAT="$LOCAL_REPO_PATH/$JOURNAL_NAME"
 readonly DEST_DIR_REMOTE_RETROKAT="/2001/Default_Test/input/"
 
@@ -152,7 +152,7 @@ for d in */ ; do
     online_first_records_output_filepath="$HARVESTER_OUTPUT_DIRECTORY/$d/${d}_zotero_$(date +%y%m%d)_001_online_first.xml"
     invalid_records_output_filepath="$HARVESTER_OUTPUT_DIRECTORY/$d/${d}_zotero_$(date +%y%m%d)_001_errors.xml"
     invalid_records_log_filepath="${invalid_records_output_filepath}.log"
-    prefixed_harvester_output_filepath="$HARVESTER_OUTPUT_DIRECTORY/$d/${d}_${JOURNAL_NAME}_$(date +%y%m%d)_001.xml"
+    final_harvester_output_filepath="$HARVESTER_OUTPUT_DIRECTORY/$d/${d}_${JOURNAL_NAME}_$(date +%y%m%d)_001.xml"
     LOGGER_FORMAT=no_decorations,strip_call_site \
     BACKTRACE=1 \
     UTIL_LOG_DEBUG=true \
@@ -174,9 +174,9 @@ for d in */ ; do
     cp "$valid_records_output_filepath" "$DEST_DIR_LOCAL_RETROKAT" >> "$LOG" 2>&1
 
     # Construct prefixed filename for BSZ Upload
-    mv "$current_source_filepath" "$prefixed_harvester_output_filepath" >> "$LOG" 2>&1
+    mv "$current_source_filepath" "$final_harvester_output_filepath" >> "$LOG" 2>&1
 
-    harvester_output[$counter]="$prefixed_harvester_output_filepath"
+    harvester_output[$counter]="$final_harvester_output_filepath"
     source_filepaths[$counter]="$valid_records_output_filepath"
     dest_filepaths[$counter]="$DEST_DIR_REMOTE_RETROKAT"
     dest_filepaths_local[$counter]="$DEST_DIR_LOCAL_RETROKAT"
