@@ -107,9 +107,9 @@ fi
 mkdir -p "$DEST_DIR_LOCAL_RETROKAT"
 
 OVERALL_START=$(date +%s.%N)
+declare -a harvester_output
 declare -a source_filepaths
 declare -a dest_filepaths
-declare -a dest_filepaths_local
 
 StartPhase "Harvest URLs"
 LOGGER_FORMAT=no_decorations,strip_call_site \
@@ -123,6 +123,7 @@ zotero_harvester --min-log-level=DEBUG \
                  "$JOURNAL_NAME" >> "$LOG" 2>&1
 EndPhase
 
+
 StartPhase "Validate Generated Records"
 # Make sure journals with selective evaluation get the appropriate exception rules for validation
 adjust_selective_evaluation_validation_rules ${HARVESTER_CONFIG_FILE} >> "$LOG" 2>&1
@@ -131,6 +132,12 @@ counter=0
 shopt -s nullglob
 for d in */ ; do
     d="${d%/}"
+
+    if [[ "$d" == "retrokatat-daten" ]]; then
+        echo "Skipping $d." | tee --append "$LOG"
+        continue
+    fi
+
     if [[ "$d" -ef "$HARVESTER_OUTPUT_DIRECTORY" ]]; then
         continue
     fi
@@ -152,22 +159,25 @@ for d in */ ; do
 
     invalid_record_count=$(marc_size "$invalid_records_output_filepath" 2>> "$LOG")
     if [ "$invalid_record_count" != "0" ]; then
-        cp "$invalid_records_output_filepath" "$invalid_records_log_filepath" "$DEST_DIR_LOCAL_RETROKAT" >> "$LOG" 2>&1
+        cp "$invalid_records_log_filepath" "$DEST_DIR_LOCAL_RETROKAT" >> "$LOG" 2>&1
     fi
 
     online_first_record_count=$(marc_size "$online_first_records_output_filepath" 2>> "$LOG")
-    if [ "$online_first_record_count" != "0" ]; then
-        cp "$online_first_records_output_filepath" "$DEST_DIR_LOCAL_RETROKAT" >> "$LOG" 2>&1
-    fi
 
     valid_record_count=$(marc_size "$valid_records_output_filepath" 2>> "$LOG")
     if [ "$valid_record_count" = "0" ]; then
         continue    # skip files with zero records
     fi
+    cp "$valid_records_output_filepath" "$DEST_DIR_LOCAL_RETROKAT" >> "$LOG" 2>&1
 
+    # Construct prefixed filename for BSZ Upload
+    prefix="${d}_"
+    prefixed_harvester_output="${prefix}${HARVESTER_OUTPUT_FILENAME}"
+    cp "$current_source_filepath" "$DEST_DIR_LOCAL_RETROKAT/$prefixed_harvester_output" >> "$LOG" 2>&1
+
+    harvester_output[$counter]="$DEST_DIR_LOCAL_RETROKAT/$prefixed_harvester_output"
     source_filepaths[$counter]="$valid_records_output_filepath"
     dest_filepaths[$counter]="$DEST_DIR_REMOTE_RETROKAT"
-    dest_filepaths_local[$counter]="$DEST_DIR_LOCAL_RETROKAT"
     counter=$((counter+1))
 done
 
@@ -177,16 +187,14 @@ if [ "$counter" = "0" ]; then
 fi
 EndPhase
 
+
 StartPhase "Upload to BSZ Server"
 counter=0
-file_count=${#source_filepaths[@]}
+file_count=${#harvester_output[@]}
 
 while [ "$counter" -lt "$file_count" ]; do
-    upload_to_bsz_ftp_server.py "${source_filepaths[counter]}" \
+    upload_to_bsz_ftp_server.py "${harvester_output[counter]}" \
                                 "${dest_filepaths[counter]}" >> "$LOG" 2>&1
-    if [[ -d "${dest_filepaths_local[$counter]}" ]]; then
-        cp "${source_filepaths[counter]}" "${dest_filepaths_local[$counter]}" >> "$LOG" 2>&1
-    fi
     counter=$((counter+1))
 done
 EndPhase
