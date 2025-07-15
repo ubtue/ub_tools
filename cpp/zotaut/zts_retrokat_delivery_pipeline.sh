@@ -41,8 +41,9 @@ readonly HARVESTER_OUTPUT_DIRECTORY="$WORKING_DIRECTORY"
 readonly HARVESTER_OUTPUT_FILENAME="zts_retrokat_harvester-$(date +%y%m%d).xml"
 readonly HARVESTER_CONFIG_FILE="/usr/local/var/lib/tuelib/zotero-enhancement-maps/zotero_harvester.conf"
 
-readonly GIT_REPO_URL="/mnt/ZE020110/FID-Projekte/Retrokat-Daten/retrokatat-daten.git"
-readonly LOCAL_REPO_PATH="$WORKING_DIRECTORY/retrokatat-daten"
+readonly GIT_REPO_URL="/mnt/ZE020110/FID-Projekte/Retrokat-Daten/retrokat-daten.git"
+readonly GIT_REPO_NAME="retrokat-daten"
+readonly LOCAL_REPO_PATH="$WORKING_DIRECTORY/retrokat-daten"
 readonly DEST_DIR_LOCAL_RETROKAT="$LOCAL_REPO_PATH/$JOURNAL_NAME"
 readonly DEST_DIR_REMOTE_RETROKAT="/2001/Default_Test/input/"
 
@@ -97,10 +98,10 @@ rm --recursive --force --dir "$HARVESTER_OUTPUT_DIRECTORY/ubtuebingen"
 
 # Clone / Update git repository
 if [ ! -d "$LOCAL_REPO_PATH/.git" ]; then
-    echo "Cloning retrokatat-daten into $LOCAL_REPO_PATH..." | tee --append "$LOG"
+    echo "Cloning $GIT_REPO_NAME into $LOCAL_REPO_PATH..." | tee --append "$LOG"
     git clone "$GIT_REPO_URL" "$LOCAL_REPO_PATH" >> "$LOG" 2>&1
 else
-    echo "Updating retrokatat-daten repo in $LOCAL_REPO_PATH..." | tee --append "$LOG"
+    echo "Updating $GIT_REPO_NAME repo in $LOCAL_REPO_PATH..." | tee --append "$LOG"
     git -C "$LOCAL_REPO_PATH" pull >> "$LOG" 2>&1
 fi
 
@@ -110,6 +111,7 @@ OVERALL_START=$(date +%s.%N)
 declare -a harvester_output
 declare -a source_filepaths
 declare -a dest_filepaths
+declare -a dest_filepaths_local
 
 StartPhase "Harvest URLs"
 LOGGER_FORMAT=no_decorations,strip_call_site \
@@ -133,7 +135,7 @@ shopt -s nullglob
 for d in */ ; do
     d="${d%/}"
 
-    if [[ "$d" == "retrokatat-daten" ]]; then
+    if [[ "$d" == "$GIT_REPO_NAME" ]]; then
         echo "Skipping $d." | tee --append "$LOG"
         continue
     fi
@@ -150,6 +152,7 @@ for d in */ ; do
     online_first_records_output_filepath="$HARVESTER_OUTPUT_DIRECTORY/$d/${d}_zotero_$(date +%y%m%d)_001_online_first.xml"
     invalid_records_output_filepath="$HARVESTER_OUTPUT_DIRECTORY/$d/${d}_zotero_$(date +%y%m%d)_001_errors.xml"
     invalid_records_log_filepath="${invalid_records_output_filepath}.log"
+    prefixed_harvester_output_filepath="$HARVESTER_OUTPUT_DIRECTORY/$d/${d}_${JOURNAL_NAME}_$(date +%y%m%d)_001.xml"
     LOGGER_FORMAT=no_decorations,strip_call_site \
     BACKTRACE=1 \
     UTIL_LOG_DEBUG=true \
@@ -171,13 +174,12 @@ for d in */ ; do
     cp "$valid_records_output_filepath" "$DEST_DIR_LOCAL_RETROKAT" >> "$LOG" 2>&1
 
     # Construct prefixed filename for BSZ Upload
-    prefix="${d}_"
-    prefixed_harvester_output="${prefix}${HARVESTER_OUTPUT_FILENAME}"
-    cp "$current_source_filepath" "$DEST_DIR_LOCAL_RETROKAT/$prefixed_harvester_output" >> "$LOG" 2>&1
+    mv "$current_source_filepath" "$prefixed_harvester_output_filepath" >> "$LOG" 2>&1
 
-    harvester_output[$counter]="$DEST_DIR_LOCAL_RETROKAT/$prefixed_harvester_output"
+    harvester_output[$counter]="$prefixed_harvester_output_filepath"
     source_filepaths[$counter]="$valid_records_output_filepath"
     dest_filepaths[$counter]="$DEST_DIR_REMOTE_RETROKAT"
+    dest_filepaths_local[$counter]="$DEST_DIR_LOCAL_RETROKAT"
     counter=$((counter+1))
 done
 
@@ -193,6 +195,9 @@ counter=0
 file_count=${#harvester_output[@]}
 
 while [ "$counter" -lt "$file_count" ]; do
+    if [[ -d "${dest_filepaths_local[$counter]}" ]]; then
+        cp "${harvester_output[counter]}" "${dest_filepaths_local[$counter]}" >> "$LOG" 2>&1
+    fi
     upload_to_bsz_ftp_server.py "${harvester_output[counter]}" \
                                 "${dest_filepaths[counter]}" >> "$LOG" 2>&1
     counter=$((counter+1))
