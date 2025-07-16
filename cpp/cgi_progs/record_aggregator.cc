@@ -51,7 +51,7 @@ struct ArticleEntry {
     std::string delivered_at;
 };
 
-std::vector<std::map<std::string, std::string>> parse_entries(const std::string& body) {
+std::vector<std::map<std::string, std::string>> PostParseEntries(const std::string& body) {
     std::istringstream stream(body);
     std::string line, key, value;
     std::vector<std::map<std::string, std::string>> entries;
@@ -82,7 +82,7 @@ std::vector<std::map<std::string, std::string>> parse_entries(const std::string&
     return entries;
 }
 
-std::optional<ArticleEntry> parse_entry(const std::map<std::string, std::string>& entry) {
+std::optional<ArticleEntry> PostParseEntry(const std::map<std::string, std::string>& entry) {
     if (not entry.contains("article_link") || not entry.contains("journal")) {
         std::cerr << "Skipping entry due to missing article_link or journal.\n";
         return std::nullopt;
@@ -118,15 +118,11 @@ std::optional<ArticleEntry> parse_entry(const std::map<std::string, std::string>
     return article_entry;
 }
 
-bool parse_pagination(const std::multimap<std::string, std::string>& cgi_args, int& page_size, int& page_num) {
-    page_size = 10;
-    page_num = 1;
-
+bool GetParsePagination(const std::multimap<std::string, std::string>& cgi_args, int& page_size, int& page_num) {
     try {
-        if (WebUtil::GetCGIParameterOrDefault(cgi_args, "page_size", "") != "")
-            page_size = std::stoi(WebUtil::GetCGIParameterOrDefault(cgi_args, "page_size", ""));
-        if (WebUtil::GetCGIParameterOrDefault(cgi_args, "page_num", "") != "")
-            page_num = std::stoi(WebUtil::GetCGIParameterOrDefault(cgi_args, "page_num", ""));
+        page_size = std::stoi(WebUtil::GetCGIParameterOrDefault(cgi_args, "page_size", "10"));
+        page_num = std::stoi(WebUtil::GetCGIParameterOrDefault(cgi_args, "page_num", "1"));
+
         if (page_size <= 0 || page_num <= 0)
             return false;
     } catch (...) {
@@ -136,12 +132,7 @@ bool parse_pagination(const std::multimap<std::string, std::string>& cgi_args, i
     return true;
 }
 
-std::string get_path(const std::string& full_path) {
-    auto pos = full_path.find('?');
-    return pos != std::string::npos ? full_path.substr(0, pos) : full_path;
-}
-
-std::map<std::string, std::string> lookup_journal_info(DbConnection& db_connection, std::string journal_name) {
+std::map<std::string, std::string> LookupJournalInfo(DbConnection& db_connection, std::string journal_name) {
     std::map<std::string, std::string> journal_info;
     std::string query = "SELECT zeder_id, zeder_instance FROM retrokat_journals WHERE journal_name = "
                         + db_connection.escapeAndQuoteString(journal_name) + ";";
@@ -156,9 +147,9 @@ std::map<std::string, std::string> lookup_journal_info(DbConnection& db_connecti
     return journal_info;
 }
 
-bool insert_article(DbConnection& db_connection, const std::string& main_title, const std::string& article_link,
-                    const std::string& zeder_id, const std::string& zeder_instance, const std::string& delivered_at,
-                    const std::string& extraction_patterns) {
+bool PostInsertArticle(DbConnection& db_connection, const std::string& main_title, const std::string& article_link,
+                       const std::string& zeder_id, const std::string& zeder_instance, const std::string& delivered_at,
+                       const std::string& extraction_patterns) {
     std::string escaped_main_title = db_connection.escapeAndQuoteString(main_title);
     std::string escaped_article_link = db_connection.escapeAndQuoteString(article_link);
     std::string escaped_zeder_id = db_connection.escapeString(zeder_id, false);
@@ -189,7 +180,7 @@ bool insert_article(DbConnection& db_connection, const std::string& main_title, 
     }
 }
 
-std::string build_extraction_json(const ArticleEntry& article) {
+std::string PostBuildExtractionJson(const ArticleEntry& article) {
     nlohmann::json json_obj = { { "pattern", article.pattern },
                                 { "regexes",
                                   { { "extraction_pattern", article.extraction_pattern },
@@ -198,26 +189,26 @@ std::string build_extraction_json(const ArticleEntry& article) {
     return json_obj.dump(2);
 }
 
-int process_entries(DbConnection& db_connection, const std::vector<std::map<std::string, std::string>>& entries) {
+int PostProcessEntries(DbConnection& db_connection, const std::vector<std::map<std::string, std::string>>& entries) {
     int inserted_count = 0;
 
     for (const auto& entry : entries) {
-        auto article_entry = parse_entry(entry);
+        auto article_entry = PostParseEntry(entry);
         if (not article_entry)
             continue;
 
         const ArticleEntry& article = *article_entry;
 
-        std::string extraction_patterns = build_extraction_json(article);
+        std::string extraction_patterns = PostBuildExtractionJson(article);
 
-        auto journal_info = lookup_journal_info(db_connection, article.journal_name);
+        auto journal_info = LookupJournalInfo(db_connection, article.journal_name);
         if (journal_info.empty()) {
             std::cerr << "Journal not found: " << article.journal_name << "\n";
             continue;
         }
 
-        if (insert_article(db_connection, article.main_title, article.article_link, journal_info["zeder_id"],
-                           journal_info["zeder_instance"], article.delivered_at, extraction_patterns))
+        if (PostInsertArticle(db_connection, article.main_title, article.article_link, journal_info["zeder_id"],
+                              journal_info["zeder_instance"], article.delivered_at, extraction_patterns))
         {
             ++inserted_count;
         }
@@ -226,7 +217,7 @@ int process_entries(DbConnection& db_connection, const std::vector<std::map<std:
     return inserted_count;
 }
 
-std::string build_info_json(DbConnection& db_connection, const std::map<std::string, std::string>& journal_info, int page_size) {
+std::string GetBuildInfoJson(DbConnection& db_connection, const std::map<std::string, std::string>& journal_info, int page_size) {
     std::string query = "SELECT COUNT(*) AS total FROM retrokat_articles WHERE zeder_journal_id = "
                         + db_connection.escapeString(journal_info.at("zeder_id"), false)
                         + " AND zeder_instance = " + db_connection.escapeAndQuoteString(journal_info.at("zeder_instance")) + ";";
@@ -246,8 +237,8 @@ std::string build_info_json(DbConnection& db_connection, const std::map<std::str
     return json.str();
 }
 
-std::string build_feed(DbConnection& db_connection, const std::string& journal_name, const std::map<std::string, std::string>& journal_info,
-                       int page_size, int page_num) {
+std::string GetBuildFeed(DbConnection& db_connection, const std::string& journal_name,
+                         const std::map<std::string, std::string>& journal_info, int page_size, int page_num) {
     int offset = (page_num - 1) * page_size;
     std::ostringstream query;
     query << "SELECT main_title, article_link, delivered_at, extraction_patterns FROM retrokat_articles "
@@ -273,12 +264,10 @@ std::string build_feed(DbConnection& db_connection, const std::string& journal_n
     for (DbRow row = result.getNextRow(); row; row = result.getNextRow()) {
         std::string link = row.getValue("article_link", "");
         std::string title = row.getValue("main_title", link);
-        std::string updated = row.getValue("delivered_at", TimeUtil::GetCurrentDateAndTime(TimeUtil::ZULU_FORMAT, TimeUtil::UTC));
         std::string json = row.getValue("extraction_patterns", "");
-        if (updated.find(' ') != std::string::npos) {
-            std::replace(updated.begin(), updated.end(), ' ', 'T');
-            updated += "Z";
-        }
+        std::string updated_sql = row.getValue("delivered_at", "");
+        time_t ts = !updated_sql.empty() ? SqlUtil::DatetimeToTimeT(updated_sql) : std::time(nullptr);
+        std::string updated = TimeUtil::TimeTToZuluString(ts);
 
         feed << "  <entry>\n";
         feed << "    <title>" << XmlUtil::XmlEscape(title) << "</title>\n";
@@ -338,8 +327,8 @@ int main(int argc, char* argv[]) {
         }
 
         if (method == "POST" && path_info == "/submit_feed") {
-            auto entries = parse_entries(request_body);
-            int inserted = process_entries(db_connection, entries);
+            auto entries = PostParseEntries(request_body);
+            int inserted = PostProcessEntries(db_connection, entries);
             respond(200, "Successfully processed " + std::to_string(inserted) + " entries.\n");
         } else if (method == "GET" && (path_info.empty() || path_info == "/")) {
             if (journal_name.empty()) {
@@ -347,23 +336,23 @@ int main(int argc, char* argv[]) {
                 return 1;
             }
 
-            auto journal_info = lookup_journal_info(db_connection, journal_name);
+            auto journal_info = LookupJournalInfo(db_connection, journal_name);
             if (journal_info.empty()) {
                 respond(404, "Journal not found\n");
                 return 1;
             }
 
             int page_size, page_num;
-            if (not parse_pagination(cgi_args, page_size, page_num)) {
+            if (not GetParsePagination(cgi_args, page_size, page_num)) {
                 respond(400, "Invalid page_size or page_num\n");
                 return 1;
             }
 
             if (WebUtil::GetCGIParameterOrDefault(cgi_args, "info", "") == "1") {
-                std::string json = build_info_json(db_connection, journal_info, page_size);
+                std::string json = GetBuildInfoJson(db_connection, journal_info, page_size);
                 respond(200, json, "application/json");
             } else {
-                std::string xml = build_feed(db_connection, journal_name, journal_info, page_size, page_num);
+                std::string xml = GetBuildFeed(db_connection, journal_name, journal_info, page_size, page_num);
                 respond(200, xml, "application/atom+xml");
             }
 
