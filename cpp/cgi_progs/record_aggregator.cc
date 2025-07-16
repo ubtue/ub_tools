@@ -35,6 +35,7 @@
 #include "TimeUtil.h"
 #include "UBTools.h"
 #include "UrlUtil.h"
+#include "WebUtil.h"
 #include "XmlUtil.h"
 
 const std::string DB_CONF_FILE_PATH(UBTools::GetTuelibPath() + "ub_tools.conf");
@@ -49,26 +50,6 @@ struct ArticleEntry {
     std::string volume_pattern;
     std::string delivered_at;
 };
-
-std::map<std::string, std::string> parse_query_params(const std::string& query) {
-    std::map<std::string, std::string> query_map;
-
-    if (query.empty())
-        return query_map;
-
-    std::istringstream query_stream(query);
-    std::string pair;
-    while (std::getline(query_stream, pair, '&')) {
-        auto eq_pos = pair.find('=');
-        if (eq_pos != std::string::npos) {
-            std::string key = UrlUtil::UrlDecode(pair.substr(0, eq_pos));
-            std::string value = UrlUtil::UrlDecode(pair.substr(eq_pos + 1));
-            query_map[key] = value;
-        }
-    }
-
-    return query_map;
-}
 
 std::vector<std::map<std::string, std::string>> parse_entries(const std::string& body) {
     std::istringstream stream(body);
@@ -137,15 +118,15 @@ std::optional<ArticleEntry> parse_entry(const std::map<std::string, std::string>
     return article_entry;
 }
 
-bool parse_pagination(const std::map<std::string, std::string>& query_params, int& page_size, int& page_num) {
+bool parse_pagination(const std::multimap<std::string, std::string>& cgi_args, int& page_size, int& page_num) {
     page_size = 10;
     page_num = 1;
 
     try {
-        if (query_params.contains("page_size"))
-            page_size = std::stoi(query_params.at("page_size"));
-        if (query_params.contains("page_num"))
-            page_num = std::stoi(query_params.at("page_num"));
+        if (WebUtil::GetCGIParameterOrDefault(cgi_args, "page_size", "") != "")
+            page_size = std::stoi(WebUtil::GetCGIParameterOrDefault(cgi_args, "page_size", ""));
+        if (WebUtil::GetCGIParameterOrDefault(cgi_args, "page_num", "") != "")
+            page_num = std::stoi(WebUtil::GetCGIParameterOrDefault(cgi_args, "page_num", ""));
         if (page_size <= 0 || page_num <= 0)
             return false;
     } catch (...) {
@@ -328,11 +309,13 @@ void respond(int http_status, const std::string& body, const std::string& conten
     std::cout << body;
 }
 
-int main() {
+int main(int argc, char* argv[]) {
+    std::multimap<std::string, std::string> cgi_args;
+    WebUtil::GetAllCgiArgs(&cgi_args, argc, argv);
     try {
         std::string method = std::getenv("REQUEST_METHOD") ? std::getenv("REQUEST_METHOD") : "";
         std::string path_info = std::getenv("PATH_INFO") ? std::getenv("PATH_INFO") : "";
-        std::string query_string = std::getenv("QUERY_STRING") ? std::getenv("QUERY_STRING") : "";
+        std::string journal_name = WebUtil::GetCGIParameterOrDefault(cgi_args, "journal", "");
 
         std::string request_body;
         if (method == "POST") {
@@ -359,29 +342,28 @@ int main() {
             int inserted = process_entries(db_connection, entries);
             respond(200, "Successfully processed " + std::to_string(inserted) + " entries.\n");
         } else if (method == "GET" && (path_info.empty() || path_info == "/")) {
-            auto query_params = parse_query_params(query_string);
-            if (not query_params.contains("journal")) {
+            if (journal_name.empty()) {
                 respond(400, "Missing 'journal' parameter\n");
                 return 1;
             }
 
-            auto journal_info = lookup_journal_info(db_connection, query_params["journal"]);
+            auto journal_info = lookup_journal_info(db_connection, journal_name);
             if (journal_info.empty()) {
                 respond(404, "Journal not found\n");
                 return 1;
             }
 
             int page_size, page_num;
-            if (not parse_pagination(query_params, page_size, page_num)) {
+            if (not parse_pagination(cgi_args, page_size, page_num)) {
                 respond(400, "Invalid page_size or page_num\n");
                 return 1;
             }
 
-            if (query_params.contains("info") && query_params["info"] == "1") {
+            if (WebUtil::GetCGIParameterOrDefault(cgi_args, "info", "") == "1") {
                 std::string json = build_info_json(db_connection, journal_info, page_size);
                 respond(200, json, "application/json");
             } else {
-                std::string xml = build_feed(db_connection, query_params["journal"], journal_info, page_size, page_num);
+                std::string xml = build_feed(db_connection, journal_name, journal_info, page_size, page_num);
                 respond(200, xml, "application/atom+xml");
             }
 
