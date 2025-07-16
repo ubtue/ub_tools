@@ -38,7 +38,12 @@
 #include "WebUtil.h"
 #include "XmlUtil.h"
 
+
+namespace {
+
+
 const std::string DB_CONF_FILE_PATH(UBTools::GetTuelibPath() + "ub_tools.conf");
+
 
 struct ArticleEntry {
     std::string article_link;
@@ -50,6 +55,7 @@ struct ArticleEntry {
     std::string volume_pattern;
     std::string delivered_at;
 };
+
 
 std::vector<std::map<std::string, std::string>> PostParseEntries(const std::string& body) {
     std::istringstream stream(body);
@@ -81,6 +87,7 @@ std::vector<std::map<std::string, std::string>> PostParseEntries(const std::stri
 
     return entries;
 }
+
 
 std::optional<ArticleEntry> PostParseEntry(const std::map<std::string, std::string>& entry) {
     if (not entry.contains("article_link") || not entry.contains("journal")) {
@@ -118,6 +125,7 @@ std::optional<ArticleEntry> PostParseEntry(const std::map<std::string, std::stri
     return article_entry;
 }
 
+
 bool GetParsePagination(const std::multimap<std::string, std::string>& cgi_args, int& page_size, int& page_num) {
     try {
         page_size = std::stoi(WebUtil::GetCGIParameterOrDefault(cgi_args, "page_size", "10"));
@@ -131,6 +139,7 @@ bool GetParsePagination(const std::multimap<std::string, std::string>& cgi_args,
 
     return true;
 }
+
 
 std::map<std::string, std::string> LookupJournalInfo(DbConnection& db_connection, std::string journal_name) {
     std::map<std::string, std::string> journal_info;
@@ -146,6 +155,7 @@ std::map<std::string, std::string> LookupJournalInfo(DbConnection& db_connection
 
     return journal_info;
 }
+
 
 bool PostInsertArticle(DbConnection& db_connection, const std::string& main_title, const std::string& article_link,
                        const std::string& zeder_id, const std::string& zeder_instance, const std::string& delivered_at,
@@ -180,6 +190,7 @@ bool PostInsertArticle(DbConnection& db_connection, const std::string& main_titl
     }
 }
 
+
 std::string PostBuildExtractionJson(const ArticleEntry& article) {
     nlohmann::json json_obj = { { "pattern", article.pattern },
                                 { "regexes",
@@ -188,6 +199,7 @@ std::string PostBuildExtractionJson(const ArticleEntry& article) {
                                     { "volume_pattern", article.volume_pattern } } } };
     return json_obj.dump(2);
 }
+
 
 int PostProcessEntries(DbConnection& db_connection, const std::vector<std::map<std::string, std::string>>& entries) {
     int inserted_count = 0;
@@ -217,6 +229,7 @@ int PostProcessEntries(DbConnection& db_connection, const std::vector<std::map<s
     return inserted_count;
 }
 
+
 std::string GetBuildInfoJson(DbConnection& db_connection, const std::map<std::string, std::string>& journal_info, int page_size) {
     std::string query = "SELECT COUNT(*) AS total FROM retrokat_articles WHERE zeder_journal_id = "
                         + db_connection.escapeString(journal_info.at("zeder_id"), false)
@@ -236,6 +249,7 @@ std::string GetBuildInfoJson(DbConnection& db_connection, const std::map<std::st
     json << "{ \"total_entries\": " << total_entries << ", \"page_size\": " << page_size << ", \"total_pages\": " << total_pages << " } \n";
     return json.str();
 }
+
 
 std::string GetBuildFeed(DbConnection& db_connection, const std::string& journal_name,
                          const std::map<std::string, std::string>& journal_info, int page_size, int page_num) {
@@ -292,13 +306,18 @@ std::string GetBuildFeed(DbConnection& db_connection, const std::string& journal
     return feed.str();
 }
 
-void respond(int http_status, const std::string& body, const std::string& content_type = "text/plain") {
+
+void SendResponse(int http_status, const std::string& body, const std::string& content_type = "text/plain") {
     std::cout << "Status: " << http_status << "\r\n";
     std::cout << "Content-Type: " << content_type << "\r\n\r\n";
     std::cout << body;
 }
 
-int main(int argc, char* argv[]) {
+
+} // unnamed namespace
+
+
+int Main(int argc, char* argv[]) {
     std::multimap<std::string, std::string> cgi_args;
     WebUtil::GetAllCgiArgs(&cgi_args, argc, argv);
     try {
@@ -322,46 +341,46 @@ int main(int argc, char* argv[]) {
                                                               ini_file.getString("Database", "sql_password")));
 
         if (db_connection.isNullConnection()) {
-            respond(500, "Database connection failed\n");
+            SendResponse(500, "Database connection failed\n");
             return 1;
         }
 
         if (method == "POST" && path_info == "/submit_feed") {
             auto entries = PostParseEntries(request_body);
             int inserted = PostProcessEntries(db_connection, entries);
-            respond(200, "Successfully processed " + std::to_string(inserted) + " entries.\n");
+            SendResponse(200, "Successfully processed " + std::to_string(inserted) + " entries.\n");
         } else if (method == "GET" && (path_info.empty() || path_info == "/")) {
             if (journal_name.empty()) {
-                respond(400, "Missing 'journal' parameter\n");
+                SendResponse(400, "Missing 'journal' parameter\n");
                 return 1;
             }
 
             auto journal_info = LookupJournalInfo(db_connection, journal_name);
             if (journal_info.empty()) {
-                respond(404, "Journal not found\n");
+                SendResponse(404, "Journal not found\n");
                 return 1;
             }
 
             int page_size, page_num;
             if (not GetParsePagination(cgi_args, page_size, page_num)) {
-                respond(400, "Invalid page_size or page_num\n");
+                SendResponse(400, "Invalid page_size or page_num\n");
                 return 1;
             }
 
             if (WebUtil::GetCGIParameterOrDefault(cgi_args, "info", "") == "1") {
                 std::string json = GetBuildInfoJson(db_connection, journal_info, page_size);
-                respond(200, json, "application/json");
+                SendResponse(200, json, "application/json");
             } else {
                 std::string xml = GetBuildFeed(db_connection, journal_name, journal_info, page_size, page_num);
-                respond(200, xml, "application/atom+xml");
+                SendResponse(200, xml, "application/atom+xml");
             }
 
         } else {
-            respond(400, "Unsupported request or endpoint\n");
+            SendResponse(400, "Unsupported request or endpoint\n");
         }
 
     } catch (const std::exception& e) {
-        respond(500, std::string("Internal Server Error: ") + e.what() + "\n");
+        SendResponse(500, std::string("Internal Server Error: ") + e.what() + "\n");
     }
 
     return 0;
