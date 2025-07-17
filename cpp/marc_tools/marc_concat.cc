@@ -4,15 +4,10 @@
 #include <string>
 #include <vector>
 #include "MARC.h"
+#include "util.h"
 
 
 namespace {
-
-
-[[noreturn]] static void Usage() {
-    std::cerr << "Usage: " << ::progname << " marc_input1 marc_input2 ... --output-file marc_output\n";
-    std::exit(EXIT_FAILURE);
-}
 
 
 void ProcessRecords(MARC::Reader* const marc_reader, MARC::Writer* const marc_writer) {
@@ -29,36 +24,43 @@ int Main(int argc, char* argv[]) {
     std::vector<std::string> inputFiles;
     std::string outputFile;
 
-    for (int i = 1; i < argc; ++i) {
-        std::string arg = argv[i];
+    if (argc < 3)
+        ::Usage("marc_input1 marc_input2 ... --output-file marc_output");
+
+    ++argv, --argc;
+
+    while (argc > 0) {
+        std::string arg = *argv;
 
         if (arg == "--output-file") {
-            if (i + 1 >= argc) {
-                std::cerr << "Error: Missing argument after --output-file\n";
-                Usage();
-            }
-            outputFile = argv[++i];
+            --argc, ++argv;
+
+            if (argc == 0)
+                ::Usage("marc_input1 marc_input2 ... --output-file marc_output");
+
+            outputFile = *argv;
         } else {
             inputFiles.push_back(arg);
         }
+
+        --argc, ++argv;
     }
 
-    if (inputFiles.empty() || outputFile.empty())
-        Usage();
+    if (inputFiles.empty() || outputFile.empty()) {
+        ::Usage("marc_input1 marc_input2 ... --output-file marc_output");
+    }
 
     std::unique_ptr<MARC::Writer> marc_writer = MARC::Writer::Factory(outputFile);
     if (not marc_writer) {
-        std::cerr << "Error: Could not create MARC writer for output file: " << outputFile << std::endl;
-        return 1;
+        LOG_ERROR("Error: Could not create MARC writer for output file: " + outputFile);
     }
 
     for (const auto& file : inputFiles) {
         std::unique_ptr<MARC::Reader> marc_reader = MARC::Reader::Factory(file);
-        if (not marc_reader) {
-            std::cerr << "Warning: Could not open input file: " << file << std::endl;
-            continue;
-        }
 
+        if (not marc_reader) {
+            LOG_ERROR("Error: Could not open input file: " + file);
+        }
         ProcessRecords(marc_reader.get(), marc_writer.get());
     }
 
