@@ -1,8 +1,22 @@
-#include <fstream>
-#include <iostream>
-#include <sstream>
-#include <string>
-#include <vector>
+/** \brief Utility for concatenating multiple MARC files into one.
+ *  \author Hjordis Lindeboom
+ *
+ *  \copyright 2025 Universitätsbibliothek Tübingen.  All rights reserved.
+ *
+ *  This program is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Affero General Public License as
+ *  published by the Free Software Foundation, either version 3 of the
+ *  License, or (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU Affero General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Affero General Public License
+ *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 #include "MARC.h"
 #include "util.h"
 
@@ -10,15 +24,14 @@
 namespace {
 
 
-[[noreturn]] static void Usage() {
+void Usage() {
     ::Usage("marc_input1 marc_input2 ... --output-file marc_output");
 }
 
 
 void ProcessRecords(MARC::Reader* const marc_reader, MARC::Writer* const marc_writer) {
-    while (MARC::Record record = marc_reader->read()) {
+    while (MARC::Record record = marc_reader->read())
         marc_writer->write(record);
-    }
 }
 
 
@@ -32,7 +45,7 @@ int Main(int argc, char* argv[]) {
     if (argc < 4)
         Usage();
 
-    ++argv, --argc;
+    --argc, ++argv;
 
     while (argc > 0) {
         std::string arg = *argv;
@@ -68,5 +81,5 @@ int Main(int argc, char* argv[]) {
         ProcessRecords(marc_reader.get(), marc_writer.get());
     }
 
-    return 0;
+    return EXIT_SUCCESS;
 }
