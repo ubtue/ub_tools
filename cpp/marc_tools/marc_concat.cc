@@ -10,6 +10,11 @@
 namespace {
 
 
+[[noreturn]] static void Usage() {
+    ::Usage("marc_input1 marc_input2 ... --output-file marc_output");
+}
+
+
 void ProcessRecords(MARC::Reader* const marc_reader, MARC::Writer* const marc_writer) {
     while (MARC::Record record = marc_reader->read()) {
         marc_writer->write(record);
@@ -24,8 +29,8 @@ int Main(int argc, char* argv[]) {
     std::vector<std::string> inputFiles;
     std::string outputFile;
 
-    if (argc < 3)
-        ::Usage("marc_input1 marc_input2 ... --output-file marc_output");
+    if (argc < 4)
+        Usage();
 
     ++argv, --argc;
 
@@ -36,19 +41,18 @@ int Main(int argc, char* argv[]) {
             --argc, ++argv;
 
             if (argc == 0)
-                ::Usage("marc_input1 marc_input2 ... --output-file marc_output");
+                Usage();
 
             outputFile = *argv;
-        } else {
-            inputFiles.push_back(arg);
+            break;
         }
 
+        inputFiles.push_back(arg);
         --argc, ++argv;
     }
 
-    if (inputFiles.empty() || outputFile.empty()) {
-        ::Usage("marc_input1 marc_input2 ... --output-file marc_output");
-    }
+    if (outputFile.empty())
+        Usage();
 
     std::unique_ptr<MARC::Writer> marc_writer = MARC::Writer::Factory(outputFile);
     if (not marc_writer) {
