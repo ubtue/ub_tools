@@ -58,32 +58,32 @@ struct ArticleEntry {
 
 
 std::vector<std::map<std::string, std::string>> PostParseEntries(const std::string& body) {
-    std::istringstream stream(body);
-    std::string line, key, value;
     std::vector<std::map<std::string, std::string>> entries;
-    std::map<std::string, std::string> current_entry;
 
-    while (std::getline(stream, line)) {
-        if (line.empty()) {
-            if (not current_entry.empty()) {
-                entries.push_back(current_entry);
-                current_entry.clear();
-            }
-            continue;
+    try {
+        nlohmann::json j = nlohmann::json::parse(body);
+
+        std::string journal = j.value("journal", "");
+        std::string pattern = j.value("pattern", "");
+        std::string extraction_pattern = j.value("extraction_pattern", "");
+        std::string crawl_pattern = j.value("crawl_pattern", "");
+        std::string volume_pattern = j.value("volume_pattern", "");
+
+        for (const auto& article : j["articles"]) {
+            std::map<std::string, std::string> entry;
+            entry["article_link"] = article.value("link", "");
+            entry["main_title"] = article.value("title", entry["article_link"]);
+            entry["journal"] = journal;
+            entry["pattern"] = pattern;
+            entry["extraction_pattern"] = extraction_pattern;
+            entry["crawl_pattern"] = crawl_pattern;
+            entry["volume_pattern"] = volume_pattern;
+            entries.push_back(entry);
         }
-
-        std::vector<std::string> parts;
-        StringUtil::Split(line, std::string("="), &parts);
-
-        if (parts.size() >= 2) {
-            key = parts[0];
-            value = parts[1];
-            current_entry[key] = value;
-        }
+    } catch (const std::exception& e) {
+        std::cerr << "Invalid JSON payload: " << e.what() << "\n";
+        return {};
     }
-
-    if (not current_entry.empty())
-        entries.push_back(current_entry);
 
     return entries;
 }
@@ -323,17 +323,6 @@ int Main(int argc, char* argv[]) {
     try {
         std::string method = std::getenv("REQUEST_METHOD") ? std::getenv("REQUEST_METHOD") : "";
         std::string path_info = std::getenv("PATH_INFO") ? std::getenv("PATH_INFO") : "";
-        std::string journal_name = WebUtil::GetCGIParameterOrDefault(cgi_args, "journal", "");
-
-        std::string request_body;
-        if (method == "POST") {
-            char* clen = std::getenv("CONTENT_LENGTH");
-            if (clen) {
-                int length = std::stoi(clen);
-                request_body.resize(length);
-                std::cin.read(&request_body[0], length);
-            }
-        }
 
         IniFile ini_file(DB_CONF_FILE_PATH);
         DbConnection db_connection(DbConnection::MySQLFactory(ini_file.getString("Database", "sql_database"),
@@ -346,10 +335,12 @@ int Main(int argc, char* argv[]) {
         }
 
         if (method == "POST" && path_info == "/submit_feed") {
+            std::string request_body = WebUtil::GetCGIParameterOrDefault(cgi_args, "payload", "");
             auto entries = PostParseEntries(request_body);
             int inserted = PostProcessEntries(db_connection, entries);
             SendResponse(200, "Successfully processed " + std::to_string(inserted) + " entries.\n");
         } else if (method == "GET" && (path_info.empty() || path_info == "/")) {
+            std::string journal_name = WebUtil::GetCGIParameterOrDefault(cgi_args, "journal", "");
             if (journal_name.empty()) {
                 SendResponse(400, "Missing 'journal' parameter\n");
                 return 1;
