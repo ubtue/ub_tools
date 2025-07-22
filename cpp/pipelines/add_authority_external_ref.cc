@@ -3,7 +3,7 @@
  *  \author andreas-ub
  *  \author Steven Lolong (steven.lolong@uni-tuebingen.de)
  *
- *  \copyright 2021-2022 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2021-2025 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -106,8 +106,8 @@ bool GenerateGNDAuthorityExternalRef(char *argv[]) {
     while (std::getline(input_file, line)) {
         line_parsed = nlohmann::json::parse(line);
         // get information on first element of array
-        if (line_parsed[0].is_array() && line_parsed[0][1].is_string()) {
-            id_annotaton = line_parsed[0][1].get<std::string>();
+        if (line_parsed[0].is_array() && line_parsed[0][2].is_string()) {
+            id_annotaton = line_parsed[0][2].get<std::string>();
             if (id_annotaton.compare("@id") == 0) {
                 // the second element of array is not an array nor object
                 if (!line_parsed[1].is_structured()) {
