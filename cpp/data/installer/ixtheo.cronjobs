@@ -44,7 +44,7 @@ LOG_DIR=/usr/local/var/log/tuefind
 15 22 * * * "$BIN/new_journal_alert" relbib {relbib_host} "RelBib Team<no-reply@ub.uni-tuebingen.de>" "RelBib" > "$LOG_DIR/new_journal_alert_relbib.log" 2>&1
 30 22 * * * "$BIN/new_journal_alert" bibstudies {bibstudies_host} "IxTheo Team<no-reply@ub.uni-tuebingen.de>" "BibStudies" > "$LOG_DIR/new_journal_alert_bibstudies.log" 2>&1
 45 22 * * * "$BIN/new_journal_alert" churchlaw {churchlaw_host} "IxTheo Team<no-reply@ub.uni-tuebingen.de>" "ChurchLaw" > "$LOG_DIR/new_journal_alert_churchlaw.log" 2>&1
-0 23 * * * "$BIN/update_tad_email_acl.sh" "$EMAIL"
+0 23 * * * "$BIN/update_tad_email_acl.sh" "$EMAIL" > "$LOG_DIR/update_tad_email_acl.log" 2>&1
 15 23 * * * "$BIN/rss_aggregator" "--download-feeds" "--use-web-proxy" "relbib" "$EMAIL" "/usr/local/vufind/public/relbib_docs/news.rss" > "$LOG_DIR/rss_aggregator_relbib.log" 2>&1
 30 23 * * * "$BIN/rss_aggregator" "ixtheo" "$EMAIL" "/usr/local/vufind/public/docs/news.rss" > "$LOG_DIR/rss_aggregator_ixtheo.log" 2>&1
 45 23 * * * "$BIN/rss_subset_aggregator" "--mode=email" "RelBib Team<no-reply@ub.uni-tuebingen.de>" "relbib" > "$LOG_DIR/rss_subset_aggregator_relbib.log" 2>&1
