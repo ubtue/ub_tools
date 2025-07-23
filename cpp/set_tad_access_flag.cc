@@ -341,8 +341,9 @@ std::string GetEmailAddress(DbConnection * const db_connection, const std::strin
 
 void UpdateSingleUser(DbConnection * const db_connection, const std::vector<Pattern> &patterns, const std::string &user_ID) {
     const std::string email_address(GetEmailAddress(db_connection, user_ID));
-    db_connection->queryOrDie("UPDATE user SET ixtheo_can_use_tad=" + std::string(CanUseTAD(email_address, patterns) ? "TRUE" : "FALSE")
-                              + " WHERE id=" + user_ID);
+    const std::string access_rights(CanUseTAD(email_address, patterns) ? "TRUE" : "FALSE");
+    LOG_INFO("Setting TAD access rights for user ID " + user_ID + " to " + access_rights);
+    db_connection->queryOrDie("UPDATE user SET ixtheo_can_use_tad=" + access_rights + " WHERE id=" + user_ID);
 }
 
 
