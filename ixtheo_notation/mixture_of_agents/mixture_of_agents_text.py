@@ -30,14 +30,14 @@ def GetSystemPrompt():
 def GetUserPrompt(ppn):
 #   print(json.dumps(record_util.GetRecordDataWithTOC(ppn)))
    print(json.dumps(record_util.GetRecordDataWithTOCWithoutIxTheoNotation(ppn)))
-#   return  """Determine the classes for the following record: """ + json.dumps(record_util.GetRecordDataWithTOC(ppn))  + """Give an explanation an meticulously check that you are correct"""
-   return  """Determine the classes for the following record: """ + json.dumps(record_util.GetRecordDataWithoutIxTheoNotation(ppn))  + """Give an explanation an meticulously check that you are correct"""
+   return  """Determine the classes for the following record: """ + json.dumps(record_util.GetRecordDataWithTOCWithoutIxTheoNotation(ppn))  + """Give an explanation an meticulously check that you are correct"""
+#   return  """Determine the classes for the following record - Give detailed rationale for your choices an meticulously check that you are correct""" + json.dumps(record_util.GetRecordDataWithoutIxTheoNotation(ppn))  
 
 reference_models = []
 reference_models.append(record_util.config.get("Mixture of Agents", "reference_model"))
 aggregator_model = "deepseek-ai/DeepSeek-R1"
 aggregator_model = record_util.config.get("Mixture of Agents", "aggregator_model")
-aggregator_system_prompt = f"""You habe been provided with different suggestions how to assing the ixTheo classification to a record. Meticulouly check the answers and come to a final conclusison which classes are to be assigned and return a JSON object the assigned classes. Pay special attention whether the one letter main classes apply. The classes are: {ixtheo_classes}. Be careful and concise"""
+aggregator_system_prompt = f"""You habe been provided with different suggestions how to assign the ixTheo classification to a record. Meticulouly check the answers and come to a final conclusison which classes are to be assigned. Check whether other candidates are more apt. return a JSON object with the assigned classes and a rationale. Pay special attention whether the topics of the one letter classes apply and make sure no one letter classes are assigned. The classes are: {ixtheo_classes}. Give a step-by-step rationale of your choices. Be careful and concise"""
 
 layers = 2
 
@@ -70,7 +70,7 @@ async def run_llm(model, prev_response=None):
             response = await async_client.chat.completions.create(
                 model=model,
                 messages=messages,
-                temperature=0.1,
+                temperature=0.01,
                 #max_tokens=8192,
                 max_tokens=16384,
             )
@@ -111,12 +111,14 @@ async def main():
             },
             {"role": "user", "content": AssembleResults(results) },
         ],
-        temperature=0.1,
+        temperature=0.01,
         #max_tokens=8192,
         max_tokens=16384,
         stream=True,
     )
     for chunk in finalStream:
-        print(chunk.choices[0].delta.content or "", end="", flush=True)
+        if (len(chunk.choices)):
+           print(chunk.choices[0].delta.content or "", end="", flush=True)
+#           print(chunk.choices, end="", flush=True)
 
 asyncio.run(main())

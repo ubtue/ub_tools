@@ -17,7 +17,7 @@ sample_output="$3"
 
 cat ${sample_input} | \
    jq 'del(.[].record.era_facet | .[]? | select(. == "s" or . == "u" or . == "p" or . == "g" or . == "b"))' | \
-   jq -s -c '.[][]' | head -n 20 | \
+   jq -s -c '.[][]' |  \
    while read -r obj; do 
         ppn=$(echo "$obj" | jq -r .record.id);
         echo "$obj" | jq --arg GUESSED_CLASSES "$(GetGuessedClasses ${guessed_classes_dir} ${ppn})" '.guessed_classes=$GUESSED_CLASSES';
