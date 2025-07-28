@@ -407,6 +407,16 @@ make_named_pipe --buffer-size=$FIFO_BUFFER_SIZE GesamtTiteldaten-post-phase"$PHA
 EndPhase || Abort) &
 
 
+StartPhase "Correct full text type for records pages without full text "
+make_named_pipe --buffer-size=$FIFO_BUFFER_SIZE GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1
+readonly no_fulltext_remark='500a:Artikelseite enthält keinen Volltext'
+(marc_augmentor GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+                GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
+                --replace-subfield-if-regex '8563:/.*/Artikellink/' "${no_fulltext_remark}" \
+                --replace-subfield-if-regex '856x:/.*/kein Volltext/' "${no_fulltext_remark}" \
+		>> "${log}" 2>&1 && \
+EndPhase || Abort) &
+
 
 StartPhase "Tag PDA candidates"
 # Use the most recent GVI PPN list.
