@@ -810,13 +810,13 @@ void ConfigureVuFind(const bool production, const VuFindSystemType vufind_system
     // We need to increase default_socket_timeout for big downloads on slow mirrors, especially Solr (default 60 seconds) .
     TemporaryChDir tmp2(VUFIND_DIRECTORY);
 
-    // execv will exit with -1 when creating a sub-process
-    int exit_code;
-    const std::string exec_composer =
-        ExecUtil::LocateOrDie("php") + " -d default_socket_timeout=600 " + ExecUtil::LocateOrDie("composer") + " install";
-    if ((exit_code = ::system(exec_composer.c_str())) != 0) {
-        LOG_ERROR("Failed to execute composer install (exit code was " + std::to_string(exit_code) + ")");
-    }
+    Echo("Installing VuFind dependencies from Composer");
+    std::vector<std::string> argvs = { "-d default_socket_timeout=600", ExecUtil::LocateOrDie("composer"), "install" };
+    std::string command = ExecUtil::LocateOrDie("php");
+
+    ExecUtil::ExecOrDieDirectCall(command, argvs);
+
+    Echo("Installing VuFind dependencies from NPM");
     // We explicitly need to use sudo here, even if we're already root, or it will fail, see
     // https://stackoverflow.com/questions/16151018/how-to-fix-npm-throwing-error-without-sudo
     ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("sudo"), { "npm", "install" });
