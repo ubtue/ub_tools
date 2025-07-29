@@ -113,6 +113,11 @@ declare -a source_filepaths
 declare -a dest_filepaths
 declare -a dest_filepaths_local
 
+StartPhase "Sync Legacy Records"
+sync_legacy_records --harvester-conf "$HARVESTER_CONFIG_FILE" \
+                    "$JOURNAL_NAME" >> "$LOG" 2>&1
+EndPhase
+
 StartPhase "Harvest URLs"
 LOGGER_FORMAT=no_decorations,strip_call_site \
 BACKTRACE=1 \
