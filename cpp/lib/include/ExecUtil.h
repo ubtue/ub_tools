@@ -78,15 +78,6 @@ void ExecOrDie(const std::string &command, const std::vector<std::string> &args 
                const std::unordered_map<std::string, std::string> &envs = std::unordered_map<std::string, std::string>(),
                const std::string &working_directory = "");
 
-/**  \brief Like Exec, but this function call system() directly without needing to
- *          fork(). In some cases, running a command after the fork() will not work
- *          because the command is not a binary, but a script that needs to be run
- *          by the current process.
- *          e.g. when we want to run a PHP script especially for composer.
- *  \param  command             The path to the command that should be executed.
- *  \param  args                The arguments for the command, not including the command itself.
- */
-void ExecOrDieDirectCall(const std::string &command, const std::vector<std::string> &argvs);
 
 /** \brief  Kicks off a subcommand and returns.
  *  \param  command             The path to the command that should be executed.

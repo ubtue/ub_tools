@@ -252,18 +252,6 @@ void ExecOrDie(const std::string &command, const std::vector<std::string> &args,
     }
 }
 
-void ExecOrDieDirectCall(const std::string &command, const std::vector<std::string> &argvs) {
-    std::string argv = StringUtil::Join(argvs, " ");
-    std::string const full_command = command + " " + argv;
-
-    int exit_code;
-    if ((exit_code = ::system(full_command.c_str())) != 0) {
-        LOG_ERROR("Failed to execute \"" + command + "\""
-                  " with args \"" + argv + "\"!"
-                  " (exit code was " + std::to_string(exit_code) + ")" + ", perror: " + std::string(strerror(errno)));
-    }
-}
-
 pid_t Spawn(const std::string &command, const std::vector<std::string> &args, const std::string &new_stdin, const std::string &new_stdout,
             const std::string &new_stderr, const std::unordered_map<std::string, std::string> &envs, const std::string &working_directory) {
     return ::Exec(command, args, new_stdin, new_stdout, new_stderr, ExecMode::DETACH, 0, SIGKILL /* Not used because the timeout is 0. */,

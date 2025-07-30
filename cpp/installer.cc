@@ -811,10 +811,8 @@ void ConfigureVuFind(const bool production, const VuFindSystemType vufind_system
     TemporaryChDir tmp2(VUFIND_DIRECTORY);
 
     Echo("Installing VuFind dependencies from Composer");
-    std::vector<std::string> argvs = { "-d default_socket_timeout=600", ExecUtil::LocateOrDie("composer"), "install" };
-    std::string command = ExecUtil::LocateOrDie("php");
+    ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("php"), { "-d", "default_socket_timeout=600", ExecUtil::LocateOrDie("composer"), "install" });
 
-    ExecUtil::ExecOrDieDirectCall(command, argvs);
 
     Echo("Installing VuFind dependencies from NPM");
     // We explicitly need to use sudo here, even if we're already root, or it will fail, see
