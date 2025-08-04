@@ -302,7 +302,7 @@ int GetColumnIndexForColumnHeading(const std::vector<std::string> &column_headin
 
     auto index(heading_pos - column_headings.cbegin());
     try {
-        (void)row_values.at(index);
+        std::ignore = row_values.at(index);
     } catch (std::out_of_range &x) {
         return NO_INDEX;
     }
