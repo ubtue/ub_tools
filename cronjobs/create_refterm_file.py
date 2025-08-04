@@ -52,7 +52,7 @@ def ExtractTitleDataMarcFile(link_name):
 
 def GetDateFromFilename(filename):
     try:
-        date_string = re.search('\d{6}', filename).group()
+        date_string = re.search('\\d{6}', filename).group()
     except AttributeError:
         date_string = ''
     return date_string

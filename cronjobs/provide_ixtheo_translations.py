@@ -90,7 +90,7 @@ def Main():
     raw_dump_file =  tmp_file_path + "/" + output_filename
     DumpTranslationsDB(sql_database, sql_username, sql_password, raw_dump_file)
 
-    compressed_and_encrypted_dump_file = re.sub('\..*$', '', raw_dump_file) + compressed_extension + encrypted_extension
+    compressed_and_encrypted_dump_file = re.sub('\\..*$', '', raw_dump_file) + compressed_extension + encrypted_extension
     CompressAndEncryptFile(raw_dump_file, compressed_and_encrypted_dump_file, re.sub('^"|"$', '', archive_password))
 
     MoveToDownloadPosition(compressed_and_encrypted_dump_file, web_server_path)

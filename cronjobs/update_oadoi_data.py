@@ -6,7 +6,7 @@
 [Unpaywall]
 changelist_url = http://api.unpaywall.org/feed/changefile
 api_key = MY_API_KEY
-changelist_file_regex = changed_dois_with_versions_([\d-]+)(.*)([\d-]).*.jsonl.gz
+changelist_file_regex = changed_dois_with_versions_([\\d-]+)(.*)([\\d-]).*.jsonl.gz
 """
 
 import dbus
