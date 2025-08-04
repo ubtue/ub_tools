@@ -445,7 +445,7 @@ void RemoveExtraneousHyphensFrom653(MARC::Record * const record, bool * const mo
         auto subfields(field.getSubfields());
         for (auto &subfield : subfields) {
             if (subfield.value_.find('-') != std::string::npos) {
-                std::remove(subfield.value_.begin(), subfield.value_.end(), '-');
+                (void)std::remove(subfield.value_.begin(), subfield.value_.end(), '-');
                 *modified_record = true;
             }
         }
