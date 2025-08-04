@@ -48,11 +48,11 @@ def Main():
 
     util.default_email_recipient = sys.argv[1]
 
-    most_recent_authority_filename = GetMostRecentBSZFile("^Normdaten-(\d\d\d\d\d\d).mrc$")
+    most_recent_authority_filename = GetMostRecentBSZFile("^Normdaten-(\\d\\d\\d\\d\\d\\d).mrc$")
     if most_recent_authority_filename is None:
         util.SendEmailAndExit("Beacon Generator", "Found no matching authority files!", priority=1)
 
-    most_recent_titles_filename = GetMostRecentBSZFile("^GesamtTiteldaten-post-pipeline-(\d\d\d\d\d\d).mrc$")
+    most_recent_titles_filename = GetMostRecentBSZFile("^GesamtTiteldaten-post-pipeline-(\\d\\d\\d\\d\\d\\d).mrc$")
     if most_recent_titles_filename is None:
         util.SendEmailAndExit("Beacon Generator", "Found no matching title files!", priority=1)
 

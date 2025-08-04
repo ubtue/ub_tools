@@ -94,12 +94,8 @@ std::vector<std::string> GetLanguageCodes(DbConnection &db_connection) {
 
 void ShowErrorPageAndDie(const std::string &title, const std::string &error_message, const std::string &description = "") {
     std::cout << "Content-Type: text/html; charset=utf-8\r\n\r\n";
-    std::cout << "<!DOCTYPE html><html><head><title>" + title + "</title></head>"
-              << "<body>"
-              << "  <h1>" + error_message + "</h1>"
-              << "  <h3>" + description + "</h3>"
-              << "</body>"
-              << "</html>";
+    std::cout << "<!DOCTYPE html><html><head><title>" + title + "</title></head>" << "<body>" << "  <h1>" + error_message + "</h1>"
+              << "  <h3>" + description + "</h3>" << "</body>" << "</html>";
     std::exit(EXIT_SUCCESS);
 }
 
@@ -306,7 +302,7 @@ int GetColumnIndexForColumnHeading(const std::vector<std::string> &column_headin
 
     auto index(heading_pos - column_headings.cbegin());
     try {
-        row_values.at(index);
+        std::ignore = row_values.at(index);
     } catch (std::out_of_range &x) {
         return NO_INDEX;
     }
