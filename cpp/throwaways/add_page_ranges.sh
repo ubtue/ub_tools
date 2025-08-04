@@ -10,7 +10,7 @@ marc_file="$1"
 output_file="ixtheo_zotero_$(date +%Y%m%d)_001.xml"
 
 
-#marc_grep $1 'if "936h" is_missing extract "856u"' | sed -e  's/:856u:/\n/' | head -n 10 | xargs -n 2 ./get_pdf.sh "$PDFS_DIR"
+# Select lines 151 to 1000 (aSelect lines 151 to 1000 (an even range) from the output, since each 856u entry produces two lines;
 #marc_grep $1 'if "936h" is_missing extract "856u"' | sed -e  's/:856u:/\n/' | sed -n '151,1000p' | xargs -n 2 ./get_pdf.sh "$PDFS_DIR"
 marc_grep $1 'if "936h" is_missing extract "856u"' | sed -e  's/:856u:/\n/' | xargs -n 2 ./get_pdf.sh "$PDFS_DIR"
 ls -1 "$PDFS_DIR"/*.pdf | xargs -I'{}' python3 convert_pdf_to_md.py '{}'
