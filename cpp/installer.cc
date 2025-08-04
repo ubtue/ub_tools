@@ -83,10 +83,7 @@
 
 // Print a log message to the terminal with a bright green background.
 void Echo(const std::string &log_message) {
-    std::cout << "\x1B"
-              << "[42m--- "
-              << "Installer -> " + log_message << "\x1B"
-              << "[0m\n";
+    std::cout << "\x1B" << "[42m--- " << "Installer -> " + log_message << "\x1B" << "[0m\n";
 }
 
 
@@ -809,9 +806,14 @@ void ConfigureVuFind(const bool production, const VuFindSystemType vufind_system
     Echo("Configuring vufind");
     // We need to increase default_socket_timeout for big downloads on slow mirrors, especially Solr (default 60 seconds) .
     TemporaryChDir tmp2(VUFIND_DIRECTORY);
+
+    Echo("Installing VuFind dependencies from Composer");
     ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("php"), { "-d", "default_socket_timeout=600", ExecUtil::LocateOrDie("composer"), "install" });
-    // We explicitly need to use sudo here, even if we're already root, or it will fail,
-    // see https://stackoverflow.com/questions/16151018/how-to-fix-npm-throwing-error-without-sudo
+
+
+    Echo("Installing VuFind dependencies from NPM");
+    // We explicitly need to use sudo here, even if we're already root, or it will fail, see
+    // https://stackoverflow.com/questions/16151018/how-to-fix-npm-throwing-error-without-sudo
     ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("sudo"), { "npm", "install" });
 
     Echo("Building CSS");

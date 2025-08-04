@@ -27,7 +27,7 @@ apt-get --yes install sudo wget
 
 # install software-properties-common for apt-add-repository
 apt-get --yes install software-properties-common
-wget -qO - https://artifacts.elastic.co/GPG-KEY-elasticsearch | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/elasticsearch.gpg
+curl -fsSL https://artifacts.elastic.co/GPG-KEY-elasticsearch | gpg --dearmor -o /etc/apt/keyrings/elastic-archive-keyring.gpg
 apt-add-repository --yes --update 'deb https://artifacts.elastic.co/packages/8.x/apt stable main'
 apt-add-repository --yes --update 'ppa:alex-p/tesseract-ocr5'
 
@@ -40,7 +40,7 @@ apt-get --quiet --yes --allow-unauthenticated install \
         libxml2-dev libxml2-utils locales-all make mawk mutt nlohmann-json3-dev openjdk-17-jdk p7zip-full poppler-utils postgresql-client \
         python3 python3-paramiko \
         tesseract-ocr tesseract-ocr-all rsync sqlite3 tcl-expect-dev tidy unzip mpack \
-        uuid-dev xsltproc libsystemd-dev
+        uuid-dev xsltproc libsystemd-dev libboost-all-dev
 
 # Explicitly enable mod_cgi. If we would use `a2enmod cgi`, it would enable mod_cgid, which would fail on apache startup.
 a2enmod cgi

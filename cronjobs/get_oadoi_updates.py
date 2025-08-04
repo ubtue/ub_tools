@@ -7,7 +7,7 @@
 changelist_url = http://api.unpaywall.org/feed/changefile
 api_key = MY_API_KEY
 local_update_file_dir = /tmp/oadoi
-changelist_file_regex = changed_dois_with_versions_([\d-]+)(.*)([\d-]).*.jsonl.gz
+changelist_file_regex = changed_dois_with_versions_([\\d-]+)(.*)([\\d-]).*.jsonl.gz
 """
 
 import json

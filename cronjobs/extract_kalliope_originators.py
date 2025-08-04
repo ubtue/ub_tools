@@ -4,7 +4,7 @@ import sys
 import xml.etree.ElementTree as ET
 
 
-valid_gnd = re.compile('[0-9\-X]+')
+valid_gnd = re.compile('[0-9\\-X]+')
 
 
 def ExtractKalliopeOriginators(filename):
