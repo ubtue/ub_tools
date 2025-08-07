@@ -761,6 +761,23 @@ void DetectNotes(MetadataRecord * const metadata_record, const ConversionParams 
         DetectNotesWithMatcher(metadata_record, journal_notes_matcher);
 }
 
+
+void DetectBibliographies(MetadataRecord * const metadata_record) {
+    for (auto &keyword : metadata_record->keywords_) {
+        if (TextUtil::UTF8ToLower(keyword) == "bibliography")
+            keyword = "Bibliografie";
+    }
+}
+
+
+void DetectObituaries(MetadataRecord * const metadata_record) {
+    for (auto &keyword : metadata_record->keywords_) {
+        if (TextUtil::UTF8ToLower(keyword) == "obituary")
+            keyword = "Nachruf";
+    }
+}
+
+
 const ThreadSafeRegexMatcher PAGE_RANGE_SEPARATOR_MATCHER("–");
 const ThreadSafeRegexMatcher PAGE_RANGE_MATCHER("^(.+)-(.+)$");
 const ThreadSafeRegexMatcher PAGE_RANGE_DIGIT_MATCHER("^(\\d+)-(\\d+)$");
@@ -876,6 +893,8 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Convers
 
     DetectReviews(metadata_record, parameters);
     DetectNotes(metadata_record, parameters);
+    DetectBibliographies(metadata_record);
+    DetectObituaries(metadata_record);
     AddPagesNotOnlineFirst(metadata_record, parameters);
 }
 
@@ -1441,7 +1460,8 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
     // Personalized Authors
     // c.f. https://github.com/ubtue/DatenProbleme/issues/1651
     if (parameters.download_item_.journal_.personalized_authors_ == "J" and marc_record->hasTag("100")
-        and (not marc_record->isReviewArticle())) {
+        and (not marc_record->isReviewArticle()))
+    {
         // Only add tiep if there is at least one author is only given verbally
         // c.f. https://github.com/ubtue/DatenProbleme/issues/2185
         if (not IsAllAuthorsAutomaticallyAssociated(marc_record))
@@ -1657,9 +1677,9 @@ void ConversionTasklet::run(const ConversionParams &parameters, ConversionResult
 ConversionTasklet::ConversionTasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const instance_counter,
                                      std::unique_ptr<ConversionParams> parameters)
     : Util::Tasklet<ConversionParams, ConversionResult>(
-        instance_counter, parameters->download_item_, "Conversion: " + parameters->download_item_.url_.toString(),
-        std::bind(&ConversionTasklet::run, this, std::placeholders::_1, std::placeholders::_2),
-        std::unique_ptr<ConversionResult>(new ConversionResult()), std::move(parameters), ResultPolicy::YIELD) {
+          instance_counter, parameters->download_item_, "Conversion: " + parameters->download_item_.url_.toString(),
+          std::bind(&ConversionTasklet::run, this, std::placeholders::_1, std::placeholders::_2),
+          std::unique_ptr<ConversionResult>(new ConversionResult()), std::move(parameters), ResultPolicy::YIELD) {
 }
 
 
