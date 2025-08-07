@@ -412,8 +412,10 @@ make_named_pipe --buffer-size=$FIFO_BUFFER_SIZE GesamtTiteldaten-post-phase"$PHA
 readonly no_fulltext_remark='500a:Artikelseite enthält keinen Volltext'
 (marc_augmentor GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                 GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
+		--replace-field-if-regex '856:/^40(.*)/41\1/' "${no_fulltext_remark}" \
                 --replace-subfield-if-regex '8563:/.*/Artikellink/' "${no_fulltext_remark}" \
                 --replace-subfield-if-regex '856x:/.*/kein Volltext/' "${no_fulltext_remark}" \
+		--replace-subfield-if-regex '856z:/.*/kein Volltext/' "${no_fulltext_remark}" \
 		>> "${log}" 2>&1 && \
 EndPhase || Abort) &
 
