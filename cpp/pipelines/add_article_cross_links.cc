@@ -23,6 +23,7 @@
 #include <unordered_set>
 #include <cstdio>
 #include <cstdlib>
+#include "BSZUtil.h"
 #include "Compiler.h"
 #include "ControlNumberGuesser.h"
 #include "FileUtil.h"
@@ -57,24 +58,10 @@ void ExtractYearVolumeIssue(const MARC::Record &record, RecordInfo * const recor
     record_info->volume_ = VOLUME_WILDCARD;
     record_info->issue_ = ISSUE_WILDCARD;
 
-    for (const auto &field : record.getTagRange("936")) {
-        if (field.getIndicator1() != 'u' or field.getIndicator2() != 'w')
-            continue;
-
-        const MARC::Subfields subfields(field.getSubfields());
-
-        const auto year(subfields.getFirstSubfieldWithCode('j'));
-        if (not year.empty())
-            record_info->year_ = year;
-
-        const auto volume(subfields.getFirstSubfieldWithCode('d'));
-        if (not volume.empty())
-            record_info->volume_ = volume;
-
-        const auto issue(subfields.getFirstSubfieldWithCode('e'));
-        if (not issue.empty())
-            record_info->issue_ = issue;
-    }
+    const auto issue_info(BSZUtil::ExtractYearVolumeIssue(record));
+    record_info->year_ = issue_info.year_;
+    record_info->volume_ = issue_info.volume_;
+    record_info->issue_ = issue_info.issue_;
 }
 
 
@@ -120,8 +107,10 @@ bool ContainsAtLeastOnePossibleReview(const std::set<std::string> &ppns,
                                       const std::unordered_map<std::string, RecordInfo> &ppns_to_infos_map) {
     for (const auto &ppn : ppns) {
         const auto ppn_and_record_info(ppns_to_infos_map.find(ppn));
-        if (unlikely(ppn_and_record_info == ppns_to_infos_map.cend()))
-            LOG_ERROR("PPN " + ppn + " is missing in ppns_to_infos_map! (2)");
+        if (unlikely(ppn_and_record_info == ppns_to_infos_map.cend())) {
+            LOG_WARNING("PPN " + ppn + " is missing in ppns_to_infos_map! (2)");
+            continue;
+        }
         if (ppn_and_record_info->second.may_be_a_review_)
             return true;
     }
@@ -136,14 +125,18 @@ bool HasAtLeastOneCommonDOI(const std::set<std::string> &ppns, const std::unorde
 
     auto ppn(ppns.cbegin());
     auto ppn_and_record_info(ppns_to_infos_map.find(*ppn));
-    if (unlikely(ppn_and_record_info == ppns_to_infos_map.cend()))
-        LOG_ERROR("PPN " + *ppn + " is missing in ppns_to_infos_map! (3)");
+    if (unlikely(ppn_and_record_info == ppns_to_infos_map.cend())) {
+        LOG_WARNING("PPN " + *ppn + " is missing in ppns_to_infos_map! (3)");
+        return false;
+    }
     std::set<std::string> shared_dois(ppn_and_record_info->second.dois_);
 
     for (++ppn; ppn != ppns.cend(); ++ppn) {
         ppn_and_record_info = ppns_to_infos_map.find(*ppn);
-        if (unlikely(ppn_and_record_info == ppns_to_infos_map.cend()))
-            LOG_ERROR("PPN " + *ppn + " is missing in ppns_to_infos_map! (4)");
+        if (unlikely(ppn_and_record_info == ppns_to_infos_map.cend())) {
+            LOG_WARNING("PPN " + *ppn + " is missing in ppns_to_infos_map! (4)");
+            continue;
+        }
         shared_dois = MiscUtil::Intersect(shared_dois, ppn_and_record_info->second.dois_);
     }
 
@@ -157,15 +150,19 @@ bool IsConsistentSet(const std::set<std::string> &ppns, const std::unordered_map
 
     auto ppn(ppns.cbegin());
     auto ppn_and_record_info(ppns_to_infos_map.find(*ppn));
-    if (unlikely(ppn_and_record_info == ppns_to_infos_map.cend()))
-        LOG_ERROR("PPN " + *ppn + " is missing in ppns_to_infos_map! (5)");
+    if (unlikely(ppn_and_record_info == ppns_to_infos_map.cend())) {
+        LOG_WARNING("PPN " + *ppn + " is missing in ppns_to_infos_map! (5)");
+        return false;
+    }
     std::string year(ppn_and_record_info->second.year_), volume(ppn_and_record_info->second.volume_),
         issue(ppn_and_record_info->second.issue_);
 
     for (++ppn; ppn != ppns.cend(); ++ppn) {
         ppn_and_record_info = ppns_to_infos_map.find(*ppn);
-        if (unlikely(ppn_and_record_info == ppns_to_infos_map.cend()))
-            LOG_ERROR("PPN " + *ppn + " is missing in ppns_to_infos_map! (6)");
+        if (unlikely(ppn_and_record_info == ppns_to_infos_map.cend())) {
+            LOG_WARNING("PPN " + *ppn + " is missing in ppns_to_infos_map! (6)");
+            return false;
+        }
         if (ppn_and_record_info->second.year_ != year or ppn_and_record_info->second.volume_ != volume
             or ppn_and_record_info->second.issue_ != issue)
             return false;
@@ -259,10 +256,13 @@ bool AugmentRecord(MARC::Record * const record, const std::set<std::string> &dup
     bool added_at_least_one_new_cross_link(false);
     for (const auto &cross_link_ppn : dups_set) {
         if (cross_link_ppn != record->getControlNumber()
-            and existing_cross_references.find(cross_link_ppn) == existing_cross_references.cend()) {
+            and existing_cross_references.find(cross_link_ppn) == existing_cross_references.cend())
+        {
             const auto ppn_and_record_info(ppns_to_infos_map.find(cross_link_ppn));
-            if (unlikely(ppn_and_record_info == ppns_to_infos_map.cend()))
-                LOG_ERROR("did not find a record info record for PPN \"" + cross_link_ppn + "\"!");
+            if (unlikely(ppn_and_record_info == ppns_to_infos_map.cend())) {
+                LOG_WARNING("did not find a record info record for PPN \"" + cross_link_ppn + "\"!");
+                continue;
+            }
             const bool is_electronic(ppn_and_record_info->second.is_electronic_);
             record->insertField("776", { { 'i', "Erscheint auch als" },
                                          { 'n', (is_electronic ? "elektronische Ausgabe" : "Druckausgabe") },

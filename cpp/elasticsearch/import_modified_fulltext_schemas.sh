@@ -24,12 +24,12 @@ host_and_port=$(inifile_lookup /usr/local/var/lib/tuelib/Elasticsearch.conf Elas
 for index in ${indices[@]}
 do
      printf "\nDelete current write index for ${index}\n"
-     curl --request DELETE "${host_and_port}/${index}_write/"
+     curl --fail --request DELETE "${host_and_port}/${index}_write/"
      schema="${index}_schema.json"
      printf "\nImport new mappings\n"
-     curl --request PUT --header 'Content-Type: application/json' "${host_and_port}/${index}_write" --data @"${schema}"
+     curl --fail --request PUT --header 'Content-Type: application/json' "${host_and_port}/${index}_write" --data @"${schema}"
      printf "\nReindex from the read index for ${index}\n"
-     curl --request POST "${host_and_port}/_reindex" -H 'Content-Type: application/json' -d'{  "source": { "index": "'"${index}"'_read" },  "dest": { "index": "'"${index}"'_write" }}'
+     curl --fail --request POST "${host_and_port}/_reindex" -H 'Content-Type: application/json' -d'{  "source": { "index": "'"${index}"'_read" },  "dest": { "index": "'"${index}"'_write" }}'
 done
 
 remove_import_aliases.sh

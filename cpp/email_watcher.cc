@@ -47,9 +47,9 @@ struct EmailDescription {
     RegexMatcher *positive_body_matcher_;
     RegexMatcher *negative_body_matcher_;
     unsigned overdue_time_window_; // in hours
+
 public:
     EmailDescription() = default;
-    EmailDescription(const EmailDescription &other) = default;
     explicit EmailDescription(const IniFile::Section &ini_file_section);
 
     bool subjectAndBodyMatched(const MBox::Message &email_message) const;

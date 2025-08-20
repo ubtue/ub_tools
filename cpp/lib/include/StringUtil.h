@@ -1455,11 +1455,9 @@ inline unsigned Join(const StringContainer &source, const char separator, std::s
 template <typename StringContainer>
 void Join(const StringContainer &source_begin, const StringContainer &source_end, const std::string &separator, std::string * const dest) {
     *dest = "";
-    unsigned word_count = 0;
 
     for (StringContainer i = source_begin; i != source_end; ++i) {
         *dest += *i;
-        ++word_count;
         if (i != source_end)
             *dest += separator;
     }
@@ -2126,22 +2124,6 @@ unsigned EditDistance(const std::string &s1, const std::string &s2);
 std::string LongestCommonSubstring(const std::string &s1, const std::string &s2);
 
 
-/** \brief  Returns the MD5 cryptographic hash for "s".
- *  \param  s  The string for which we want the cryptographic hash.
- *  \return The cryptographic hash for "s".
- *  \note   Use Sha1() instead!
- */
-std::string Md5(const std::string &s);
-
-
-/** \brief  Returns a "folding" of the MD5 cryptographic hash for "s".
- *  \param  s  The string for which we want the cryptographic hash.
- *  \return The folded cryptographic hash for "s".
- *  \note   Use Sha1() instead!
- */
-uint64_t Md5As64Bits(const std::string &s);
-
-
 /** \brief  Returns the SHA-1 cryptographic hash for "s".
  *  \param  s  The string for which we want the cryptographic hash.
  *  \return The cryptographic hash for "s".
@@ -2422,7 +2404,7 @@ inline bool IsProperPrefixOfIgnoreCase(const std::string &prefix_candidate, cons
 /** \class StringEqual
  *  \brief Binary functor that returns true if two std::strings are equal.
  */
-class StringEqual : public std::binary_function<std::string, std::string, bool> {
+class StringEqual {
 public:
     bool operator()(const std::string &s1, const std::string &s2) const { return s1 == s2; }
 };
@@ -2431,7 +2413,7 @@ public:
 /** \class StringCaseEqual
  *  \brief Binary functor that returns true if two std::strings are equal independent of case.
  */
-class StringCaseEqual : public std::binary_function<std::string, std::string, bool> {
+class StringCaseEqual {
 public:
     bool operator()(const std::string &s1, const std::string &s2) const { return ::strcasecmp(s1.c_str(), s2.c_str()) == 0; }
 };

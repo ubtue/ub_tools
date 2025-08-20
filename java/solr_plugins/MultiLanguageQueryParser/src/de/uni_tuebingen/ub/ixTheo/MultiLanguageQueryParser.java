@@ -5,7 +5,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import org.apache.commons.lang.ArrayUtils;
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery;
@@ -156,8 +156,10 @@ public class MultiLanguageQueryParser extends QParser {
             }
             newExpression.append(fieldNamesAndArguments[fieldNamesAndArgumentsLength - 1]); // No modifications needed
             return newExpression.toString();
-        } else
-            throw new MultiLanguageQueryParserException("Cannot appropriately rewrite expression \"" + expression + "\"");
+        }
+        // Compatibility for the system that uses filter query (fq) without using the MultiLanguageQueryParser in a specific way, i.e., KrimDok. KrimDok will use the Multilanguagequeryparser in the near future.
+         else
+            return expression; 
     }
 
 
@@ -244,7 +246,7 @@ public class MultiLanguageQueryParser extends QParser {
             QParser parser = getParser(this.searchString, "edismax", this.newRequest);
             newQuery = parser.parse();
         } catch (SyntaxError e) {
-            throw new SolrException(ErrorCode.SERVER_ERROR, "Could not succesfully rewrite query", e);
+            throw new SolrException(ErrorCode.SERVER_ERROR, "Could not successfully rewrite query", e);
         }
     }
 
@@ -391,7 +393,9 @@ public class MultiLanguageQueryParser extends QParser {
                 subquery = processMultiPhraseQuery((MultiPhraseQuery)subquery);
             } else if (subquery instanceof SynonymQuery) {
                 subquery = processSynonymQuery((SynonymQuery)subquery);
-            } else
+            } else if (subquery.getClass().getName().equals("org.apache.lucene.search.MultiTermQueryConstantScoreBlendedWrapper")){
+                break;
+            } else 
                 logger.warn("No appropriate Query in BooleanClause for " + subquery.getClass().getName());
             queryBuilder.add(subquery, currentClause.getOccur());
        }
@@ -433,17 +437,28 @@ public class MultiLanguageQueryParser extends QParser {
     private Query processSynonymQuery(final SynonymQuery queryCandidate) {
         List<Term> synonymTerms = queryCandidate.getTerms();
         List<Term> rewrittenSynonymTerms = new ArrayList<Term>();
+        String fieldName = "";
 
         for (Term synonymTerm : synonymTerms) {
             final String field = synonymTerm.field();
             final String newFieldName = field + "_" + lang;
-            if (schema.getFieldOrNull(newFieldName) != null)
+            if (schema.getFieldOrNull(newFieldName) != null){
               rewrittenSynonymTerms.add(new Term(newFieldName, synonymTerm.text()));
-            else
+              fieldName = newFieldName;}
+            else{
               rewrittenSynonymTerms.add(new Term(field, synonymTerm.text()));
+              fieldName = field;
+            }
         }
-        Term[] rewrittenSynonymArray = new Term[rewrittenSynonymTerms.size()];
-        return new SynonymQuery(rewrittenSynonymTerms.toArray(rewrittenSynonymArray));
+        // Term[] rewrittenSynonymArray = new Term[rewrittenSynonymTerms.size()];
+
+        SynonymQuery.Builder synonymQueryBuilder = new  SynonymQuery.Builder(fieldName);
+
+        for(Term term : rewrittenSynonymTerms)
+            synonymQueryBuilder.addTerm(term);
+
+        // return SynonymQuery(rewrittenSynonymTerms.toArray(rewrittenSynonymArray));
+        return synonymQueryBuilder.build();
     }
 
 

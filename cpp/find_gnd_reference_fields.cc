@@ -42,11 +42,8 @@ void ProcessRecords(MARC::Reader * const marc_reader) {
     if (matcher == nullptr)
         LOG_ERROR("failed to compile a regex in CollectGNDReferences: " + err_msg);
 
-    unsigned record_count(0);
     std::set<std::string> gnd_reference_tags;
     while (const MARC::Record record = marc_reader->read()) {
-        ++record_count;
-
         for (const auto &field : record) {
             if (matcher->matched(field.getContents()))
                 gnd_reference_tags.emplace(field.getTag().toString());

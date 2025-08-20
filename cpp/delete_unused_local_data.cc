@@ -52,11 +52,9 @@ bool IsUnusedLocalBlock(const MARC::Record &record, const MARC::Record::const_it
 
 
 void DeleteUnusedLocalData(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer) {
-    ssize_t count(0), before_count(0), after_count(0);
+    ssize_t before_count(0), after_count(0);
 
     while (MARC::Record record = marc_reader->read()) {
-        ++count;
-
         std::vector<MARC::Record::iterator> local_block_heads(record.findStartOfAllLocalDataBlocks()), local_blocks_to_delete;
         size_t local_data_count(local_block_heads.size());
         if (local_data_count == 0)

@@ -30,6 +30,7 @@
 
 
 #include <algorithm>
+#include <random>
 #include <stdexcept>
 #include <unordered_set>
 #include <vector>
@@ -238,7 +239,10 @@ void RemoveRandomSample(const size_t size, std::unordered_set<Entry> * const sou
     std::vector<bool> selections(source->size());
     for (unsigned i(0); i < size; ++i)
         selections[i] = true;
-    std::random_shuffle(selections.begin(), selections.end());
+
+    std::random_device rd;
+    std::mt19937 g(rd());
+    std::shuffle(selections.begin(), selections.end(), g);
 
     // Now move those entries of "source" to "target" that coincide with "true" entries of "selections":
     std::vector<bool>::const_iterator selected(selections.begin());

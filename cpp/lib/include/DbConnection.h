@@ -20,6 +20,7 @@
 #pragma once
 
 
+#include <optional>
 #include <string>
 #include <vector>
 #include <libpq-fe.h>
@@ -131,6 +132,13 @@ public:
      *        logged to /usr/local/var/log/tuefind/sql_debug.log.
      */
     void queryOrDie(const std::string &query_statement);
+
+    /** \brief Executes an SQL statement with retry and aborts an error message to stderr if the command fails after several attempts
+     *  \note If the environment variable "UTIL_LOG_DEBUG" has been set "true", query statements will be
+     *        logged to /usr/local/var/log/tuefind/sql_debug.log.
+     */
+    void queryRetryOrDie(const std::string &query_statement);
+
 
     /** \brief Reads SQL statements from "filename" and executes them.
      *  \note  Aborts if "filename" can't be read.

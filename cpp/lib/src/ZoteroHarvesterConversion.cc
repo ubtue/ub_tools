@@ -17,7 +17,7 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "ZoteroHarvesterConversion.h"
+#include <ranges>
 #include "BSZUtil.h"
 #include "Downloader.h"
 #include "FileUtil.h"
@@ -30,6 +30,7 @@
 #include "TranslationUtil.h"
 #include "UBTools.h"
 #include "UrlUtil.h"
+#include "ZoteroHarvesterConversion.h"
 #include "ZoteroHarvesterZederInterop.h"
 #include "util.h"
 
@@ -86,6 +87,8 @@ std::string MetadataRecord::toString() const {
                 creators += "\t\t\tppn: " + creator.ppn_ + ",\n";
             if (not creator.gnd_number_.empty())
                 creators += "\t\t\tgnd_number: " + creator.gnd_number_ + ",\n";
+            if (not creator.orcid_.empty())
+                creators += "\t\t\torcid: " + creator.orcid_ + ",\n";
             creators += "\t\t},\n";
         }
         creators += "\t]";
@@ -285,6 +288,7 @@ void ConvertZoteroItemToMetadataRecord(const std::shared_ptr<JSON::ObjectNode> &
     metadata_record->issn_ = GetStrippedHTMLStringFromJSON(zotero_item, "ISSN");
 
     const auto creators_array(zotero_item->getOptionalArrayNode("creators"));
+
     if (creators_array and not creators_array->empty()) {
         for (const auto &entry : *creators_array) {
             const auto creator_object(JSON::JSONNode::CastToObjectNodeOrDie("array_element", entry));
@@ -516,6 +520,38 @@ void PostProcessAuthorName(std::string * const first_name, std::string * const l
 }
 
 
+void AddOrcidToCreator(MetadataRecord * const metadata_record, MetadataRecord::Creator * const creator) {
+    const auto &custom_metadata(metadata_record->custom_metadata_);
+    const auto &note_range(custom_metadata.equal_range("orcid"));
+
+    std::set<std::string> orcid_lines;
+    std::transform(note_range.first, note_range.second, std::inserter(orcid_lines, orcid_lines.end()),
+                   [](const auto &key_and_value) { return key_and_value.second; });
+
+    for (const auto &orcid_line : orcid_lines) {
+        std::vector<std::string> orcid_and_noteCreator;
+        StringUtil::SplitThenTrimWhite(orcid_line, "|", &orcid_and_noteCreator);
+        if (orcid_and_noteCreator.size() < 2) {
+            LOG_WARNING("Invalid ORCID information: \"" + orcid_line + "\"");
+            continue;
+        }
+
+        const std::string orcid(orcid_and_noteCreator[0]);
+        static ThreadSafeRegexMatcher orcid_matcher("^\\d{4}-\\d{4}-\\d{4}-\\d{3}(?:(\\d|x))$", ThreadSafeRegexMatcher::CASE_INSENSITIVE);
+        if (!orcid_matcher.match(orcid)) {
+            LOG_WARNING("Invalid ORCID \"" + orcid + "\"");
+            continue;
+        }
+
+        const std::string noteCreator(TextUtil::CollapseAndTrimWhitespace(orcid_and_noteCreator[1]));
+        auto creator_matcher1(ThreadSafeRegexMatcher(creator->first_name_ + "\\s+" + creator->last_name_));
+        auto creator_matcher2(ThreadSafeRegexMatcher(creator->last_name_ + "\\s*,\\s*" + creator->first_name_));
+        if (creator_matcher1.match(noteCreator) or creator_matcher2.match(noteCreator))
+            creator->orcid_ = orcid;
+    }
+}
+
+
 const std::string TIKA_SERVER_DETECT_STRING_LANGUAGE_URL("http://localhost:9998/language/string");
 std::string TikaDetectLanguage(const std::string &record_text) {
     Downloader downloader;
@@ -543,7 +579,10 @@ void StripLanguageSubcodes(std::set<std::string> * const languages) {
 void NormalizeGivenLanguages(MetadataRecord * const metadata_record) {
     // Normalize given languages
     // We cant remove during iteration, so we use a copy
-    std::set<std::string> languages(metadata_record->languages_);
+
+    std::set<std::string> languages;
+    std::transform(metadata_record->languages_.begin(), metadata_record->languages_.end(), std::inserter(languages, languages.end()),
+                   [](const std::string language) { return StringUtil::ASCIIToLower(language); });
     metadata_record->languages_.clear();
     StripLanguageSubcodes(&languages);
     for (const auto &language : languages) {
@@ -723,6 +762,23 @@ void DetectNotes(MetadataRecord * const metadata_record, const ConversionParams 
 }
 
 
+void DetectBibliographies(MetadataRecord * const metadata_record) {
+    for (auto &keyword : metadata_record->keywords_) {
+        if (TextUtil::UTF8ToLower(keyword) == "bibliography")
+            keyword = "Bibliografie";
+    }
+}
+
+
+void DetectObituaries(MetadataRecord * const metadata_record) {
+    for (auto &keyword : metadata_record->keywords_) {
+        if (TextUtil::UTF8ToLower(keyword) == "obituary")
+            keyword = "Nachruf";
+    }
+}
+
+
+const ThreadSafeRegexMatcher PAGE_RANGE_SEPARATOR_MATCHER("–");
 const ThreadSafeRegexMatcher PAGE_RANGE_MATCHER("^(.+)-(.+)$");
 const ThreadSafeRegexMatcher PAGE_RANGE_DIGIT_MATCHER("^(\\d+)-(\\d+)$");
 const ThreadSafeRegexMatcher PROPER_LAST_NAME("^(?!\\p{L}\\.).*$");
@@ -738,6 +794,12 @@ std::string GetSWBLookupURL(const ConversionParams &parameters) {
     if (not subgroup_params.author_swb_lookup_url_.empty())
         return subgroup_params.author_swb_lookup_url_;
     return parameters.group_params_.author_swb_lookup_url_;
+}
+
+void AddPagesNotOnlineFirst(MetadataRecord * const metadata_record, const ConversionParams &parameters) {
+    const auto &journal_params(parameters.download_item_.journal_);
+    if (journal_params.pages_not_online_first_)
+        metadata_record->pages_not_online_first_ = true;
 }
 
 
@@ -757,10 +819,13 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Convers
     StringUtil::LeftTrim(&metadata_record->volume_, '0');
 
     // normalise pages
-    const auto pages(metadata_record->pages_);
+    std::string pages(metadata_record->pages_);
+    pages = PAGE_RANGE_SEPARATOR_MATCHER.replaceAll(pages, "-");
     auto page_match(PAGE_RANGE_DIGIT_MATCHER.match(pages));
     if (page_match and page_match[1] == page_match[2])
         metadata_record->pages_ = page_match[1];
+    else
+        metadata_record->pages_ = pages;
 
     // override publication title
     metadata_record->publication_title_ = journal_params.name_;
@@ -793,9 +858,11 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Convers
     // autodetect or map language
     AdjustLanguages(metadata_record, journal_params);
 
+
     // fetch creator GNDs and postprocess names
     for (auto &creator : metadata_record->creators_) {
         PostProcessAuthorName(&creator.first_name_, &creator.last_name_, &creator.title_, &creator.affix_, metadata_record->languages_);
+        AddOrcidToCreator(metadata_record, &creator);
 
         if (not creator.last_name_.empty()) {
             std::string combined_name(creator.last_name_);
@@ -814,6 +881,8 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Convers
     // fill-in license and SSG values
     if (journal_params.license_ == "LF")
         metadata_record->license_ = journal_params.license_;
+    else if (journal_params.license_ == "KF")
+        metadata_record->license_ = "KF";
     else if (metadata_record->custom_metadata_.find("LF") != metadata_record->custom_metadata_.end())
         metadata_record->license_ = "LF";
     else
@@ -824,6 +893,9 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Convers
 
     DetectReviews(metadata_record, parameters);
     DetectNotes(metadata_record, parameters);
+    DetectBibliographies(metadata_record);
+    DetectObituaries(metadata_record);
+    AddPagesNotOnlineFirst(metadata_record, parameters);
 }
 
 
@@ -1073,7 +1145,7 @@ void RewriteMarcFieldsIf(MARC::Record * const marc_record, const ConversionParam
 
 ThreadSafeRegexMatcher::MatchResult MatchRomanPageOrPageRange(const std::string &pages) {
     static const auto roman_page_range_matcher(ThreadSafeRegexMatcher(
-        "([ivxlcdm]+)(?:[\\W]([ivxlcdm]+))?",
+        "^([ivxlcdm]+)(?:[\\W]([ivxlcdm]+))?$",
         ThreadSafeRegexMatcher::ENABLE_UTF8 | ThreadSafeRegexMatcher::ENABLE_UCP | ThreadSafeRegexMatcher::CASE_INSENSITIVE));
     return roman_page_range_matcher.match(pages);
 }
@@ -1112,6 +1184,18 @@ std::string TruncateAbstractField(const std::string &abstract_field) {
 }
 
 
+bool IsAllAuthorsAutomaticallyAssociated(MARC::Record * const marc_record) {
+    const auto authors_and_ppns(marc_record->getAllAuthorsAndGNDCodes());
+    if (not authors_and_ppns.size())
+        return false;
+    for (const auto &[author, ppn] : authors_and_ppns) {
+        if (ppn.empty())
+            return false;
+    }
+    return true;
+}
+
+
 void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record, const ConversionParams &parameters,
                                           MARC::Record * const marc_record, std::string * const marc_record_hash) {
     *marc_record = MARC::Record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::SERIAL_COMPONENT_PART);
@@ -1134,6 +1218,9 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
             subfields.appendSubfield('0', "(DE-627)" + creator.ppn_);
         if (not creator.gnd_number_.empty())
             subfields.appendSubfield('0', "(DE-588)" + creator.gnd_number_);
+        // Orcid may only be inserted if no GND is present
+        if (creator.gnd_number_.empty() and not creator.orcid_.empty())
+            subfields.appendSubfield('0', "(orcid)" + creator.orcid_);
         if (not creator.type_.empty()) {
             const auto creator_type_marc21(CREATOR_TYPES_TO_MARC21_MAP.find(creator.type_));
             if (creator_type_marc21 == CREATOR_TYPES_TO_MARC21_MAP.end())
@@ -1367,10 +1454,19 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
     if (parameters.download_item_.journal_.selective_evaluation_)
         marc_record->insertFieldAtEnd("935", { { 'a', "NABZ" }, { '2', "LOK" } });
 
+    // Disable Match & Merge
+    marc_record->insertField("912", { { 'a', "NOMM" } });
+
     // Personalized Authors
     // c.f. https://github.com/ubtue/DatenProbleme/issues/1651
-    if (parameters.download_item_.journal_.personalized_authors_ == "J" and marc_record->hasTag("100"))
-        marc_record->insertFieldAtEnd("935", { { 'a', "tiep" }, { '2', "LOK" } });
+    if (parameters.download_item_.journal_.personalized_authors_ == "J" and marc_record->hasTag("100")
+        and (not marc_record->isReviewArticle()))
+    {
+        // Only add tiep if there is at least one author is only given verbally
+        // c.f. https://github.com/ubtue/DatenProbleme/issues/2185
+        if (not IsAllAuthorsAutomaticallyAssociated(marc_record))
+            marc_record->insertFieldAtEnd("935", { { 'a', "tiep" }, { '2', "LOK" } });
+    }
 
     // Book-keeping fields
     if (not metadata_record.url_.empty())
@@ -1398,6 +1494,10 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
 
     // Rewrite fields if
     RewriteMarcFieldsIf(marc_record, parameters);
+
+    // Handle special case in OF handling
+    if (metadata_record.pages_not_online_first_)
+        marc_record->insertField("PNO", { { 'a', "1" } });
 
     // Has to be generated in the very end as it contains the hash of the record
     *marc_record_hash = CalculateMarcRecordHash(*marc_record);
@@ -1577,9 +1677,9 @@ void ConversionTasklet::run(const ConversionParams &parameters, ConversionResult
 ConversionTasklet::ConversionTasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const instance_counter,
                                      std::unique_ptr<ConversionParams> parameters)
     : Util::Tasklet<ConversionParams, ConversionResult>(
-        instance_counter, parameters->download_item_, "Conversion: " + parameters->download_item_.url_.toString(),
-        std::bind(&ConversionTasklet::run, this, std::placeholders::_1, std::placeholders::_2),
-        std::unique_ptr<ConversionResult>(new ConversionResult()), std::move(parameters), ResultPolicy::YIELD) {
+          instance_counter, parameters->download_item_, "Conversion: " + parameters->download_item_.url_.toString(),
+          std::bind(&ConversionTasklet::run, this, std::placeholders::_1, std::placeholders::_2),
+          std::unique_ptr<ConversionResult>(new ConversionResult()), std::move(parameters), ResultPolicy::YIELD) {
 }
 
 

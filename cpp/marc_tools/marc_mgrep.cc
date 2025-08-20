@@ -47,7 +47,6 @@ class Query {
 
 public:
     Query() = default;
-    Query(const Query &other) = default;
     Query(const std::string &tag, const char subfield_code, RegexMatcher * const matcher)
         : tag_(tag), subfield_code_(subfield_code), matcher_(matcher) { }
     bool operator<(const Query &rhs) const;

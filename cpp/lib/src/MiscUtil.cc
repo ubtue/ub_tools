@@ -662,7 +662,12 @@ bool AddToPATH(const std::string &new_directory_path, const PreferredPathLocatio
 }
 
 
-std::string GenerateAddress(const std::string &optional_first_name, const std::string &optional_last_name, const std::string &fallback) {
+std::string GenerateSubscriptionRecipientName(const std::string &optional_first_name, const std::string &optional_last_name,
+                                              const std::string &language) {
+    std::string fallback("Subscriber");
+    if (language == "de")
+        fallback = "Abonnent/in";
+
     if (optional_first_name.empty())
         return optional_last_name.empty() ? fallback : optional_last_name;
     else if (optional_last_name.empty())
@@ -706,7 +711,12 @@ std::string NormalizeName(const std::string &name) {
 
 
 const ThreadSafeRegexMatcher CORPORATE_AUTHOR_MATCHER(
-    "\\b(Universit\\w+|College|School|Institut\\w+|Fakult\\w+|Council|Office|Association|International|Center|Centre)\\b",
+    "\\b(Universit\\w+|College|School|Institut\\w+|Fakult\\w+|Council|Office|"
+    "Association|International|Centers?|Centre|Administration|"
+    "Bureau?|Committee|National\\s+Survey|Research\\s+Forum|Commission|"
+    "County|Workgroup|Secretariat|Community|Consortium|Statistics\\s+Project|"
+    "Department|Services|Academ(?:y|ies)|Project|Team|Statistics?"
+    ")\\b",
     ThreadSafeRegexMatcher::Option::ENABLE_UTF8 | ThreadSafeRegexMatcher::Option::CASE_INSENSITIVE);
 
 

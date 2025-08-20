@@ -1,8 +1,9 @@
 /** \file   FileUtil.cc
  *  \brief  Implementation of file related utility classes and functions.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
+ *  \author Steven Lolong (steven.lolong@uni-tuebingen.de)
  *
- *  \copyright 2015-2021 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2023 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -19,8 +20,10 @@
  */
 #include "FileUtil.h"
 #include <fstream>
+#include <iostream>
 #include <list>
 #include <memory>
+#include <regex>
 #include <stdexcept>
 #include <cassert>
 #include <cerrno>
@@ -1140,6 +1143,11 @@ void CopyOrDie(const std::string &from_path, const std::string &to_path) {
         LOG_ERROR("failed to copy \"" + from_path + "\" to \"" + to_path + "\"!");
 }
 
+void CopyOrDieXFs(const std::string fromPath, const std::string toPath) {
+    const std::string copy_file_syntax(ExecUtil::Which("cp"));
+    const std::vector<std::string> exec_param{ fromPath, toPath };
+    ExecUtil::ExecOrDie(copy_file_syntax, exec_param);
+}
 
 bool DeleteFile(const std::string &path) {
     return ::unlink(path.c_str()) == 0;
@@ -1562,6 +1570,5 @@ bool ReadLink(const std::string &path, std::string * const link_target) {
         }
     }
 }
-
 
 } // namespace FileUtil

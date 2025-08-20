@@ -6,7 +6,7 @@
 [Unpaywall]
 changelist_url = http://api.unpaywall.org/feed/changefile
 api_key = MY_API_KEY
-changelist_file_regex = changed_dois_with_versions_([\d-]+)(.*)([\d-]).*.jsonl.gz
+changelist_file_regex = changed_dois_with_versions_([\\d-]+)(.*)([\\d-]).*.jsonl.gz
 """
 
 import dbus
@@ -25,7 +25,7 @@ def GetChangelists(url, api_key):
     print("Get Changelists")
     for attempt_number in range(3):
         try:
-            response = urllib.request.urlopen(url + '?api_key=' + api_key)
+            response = urllib.request.urlopen(url + '?api_key=' + api_key + '&interval=week')
             jdata = json.load(response)
             # Get only JSON update entries, no CSV
             json_update_objects = [item for item in jdata['list'] if item['filetype'] == 'jsonl']
@@ -76,10 +76,9 @@ def DownloadUpdateFiles(download_list, json_update_objects, api_key, target_dire
     if not target_directory is None:
        os.chdir(target_directory)
 
-    oadoi_downloader = urllib.request.URLopener()
     for url, filename in zip(download_urls_and_filenames['urls'], download_urls_and_filenames['filenames']):
         print("Downloading \"" + url + "\" to \"" + filename + "\"")
-        oadoi_downloader.retrieve(url, filename)
+        urllib.request.urlretrieve(url, filename)
 
 
 def CreateImportedSymlink(filename, dest):

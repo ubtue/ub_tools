@@ -43,11 +43,8 @@ namespace {
 
 
 void CollectMonoPPNs(MARC::Reader * const marc_reader, std::unordered_set<std::string> * const monograph_ppns) {
-    unsigned record_count(0);
     std::unordered_set<std::string> superior_ppns;
     while (const MARC::Record record = marc_reader->read()) {
-        ++record_count;
-
         if (record.isMonograph())
             monograph_ppns->emplace(record.getControlNumber());
     }

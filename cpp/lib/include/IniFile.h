@@ -36,6 +36,7 @@
 #include <unordered_map>
 #include <vector>
 #include <cassert>
+#include <cstdint>
 
 
 // Forward declaration:
@@ -78,7 +79,6 @@ public:
     public:
         explicit Section(const std::string &section_name): section_name_(section_name) { }
         Section() = default;
-        Section(const Section &other) = default;
 
         inline bool operator==(const std::string &section_name) const { return section_name == section_name_; }
 

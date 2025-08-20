@@ -40,7 +40,6 @@
 /export_vufind_redirects
 /extract_authority_data_translations
 /extract_conspicouus_names_from_zota
-/extract_keywords_for_translation
 /extract_local_keywords
 /extract_local_krimdok_topics
 /extract_person_gnd_numbers
@@ -74,6 +73,7 @@
 /inifile_lookup
 /insert_translation_gaps
 /installer
+/issn_lookup
 /jop_grep
 /journal_publishing_processor
 /json_grep
@@ -88,6 +88,7 @@
 /make_named_pipe
 /new_journal_alert
 /new_journal_tool
+/new_translation_items_alert
 /ngram_stats
 /normalise_and_deduplicate_language
 /normalise_author_name
@@ -97,7 +98,6 @@
 /oai_pmh_harvester
 /oai_pmh_list_formats
 /onix_processor
-/populate_in_tuebingen_available
 /regex_matcher
 /refterm_augmentor
 /remove_leading_bytes

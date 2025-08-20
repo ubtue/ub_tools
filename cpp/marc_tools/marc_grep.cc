@@ -1,10 +1,11 @@
 /** \file    marc_grep.cc
  *  \brief   A tool for fancy grepping in MARC-21 datasets.
  *  \author  Dr. Johannes Ruscheinski
+ *  \author  Steven Lolong
  */
 
 /*
-    Copyright (C) 2015-2020, Library of the University of Tübingen
+    Copyright (C) 2015-2023, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -84,7 +85,7 @@ char help_text[] =
     "\n"
     "  Output label format:\n"
     "    label_format = matched_field_or_subfield | control_number | control_number_and_matched_field_or_subfield\n"
-    "                   | no_label | marc_binary | marc_xml | control_number_and_traditional\n"
+    "                   | no_label | marc_binary | marc_xml | control_number_and_traditional | xml_debug\n"
     "\n"
     "  The default output label is the control number followed by a colon followed by the matched field or \n"
     "  subfield followed by a colon.  When the formats are \"marc_binary\" or \"marc_xml\" entire records will always\n"
@@ -119,7 +120,8 @@ enum OutputLabel {
     NO_LABEL,
     MARC_BINARY,
     MARC_XML,
-    CONTROL_NUMBER_AND_TRADITIONAL
+    CONTROL_NUMBER_AND_TRADITIONAL,
+    XML_DEBUG
 };
 
 
@@ -138,6 +140,8 @@ OutputLabel ParseOutputLabel(const std::string &label_format_candidate) {
         return MARC_BINARY;
     if (label_format_candidate == "marc_xml")
         return MARC_XML;
+    if (label_format_candidate == "xml_debug")
+        return XML_DEBUG;
     if (label_format_candidate == "control_number_and_traditional")
         return CONTROL_NUMBER_AND_TRADITIONAL;
 
@@ -168,6 +172,34 @@ void Emit(const std::string &control_number, const std::string &tag_or_tag_plus_
         LOG_ERROR("MARC_BINARY or MARC_XML should never be passed into Emit(0!");
     case CONTROL_NUMBER_AND_TRADITIONAL:
         std::cout << control_number << ':' << tag_or_tag_plus_subfield_code << ':' << StringUtil::Map(contents, '\x1F', '$') << '\n';
+        return;
+    case XML_DEBUG:
+        std::string xml_string_output;
+        XmlWriter xml_writer(&xml_string_output, XmlWriter::XmlDeclarationWriteBehaviour::DoNotWriteTheXmlDeclaration, 0U,
+                             XmlWriter::NoConversion);
+        xml_writer.openTag(control_number, false);
+
+        if (tag_or_tag_plus_subfield_code.length() == 3) {
+            MARC::Subfields subfields(contents);
+            xml_writer.openTag(tag_or_tag_plus_subfield_code, false);
+            for (const auto &subfield : subfields) {
+                std::string str_code_temp;
+                str_code_temp += subfield.code_;
+                xml_writer.openTag(str_code_temp, true);
+                xml_writer.write(subfield.value_);
+                xml_writer.closeTag();
+            }
+            xml_writer.closeTag();
+
+        } else {
+            xml_writer.openTag(tag_or_tag_plus_subfield_code.substr(0, 3), false);
+            xml_writer.openTag(tag_or_tag_plus_subfield_code.substr(3, 3), true);
+            xml_writer.write(contents);
+            xml_writer.closeTag();
+            xml_writer.closeTag();
+        }
+        xml_writer.closeTag();
+        std::cout << xml_string_output << std::endl;
         return;
     }
 }
@@ -399,7 +431,8 @@ void FieldGrep(const unsigned max_records, const unsigned sampling_rate, const s
         // Extract fields and subfields:
         for (const auto &cond_and_field_or_subfield : query_desc.getCondsAndFieldOrSubfieldDescs()) {
             if (ProcessConditions(output_format, cond_and_field_or_subfield.first, cond_and_field_or_subfield.second, record,
-                                  &tags_and_contents)) {
+                                  &tags_and_contents))
+            {
                 matched = true;
                 if (output_format == MARC_BINARY or output_format == MARC_XML)
                     break;

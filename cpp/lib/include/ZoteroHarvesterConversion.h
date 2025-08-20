@@ -59,17 +59,19 @@ struct MetadataRecord {
         std::string type_;
         std::string ppn_;
         std::string gnd_number_;
+        std::string orcid_;
 
     public:
         Creator(const std::string &first_name, const std::string &last_name, const std::string &type)
             : first_name_(first_name), last_name_(last_name), type_(type) { }
     };
 
+    using Creators = std::vector<Creator>;
 
     std::string item_type_;
     std::string title_;
     std::string short_title_;
-    std::vector<Creator> creators_;
+    Creators creators_;
     std::string abstract_note_;
     std::string publication_title_;
     std::string volume_;
@@ -86,9 +88,10 @@ struct MetadataRecord {
     SSGType ssg_;
     std::vector<std::string> keywords_;
     std::multimap<std::string, std::string> custom_metadata_;
+    bool pages_not_online_first_;
 
 public:
-    explicit MetadataRecord(): superior_type_(SuperiorType::INVALID), ssg_(SSGType::INVALID) { }
+    explicit MetadataRecord(): superior_type_(SuperiorType::INVALID), ssg_(SSGType::INVALID), pages_not_online_first_(false) { }
 
 public:
     std::string toString() const;

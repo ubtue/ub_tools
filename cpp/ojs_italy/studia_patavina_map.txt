@@ -1,0 +1,7 @@
+TYPE | Studia_Patavina
+200a | 245a
+700a | XXXa (InsertAuthors)
+700b | XXXa (AppendAuthorFirstName)
+700f | 100d (InsertOrForceSubfield)
+101a | 041a
+461v | XXXa (ExtractStudiaPatavinaVolumeYearAndPages)

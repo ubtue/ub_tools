@@ -24,7 +24,7 @@
 
 namespace {
 [[noreturn]] void Usage() {
-    ::Usage("marc_in marc_out associations.txt");
+    ::Usage("[--no-ixtheom] marc_in marc_out associations.txt");
 }
 
 
@@ -41,8 +41,8 @@ void CreateAssociationMap(File * const association_file, std::map<std::string, s
 }
 
 
-void AugmentMarc(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
-                 const std::map<std::string, std::string> &associations) {
+void AugmentMarc(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer, const std::map<std::string, std::string> &associations,
+                 const bool no_ixtheom) {
     while (MARC::Record record = marc_reader->read()) {
         for (const auto author_tag : { "100", "700" }) {
             for (auto &author_field : record.getTagRange(author_tag)) {
@@ -50,7 +50,8 @@ void AugmentMarc(MARC::Reader * const marc_reader, MARC::Writer * const marc_wri
                 const std::string author(author_subfields.getFirstSubfieldWithCode('a'));
                 if (author.empty())
                     continue;
-                author_subfields.appendSubfield('4', "aut");
+                if (not author_subfields.hasSubfield('4'))
+                    author_subfields.appendSubfield('4', "aut");
                 const auto association(associations.find(author));
                 if (association == associations.end()) {
                     // Make sure $4aut is set
@@ -60,8 +61,10 @@ void AugmentMarc(MARC::Reader * const marc_reader, MARC::Writer * const marc_wri
                 std::string gnd(association->second);
                 author_subfields.appendSubfield('0', "(DE-588)" + gnd);
                 author_field.setSubfields(author_subfields);
-                record.insertFieldAtEnd("887",
-                                        { { 'a', "Autor in der Vorlage [" + author + "] maschinell zugeordnet" }, { '2', "ixtheom" } });
+                MARC::Subfields _887Subfields({ { 'a', "Autor in der Vorlage [" + author + "] maschinell zugeordnet" } });
+                if (not no_ixtheom)
+                    _887Subfields.appendSubfield('2', "ixtheom");
+                record.insertFieldAtEnd("887", _887Subfields);
             }
         }
         marc_writer->write(record);
@@ -72,7 +75,18 @@ void AugmentMarc(MARC::Reader * const marc_reader, MARC::Writer * const marc_wri
 
 
 int Main(int argc, char *argv[]) {
-    if (argc != 4)
+    if (argc != 4 and argc != 5)
+        Usage();
+
+    bool no_ixtheom(false);
+
+    if (std::strcmp(argv[1], "--no-ixtheom") == 0) {
+        no_ixtheom = true;
+        ++argv;
+        --argc;
+    }
+
+    if (argc < 4)
         Usage();
 
     const std::string marc_input_path(argv[1]);
@@ -85,6 +99,6 @@ int Main(int argc, char *argv[]) {
 
     std::map<std::string, std::string> associations;
     CreateAssociationMap(association_file.get(), &associations);
-    AugmentMarc(marc_reader.get(), marc_writer.get(), associations);
+    AugmentMarc(marc_reader.get(), marc_writer.get(), associations, no_ixtheom);
     return EXIT_SUCCESS;
 }

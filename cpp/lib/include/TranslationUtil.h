@@ -45,6 +45,9 @@ std::string MapInternational2LetterCodeToGerman3Or4LetterCode(const std::string 
 bool IsValidInternational2LetterCode(const std::string &international_2letter_code_candidate);
 
 
+std::string MapInternational2LetterCodeToFake3LetterEnglishLanguageCode(const std::string &international_2letter_code);
+
+
 /** \note Aborts if "german_3letter_code" is unknown. */
 std::string MapGerman3Or4LetterCodeToInternational2LetterCode(const std::string &german_3letter_code);
 

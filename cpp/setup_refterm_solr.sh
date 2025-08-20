@@ -6,7 +6,7 @@ export VUFIND_SOLRMARC_HOME="$VUFIND_HOME/import/"
 export UB_TOOLS_HOME="/usr/local/ub_tools/"
 export CONFIG_FILE_DIR="$UB_TOOLS_HOME/cpp/data/refterm_solr_conf"
 export LOGDIR="/mnt/zram/solr/vufind/logs/"
-ZRAM_DISK_SIZE=2147483648 # Has to be in bytes in oder to compare the set value.
+ZRAM_DISK_SIZE=3221225472  # Has to be in bytes in oder to compare the set value.
 
 
 export SOLR_BIN="$VUFIND_HOME"/solr/vendor/bin/
@@ -94,7 +94,7 @@ function IsSolrAvailable() {
    # https://github.com/solrmarc/solrmarc/blob/master/src/org/solrmarc/solr/SolrCoreLoader.java
    local SOLR_PING_URL=$1
    for i in $(seq 1 5); do
-      SOLR_UP=$(curl --get --silent "$SOLR_PING_URL" | grep '.*status.*OK.*')
+      SOLR_UP=$(curl --fail --get --silent "$SOLR_PING_URL" | grep '.*status.*OK.*')
       if [[ ! -z $SOLR_UP ]]; then
           return 0 #true
       fi
@@ -122,7 +122,6 @@ rsync --archive --recursive "$CONFIG_FILE_DIR/" /mnt/zram
 # Copy jars to zram
 rsync --archive --include='*.jar' --exclude='*' "$VUFIND_SOLRMARC_HOME" /mnt/zram/import
 rsync --archive "$VUFIND_SOLRMARC_HOME"/lib /mnt/zram/import
-rsync --archive "$VUFIND_SOLRMARC_HOME"/bin /mnt/zram/import
 rsync --archive "$VUFIND_SOLRMARC_HOME"/lib_local /mnt/zram/import
 rsync --archive "$VUFIND_SOLRMARC_HOME"/index_java /mnt/zram/import
 

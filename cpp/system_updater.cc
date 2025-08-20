@@ -111,7 +111,7 @@ int Main(int argc, char *argv[]) {
 
     std::vector<std::string> script_names;
     const std::string SYSTEM_UPDATES_DIR(argv[1]);
-    FileUtil::Directory system_updates_dir(SYSTEM_UPDATES_DIR, "(^\\d+\\.sh$|\\d+\\.(?:.*)\\.sql)");
+    FileUtil::Directory system_updates_dir(SYSTEM_UPDATES_DIR, "(^\\d+\\.sh$|\\d+\\.(?:.*)\\.sql$)");
     for (const auto &entry : system_updates_dir) {
         const unsigned script_version = GetVersionFromScriptName(entry.getName());
         if (script_version < 100)

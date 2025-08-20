@@ -153,10 +153,11 @@ void ConvertAuthors(const CORE::Work &work, MARC::Record * const record, const s
 }
 
 
-// \return True if a title was found, else false.
 void ConvertTitle(const CORE::Work &work, MARC::Record * const record) {
     std::string title(work.getTitle());
+    title = RegexMatcher::ReplaceAll("(\r?\n)", title, " ");
     title = RegexMatcher::ReplaceAll("\\s+/\\s+", title, "/");
+    title = RegexMatcher::ReplaceAll("\\s{2,}", title, " ");
     title = CORE::ReplaceFaultyEntities(title);
     record->insertField("245", { { 'a', title } }, /* indicator 1 = */ '1', /* indicator 2 = */ '0');
 }
@@ -273,6 +274,7 @@ void ConvertJSONToMARC(const std::vector<CORE::Work> &works, MARC::Writer * cons
         new_record.insertField("084", { { 'a', "2,1" }, { '2', "ssgn" } });
         new_record.insertField("591", 'a', "Metadaten maschinell erstellt (TUKRIM)");
         new_record.insertField("852", 'a', project_sigil);
+        new_record.insertField("912", 'a', "NOMM");
         if (is_article)
             ConvertYear(work, &new_record);
         ConvertDOI(work, &new_record);
@@ -394,10 +396,8 @@ void Filter(int argc, char **argv) {
         ++total_record_counter;
         progress = (100 * (total_record_counter)) / works.size();
         if (progress >= display_next) {
-            std::cout << "\r"
-                      << "[" << std::string(progress / 5, (char)35u) << std::string(100 / 5 - progress / 5, ' ') << "]";
-            std::cout << progress << "%"
-                      << " [record " << total_record_counter << " of " << works.size() << "]";
+            std::cout << "\r" << "[" << std::string(progress / 5, (char)35u) << std::string(100 / 5 - progress / 5, ' ') << "]";
+            std::cout << progress << "%" << " [record " << total_record_counter << " of " << works.size() << "]";
             std::cout.flush();
             display_next += step;
         }
@@ -689,7 +689,8 @@ void SplitDataProviderId(int argc, char **argv) {
             for (const auto &data_provider_id : work.getDataProviderIds()) {
                 output_file = output_dir + std::to_string(data_provider_id) + ".json";
                 if (std::find(list_of_data_provider_id.begin(), list_of_data_provider_id.end(), data_provider_id)
-                    != list_of_data_provider_id.end()) {
+                    != list_of_data_provider_id.end())
+                {
                     // id is exist in the list
                     CORE::OutputFileAppend(output_file, work, 0);
                     ++data_provider_id_counter[data_provider_id];
@@ -711,10 +712,8 @@ void SplitDataProviderId(int argc, char **argv) {
         // displaying progress
         progress = (100 * (total_record_counter)) / works.size();
         if (progress >= display_next) {
-            std::cout << "\r"
-                      << "[" << std::string(progress / 5, (char)35u) << std::string(100 / 5 - progress / 5, ' ') << "]";
-            std::cout << progress << "%"
-                      << " [record " << total_record_counter << " of " << works.size() << "]";
+            std::cout << "\r" << "[" << std::string(progress / 5, (char)35u) << std::string(100 / 5 - progress / 5, ' ') << "]";
+            std::cout << progress << "%" << " [record " << total_record_counter << " of " << works.size() << "]";
             std::cout.flush();
             display_next += step;
         }
@@ -738,10 +737,8 @@ void SplitDataProviderId(int argc, char **argv) {
         ++closed_counter;
         progress = (100 * (closed_counter)) / list_of_data_provider_id.size();
         if (progress >= display_next) {
-            std::cout << "\r"
-                      << "[" << std::string(progress / 5, (char)35u) << std::string(100 / 5 - progress / 5, ' ') << "]";
-            std::cout << progress << "%"
-                      << " [file " << closed_counter << " of " << list_of_data_provider_id.size() << "]";
+            std::cout << "\r" << "[" << std::string(progress / 5, (char)35u) << std::string(100 / 5 - progress / 5, ' ') << "]";
+            std::cout << progress << "%" << " [file " << closed_counter << " of " << list_of_data_provider_id.size() << "]";
             std::cout.flush();
             display_next += step;
         }

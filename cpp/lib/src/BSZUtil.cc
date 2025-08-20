@@ -23,6 +23,7 @@
 #include <map>
 #include <memory>
 #include <mutex>
+#include <regex>
 #include <thread>
 #include "Archive.h"
 #include "Downloader.h"
@@ -170,6 +171,46 @@ std::string GetAuthorGNDNumber(const std::string &author, const std::string &aut
 }
 
 
+std::string GetAllAuthorGNDNumberCandidates(const std::string &author, const std::string &author_lookup_base_url) {
+    static std::mutex fetch_author_gnd_url_to_gnds_cache_mutex;
+    static std::unordered_multimap<std::string, std::string> fetch_author_gnd_url_to_gnds_cache;
+    static std::regex AUTHOR_GND_MATCHER("Link zu diesem Datensatz in der GND:\\s*<[^>]+><a[^>]*>http(?:s)?://d-nb.info/gnd/([0-9X]+)</a>");
+    static std::regex GND_LIST_MATCHER(R"(\(GND\s+/\s+([\dX]+)\))");
+
+    std::set<std::string> gnds;
+    // "author" must be in the lastname,firstname format
+    const std::string lookup_url(author_lookup_base_url + UrlUtil::UrlEncode(author));
+    {
+        std::lock_guard<std::mutex> lock(fetch_author_gnd_url_to_gnds_cache_mutex);
+        const auto match_range(fetch_author_gnd_url_to_gnds_cache.equal_range(lookup_url));
+        std::for_each(match_range.first, match_range.second, [&gnds](const auto &p) { gnds.emplace(p.second); });
+        if (gnds.size())
+            return StringUtil::Join(gnds, " ");
+    }
+
+    Downloader downloader(lookup_url);
+    if (downloader.anErrorOccurred()) {
+        LOG_WARNING("couldn't download author GND results! downloader error: " + downloader.getLastErrorMessage());
+        return "";
+    }
+
+    std::smatch matches;
+    // Unique GND
+    std::regex_search(downloader.getMessageBody(), matches, AUTHOR_GND_MATCHER);
+    if (matches.size()) {
+        fetch_author_gnd_url_to_gnds_cache.emplace(lookup_url, matches[1]);
+        return matches[1];
+    }
+    // Several candidates
+    const std::string html_page(downloader.getMessageBody());
+    auto match_begin(std::sregex_iterator(html_page.begin(), html_page.end(), GND_LIST_MATCHER));
+    auto match_end((std::sregex_iterator()));
+    std::lock_guard<std::mutex> lock(fetch_author_gnd_url_to_gnds_cache_mutex);
+    std::for_each(match_begin, match_end, [&gnds](auto one_match) { gnds.emplace(one_match[1].str()); });
+    return StringUtil::Join(gnds, " ");
+}
+
+
 // Maps ".*[abc]???.raw" to ".*[abc]001.raw"
 static inline std::string GenerateOutputMemberName(std::string member_name) {
     if (member_name == "sekkor-aut.mrc")
@@ -222,17 +263,61 @@ void ExtractArchiveMembers(const std::string &archive_name, std::vector<std::str
 }
 
 
-void ExtractYearVolumeIssue(const MARC::Record &record, std::string * const year, std::string * const volume, std::string * const issue) {
+IssueInfo ExtractYearVolumeIssue(const MARC::Record &record) {
+    IssueInfo issue_info;
+
     const auto field_008(record.findTag("008"));
     if (field_008 != record.end())
-        *year = field_008->getContents().substr(7, 4);
+        issue_info.year_ = field_008->getContents().substr(7, 4);
 
-    const auto field_936(record.findTag("936"));
-    if (field_936 == record.end())
-        return;
+    // Priority: 773
+    for (const auto &field : record.getTagRange("773")) {
+        if (field.getIndicator1() == '1' && field.getIndicator2() == '8') {
+            auto subfields_g = field.getSubfields().extractSubfields('g');
+            std::vector<std::string> parts;
+            for (const auto &subfield_g : subfields_g) {
+                StringUtil::Split(subfield_g, ':', &parts);
 
-    *volume = field_936->getFirstSubfieldWithCode('d');
-    *issue = field_936->getFirstSubfieldWithCode('e');
+                if (parts.size() == 2) {
+                    if (parts[0] == "year")
+                        issue_info.year_ = parts[1];
+                    else if (parts[0] == "volume")
+                        issue_info.volume_ = parts[1];
+                    else if (parts[0] == "issue")
+                        issue_info.issue_ = parts[1];
+                    else if (parts[0] == "month")
+                        issue_info.month_ = parts[1];
+                    else if (parts[0] == "pages")
+                        issue_info.pages_ = parts[1];
+                }
+            }
+            return issue_info;
+        }
+    }
+
+    // Fallback: 936
+    for (const auto &field : record.getTagRange("936")) {
+        if (field.getIndicator1() == 'u' && field.getIndicator2() == 'w') {
+            if (field.hasSubfield('d'))
+                issue_info.volume_ = field.getFirstSubfieldWithCode('d');
+
+            if (field.hasSubfield('e'))
+                issue_info.issue_ = field.getFirstSubfieldWithCode('e');
+
+            if (field.hasSubfield('h'))
+                issue_info.pages_ = field.getFirstSubfieldWithCode('h');
+
+            if (field.hasSubfield('j'))
+                issue_info.year_ = field.getFirstSubfieldWithCode('j');
+
+            if (field.hasSubfield('c'))
+                issue_info.month_ = field.getFirstSubfieldWithCode('c');
+
+            return issue_info;
+        }
+    }
+
+    return issue_info;
 }
 
 
@@ -240,6 +325,15 @@ std::string GetK10PlusPPNFromSubfield(const MARC::Record::Field &field, const ch
     for (const auto &subfield_code_and_value : field.getSubfields()) {
         if (subfield_code_and_value.code_ == subfield_code and StringUtil::StartsWith(subfield_code_and_value.value_, "(DE-627)"))
             return subfield_code_and_value.value_.substr(__builtin_strlen("(DE-627)"));
+    }
+    return "";
+}
+
+
+std::string GetGNDNumberFromSubfield(const MARC::Record::Field &field, const char subfield_code) {
+    for (const auto &subfield_code_and_value : field.getSubfields()) {
+        if (subfield_code_and_value.code_ == subfield_code and StringUtil::StartsWith(subfield_code_and_value.value_, "(DE-588)"))
+            return subfield_code_and_value.value_.substr(__builtin_strlen("(DE-588)"));
     }
     return "";
 }

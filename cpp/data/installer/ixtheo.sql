@@ -20,24 +20,32 @@ CREATE TABLE keyword_translations (
   id INT NOT NULL AUTO_INCREMENT,
   ppn CHAR(10) NOT NULL,
   gnd_code CHAR(10) NOT NULL,
+  wikidata_id CHAR(12),
   language_code CHAR(4) NOT NULL,
   translation VARCHAR(1024) NOT NULL,
-  status ENUM('reliable_synonym', 'reliable', 'unreliable', 'unreliable_synonym', 'replaced', 'replaced_synonym',
-              'new', 'new_synonym', 'macs') NOT NULL,
+  status ENUM('reliable_synonym', 'reliable', 'unreliable', 'unreliable_cat2'
+              'unreliable_synonym', 'replaced', 'replaced_synonym',
+              'new', 'new_synonym') NOT NULL,
   origin CHAR(3) NOT NULL,
   gnd_system VARCHAR(30),
   translator VARCHAR(50),
   german_updated TINYINT(1),
   priority_entry TINYINT(1),
+  translation_disabled TINYINT(1),
   create_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
   prev_version_id INT DEFAULT NULL,
   next_version_id INT DEFAULT NULL,
   PRIMARY KEY (id),
   KEY keyword_translations_idx_ppn (ppn),
   KEY keyword_translations_idx_language_code (language_code),
+  KEY keyword_translations_idx_wikidata_id (wikidata_id),
   KEY keyword_translations_idx_translation (translation(30)),
   KEY keyword_translations_idx_gnd_code (gnd_code),
-  KEY keyword_translations_idx_status (status)
+  KEY keyword_translations_idx_status (status),
+  KEY keyword_translations_idx_translation_disabled (translation_disabled),
+  KEY keyword_translations_idx_prev_version_id (prev_version_id),
+  KEY keyword_translations_idx_next_version_id (next_version_id),
+  KEY keyword_translations_idx_origin (origin)
 ) DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE translators (
@@ -47,6 +55,7 @@ CREATE TABLE translators (
   filtered_lookfor VARCHAR(100),
   offset VARCHAR(10),
   filtered_offset VARCHAR(10),
+  last_notified DATETIME DEFAULT NULL,
   PRIMARY KEY (translator, translation_target)
 ) DEFAULT CHARSET=utf8mb4;
 
@@ -60,8 +69,15 @@ BEGIN
 
 DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
+          GET DIAGNOSTICS CONDITION 1
+          @p1 = MESSAGE_TEXT,
+          @p2 = RETURNED_SQLSTATE,
+          @p3 = MYSQL_ERRNO,
+          @p4 = SCHEMA_NAME,
+          @p5 = TABLE_NAME;
+          SET @fullerror = CONCAT("ERROR: ", @p1, "|",  @p2, "|", @p3, "|",  @p4, "|", @p5);
           ROLLBACK;
-          SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'ERROR: statement could not be processed';
+          SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = @fullerror;
     END;
 
 START TRANSACTION;
@@ -92,8 +108,15 @@ BEGIN
 
 DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
+          GET DIAGNOSTICS CONDITION 1
+          @p1 = MESSAGE_TEXT,
+          @p2 = RETURNED_SQLSTATE,
+          @p3 = MYSQL_ERRNO,
+          @p4 = SCHEMA_NAME,
+          @p5 = TABLE_NAME;
+          SET @fullerror = CONCAT("ERROR: ", @p1, "|",  @p2, "|", @p3, "|",  @p4, "|", @p5);
           ROLLBACK;
-          SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'ERROR: statement could not be processed';
+          SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = @fullerror;
     END;
 
 START TRANSACTION;

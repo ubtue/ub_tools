@@ -59,6 +59,9 @@ ArchiveType GetArchiveType(const std::string &member_name);
 std::string GetAuthorGNDNumber(const std::string &author, const std::string &author_lookup_base_url);
 
 
+std::string GetAllAuthorGNDNumberCandidates(const std::string &author, const std::string &author_lookup_base_url);
+
+
 // Extracts members from "archive_name" combining those of the same type, e.g. members ending in "a001.raw" and "a002.raw" would
 // be extracted as a single concatenated file whose name ends in "a001.raw".  If "optional_suffix" is not empty it will be appended
 // to each filename.
@@ -67,13 +70,27 @@ void ExtractArchiveMembers(const std::string &archive_name, std::vector<std::str
                            const std::string &optional_suffix = "");
 
 
-void ExtractYearVolumeIssue(const MARC::Record &record, std::string * const year, std::string * const volume, std::string * const issue);
+struct IssueInfo {
+    std::string year_;
+    std::string volume_;
+    std::string issue_;
+    std::string month_;
+    std::string pages_;
+};
+
+IssueInfo ExtractYearVolumeIssue(const MARC::Record &record);
 
 
 /** \brief Attempts to extract a K10+ PPN from a subfield.
  *  \return The extracted PPN or the empty string if nothing was found.
  */
 std::string GetK10PlusPPNFromSubfield(const MARC::Record::Field &field, const char subfield_code);
+
+
+/** \brief Attempts to extract a GND number from a subfield.
+ *  \return The extracted GND or the empty string if nothing was found.
+ */
+std::string GetGNDNumberFromSubfield(const MARC::Record::Field &field, const char subfield_code);
 
 
 } // namespace BSZUtil

@@ -140,8 +140,7 @@ bool SendEmail(const std::string &subsystem_type, const std::string &email_sende
     std::string template_filename(template_filename_prefix + "." + language);
     if (not FileUtil::Exists(template_filename))
         template_filename = template_filename_prefix + ".en";
-    static const std::string email_template(FileUtil::ReadStringOrDie(template_filename));
-
+    const std::string email_template(FileUtil::ReadStringOrDie(template_filename));
 
     std::string list("<ul>\n");
     std::string previous_feed_title;
@@ -255,7 +254,6 @@ struct UserInfo {
 
 public:
     UserInfo() = default;
-    UserInfo(const UserInfo &other) = default;
     UserInfo(const std::string &user_id, const std::string &first_name, const std::string &last_name, const std::string &email,
              const std::string &rss_feed_last_notification, const std::string &language_code)
         : user_id_(user_id), first_name_(first_name), last_name_(last_name), email_(email),
@@ -307,8 +305,8 @@ int Main(int argc, char *argv[]) {
         }
 
         if (ProcessFeeds(user_id, user_info.rss_feed_last_notification_, sender_email, user_info.email_,
-                         MiscUtil::GenerateAddress(user_info.first_name_, user_info.last_name_, "Subscriber"), user_info.language_code_,
-                         vufind_user_id.empty(), subsystem_type, &db_connection))
+                         MiscUtil::GenerateSubscriptionRecipientName(user_info.first_name_, user_info.last_name_, user_info.language_code_),
+                         user_info.language_code_, vufind_user_id.empty(), subsystem_type, &db_connection))
         {
             if (vufind_user_id.empty())
                 ++email_sent_count;

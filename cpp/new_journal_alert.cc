@@ -265,8 +265,8 @@ public:
         if (not FileUtil::Exists(template_filename))
             template_filename = template_filename_prefix + ".en";
 
-        const static std::string email_template(FileUtil::ReadStringOrDie(template_filename));
-        const static std::string email_template_prepared = StringUtil::ReplaceString("\n", "<br>\n", email_template);
+        const std::string email_template(FileUtil::ReadStringOrDie(template_filename));
+        const std::string email_template_prepared = StringUtil::ReplaceString("\n", "<br>\n", email_template);
 
         Template::Map names_to_values_map;
         names_to_values_map.insertScalar("user_name", name_of_user);
@@ -698,11 +698,10 @@ void ProcessSingleUser(
 
     const std::string firstname(row["firstname"]);
     const std::string lastname(row["lastname"]);
-    const auto name_of_user(MiscUtil::GenerateAddress(firstname, lastname, "Subscriber"));
-
     const std::string email(row["email"]);
     const std::string language(row["last_language"]);
     const std::string user_type(row["ixtheo_user_type"]);
+    const auto name_of_user(MiscUtil::GenerateSubscriptionRecipientName(firstname, lastname, language));
 
     // Collect the dates for new issues.
     std::vector<NewIssueInfo> new_issue_infos;

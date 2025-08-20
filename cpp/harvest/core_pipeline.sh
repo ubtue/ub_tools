@@ -16,9 +16,9 @@ declare -r ARCHIVE_FILE_JSON_FILTERED=${ARCHIVE_DIR}/${DATETIME}_filtered.json
 declare -r ARCHIVE_FILE_JSON=${ARCHIVE_DIR}/${DATETIME}.json
 declare -r ARCHIVE_FILE_NOSUPERIOR_MARC=${ARCHIVE_DIR}/${DATETIME}.xml
 declare -r ARCHIVE_FILE_MARC=${ARCHIVE_DIR}/${DATETIME}.xml
-declare -r ISSN_FILE_TXT=${ARCHIVE_DIR}/${DATETIME}.txt
-declare -r ISSN_FILE_MARC=${ARCHIVE_DIR}/${DATETIME}.mrc
-declare -r ISSN_FILE_MARC_NO_DUPLICATION=${ARCHIVE_DIR}/${DATETIME}_clean.mrc
+declare -r ISSN_FILE_TXT=${ARCHIVE_DIR}/${DATETIME}_issns.txt
+declare -r ISSN_FILE_MARC=${ARCHIVE_DIR}/${DATETIME}_issns.mrc
+declare -r ISSN_FILE_MARC_NO_DUPLICATION=${ARCHIVE_DIR}/${DATETIME}_issns_dedup.mrc
 declare -r LOG_FILE=${ARCHIVE_FILE_MARC}.log
 declare -r TIMESTAMP_FILE=/usr/local/var/lib/tuelib/CORE-KrimDok.timestamp
 if [ -r "$TIMESTAMP_FILE" ]; then
@@ -73,12 +73,16 @@ if [ "$RESULT_COUNT" -gt "0" ]; then
     marc_remove_dups "$ISSN_FILE_MARC" "$ISSN_FILE_MARC_NO_DUPLICATION"
     marc_issn_lookup "$ARCHIVE_FILE_NOSUPERIOR_MARC" "$ISSN_FILE_MARC_NO_DUPLICATION" "$ARCHIVE_FILE_MARC"
 
+    # Note: There might be some additional filtering at this point, based on a heurstical comparison against the existing index.
+    # But this is an external process right now and might be applied via marc_filter.
+    # example see core_filter_blacklist.sh
+
     # upload to BSZ
     # TODO: Generate BSZ compatible filename
     # Also: Please note that CORE data can be huge. The BSZ wants us to deliver at most 5.000 datasets per day
     #       and split the data over multiple deliveries, if necessary.
     #echo "Uploading to BSZ"
-    #upload_to_bsz_ftp_server.py "$ARCHIVE_FILE_MARC" /pub/UBTuebingen_Default/
+    #upload_to_bsz_ftp_server.py "$ARCHIVE_FILE_MARC" /2001/Default/input/
 
     # Update contents of the timestamp file:
     #date --iso-8601=date > "$TIMESTAMP_FILE"

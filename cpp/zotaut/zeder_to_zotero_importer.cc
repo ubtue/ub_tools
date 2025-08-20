@@ -360,8 +360,9 @@ unsigned ImportZederEntries(const Zeder::EntryCollection &zeder_entries, Harvest
         bool new_section(false);
         if (existing_journal_section == nullptr) {
             existing_journal_section = harvester_config->addNewConfigSection(title);
-            existing_journal_section->insert(Config::JournalParams::GetIniKeyString(Config::JournalParams::ZEDER_NEWLY_SYNCED_ENTRY),
-                                             "true");
+            if (upload_operation != Config::UPLOAD_OPERATION_TO_STRING_MAP.at(ZoteroHarvester::Config::RSS))
+                existing_journal_section->insert(Config::JournalParams::GetIniKeyString(Config::JournalParams::ZEDER_NEWLY_SYNCED_ENTRY),
+                                                 "true");
             new_section = true;
         }
 

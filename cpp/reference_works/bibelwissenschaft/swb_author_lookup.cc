@@ -43,18 +43,52 @@ const std::string author_swb_lookup_url_bibwiss_ixtheo(
     "TRM3=1[0%2C1%2C2%2C3%2C4%2C5%2C6%2C7%2C8][0%2C1%2C2%2C3%2C4%2C5%2C6%2C7%2C8%2C9][0%2C1%2C2%2C3%2C4%2C5%2C6%2C7%2C8%"
     "2C9]&TRM0=");
 
+const std::string author_swb_lookup_url_krimdok(
+    "https://swb.bsz-bw.de/DB=2.104/SET=70/TTL=1/"
+    "CMD?SGE=&ACT=SRCHM&MATCFILTER=Y&MATCSET=Y&NOSCAN=Y&PARSE_MNEMONICS=N&PARSE_OPWORDS=N&PARSE_OLDSETS=N&IMPLAND=Y&NOABS=Y&ACT0=SRCHA&"
+    "SHRTST=50&IKT0=3040&ACT1=-&IKT1=8991&TRM1=1[0%2C1%2C2%2C3%2C4%2C5%2C6%2C7%2C8][0%2C1%2C2%2C3%2C4%2C5%2C6%2C7%2C8%2C9]"
+    "[0%2C1%2C2%2C3%2C4%2C5%2C6%2C7%2C8%2C9]&TRM0=");
+
+const std::string author_swb_lookup_url_no_restrictions(
+    "https://swb.bsz-bw.de/DB=2.104/SET=1/TTL=1/"
+    "CMD?RETRACE=0&TRM_OLD=&ACT=SRCHA&IKT=1&SRT=RLV&"
+    "&MATCFILTER=N&MATCSET=N&NOABS=Y&SHRTST=50&TRM="
+
+);
 
 [[noreturn]] void Usage() {
-    ::Usage("[--sloppy-filter] author");
+    ::Usage("[--sloppy-filter|--krimdok|--no-restrictions] [--all-matches] author");
 }
 
-enum author_lookup_filter { SLOPPY, BIBWISS_IXTHEO };
+enum author_lookup_filter { SLOPPY, BIBWISS_IXTHEO, KRIMDOK, NO_RESTRICTIONS };
 
 
-std::string LookupAuthor(const std::string &author, author_lookup_filter filter) {
-    const std::string author_swb_lookup_url(filter == SLOPPY ? author_swb_lookup_url_sloppy : author_swb_lookup_url_bibwiss_ixtheo);
-    const std::string gnd_number(HtmlUtil::StripHtmlTags(BSZUtil::GetAuthorGNDNumber(author, author_swb_lookup_url)));
-    return gnd_number;
+std::string LookupAuthor(const std::string &author, author_lookup_filter filter, const bool &all_matches) {
+    std::string author_swb_lookup_url;
+    switch (filter) {
+    case SLOPPY:
+        author_swb_lookup_url = author_swb_lookup_url_sloppy;
+        break;
+    case BIBWISS_IXTHEO:
+        author_swb_lookup_url = author_swb_lookup_url_bibwiss_ixtheo;
+        break;
+    case KRIMDOK:
+        author_swb_lookup_url = author_swb_lookup_url_krimdok;
+        break;
+    case NO_RESTRICTIONS:
+        author_swb_lookup_url = author_swb_lookup_url_no_restrictions;
+        break;
+    default:
+        LOG_ERROR("Unknown lookup filter");
+    }
+
+    if (not all_matches) {
+        const std::string gnd_number(HtmlUtil::StripHtmlTags(BSZUtil::GetAuthorGNDNumber(author, author_swb_lookup_url)));
+        return gnd_number;
+    }
+
+    const std::string all_gnd_numbers(HtmlUtil::StripHtmlTags(BSZUtil::GetAllAuthorGNDNumberCandidates(author, author_swb_lookup_url)));
+    return all_gnd_numbers;
 }
 
 
@@ -62,26 +96,48 @@ std::string LookupAuthor(const std::string &author, author_lookup_filter filter)
 
 
 int Main(int argc, char *argv[]) {
-    if (argc < 2)
+    if (argc < 2 or argc > 5)
         Usage();
 
+
     author_lookup_filter filter(BIBWISS_IXTHEO);
+
     if (std::strcmp(argv[1], "--sloppy-filter") == 0) {
         filter = SLOPPY;
         ++argv;
         --argc;
     }
 
+    if (std::strcmp(argv[1], "--krimdok-filter") == 0) {
+        filter = KRIMDOK;
+        ++argv;
+        --argc;
+    }
+
+    if (std::strcmp(argv[1], "--no-restrictions") == 0) {
+        filter = NO_RESTRICTIONS;
+        ++argv;
+        --argc;
+    }
+
+    bool all_matches(false); /*Get all GND numbers for a name */
+    if (std::strcmp(argv[1], "--all-matches") == 0) {
+        all_matches = true;
+        ++argv;
+        --argc;
+    }
+
+
     std::string author(argv[1]);
     // Make sure, we have space after comma. Otherwise results do not match
     std::vector<std::string> author_parts;
     StringUtil::SplitThenTrimWhite(author, ',', &author_parts);
     author = StringUtil::Join(author_parts, ", ");
-    const std::string gnd_number(LookupAuthor('"' + author + '"', filter));
-    if (gnd_number.empty()) {
+    const std::string gnd_number_or_numbers(LookupAuthor('"' + author + '"', filter, all_matches));
+    if (gnd_number_or_numbers.empty()) {
         LOG_WARNING("Unable to determine GND for author \"" + author + "\"");
         return EXIT_FAILURE;
     }
-    std::cout << gnd_number << '\n';
+    std::cout << gnd_number_or_numbers << '\n';
     return EXIT_SUCCESS;
 }

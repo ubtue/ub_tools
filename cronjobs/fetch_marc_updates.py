@@ -6,32 +6,32 @@
 # (in addition, see BSZ.conf and smtp_server.conf)
 """
 [Kompletter Abzug]
-filename_pattern = ^SA-MARC-ixtheo-(\d\d\d\d\d\d).tar.gz$
+filename_pattern = ^SA-MARC-ixtheo-(\\d\\d\\d\\d\\d\\d).tar.gz$
 directory_on_ftp_server = /ixtheo
 
 [Differenzabzug]
-filename_pattern = ^(?:TA-MARC-ixtheo|SA-MARC-ixtheo_o|TA-MARC-ixtheo_o)-(\d\d\d\d\d\d).tar.gz$
-directory_on_ftp_server = /ixtheo
+filename_pattern = ^(?:TA-MARC-ixtheo|SA-MARC-ixtheo_o|TA-MARC-ixtheo_o)-(\\d\\d\\d\\d\\d\\d).tar.gz$
+directory_on_ftp_server = /swb/ixtheo
 
 [Hinweisabzug]
-filename_pattern = ^SA-MARC-ixtheo_hinweis-(\d\d\d\d\d\d).tar.gz$
-directory_on_ftp_server = /ixtheo
+filename_pattern = ^SA-MARC-ixtheo_hinweis-(\\d\\d\\d\\d\\d\\d).tar.gz$
+directory_on_ftp_server = /swb/ixtheo
 
 [Normdatendifferenzabzug]
-filename_pattern = ^(?:WA-MARCcomb)-(\d\d\d\d\d\d).tar.gz$
-directory_on_ftp_server = /sekkor
+filename_pattern = ^(?:WA-MARCcomb)-(\\d\\d\\d\\d\\d\\d).tar.gz$
+directory_on_ftp_server = /swb/sekkor
 
 [Loeschlisten]
-filename_pattern = ^LOEKXP-(\d\d\d\d\d\d)$
-directory_on_ftp_server = /sekkor
+filename_pattern = ^LOEKXP-(\\d\\d\\d\\d\\d\\d)$
+directory_on_ftp_server = /swb/sekkor
 
 [Loeschlisten2]
-filename_pattern = ^LOEKXP_m-(\d\d\d\d\d\d)$
-directory_on_ftp_server = /ixtheo
+filename_pattern = ^LOEKXP_m-(\\d\\d\\d\\d\\d\\d)$
+directory_on_ftp_server = /swb/ixtheo
 
 [Errors]
-filename_pattern = ^Errors_ixtheo_(\d\d\d\d\d\d)$
-directory_on_ftp_server = /ixtheo
+filename_pattern = ^Errors_ixtheo_(\\d\\d\\d\\d\\d\\d)$
+directory_on_ftp_server = /swb/ixtheo
 
 [Kumulierte Abzuege]
 output_directory = /usr/local/ub_tools/bsz_daten_cumulated
@@ -46,6 +46,10 @@ import sys
 import tempfile
 import traceback
 import util
+
+# Must be the same path as in the merge script and in trigger_pipeline_script.sh
+DOWNLOAD_HAPPENED_MUTEX="/usr/local/var/tmp/bsz_download_happened"
+FETCH_UPDATES_RUN_MUTEX="/usr/local/var/tmp/fetch_updates_run"
 
 
 # Returns "yymmdd_string" incremented by one day unless it equals "000000" (= minus infinity).
@@ -179,6 +183,11 @@ def ShiftDateToTenDaysBefore(date_to_shift):
     date = datetime.datetime.strptime(date_to_shift, "%y%m%d")
     return datetime.datetime.strftime(date - datetime.timedelta(days=10), "%y%m%d")
 
+def CleanStaleMutexFiles():
+    for mutex_file in [ DOWNLOAD_HAPPENED_MUTEX, FETCH_UPDATES_RUN_MUTEX ]:
+        if os.path.exists(mutex_file):
+            os.remove(mutex_file)
+
 
 def Main():
     if len(sys.argv) != 2:
@@ -191,6 +200,7 @@ def Main():
         config = util.LoadConfigFile()
     except Exception as e:
         util.Error("failed to read config file! (" + str(e) + ")")
+    CleanStaleMutexFiles()
 
     ftp = bsz_util.GetFTPConnection()
     msg = []
@@ -206,7 +216,7 @@ def Main():
         downloaded_at_least_some_new_titles = True
         util.Remove("/usr/local/var/lib/tuelib/local_data.sq3") # Must be the same path as in LocalDataDB.cc
     all_downloaded_files += DownloadData(config, "Differenzabzug", ftp, download_cutoff_date, msg)
-    if all_downloaded_files is not []:
+    if all_downloaded_files:
         downloaded_at_least_some_new_titles = True
     all_downloaded_files += DownloadData(config, "Loeschlisten", ftp, download_cutoff_date, msg)
     if config.has_section("Loeschlisten2"):
@@ -230,7 +240,9 @@ def Main():
     AddToCumulativeCollection(all_downloaded_files, config)
     CleanUpCumulativeCollection(config)
     if downloaded_at_least_some_new_titles:
-        util.Touch("/usr/local/var/tmp/bsz_download_happened") # Must be the same path as in the merge script and in trigger_pipeline_script.sh
+        util.Touch(DOWNLOAD_HAPPENED_MUTEX)
+    else:
+        util.Touch(FETCH_UPDATES_RUN_MUTEX)
     util.SendEmail("BSZ File Update", ''.join(msg), priority=5)
 
 

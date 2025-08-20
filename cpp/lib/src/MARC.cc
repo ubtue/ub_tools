@@ -31,6 +31,7 @@
 #include "FileUtil.h"
 #include "MiscUtil.h"
 #include "RegexMatcher.h"
+#include "StringUtil.h"
 #include "TextUtil.h"
 #include "UBTools.h"
 #include "util.h"
@@ -544,7 +545,8 @@ std::string Record::toBinaryString() const {
         if (record_is_oversized) // Include size of the 001 field.
             record_size += fields_.front().getContents().length() + 1 + Record::DIRECTORY_ENTRY_LENGTH;
         while (end != this->end()
-               and (record_size + end->getContents().length() + 1 + Record::DIRECTORY_ENTRY_LENGTH < Record::MAX_RECORD_LENGTH)) {
+               and (record_size + end->getContents().length() + 1 + Record::DIRECTORY_ENTRY_LENGTH < Record::MAX_RECORD_LENGTH))
+        {
             record_size += end->getContents().length() + 1 + Record::DIRECTORY_ENTRY_LENGTH;
             ++end;
         }
@@ -658,6 +660,13 @@ bool Record::isProbablyNewerThan(const Record &other) const {
 void Record::merge(const Record &other) {
     for (const auto &other_field : other)
         insertField(other_field);
+}
+
+
+void Record::setLeader(const std::string new_leader) {
+    leader_ = new_leader;
+    if (not hasValidLeader())
+        LOG_ERROR("Invalid new leader: \"" + new_leader + "\"");
 }
 
 
@@ -1097,13 +1106,11 @@ std::string Record::getMostRecentPublicationYear(const std::string &fallback) co
     }
 
     if ((isArticle() or isReviewArticle()) and not isMonograph()) {
-        for (const auto &_936_field : getTagRange("936")) {
-            const auto j_contents(_936_field.getFirstSubfieldWithCode('j'));
-            if (not j_contents.empty()) {
-                static const auto year_matcher(RegexMatcher::RegexMatcherFactoryOrDie("(\\d{4})"));
-                if (year_matcher->matched(j_contents))
-                    return (*year_matcher)[1];
-            }
+        const auto issue_info(BSZUtil::ExtractYearVolumeIssue(*this));
+        if (not issue_info.year_.empty()) {
+            static const auto year_matcher(RegexMatcher::RegexMatcherFactoryOrDie("(\\d{4})"));
+            if (year_matcher->matched(issue_info.year_))
+                return (*year_matcher)[1];
         }
     }
 
@@ -1187,21 +1194,31 @@ std::set<std::string> Record::getAllAuthors() const {
 }
 
 
-std::map<std::string, std::string> Record::getAllAuthorsAndPPNs() const {
-    std::map<std::string, std::string> author_names_to_authority_ppns_map;
+std::map<std::string, std::string> Record::getAllAuthorsAndCodes(auto &&extract_code_function) const {
+    std::map<std::string, std::string> author_names_to_code_map;
     std::set<std::string> already_seen_author_names;
     for (const auto &tag : AUTHOR_TAGS) {
         for (const auto &field : getTagRange(tag)) {
             for (const auto &subfield : field.getSubfields()) {
                 if (subfield.code_ == 'a' and already_seen_author_names.find(subfield.value_) == already_seen_author_names.end()) {
                     already_seen_author_names.emplace(subfield.value_);
-                    author_names_to_authority_ppns_map[subfield.value_] = BSZUtil::GetK10PlusPPNFromSubfield(field, '0');
+                    author_names_to_code_map[subfield.value_] = extract_code_function(field, '0');
                 }
             }
         }
     }
 
-    return author_names_to_authority_ppns_map;
+    return author_names_to_code_map;
+}
+
+
+std::map<std::string, std::string> Record::getAllAuthorsAndPPNs() const {
+    return getAllAuthorsAndCodes(BSZUtil::GetK10PlusPPNFromSubfield);
+}
+
+
+std::map<std::string, std::string> Record::getAllAuthorsAndGNDCodes() const {
+    return getAllAuthorsAndCodes(BSZUtil::GetGNDNumberFromSubfield);
 }
 
 
@@ -1238,8 +1255,12 @@ std::set<std::string> Record::getISSNs() const {
     std::set<std::string> issns;
     for (const auto &field : getTagRange("022")) {
         const std::string first_subfield_a(field.getFirstSubfieldWithCode('a'));
+        const std::string first_subfield_l(field.getFirstSubfieldWithCode('l'));
         std::string normalised_issn;
         if (MiscUtil::NormaliseISSN(first_subfield_a, &normalised_issn))
+            issns.insert(normalised_issn);
+
+        if (MiscUtil::NormaliseISSN(first_subfield_l, &normalised_issn))
             issns.insert(normalised_issn);
     }
 
@@ -1618,6 +1639,22 @@ bool Record::addSubfieldCreateFieldUnique(const Tag &field_tag, const char subfi
 }
 
 
+bool Record::addSubfieldCreateFieldIfNotExists(const Tag &field_tag, const char subfield_code, const std::string &subfield_value,
+                                               const char indicator1, const char indicator2) {
+    for (auto &field : getTagRange(field_tag)) {
+        if (field.getIndicator1() != indicator1 || field.getIndicator2() != indicator2)
+            continue;
+        if (field.hasSubfield(subfield_code))
+            return false;
+        Subfields subfields(field.getSubfields());
+        subfields.addSubfield(subfield_code, subfield_value);
+        field.setSubfields(subfields);
+        return true;
+    }
+    return insertField(field_tag, { { subfield_code, subfield_value } }, indicator1, indicator2);
+}
+
+
 bool Record::hasFieldWithSubfieldValue(const Tag &field_tag, const char subfield_code, const std::string &subfield_value) const {
     auto field(findTag(field_tag));
     while (field != fields_.cend() and field->getTag() == field_tag) {
@@ -1799,7 +1836,8 @@ bool Record::isValid(std::string * const error_message) const {
                 }
                 ++ch; // Skip over the subfield code.
                 if (unlikely(ch == field.contents_.end() or *ch == '\x1F'))
-                    LOG_WARNING(getControlNumber() + ": subfield '" + std::string(1, *(ch - 1)) + "' is empty! (tag: " + field.getTag().toString() + ")");
+                    LOG_WARNING(getControlNumber() + ": subfield '" + std::string(1, *(ch - 1))
+                                + "' is empty! (tag: " + field.getTag().toString() + ")");
 
                 // Skip over the subfield contents:
                 while (ch != field.contents_.end() and *ch != '\x1F')
@@ -2688,65 +2726,59 @@ std::unordered_set<std::string> Record::getParentControlNumbers(const std::vecto
 
 // See https://www.loc.gov/marc/bibliographic/ for how to construct this map:
 static std::unordered_map<Tag, bool> tag_to_repeatable_map{
-    { Tag("001"), false }, { Tag("003"), false }, { Tag("005"), false }, { Tag("006"), true },
-    { Tag("007"), true },  { Tag("008"), false }, { Tag("010"), false }, { Tag("013"), true },
-    { Tag("015"), true },  { Tag("016"), true },  { Tag("017"), true },  { Tag("018"), false },
-    { Tag("020"), true },  { Tag("022"), true },  { Tag("024"), true },  { Tag("025"), true },
-    { Tag("026"), true },  { Tag("027"), true },  { Tag("028"), true },  { Tag("030"), true },
-    { Tag("031"), true },  { Tag("032"), true },  { Tag("033"), true },  { Tag("034"), true },
-    { Tag("035"), true },  { Tag("036"), false }, { Tag("037"), true },  { Tag("038"), false },
-    { Tag("040"), false }, { Tag("041"), true },  { Tag("042"), false }, { Tag("043"), false },
-    { Tag("044"), false }, { Tag("045"), false }, { Tag("046"), true },  { Tag("047"), true },
-    { Tag("048"), true },  { Tag("050"), true },  { Tag("051"), true },  { Tag("052"), true },
-    { Tag("055"), true },  { Tag("060"), true },  { Tag("061"), true },  { Tag("066"), false },
-    { Tag("070"), true },  { Tag("071"), true },  { Tag("072"), true },  { Tag("074"), true },
-    { Tag("080"), true },  { Tag("082"), true },  { Tag("083"), true },  { Tag("084"), true },
-    { Tag("085"), true },  { Tag("086"), true },  { Tag("088"), true },  { Tag("100"), false },
-    { Tag("110"), false }, { Tag("111"), false }, { Tag("130"), false }, { Tag("186"), true }, // non-standard field only used locally
-    { Tag("210"), true },  { Tag("222"), true },  { Tag("240"), false }, { Tag("242"), true },
-    { Tag("243"), false }, { Tag("245"), false }, { Tag("246"), true },  { Tag("247"), true },
-    { Tag("250"), true },  { Tag("254"), false }, { Tag("255"), true },  { Tag("256"), false },
-    { Tag("257"), true },  { Tag("258"), true },  { Tag("260"), true },  { Tag("263"), false },
-    { Tag("264"), true },  { Tag("270"), true },  { Tag("300"), true },  { Tag("306"), false },
-    { Tag("307"), true },  { Tag("310"), false }, { Tag("321"), true },  { Tag("336"), true },
-    { Tag("337"), true },  { Tag("338"), true },  { Tag("340"), true },  { Tag("342"), true },
-    { Tag("343"), true },  { Tag("344"), true },  { Tag("345"), true },  { Tag("346"), true },
-    { Tag("347"), true },  { Tag("348"), true },  { Tag("351"), true },  { Tag("352"), true },
-    { Tag("355"), true },  { Tag("357"), false }, { Tag("362"), true },  { Tag("363"), true },
-    { Tag("365"), true },  { Tag("366"), true },  { Tag("370"), true },  { Tag("377"), true },
-    { Tag("380"), true },  { Tag("381"), true },  { Tag("382"), true },  { Tag("383"), true },
-    { Tag("384"), false }, { Tag("385"), true },  { Tag("386"), true },  { Tag("388"), true },
-    { Tag("490"), true },  { Tag("500"), true },  { Tag("501"), true },  { Tag("502"), true },
-    { Tag("504"), true },  { Tag("505"), true },  { Tag("506"), true },  { Tag("507"), true },
-    { Tag("508"), true },  { Tag("510"), true },  { Tag("511"), true },  { Tag("513"), true },
-    { Tag("514"), false }, { Tag("515"), true },  { Tag("516"), true },  { Tag("518"), true },
-    { Tag("520"), true },  { Tag("521"), true },  { Tag("522"), true },  { Tag("524"), true },
-    { Tag("525"), true },  { Tag("526"), true },  { Tag("530"), true },  { Tag("533"), true },
-    { Tag("534"), true },  { Tag("535"), true },  { Tag("536"), true },  { Tag("538"), true },
-    { Tag("540"), true },  { Tag("541"), true },  { Tag("542"), true },  { Tag("545"), true },
-    { Tag("546"), true },  { Tag("547"), true },  { Tag("550"), true },  { Tag("552"), true },
-    { Tag("555"), true },  { Tag("556"), true },  { Tag("561"), true },  { Tag("562"), true },
-    { Tag("563"), true },  { Tag("565"), true },  { Tag("567"), true },  { Tag("580"), true },
-    { Tag("581"), true },  { Tag("583"), true },  { Tag("584"), true },  { Tag("585"), true },
+    { Tag("001"), false }, { Tag("003"), false }, { Tag("005"), false }, { Tag("006"), true },  { Tag("007"), true },
+    { Tag("008"), false }, { Tag("010"), false }, { Tag("013"), true },  { Tag("015"), true },  { Tag("016"), true },
+    { Tag("017"), true },  { Tag("018"), false }, { Tag("020"), true },  { Tag("022"), true },  { Tag("024"), true },
+    { Tag("025"), true },  { Tag("026"), true },  { Tag("027"), true },  { Tag("028"), true },  { Tag("030"), true },
+    { Tag("031"), true },  { Tag("032"), true },  { Tag("033"), true },  { Tag("034"), true },  { Tag("035"), true },
+    { Tag("036"), false }, { Tag("037"), true },  { Tag("038"), false }, { Tag("040"), false }, { Tag("041"), true },
+    { Tag("042"), false }, { Tag("043"), false }, { Tag("044"), false }, { Tag("045"), false }, { Tag("046"), true },
+    { Tag("047"), true },  { Tag("048"), true },  { Tag("050"), true },  { Tag("051"), true },  { Tag("052"), true },
+    { Tag("055"), true },  { Tag("060"), true },  { Tag("061"), true },  { Tag("065"), true },  { Tag("066"), false },
+    { Tag("070"), true },  { Tag("071"), true },  { Tag("072"), true },  { Tag("074"), true },  { Tag("080"), true },
+    { Tag("082"), true },  { Tag("083"), true },  { Tag("084"), true },  { Tag("085"), true },  { Tag("086"), true },
+    { Tag("088"), true },  { Tag("100"), false }, { Tag("110"), false }, { Tag("111"), false }, { Tag("130"), false },
+    { Tag("150"), false }, { Tag("151"), false }, { Tag("186"), true }, // non-standard field only used locally
+    { Tag("210"), true },  { Tag("222"), true },  { Tag("240"), false }, { Tag("242"), true },  { Tag("243"), false },
+    { Tag("245"), false }, { Tag("246"), true },  { Tag("247"), true },  { Tag("250"), true },  { Tag("254"), false },
+    { Tag("255"), true },  { Tag("256"), false }, { Tag("257"), true },  { Tag("258"), true },  { Tag("260"), true },
+    { Tag("263"), false }, { Tag("264"), true },  { Tag("270"), true },  { Tag("300"), true },  { Tag("306"), false },
+    { Tag("307"), true },  { Tag("310"), false }, { Tag("321"), true },  { Tag("336"), true },  { Tag("337"), true },
+    { Tag("338"), true },  { Tag("340"), true },  { Tag("342"), true },  { Tag("343"), true },  { Tag("344"), true },
+    { Tag("345"), true },  { Tag("346"), true },  { Tag("347"), true },  { Tag("348"), true },  { Tag("351"), true },
+    { Tag("352"), true },  { Tag("355"), true },  { Tag("357"), false }, { Tag("361"), true },  { Tag("362"), true },
+    { Tag("363"), true },  { Tag("365"), true },  { Tag("366"), true },  { Tag("370"), true },  { Tag("375"), true },
+    { Tag("377"), true },  { Tag("380"), true },  { Tag("381"), true },  { Tag("382"), true },  { Tag("383"), true },
+    { Tag("384"), false }, { Tag("385"), true },  { Tag("386"), true },  { Tag("388"), true },  { Tag("400"), true },
+    { Tag("410"), true },  { Tag("411"), true },  { Tag("430"), true },  { Tag("450"), true },  { Tag("451"), true },
+    { Tag("490"), true },  { Tag("500"), true },  { Tag("501"), true },  { Tag("502"), true },  { Tag("504"), true },
+    { Tag("505"), true },  { Tag("506"), true },  { Tag("507"), true },  { Tag("508"), true },  { Tag("510"), true },
+    { Tag("511"), true },  { Tag("513"), true },  { Tag("514"), false }, { Tag("515"), true },  { Tag("516"), true },
+    { Tag("518"), true },  { Tag("520"), true },  { Tag("521"), true },  { Tag("522"), true },  { Tag("524"), true },
+    { Tag("525"), true },  { Tag("526"), true },  { Tag("530"), true },  { Tag("533"), true },  { Tag("534"), true },
+    { Tag("535"), true },  { Tag("536"), true },  { Tag("538"), true },  { Tag("540"), true },  { Tag("541"), true },
+    { Tag("542"), true },  { Tag("545"), true },  { Tag("546"), true },  { Tag("547"), true },  { Tag("548"), true },
+    { Tag("550"), true },  { Tag("551"), true },  { Tag("552"), true },  { Tag("555"), true },  { Tag("556"), true },
+    { Tag("561"), true },  { Tag("562"), true },  { Tag("563"), true },  { Tag("565"), true },  { Tag("567"), true },
+    { Tag("580"), true },  { Tag("581"), true },  { Tag("583"), true },  { Tag("584"), true },  { Tag("585"), true },
     { Tag("586"), true },  { Tag("588"), true },  { Tag("600"), true },  { Tag("601"), true }, // non-standard field only used locally
-    { Tag("610"), true },  { Tag("611"), true },  { Tag("630"), true },  { Tag("647"), true },
-    { Tag("648"), true },  { Tag("650"), true },  { Tag("651"), true },  { Tag("652"), false }, // non-standard field only used locally
-    { Tag("653"), true },  { Tag("654"), true },  { Tag("655"), true },  { Tag("657"), true },
-    { Tag("658"), true },  { Tag("662"), true },  { Tag("700"), true },  { Tag("710"), true },
-    { Tag("711"), true },  { Tag("720"), true },  { Tag("730"), true },  { Tag("740"), true },
-    { Tag("750"), true },  { Tag("751"), true },  { Tag("752"), true },  { Tag("752"), true },
-    { Tag("754"), true },  { Tag("758"), true },  { Tag("760"), true },  { Tag("762"), true },
-    { Tag("765"), true },  { Tag("767"), true },  { Tag("770"), true },  { Tag("772"), true },
-    { Tag("773"), true },  { Tag("774"), true },  { Tag("775"), true },  { Tag("776"), true },
-    { Tag("777"), true },  { Tag("780"), true },  { Tag("785"), true },  { Tag("786"), true },
-    { Tag("787"), true },  { Tag("800"), true },  { Tag("810"), true },  { Tag("811"), true },
-    { Tag("830"), true },  { Tag("841"), false }, { Tag("842"), false }, { Tag("843"), true },
-    { Tag("844"), true },  { Tag("845"), true },  { Tag("850"), true },  { Tag("852"), true },
-    { Tag("853"), true },  { Tag("854"), true },  { Tag("855"), true },  { Tag("856"), true },
-    { Tag("863"), true },  { Tag("864"), true },  { Tag("865"), true },  { Tag("866"), true },
-    { Tag("867"), true },  { Tag("868"), true },  { Tag("876"), true },  { Tag("877"), true },
-    { Tag("878"), true },  { Tag("880"), true },  { Tag("882"), true },  { Tag("883"), true },
-    { Tag("884"), true },  { Tag("885"), true },  { Tag("886"), true },  { Tag("887"), true },
+    { Tag("610"), true },  { Tag("611"), true },  { Tag("630"), true },  { Tag("647"), true },  { Tag("648"), true },
+    { Tag("650"), true },  { Tag("651"), true },  { Tag("652"), false }, // non-standard field only used locally
+    { Tag("653"), true },  { Tag("654"), true },  { Tag("655"), true },  { Tag("657"), true },  { Tag("658"), true },
+    { Tag("662"), true },  { Tag("667"), true },  { Tag("670"), true },  { Tag("675"), false }, { Tag("677"), true },
+    { Tag("678"), true },  { Tag("680"), true },  { Tag("682"), false }, { Tag("700"), true },  { Tag("710"), true },
+    { Tag("711"), true },  { Tag("720"), true },  { Tag("730"), true },  { Tag("740"), true },  { Tag("750"), true },
+    { Tag("751"), true },  { Tag("752"), true },  { Tag("752"), true },  { Tag("754"), true },  { Tag("758"), true },
+    { Tag("760"), true },  { Tag("762"), true },  { Tag("765"), true },  { Tag("767"), true },  { Tag("770"), true },
+    { Tag("772"), true },  { Tag("773"), true },  { Tag("774"), true },  { Tag("775"), true },  { Tag("776"), true },
+    { Tag("777"), true },  { Tag("780"), true },  { Tag("785"), true },  { Tag("786"), true },  { Tag("787"), true },
+    { Tag("800"), true },  { Tag("810"), true },  { Tag("811"), true },  { Tag("830"), true },  { Tag("841"), false },
+    { Tag("842"), false }, { Tag("843"), true },  { Tag("844"), true },  { Tag("845"), true },  { Tag("850"), true },
+    { Tag("852"), true },  { Tag("853"), true },  { Tag("854"), true },  { Tag("855"), true },  { Tag("856"), true },
+    { Tag("863"), true },  { Tag("864"), true },  { Tag("865"), true },  { Tag("866"), true },  { Tag("867"), true },
+    { Tag("868"), true },  { Tag("876"), true },  { Tag("877"), true },  { Tag("878"), true },  { Tag("880"), true },
+    { Tag("882"), true },  { Tag("883"), true },  { Tag("884"), true },  { Tag("885"), true },  { Tag("886"), true },
+    { Tag("887"), true },
 };
 
 
@@ -2796,7 +2828,7 @@ bool UBTueIsElectronicResource(const Record &marc_record) {
 }
 
 
-bool IsOpenAccess(const Record &marc_record) {
+bool IsOpenAccess(const Record &marc_record, const bool suppress_unpaywall) {
     for (const auto &_856_field : marc_record.getTagRange("856")) {
         const Subfields subfields(_856_field.getSubfields());
         const std::string subfield_z_contents(subfields.getFirstSubfieldWithCode('z'));
@@ -2808,9 +2840,11 @@ bool IsOpenAccess(const Record &marc_record) {
                 return true;
         }
 
-        for (const auto &subfield : subfields) {
-            if (subfield.code_ == 'x' and TextUtil::UTF8ToLower(subfield.value_) == "unpaywall")
-                return true;
+        if (not suppress_unpaywall) {
+            for (const auto &subfield : subfields) {
+                if (subfield.code_ == 'x' and TextUtil::UTF8ToLower(subfield.value_) == "unpaywall")
+                    return true;
+            }
         }
     }
 

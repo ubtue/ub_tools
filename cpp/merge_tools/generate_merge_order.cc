@@ -24,6 +24,7 @@
 #include "BSZUtil.h"
 #include "FileUtil.h"
 #include "IniFile.h"
+#include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "UBTools.h"
 #include "util.h"
@@ -64,6 +65,12 @@ std::string ShiftDateToTenDaysAfter(const std::string &cutoff_date) {
 }
 
 
+inline bool IsLocalDeletionList(const std::string &filename) {
+    static ThreadSafeRegexMatcher local_deletion_list_matcher("^LOEKXP_(k|m)");
+    return local_deletion_list_matcher.match(filename);
+}
+
+
 bool FileComparator(const std::string &filename1, const std::string &filename2) {
     auto date1(BSZUtil::ExtractDateFromFilenameOrDie(filename1));
     if (StringUtil::Contains(filename1, "sekkor"))
@@ -76,23 +83,36 @@ bool FileComparator(const std::string &filename1, const std::string &filename2) 
     if (date1 != date2)
         return date1 < date2;
 
+    // Pseudo complete dumps come before anything else:
+    // Make sure the pseudo complete dump is initially sorted _above_ any SAs so it is cut off
+    // in FindMostRecentCompleteOrPseudoCompleteDump()
+    if (StringUtil::StartsWith(filename1, "Complete-MARC-") and not StringUtil::StartsWith(filename2, "Complete-MARC-"))
+        return true;
+    if (StringUtil::StartsWith(filename2, "Complete-MARC-") and not StringUtil::StartsWith(filename1, "Complete-MARC-"))
+        return false;
+
+
     // Complete dumps come before anything else:
     if (StringUtil::StartsWith(filename1, "SA-") and not StringUtil::StartsWith(filename2, "SA-"))
         return true;
     if (StringUtil::StartsWith(filename2, "SA-") and not StringUtil::StartsWith(filename1, "SA-"))
         return false;
 
-    // Pseudo complete dumps come before anything else:
-    if (StringUtil::StartsWith(filename1, "Complete-MARC-") and not StringUtil::StartsWith(filename2, "Complete-MARC-"))
-        return true;
-    if (StringUtil::StartsWith(filename2, "Complete-MARC-") and not StringUtil::StartsWith(filename1, "Complete-MARC-"))
-        return false;
 
     // Deletion lists come first:
     if (filename1[0] == 'L' and filename2[0] != 'L')
         return true;
     if (filename2[0] == 'L' and filename1[0] != 'L')
         return false;
+
+    // Allow regular & local deletion list on the same day.
+    // (note that the actual sequence will be influenced by LocalDeletionListComparator later)
+    if (filename1[0] == 'L' and filename2[0] == 'L') {
+        if (IsLocalDeletionList(filename1) and not IsLocalDeletionList(filename2))
+            return false;
+        else if (IsLocalDeletionList(filename2) and not IsLocalDeletionList(filename1))
+            return true;
+    }
 
     // Sekkor updates come before anything else:
     if (StringUtil::Contains(filename1, "sekkor") and not StringUtil::Contains(filename2, "sekkor"))
@@ -110,17 +130,12 @@ bool FileComparator(const std::string &filename1, const std::string &filename2) 
 }
 
 
-inline bool IsMtexDeletionList(const std::string &filename) {
-    return StringUtil::StartsWith(filename, "LOEKXP_m-");
-}
-
-
-bool MtexComparator(const std::string &filename1, const std::string &filename2) {
-    if (IsMtexDeletionList(filename1) and IsMtexDeletionList(filename2))
+bool LocalDeletionListComparator(const std::string &filename1, const std::string &filename2) {
+    if (IsLocalDeletionList(filename1) and IsLocalDeletionList(filename2))
         return BSZUtil::ExtractDateFromFilenameOrDie(filename1) < BSZUtil::ExtractDateFromFilenameOrDie(filename2);
-    if (IsMtexDeletionList(filename1))
+    if (IsLocalDeletionList(filename1))
         return false;
-    if (IsMtexDeletionList(filename2))
+    if (IsLocalDeletionList(filename2))
         return true;
     return FileComparator(filename1, filename2);
 }
@@ -170,7 +185,7 @@ int Main(int argc, char * /*argv*/[]) {
         LOG_ERROR("no matches found for \"" + file_pcre + "\"!");
 
     std::sort(file_list.begin(), file_list.end(), FileComparator);
-    std::stable_sort(file_list.begin(), file_list.end(), MtexComparator); // mtex deletion list must go last
+    std::stable_sort(file_list.begin(), file_list.end(), LocalDeletionListComparator); // local deletion lists must go last
 
     // Throw away older files before our "reference" complete dump or pseudo complete dump:
     const auto reference_dump(FindMostRecentCompleteOrPseudoCompleteDump(file_list));

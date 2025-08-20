@@ -106,14 +106,14 @@ create_full_text_db --process-count-low-and-high-watermarks \
                     $(get_config_file_entry.py krimdok_marc_pipeline.conf \
                     create_full_text_db process_count_low_and_high_watermarks) \
                     --store-pdfs-as-html --use-separate-entries-per-url --include-all-tocs \
-                    --include-list-of-references --only-pdf-fulltexts \
+                    --include-list-of-references --only-pdf-fulltexts --use-web-proxy \
                     GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                     ${TMP_NULL} >> "${log}" 2>&1
 EndPhase
 
 
 StartPhase "Fill in the \"in_tuebingen_available\" Field"
-populate_in_tuebingen_available --verbose \
+krimdok_check_local_holdings --verbose \
                                 GesamtTiteldaten-post-phase"$((PHASE-2))"-"${date}".mrc \
                                 GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1
 EndPhase
@@ -172,6 +172,21 @@ EndPhase || Abort) &
 wait
 
 
+StartPhase "Cross-link Type Tagging"
+(add_cross_link_type GesamtTiteldaten-post-phase"$((PHASE-2))"-"${date}".mrc \
+    GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+wait
+
+
+StartPhase "Remove Dangling References"
+(remove_dangling_references GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+                            GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" \
+                            dangling_references.log 2>&1 && \
+EndPhase || Abort) &
+wait
+
+
 StartPhase "Add Wikidata IDs to Authority Data"
 (add_authority_external_ref Normdaten-partially-augmented2-"${date}".mrc \
                             Normdaten-partially-augmented3-"${date}".mrc \
@@ -182,7 +197,7 @@ wait
 
 StartPhase "Appending Literary Remains Records"
 (create_literary_remains_records --no-subsystems \
-                                 GesamtTiteldaten-post-phase"$((PHASE-3))"-"${date}".mrc \
+                                 GesamtTiteldaten-post-phase"$((PHASE-2))"-"${date}".mrc \
                                  GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
                                  Normdaten-partially-augmented3-"${date}".mrc \
                                  Normdaten-fully-augmented-"${date}".mrc >> "${log}" 2>&1 && \
