@@ -552,6 +552,15 @@ void AddOrcidToCreator(MetadataRecord * const metadata_record, MetadataRecord::C
 }
 
 
+std::string GetCustomMetadataArticleID(const MetadataRecord &metadata_record) {
+    const auto &custom_metadata(metadata_record.custom_metadata_);
+    const auto articleid_entry(custom_metadata.find("articleid"));
+    if (articleid_entry == custom_metadata.end())
+        return "";
+    return articleid_entry->second;
+}
+
+
 const std::string TIKA_SERVER_DETECT_STRING_LANGUAGE_URL("http://localhost:9998/language/string");
 std::string TikaDetectLanguage(const std::string &record_text) {
     Downloader downloader;
@@ -1326,7 +1335,7 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
     const auto &volume(metadata_record.volume_);
     const auto &issue(metadata_record.issue_);
     const std::string pages(metadata_record.pages_);
-    static const std::string ARTICLE_NUM_INDICATOR("article");
+    static const std::string ARTICLE_NUM_INDICATOR("article ");
     MARC::Subfields _773_subfields;
     const std::string publication_title(metadata_record.publication_title_);
     if (not publication_title.empty()) {
@@ -1351,10 +1360,15 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
             _773_g_content += issue + " (" + year + ")";
         }
 
+        // Passing ArticleID this way is exclusive to passing ArticleID in the ordinary pages field
+        const std::string custom_metadata_article_id(GetCustomMetadataArticleID(metadata_record));
+        if (not custom_metadata_article_id.empty())
+            _773_g_content += ", Artikel " + custom_metadata_article_id;
+
         if (not pages.empty()) {
             if (StringUtil::StartsWith(pages, ARTICLE_NUM_INDICATOR))
-                _773_g_content += ", " + StringUtil::ReplaceString(ARTICLE_NUM_INDICATOR, "Artikel", pages);
-            else
+                _773_g_content += ", " + StringUtil::ReplaceString(ARTICLE_NUM_INDICATOR, "Artikel ", pages);
+            else if (pages != custom_metadata_article_id)
                 _773_g_content += ", Seite " + pages;
         }
 
@@ -1376,16 +1390,22 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
     } else if (not issue.empty())
         _936_subfields.appendSubfield('d', issue);
 
+
+    // Passing ArticleID this way is exclusive to passing ArticleID in the ordinary pages field
+    const std::string custom_metadata_article_id(GetCustomMetadataArticleID(metadata_record));
+    if (not custom_metadata_article_id.empty())
+        _936_subfields.appendSubfield('i', custom_metadata_article_id);
+
     bool include_936_y(false);
     if (not pages.empty()) {
-        if (StringUtil::StartsWith(pages, ARTICLE_NUM_INDICATOR)) {
+        if (not _936_subfields.hasSubfield('i') and StringUtil::StartsWith(pages, ARTICLE_NUM_INDICATOR)) {
             _936_subfields.appendSubfield('i', StringUtil::TrimWhite(pages.substr(ARTICLE_NUM_INDICATOR.length())));
         } else if (const auto match_result = MatchRomanPageOrPageRange(pages); unlikely(match_result)) {
             const std::string converted_pages(ConvertRomanPageRangeToArabic(pages, match_result));
             _936_subfields.appendSubfield('h', converted_pages);
             LOG_DEBUG("converted roman numeral page range '" + pages + "' to decimal page range '" + converted_pages + "'");
             include_936_y = true;
-        } else
+        } else if (custom_metadata_article_id != pages)
             _936_subfields.appendSubfield('h', pages);
     }
 
