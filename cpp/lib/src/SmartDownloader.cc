@@ -393,7 +393,9 @@ bool GetRedirectedUrl(const std::string &url, const TimeLimit &time_limit, std::
 
 
 bool GetRedirectUrlWithCustomParams(const std::string &url, const TimeLimit &time_limit, std::string * const redirected_url,
-                                    const Downloader::Params &params) {
+                                    const Downloader::Params &custom_params) {
+    Downloader::Params params(custom_params);
+    params.follow_redirects_ = false;
     Downloader downloader(url, params, time_limit);
     return downloader.getHttpRedirectedUrl(redirected_url);
 }
