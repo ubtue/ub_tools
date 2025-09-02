@@ -179,12 +179,12 @@ for d in */ ; do
     current_source_filepath="$HARVESTER_OUTPUT_DIRECTORY/$d/$HARVESTER_OUTPUT_FILENAME"
 
     # Output filenames MUST start with 'ixtheo_' or 'krimdok_', else BSZ will ignore it.
-    # Also, since we deliver files only once a day, each file will be marked as "001".
+    timestamp=$(date +%y%m%d_%H%M%S_%N)
     valid_records_output_filepath="$HARVESTER_OUTPUT_DIRECTORY/$d/${d}_zotero_$(date +%y%m%d)_001.xml"
     online_first_records_output_filepath="$HARVESTER_OUTPUT_DIRECTORY/$d/${d}_zotero_$(date +%y%m%d)_001_online_first.xml"
     invalid_records_output_filepath="$HARVESTER_OUTPUT_DIRECTORY/$d/${d}_zotero_$(date +%y%m%d)_001_errors.xml"
     invalid_records_log_filepath="${invalid_records_output_filepath}.log"
-    final_harvester_output_filepath="$HARVESTER_OUTPUT_DIRECTORY/$d/${d}_${SHORT_JOURNAL_NAME}_$(date +%y%m%d)_001.xml"
+    final_harvester_output_filepath="$HARVESTER_OUTPUT_DIRECTORY/$d/${d}_retrokat_$(timestamp)_001.xml"
     LOGGER_FORMAT=no_decorations,strip_call_site \
     BACKTRACE=1 \
     UTIL_LOG_DEBUG=true \
@@ -236,7 +236,6 @@ while [ "$counter" -lt "$file_count" ]; do
     counter=$((counter+1))
 done
 EndPhase
-
 
 
 StartPhase "Commit and Push to Git"
