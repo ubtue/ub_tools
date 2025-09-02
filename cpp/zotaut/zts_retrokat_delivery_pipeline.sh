@@ -30,7 +30,7 @@ function Usage {
 }
 
 
-if [ $# != 2 ]; then
+if [ $# -lt 2 ]; then
     Usage
 fi
 
