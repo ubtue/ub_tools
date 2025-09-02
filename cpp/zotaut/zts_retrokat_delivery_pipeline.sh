@@ -62,6 +62,13 @@ SHORT_JOURNAL_NAME=$(echo "$SHORT_JOURNAL_NAME" | sed -E '
     s/_$//
 ')
 
+TODAY=$(date +%y%m%d)
+COUNTER_FILE="$WORKING_DIRECTORY/$TODAY.txt"
+if [ ! -f "$COUNTER_FILE" ]; then
+  echo 1 > "$COUNTER_FILE"
+fi
+read -r file_counter < "$COUNTER_FILE"
+
 readonly HARVESTER_OUTPUT_DIRECTORY="$WORKING_DIRECTORY"
 readonly HARVESTER_OUTPUT_FILENAME="zts_retrokat_harvester-$(date +%y%m%d).xml"
 readonly HARVESTER_CONFIG_FILE="/usr/local/var/lib/tuelib/zotero-enhancement-maps/zotero_harvester.conf"
@@ -179,12 +186,12 @@ for d in */ ; do
     current_source_filepath="$HARVESTER_OUTPUT_DIRECTORY/$d/$HARVESTER_OUTPUT_FILENAME"
 
     # Output filenames MUST start with 'ixtheo_' or 'krimdok_', else BSZ will ignore it.
-    timestamp=$(date +%y%m%d_%H%M%S_%N)
+    suffix=$(printf "%03d" "$file_counter")
     valid_records_output_filepath="$HARVESTER_OUTPUT_DIRECTORY/$d/${d}_zotero_$(date +%y%m%d)_001.xml"
     online_first_records_output_filepath="$HARVESTER_OUTPUT_DIRECTORY/$d/${d}_zotero_$(date +%y%m%d)_001_online_first.xml"
     invalid_records_output_filepath="$HARVESTER_OUTPUT_DIRECTORY/$d/${d}_zotero_$(date +%y%m%d)_001_errors.xml"
     invalid_records_log_filepath="${invalid_records_output_filepath}.log"
-    final_harvester_output_filepath="$HARVESTER_OUTPUT_DIRECTORY/$d/${d}_retrokat_$(timestamp)_001.xml"
+    final_harvester_output_filepath="$HARVESTER_OUTPUT_DIRECTORY/$d/${d}_retrokat_$(date +%y%m%d)_${suffix}.xml"
     LOGGER_FORMAT=no_decorations,strip_call_site \
     BACKTRACE=1 \
     UTIL_LOG_DEBUG=true \
@@ -232,6 +239,8 @@ while [ "$counter" -lt "$file_count" ]; do
     if [ "$SKIP_BSZ_UPLOAD" -eq 0 ]; then
         upload_to_bsz_ftp_server.py "${harvester_output[counter]}" \
                                     "${dest_filepaths[counter]}" >> "$LOG" 2>&1
+        file_counter=$((file_counter + 1))
+        echo "$file_counter" > "$COUNTER_FILE"
     fi
     counter=$((counter+1))
 done
