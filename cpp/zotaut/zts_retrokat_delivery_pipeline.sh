@@ -21,21 +21,46 @@ trap SendEmail EXIT
 
 
 function Usage {
-    echo "usage: $0 journal email"
+    echo "usage: $0 journal email [--skip-sync-legacy] [--skip-bsz-upload]"
     echo "       journal = journal name to be harvested"
     echo "       email = email address to which notifications are sent upon (un)successful completion of the delivery pipeline"
+    echo "       [--skip-sync-legacy] = optional flag to skip the sync_legacy_records step"
+    echo "       [--skip-bsz-upload] = optional flag to skip the upload to BSZ FTP server step"
     exit 1
 }
 
 
-if [ $# != 2 ]; then
+if [ $# -lt 2 ]; then
     Usage
 fi
 
 
 readonly JOURNAL_NAME="$1"
 readonly EMAIL_ADDRESS="$2"
+
+SKIP_SYNC_LEGACY=0
+SKIP_BSZ_UPLOAD=0
+
+for arg in "${@:3}"; do
+    case "$arg" in
+        --skip-sync-legacy) SKIP_SYNC_LEGACY=1 ;;
+        --skip-bsz-upload)  SKIP_BSZ_UPLOAD=1 ;;
+    esac
+done
+
 readonly WORKING_DIRECTORY="/tmp/zts_retrokat_harvester_delivery_pipeline"
+
+if [[ "$JOURNAL_NAME" == *:* ]]; then
+    SHORT_JOURNAL_NAME="${JOURNAL_NAME%%:*}"
+else
+    SHORT_JOURNAL_NAME="$JOURNAL_NAME"
+fi
+SHORT_JOURNAL_NAME=$(echo "$SHORT_JOURNAL_NAME" | sed -E '
+    s/[[:space:]]+/_/g;
+    s/[^A-Za-z0-9._-]//g;
+    s/_+/_/g;
+    s/_$//
+')
 
 readonly HARVESTER_OUTPUT_DIRECTORY="$WORKING_DIRECTORY"
 readonly HARVESTER_OUTPUT_FILENAME="zts_retrokat_harvester-$(date +%y%m%d).xml"
@@ -44,7 +69,7 @@ readonly HARVESTER_CONFIG_FILE="/usr/local/var/lib/tuelib/zotero-enhancement-map
 readonly GIT_REPO_NAME="retrokat-daten"
 readonly GIT_REPO_URL="/mnt/ZE020110/FID-Projekte/Retrokat-Daten/$GIT_REPO_NAME.git"
 readonly LOCAL_REPO_PATH="$WORKING_DIRECTORY/$GIT_REPO_NAME"
-readonly DEST_DIR_LOCAL_RETROKAT="$LOCAL_REPO_PATH/$JOURNAL_NAME"
+readonly DEST_DIR_LOCAL_RETROKAT="$LOCAL_REPO_PATH/$SHORT_JOURNAL_NAME"
 readonly DEST_DIR_REMOTE_RETROKAT="/2001/Default_Test/input/"
 
 
@@ -113,10 +138,12 @@ declare -a source_filepaths
 declare -a dest_filepaths
 declare -a dest_filepaths_local
 
-StartPhase "Sync Legacy Records"
-sync_legacy_records --harvester-conf "$HARVESTER_CONFIG_FILE" \
-                    "$JOURNAL_NAME" >> "$LOG" 2>&1
-EndPhase
+if [ "$SKIP_SYNC_LEGACY" -eq 0 ]; then
+    StartPhase "Sync Legacy Records"
+    sync_legacy_records --harvester-conf "$HARVESTER_CONFIG_FILE" \
+                        "$JOURNAL_NAME" >> "$LOG" 2>&1
+    EndPhase
+fi
 
 StartPhase "Harvest URLs"
 LOGGER_FORMAT=no_decorations,strip_call_site \
@@ -157,7 +184,7 @@ for d in */ ; do
     online_first_records_output_filepath="$HARVESTER_OUTPUT_DIRECTORY/$d/${d}_zotero_$(date +%y%m%d)_001_online_first.xml"
     invalid_records_output_filepath="$HARVESTER_OUTPUT_DIRECTORY/$d/${d}_zotero_$(date +%y%m%d)_001_errors.xml"
     invalid_records_log_filepath="${invalid_records_output_filepath}.log"
-    final_harvester_output_filepath="$HARVESTER_OUTPUT_DIRECTORY/$d/${d}_${JOURNAL_NAME}_$(date +%y%m%d)_001.xml"
+    final_harvester_output_filepath="$HARVESTER_OUTPUT_DIRECTORY/$d/${d}_${SHORT_JOURNAL_NAME}_$(date +%y%m%d)_001.xml"
     LOGGER_FORMAT=no_decorations,strip_call_site \
     BACKTRACE=1 \
     UTIL_LOG_DEBUG=true \
@@ -194,8 +221,7 @@ if [ "$counter" = "0" ]; then
 fi
 EndPhase
 
-
-StartPhase "Upload to BSZ Server"
+StartPhase "Rename, Move and optional Upload to BSZ Server"
 counter=0
 file_count=${#harvester_output[@]}
 
@@ -203,11 +229,14 @@ while [ "$counter" -lt "$file_count" ]; do
     if [[ -d "${dest_filepaths_local[$counter]}" ]]; then
         cp "${harvester_output[counter]}" "${dest_filepaths_local[$counter]}" >> "$LOG" 2>&1
     fi
-    upload_to_bsz_ftp_server.py "${harvester_output[counter]}" \
-                                "${dest_filepaths[counter]}" >> "$LOG" 2>&1
+    if [ "$SKIP_BSZ_UPLOAD" -eq 0 ]; then
+        upload_to_bsz_ftp_server.py "${harvester_output[counter]}" \
+                                    "${dest_filepaths[counter]}" >> "$LOG" 2>&1
+    fi
     counter=$((counter+1))
 done
 EndPhase
+
 
 
 StartPhase "Commit and Push to Git"
