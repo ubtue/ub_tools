@@ -395,6 +395,18 @@ make_named_pipe --buffer-size=$FIFO_BUFFER_SIZE GesamtTiteldaten-post-phase"$PHA
 EndPhase || Abort) &
 
 
+StartPhase "Copy local redi-bw.de Links to ordinary 856"
+make_named_pipe --buffer-size=$FIFO_BUFFER_SIZE GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1
+(marc_augmentor GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+                GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
+                --insert-field-if-regex '856u:/(.*)/\1/' 'LOKu:http(s)?://(www\.)?redi-bw.de' \
+                --add-subfield-if-matching '856x:Verlag' '856u:http(s)?://(www\.)?redi-bw.de' \
+                --add-subfield-if-matching '856z:Lizenzpflichtig' '856u:http(s)?://(www\.)?redi-bw.de' \
+                --add-subfield-if-matching '8563:Volltext' '856u:http(s)?://(www\.)?redi-bw.de' \
+        >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+
+
 StartPhase "Copy Embargo Information to ordinary 856"
 make_named_pipe --buffer-size=$FIFO_BUFFER_SIZE GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1
 (marc_augmentor GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
