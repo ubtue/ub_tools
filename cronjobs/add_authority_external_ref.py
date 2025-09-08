@@ -25,13 +25,13 @@
 """
 Process logic:
 1. Check whether the gnd file "authorities-gnd-person_lds_*.jsonld.gz" on https://data.dnb.de/opendata/ is newer
-    than the last successful parse to gnd_wiki.csv. 
+    than the last successful parse to gnd_wiki.csv.
     To doing this, there is a config file "/mnt/ZE020150/FID-Entwicklung/ub_tools/config_file_add_authority_ext_ref.cnf" that contain 2 lines of information the first line for the lastest successful date generating gnd_wiki data and the second line is the information about the lastest version on the web.
     If the date of successful generating gnd_wiki (on first line) is older compare with the one on the web then:
     a. Download the newer file from the web and put it into folder "/tmp"
     b. The download file is a zip file, it needs to be extracted first
     c. Get the information needed by gnd_wiki and put it into the file "/tmp/input_file_for_add_authority_external_ref.txt" using jq:
-        jq -c --stream '.' < authorities-gnd-person_lds.jsonld |grep -E 'https\:/\/d-nb\.info\/gnd\/|wikidata|wikipedia' > input_file_for_add_authority_external_ref.txt
+        jq -c --stream '.' < authorities-gnd-person_lds.jsonld |grep -E 'https://d-nb\\.info/gnd/|wikidata|wikipedia' > input_file_for_add_authority_external_ref.txt
     d. Run "add_authority_external_ref" program. This program will check whether the lastest version date is newer compare to the lastest successful date generating gnd_wiki, if so then generate a new gnd_wiki.csv file. If it success generating gnd_wiki file then update the date on the config file.
     e. Update the information in the config file
 
@@ -81,9 +81,9 @@ def GetTheNewFileDate():
     html_bytes = webpage_object.read()
     html = html_bytes.decode("utf-8")
 
-    if re.search('authorities-gnd-person_lds_.*\.jsonld\.gz', html):
+    if re.search('authorities-gnd-person_lds_.*\\.jsonld\\.gz', html):
         file_name = re.search(
-            'authorities-gnd-person_lds_.*\.jsonld\.gz', html).group(0)
+            'authorities-gnd-person_lds_.*\\.jsonld\\.gz', html).group(0)
         current_file_date_int = int(
             file_name[len(base_name):len(base_name) + 8])
         if (os.path.exists(config_file)):
@@ -134,21 +134,21 @@ def Main():
             #  c. Get the information needed by gnd_wiki and put it into the file
             print(
                 "Process 4/7 -- Parse the file and extract the essential information needed")
-            jq_prog_with_pipe = f"jq -c --stream '[.[]]' < /tmp/{newer_file_name} | grep -E 'https\:/\/d-nb\.info\/gnd\/|wikidata|wikipedia' > /tmp/{input_file_name_for_add_auth}"
+            jq_prog_with_pipe = f"jq -c --stream '[.[]]' < /tmp/{newer_file_name} | grep -E 'https://d-nb\\.info/gnd/|wikidata|wikipedia' > /tmp/{input_file_name_for_add_auth}"
             if os.system(jq_prog_with_pipe) == 0:
                 # d. Run "add_authority_external_ref" program
                 print("Process 5/7 -- Generate a new gnd_wiki_file")
                 util.ExecOrDie(util.Which("add_authority_external_ref"), [
                                "--create_mapping_file", f"/tmp/{input_file_name_for_add_auth}", f"/tmp/{gnd_wiki_file}"])
 
-                
+
                 util.ExecOrDie(util.Which("rm"), [
                                "-f", f"/tmp/{newer_file_name}"])
                 util.ExecOrDie(util.Which("rm"), [
                                "-f", f"/tmp/{input_file_name_for_add_auth}"])
-            
+
                 file_size = os.path.getsize(f"/tmp/{gnd_wiki_file}")
-                
+
                 if(file_size == 0):
                     ERR_MSG = "Error while create a mapping file: " + f"/tmp/{gnd_wiki_file}" + ", need to check: add_authority_external_ref.cc"
                     print(ERR_MSG)
@@ -157,7 +157,7 @@ def Main():
                     print("Process 6/7 -- Copy the gnd_wiki_file to its destination")
                     util.ExecOrDie(util.Which("cp"), [
                                "-f", f"/tmp/{gnd_wiki_file}", f"{share_folder}{gnd_wiki_file}"])
-                    
+
                     #  e. Update the latest version date on the config file (the second line)
                     print(
                     "Process 7/7 -- Updating the config file and remove temporary files")
@@ -165,7 +165,7 @@ def Main():
                     config_file, current_file_date_int)
                     util.SendEmail("gnd_wiki_file generator",
                                "Successfully generated gnd_wiki_file.", priority=5)
-                    
+
                 util.ExecOrDie(util.Which("rm"), [
                                "-f", f"/tmp/{gnd_wiki_file}"])
 
