@@ -75,7 +75,7 @@ readonly HARVESTER_CONFIG_FILE="/usr/local/var/lib/tuelib/zotero-enhancement-map
 
 readonly GIT_REPO_NAME="retrokat-daten"
 readonly GIT_REPO_URL="/mnt/ZE020110/FID-Projekte/Retrokat-Daten/$GIT_REPO_NAME.git"
-readonly LOCAL_REPO_PATH="$WORKING_DIRECTORY/$GIT_REPO_NAME"
+readonly LOCAL_REPO_PATH="/var/git/$GIT_REPO_NAME"
 readonly DEST_DIR_LOCAL_RETROKAT="$LOCAL_REPO_PATH/$SHORT_JOURNAL_NAME"
 readonly DEST_DIR_REMOTE_RETROKAT="/2001/Default_Test/input/"
 
