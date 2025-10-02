@@ -45,7 +45,7 @@ void ProcessRecords(MARC::Reader * const reader, std::unordered_map<std::string,
         for (const auto &subject_access_tag : SUBJECT_ACCESS_TAGS) {
             for (const auto &field : record.getTagRange(subject_access_tag)) {
                 const auto subject(field.getFirstSubfieldWithCode('a'));
-                if (likely(not subject.empty() and field.getFirstSubfieldWithCode('2') == "gnd"))
+                if (likely(not subject.empty() and StringUtil::StartsWith(field.getFirstSubfieldWithCode('2'), "gnd")))
                     (*fields_to_tags_map)[field.getContents()] = subject_access_tag;
             }
         }
