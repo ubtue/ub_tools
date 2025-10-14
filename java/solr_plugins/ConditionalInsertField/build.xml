@@ -23,7 +23,9 @@
 
     <target name="compile">
         <mkdir dir="${classes.dir}"/>
-        <javac srcdir="${src.dir}" destdir="${classes.dir}" classpathref="classpath" debug="true" debuglevel="lines,vars,source" includeantruntime="true"/>
+        <javac srcdir="${src.dir}" destdir="${classes.dir}" classpathref="classpath" debug="true" debuglevel="lines,vars,source" includeantruntime="true">
+            <compilerarg value="-Xlint:deprecation"/>
+        </javac>
     </target>
 
     <target name="jar" depends="compile">
