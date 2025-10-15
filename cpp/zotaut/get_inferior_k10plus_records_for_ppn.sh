@@ -1,3 +1,15 @@
+#!/bin/bash
+set -o errexit -o nounset -o pipefail
+
+XSLT_TMP_FILE=/tmp/sru_to_marc.xslt
+
+function RemoveTempFiles {
+    rm ${XSLT_TMP_FILE}
+}
+
+trap RemoveTempFiles EXIT
+
+cat <<EOT > ${XSLT_TMP_FILE}
 <?xml version="1.0" encoding="UTF-8"?>
 <xsl:stylesheet version="1.0"
   xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
@@ -41,4 +53,17 @@
   <!-- Ignore all other elements and nodes -->
   <xsl:template match="node()"/>
 </xsl:stylesheet>
+EOT
 
+K10PLUS_SUPERIOR_QUERY='https://sru.k10plus.de/opac-de-627?version=1.1&operation=searchRetrieve&query=pica.1049%3DSUPERIOR_PPN+and+pica.1045%3Drel-nt+and+pica.1001%3Db&maximumRecords=10000&recordSchema=marcxml'
+
+if [ $# != 2 ]; then
+   echo "Usage $0 superior_ppn outfile.xml"
+   exit 1;
+fi
+
+superior_ppn="$1"
+outfile="$2"
+
+sru_query="${K10PLUS_SUPERIOR_QUERY/SUPERIOR_PPN/$superior_ppn}"
+curl --silent "${sru_query}" | saxonb-xslt -versionmsg:off -s:- -xsl:/tmp/sru_to_marc.xslt -o:"${outfile}"
