@@ -192,7 +192,7 @@ void SyncLegacyRecordsForJournal(const LegacyRecordStock &legacy_record_stock, c
     LegacyEntryInformationSet legacy_entries_information;
     GetLegacyEntriesInformationForJournalFromFIDStock(host_url, host_port, query, &legacy_entries_information);
 
-    if (include_k10plus)
+    if (include_k10plus or harvester_journal_section.getBool("selective_evaluation"))
         GetLegacyEntriesInformationForJournalFromK10Plus(journal_ppns, &legacy_entries_information);
 
     std::cout << "query: " << query << '\n';
