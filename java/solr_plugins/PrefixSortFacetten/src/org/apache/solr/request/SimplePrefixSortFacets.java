@@ -23,7 +23,6 @@ import org.apache.solr.handler.component.ResponseBuilder;
 import org.apache.solr.schema.BoolField;
 import org.apache.solr.schema.FieldType;
 import org.apache.solr.schema.SchemaField;
-import org.apache.solr.schema.TrieField;
 import org.apache.solr.search.DocSet;
 import org.apache.solr.search.facet.FacetRequest;
 import org.apache.solr.util.RTimer;
@@ -119,13 +118,6 @@ public class SimplePrefixSortFacets extends SimpleFacets {
          * the result set
          */
         if (method == FacetMethod.UIF && !field.hasDocValues() && mincount == 0) {
-            method = field.multiValued() ? FacetMethod.FC : FacetMethod.FCS;
-        }
-
-        /*
-         * ENUM can't deal with trie fields that index several terms per value
-         */
-        if (method == FacetMethod.ENUM && TrieField.getMainValuePrefix(type) != null) {
             method = field.multiValued() ? FacetMethod.FC : FacetMethod.FCS;
         }
 
@@ -226,7 +218,6 @@ public class SimplePrefixSortFacets extends SimpleFacets {
             assert appliedFacetMethod != null;
             switch (appliedFacetMethod) {
             case ENUM:
-                assert TrieField.getMainValuePrefix(ft) == null;
                 counts = getFacetTermEnumCounts(searcher, docs, field, offset, limit, mincount, missing, sort, prefix, termFilter, exists);
                 break;
             case FCS:

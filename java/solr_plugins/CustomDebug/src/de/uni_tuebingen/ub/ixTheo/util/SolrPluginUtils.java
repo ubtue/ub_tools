@@ -42,16 +42,16 @@ public class SolrPluginUtils extends org.apache.solr.util.SolrPluginUtils {
         return out;
     }
 
-    public static NamedList doStandardDebug(SolrQueryRequest req, String userQuery, Query query, DocList results, boolean dbgQuery, boolean dbgResults)
+    public static NamedList<Object> doStandardDebug(SolrQueryRequest req, String userQuery, Query query, DocList results, boolean dbgQuery, boolean dbgResults)
         throws IOException 
     {
-        NamedList dbg = new SimpleOrderedMap();
+        NamedList<Object> dbg = new SimpleOrderedMap<Object>();
         doStandardQueryDebug(req, userQuery, query, dbgQuery, dbg);
         doStandardResultsDebug(req, query, results, dbgResults, dbg);
         return dbg;
     }
 
-    public static void doStandardResultsDebug(SolrQueryRequest req, Query query, DocList results, boolean dbgResults, NamedList dbg) throws IOException {
+    public static void doStandardResultsDebug(SolrQueryRequest req, Query query, DocList results, boolean dbgResults, NamedList<Object> dbg) throws IOException {
         if (dbgResults) {
             SolrIndexSearcher searcher = req.getSearcher();
             IndexSchema schema = searcher.getSchema();
