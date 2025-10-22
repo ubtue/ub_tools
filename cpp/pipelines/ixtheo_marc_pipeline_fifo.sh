@@ -116,6 +116,7 @@ StartPhase "Filter out Self-referential 856 Fields" \
     --replace 689a "(.*)\\s+(\\d+)\\s?v. Chr.\\s?-\\s?(\\d+)\\s?v. Chr" "\\1 v\\2-v\\3" \
     --replace 689a "(.*)\\s+(\\d+)\\s?v. Chr.\\s?-\\s?(\\d+)" "\\1 v\\2-\\3" \
     --replace 689a "(.*)\\s+(\\d+)\\s?-\\s?(\\d+)\\s*v.\\s?Chr" "\\1 v\\2-v\\3" \
+    --translate 856z ':' '꞉' `# Make sure colon does not interfere with URL processing logic in TueFind` \
 >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
