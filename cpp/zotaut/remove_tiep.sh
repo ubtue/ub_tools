@@ -6,6 +6,7 @@ if [ $# != 1 ]; then
    echo "Usage $0 marcxml"
 fi
 
+INPUT_XML="$1"
 
 function setupStdoutXml() {
     stdout_xml=$(mktemp --suffix=.xml --dry-run)
@@ -17,5 +18,5 @@ function setupStdoutXml() {
 
 STDOUT_XML=""
 setupStdoutXml
-marc_filter ixtheo_retrokat_250922_001.xml  ${STDOUT_XML}  --remove-fields '935a:tiep' | sponge ixtheo_retrokat_250922_001.xml
 
+marc_filter "$INPUT_XML" "${STDOUT_XML}" --remove-fields '935a:tiep' | sponge "$INPUT_XML"
