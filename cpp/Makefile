@@ -86,6 +86,8 @@ data_install: Makefile data/*.conf data/*.map data/*.ttf data/IxTheo_Notation.cs
 	cp data/geographic_689_field_contents /usr/local/var/lib/tuelib/
 	cp data/bib_ref_candidates_in_titles.exclusion_list /usr/local/var/lib/tuelib/
 
+	$(MAKE) -C data/system_scripts
+
 local_clean:
 	rm -f *.o *~ $(PROGS) .deps data/*~
 

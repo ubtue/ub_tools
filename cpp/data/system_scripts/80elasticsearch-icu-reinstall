@@ -1,0 +1,2 @@
+DPkg::Pre-Install-Pkgs {"/usr/local/bin/elasticsearch-plugin-reinstall.sh";};
+DPkg::Tools::Options::/usr/local/bin/elasticsearch-plugin-reinstall.sh::Version "3";
