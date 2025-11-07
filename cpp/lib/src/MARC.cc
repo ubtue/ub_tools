@@ -545,7 +545,8 @@ std::string Record::toBinaryString() const {
         if (record_is_oversized) // Include size of the 001 field.
             record_size += fields_.front().getContents().length() + 1 + Record::DIRECTORY_ENTRY_LENGTH;
         while (end != this->end()
-               and (record_size + end->getContents().length() + 1 + Record::DIRECTORY_ENTRY_LENGTH < Record::MAX_RECORD_LENGTH)) {
+               and (record_size + end->getContents().length() + 1 + Record::DIRECTORY_ENTRY_LENGTH < Record::MAX_RECORD_LENGTH))
+        {
             record_size += end->getContents().length() + 1 + Record::DIRECTORY_ENTRY_LENGTH;
             ++end;
         }
@@ -2830,13 +2831,17 @@ bool UBTueIsElectronicResource(const Record &marc_record) {
 bool IsOpenAccess(const Record &marc_record, const bool suppress_unpaywall) {
     for (const auto &_856_field : marc_record.getTagRange("856")) {
         const Subfields subfields(_856_field.getSubfields());
-        const std::string subfield_z_contents(subfields.getFirstSubfieldWithCode('z'));
-        if (subfield_z_contents == "LF")
-            return true;
-        if (StringUtil::StartsWith(TextUtil::UTF8ToLower(subfield_z_contents), "kostenfrei")) {
-            const std::string subfield_3_contents(TextUtil::UTF8ToLower(subfields.getFirstSubfieldWithCode('3')));
-            if (subfield_3_contents.empty() or subfield_3_contents == "volltext")
+        for (const auto &subfield : subfields) {
+            if (subfield.code_ != 'z')
+                continue;
+            const std::string subfield_z_contents(subfield.value_);
+            if (subfield_z_contents == "LF")
                 return true;
+            if (StringUtil::StartsWith(TextUtil::UTF8ToLower(subfield_z_contents), "kostenfrei")) {
+                const std::string subfield_3_contents(TextUtil::UTF8ToLower(subfields.getFirstSubfieldWithCode('3')));
+                if (subfield_3_contents.empty() or subfield_3_contents == "volltext")
+                    return true;
+            }
         }
 
         if (not suppress_unpaywall) {

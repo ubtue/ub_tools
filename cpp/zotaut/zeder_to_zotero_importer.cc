@@ -366,21 +366,20 @@ unsigned ImportZederEntries(const Zeder::EntryCollection &zeder_entries, Harvest
             new_section = true;
         }
 
-        const std::vector<Config::JournalParams::IniKey> ini_keys_to_import{
-            Config::JournalParams::GROUP,
-            Config::JournalParams::ENTRY_POINT_URL,
-            Config::JournalParams::HARVESTER_OPERATION,
-            Config::JournalParams::ONLINE_PPN,
-            Config::JournalParams::PRINT_PPN,
-            Config::JournalParams::ONLINE_ISSN,
-            Config::JournalParams::PRINT_ISSN,
-            Config::JournalParams::UPDATE_WINDOW,
-            Config::JournalParams::EXPECTED_LANGUAGES,
-            Config::JournalParams::SSGN,
-            Config::JournalParams::PERSONALIZED_AUTHORS,
-            Config::JournalParams::LICENSE,
-            Config::JournalParams::SELECTIVE_EVALUATION,
-        };
+        const std::vector<Config::JournalParams::IniKey> ini_keys_to_import{ Config::JournalParams::GROUP,
+                                                                             Config::JournalParams::ENTRY_POINT_URL,
+                                                                             Config::JournalParams::HARVESTER_OPERATION,
+                                                                             Config::JournalParams::ONLINE_PPN,
+                                                                             Config::JournalParams::PRINT_PPN,
+                                                                             Config::JournalParams::ONLINE_ISSN,
+                                                                             Config::JournalParams::PRINT_ISSN,
+                                                                             Config::JournalParams::UPDATE_WINDOW,
+                                                                             Config::JournalParams::EXPECTED_LANGUAGES,
+                                                                             Config::JournalParams::SSGN,
+                                                                             Config::JournalParams::PERSONALIZED_AUTHORS,
+                                                                             Config::JournalParams::LICENSE,
+                                                                             Config::JournalParams::SELECTIVE_EVALUATION,
+                                                                             Config::JournalParams::ADDITIONAL_SELECTORS };
 
         // special-case multiple fields (Zeder ID, modified timestamp, UPLOAD_OPERATION)
         WriteIniEntry(existing_journal_section, Config::JournalParams::GetIniKeyString(Config::JournalParams::ZEDER_ID),
