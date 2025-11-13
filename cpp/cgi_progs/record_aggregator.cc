@@ -69,7 +69,7 @@ std::vector<std::map<std::string, std::string>> PostParseEntries(const std::stri
         std::string crawl_pattern = j.value("crawl_pattern", "");
         std::string volume_pattern = j.value("volume_pattern", "");
 
-        for (const auto &article : j["articles"]) {
+        for (const auto& article : j["articles"]) {
             std::map<std::string, std::string> entry;
             entry["article_link"] = article.value("link", "");
             entry["main_title"] = article.value("title", entry["article_link"]);
@@ -80,7 +80,7 @@ std::vector<std::map<std::string, std::string>> PostParseEntries(const std::stri
             entry["volume_pattern"] = volume_pattern;
             entries.push_back(entry);
         }
-    } catch (const std::exception &e) {
+    } catch (const std::exception& e) {
         std::cerr << "Invalid JSON payload: " << e.what() << "\n";
         return {};
     }
