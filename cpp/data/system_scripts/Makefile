@@ -12,6 +12,6 @@ install_analysis_icu: elasticsearch-plugin-reinstall.sh 80elasticsearch-icu-rein
 		cp elasticsearch-plugin-reinstall.sh $(SCRIPT_TARGET); \
 		cp 80elasticsearch-icu-reinstall $(APT_CONF_FILEPATH); \
 	else \
-		echo "Service elasticsearch.service is NOT installed."; \
+		echo "Service elasticsearch.service is NOT installed. Skip copying files."; \
 		exit 0; \
 	fi

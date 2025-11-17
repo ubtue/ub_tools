@@ -1,15 +1,13 @@
 #!/bin/bash
 
-while IFS= read -r line; do
-    if [[ $line == elasticsearch* ]]; then
-        echo "Detected elasticsearch line: $line"
-        plugin_name="analysis-icu"
-        echo "Removing plugin: $plugin_name"
-        /usr/share/elasticsearch/bin/elasticsearch-plugin remove "$plugin_name"
-        echo "Installing plugin: $plugin_name"
-        /usr/share/elasticsearch/bin/elasticsearch-plugin install "$plugin_name" --batch
-        exit 0;
-    fi
-done
+output=$(needrestart -u NeedRestart::UI::stdio -r l -q -b 2>/dev/null)
 
-echo "Elasticsearch either not installed or not upgraded. Nothing to do."
+if echo "$output" | grep -qE 'elasticsearch'; then
+    echo "Detected elasticsearch restart requirement"
+    plugin_name="analysis-icu"
+    /usr/share/elasticsearch/bin/elasticsearch-plugin remove "$plugin_name"
+    /usr/share/elasticsearch/bin/elasticsearch-plugin install "$plugin_name"
+    exit 0
+else
+    echo "Elasticsearch either not installed or not upgraded. Nothing to do."
+fi
