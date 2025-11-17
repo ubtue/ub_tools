@@ -159,7 +159,7 @@ public class MultiLanguageQueryParser extends QParser {
         }
         // Compatibility for the system that uses filter query (fq) without using the MultiLanguageQueryParser in a specific way, i.e., KrimDok. KrimDok will use the Multilanguagequeryparser in the near future.
          else
-            return expression; 
+            return expression;
     }
 
 
@@ -395,7 +395,7 @@ public class MultiLanguageQueryParser extends QParser {
                 subquery = processSynonymQuery((SynonymQuery)subquery);
             } else if (subquery.getClass().getName().equals("org.apache.lucene.search.MultiTermQueryConstantScoreBlendedWrapper")){
                 break;
-            } else 
+            } else
                 logger.warn("No appropriate Query in BooleanClause for " + subquery.getClass().getName());
             queryBuilder.add(subquery, currentClause.getOccur());
        }
@@ -475,7 +475,7 @@ public class MultiLanguageQueryParser extends QParser {
         try {
             LuceneQParser tmpParser = new LuceneQParser(searchString, localParams, newParams, this.newRequest);
             newQuery = tmpParser.getQuery();
-            newQuery = newQuery.rewrite(request.getSearcher().getIndexReader());
+            newQuery = newQuery.rewrite(request.getSearcher());
             if (newQuery instanceof BooleanQuery)
                 newQuery = processBooleanQuery((BooleanQuery)newQuery);
             else if (newQuery instanceof TermRangeQuery)
