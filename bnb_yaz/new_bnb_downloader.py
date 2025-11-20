@@ -23,7 +23,7 @@ import datetime
 import bsz_util
 import util
 
-CONFIG_FILE_PATH = "/home/iiplo01/Documents/playgrounds/bnb_new_6Oct_25/"
+CONFIG_FILE_PATH = "/ZE020110/FID-Projekte/BNB/Automatischer_Download/"
 CONFIG_FILE = "bnb_conf.cnf"
 with open(CONFIG_FILE_PATH + CONFIG_FILE, "r") as f:
     INPUT_PDF_FILE = f.read()
