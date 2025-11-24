@@ -5,7 +5,13 @@
 # This version reads BNB IDs from a PDF file and downloads records from the BNB server.
 # Author: Steven Lolong (steven.lolong@uni-tuebingen.de)
 # First created: November 2025
+# Usage: new_bnb_downloader.py <email> <working_directory>
 # Requires 'pdftotext' utility to parse PDF files.
+# The working directory should have the following structure:
+# The 'input' directory should contain the PDF files with BNB IDs.
+# The 'loaded' directory will store processed PDF files.
+# The 'marc' directory will store downloaded MARC files.
+# The 'logs' directory will store log files.
 
 
 
@@ -15,7 +21,7 @@ import os
 import sys
 import sqlite3
 import datetime
-import bsz_util
+# import bsz_util
 
 # Global variables
 db_connection : sqlite3.Connection
@@ -25,16 +31,16 @@ marc_output_file : str
 tmp_parse_file : str
 working_directory : str
 email_recipient : str
-DATABASE_NAME = "bnb_downloads.db"
-CONFIG_FILE = "bnb_config.conf"
+DATABASE_NAME = "/usr/local/var/lib/tuelib/bnb_downloads.db"
 LOG_FILE = "log_bnb_downloader_" + datetime.datetime.now().strftime("%Y%m%d_%H%M%S") + ".log"
+
 
 
 # Logging function to log messages (INFO, ERROR, etc.) to a log file
 # level: 1 = INFO, 2 = WARNING, 3 = ERROR
 def Logging(message, level=1):
     LEVEL_INFO = {1: "INFO", 2: "WARNING", 3: "ERROR"}
-    with open(working_directory + LOG_FILE, "a") as log_file:
+    with open(working_directory + "logs/" + LOG_FILE, "a") as log_file:
         log_file.write(LEVEL_INFO.get(level, "INFO") + " -- " + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + " - " + message + "\n")
 
 
@@ -54,14 +60,14 @@ def InitializeDatabase():
 
     try:
         # create a database when it does not exists otherwise connect to the existing one
-        with sqlite3.connect(working_directory + DATABASE_NAME) as connection:
+        with sqlite3.connect(DATABASE_NAME) as connection:
             cursor = connection.cursor()
             # create tables if they do not exist
             cursor.execute(UNSUCCESSFUL_DOWNLOAD_TABLE_SCHEMA)
             cursor.execute(SUCCESSFUL_DOWNLOAD_TABLE_SCHEMA)
             return connection
     except sqlite3.Error as e:
-        print("An error occurred while initializing the database: " + str(e))
+        Logging("An error occurred while initializing the database: " + str(e), 3)
         sys.exit(1)
 
 
@@ -71,21 +77,6 @@ def CheckWorkingDirectory():
         Logging("The specified working directory does not exist: " + working_directory, 3)
         sys.exit(1)
     
-
-# Get the PDF file name from the configuration file and check if it exists
-def GetPDFFileName():
-    if(not os.path.exists(working_directory + CONFIG_FILE)):
-        Logging("The configuration file does not exist: " + working_directory + CONFIG_FILE, 3)
-        sys.exit(1)
-    
-    with open(working_directory + CONFIG_FILE, "r") as conf_file:
-        pdf_file_name = conf_file.read().strip()
-        if(not os.path.isfile(working_directory + pdf_file_name)):
-            Logging("The specified PDF file in the configuration does not exist: " + working_directory + pdf_file_name, 3)
-            sys.exit(1)
-
-    return pdf_file_name
-
 
 # Connect to the YAZ server
 def ConnectToBNBServer():
@@ -142,7 +133,7 @@ def IsBNBIdInSuccessfulDownloadTable(bnb_id):
 def DownloadRecordRange(bnb_ids):
     bnb_yaz_client.sendline("format marc21")
     bnb_yaz_client.expect("\r\n")
-    bnb_yaz_client.sendline("set_marcdump " + marc_output_file)
+    bnb_yaz_client.sendline("set_marcdump " + working_directory + "marc/" + marc_output_file)
     bnb_yaz_client.expect("\r\n")
 
     counter = 0
@@ -183,6 +174,9 @@ def RetryingPreviousNotFoundBNBIDs():
     found_ids = []
     total_previously_not_found = len(previous_not_found_ids)
     if len(previous_not_found_ids) > 0:
+        global marc_output_file
+        marc_output_file = "BNB_records_retry_" + datetime.datetime.now().strftime("%Y%m%d_%H%M%S") + ".mrc"
+
         ids_info = DownloadRecordRange(previous_not_found_ids)
         found_ids = ids_info[0]
         total_found = ids_info[2]
@@ -221,8 +215,8 @@ def DownloadNewBNBIDs(bnb_ids):
 
 # Convert PDF to text and extract BNB IDs
 def ExtractBNBIDsFromPDF():
-    tmp_pdf_text_file = working_directory + "temp_pdf_text_" + pdf_file_name + ".txt"
-    os.system("pdftotext " + working_directory + pdf_file_name + " " + tmp_pdf_text_file)
+    tmp_pdf_text_file = working_directory + "input/temp_pdf_text_" + pdf_file_name + ".txt"
+    os.system("pdftotext " + working_directory + "input/" + pdf_file_name + " " + tmp_pdf_text_file)
     bnb_ids = []
     try_to_get = False 
     with open(tmp_pdf_text_file, "r") as pdf_text_file:
@@ -240,23 +234,79 @@ def ExtractBNBIDsFromPDF():
     return bnb_ids
 
 
-def UploadToBSZFTPServer(remote_folder_path: str, marc_filename: str):
-    remote_file_name_tmp: str = marc_filename + ".tmp"
+# def UploadToBSZFTPServer(remote_folder_path: str, marc_filename: str):
+#     remote_file_name_tmp: str = marc_filename + ".tmp"
 
-    ftp = bsz_util.GetFTPConnection()
-    ftp.changeDirectory(remote_folder_path)
-    ftp.uploadFile(marc_filename, remote_file_name_tmp)
-    ftp.renameFile(remote_file_name_tmp, marc_filename)
+#     ftp = bsz_util.GetFTPConnection()
+#     ftp.changeDirectory(remote_folder_path)
+#     ftp.uploadFile(marc_filename, remote_file_name_tmp)
+#     ftp.renameFile(remote_file_name_tmp, marc_filename)
+
+
+# Get all PDF files in a directory
+def GetAllPdfFilesInDirectory(directory: str):
+    try:
+        if not os.path.exists(directory):
+            Logging("The specified directory does not exist: " + directory, 3)
+            sys.exit(1)
+    except Exception as e:
+        Logging("An error occurred while checking the directory: " + str(e), 3)
+        sys.exit(1)
+
+    pdf_files = []
+    for file in os.listdir(directory):
+        if file.lower().endswith(".pdf"):
+            pdf_files.append(file)
+    return pdf_files
+
+
+def ProcessingPDFFiles(files: list):
+    global pdf_file_name, marc_output_file
+    progress_info = "Processing PDF files in directory.\n" \
+    "Files to process: " + "\n ".join(files) + "\n"
+
+    for file in files:
+        pdf_file_name = file
+        Logging("Processing PDF file: " + file, 1)
+        
+        Logging("Preparing MARC output file name.", 1)
+        marc_output_file = "BNB_records_" + file[:-4] + "_" + datetime.datetime.now().strftime("%Y%m%d_%H%M%S") + ".mrc"
+        Logging("MARC output file name: " + marc_output_file, 1)
+        
+        Logging("Extracting BNB IDs from the PDF file.", 1)
+        new_bnb_ids = ExtractBNBIDsFromPDF()
+        Logging("Extracted " + str(len(new_bnb_ids)) + " BNB IDs from the PDF file.", 1)
+        
+        Logging("Downloading new BNB IDs from the PDF file.", 1)
+        new_download = DownloadNewBNBIDs(new_bnb_ids)
+        Logging("Downloaded new BNB IDs from the PDF file.", 1)
+
+        processing_info = "Processed PDF file: " + file + ". Found: " + str(new_download[0]) + ", Not Found: " + str(new_download[1]) + ", Existing: " + str(new_download[2]) + "\n"
+        Logging(processing_info, 1)
+        progress_info += processing_info
+
+        Logging("Uploading MARC file to BSZ FTP server.", 1)
+        # UploadToBSZFTPServer("/2001/BNB/input", working_directory + marc_output_file)
+        Logging("Uploaded MARC file to BSZ FTP server.", 1)
+
+        # move processed PDF file to 'loaded' directory
+        os.rename(working_directory + "input/" + file, working_directory + "loaded/" + file)
+
+        os.rename(working_directory + "marc/" + marc_output_file, working_directory + "loaded/" + marc_output_file)
+    
+    return progress_info
+
+
 
 # Main function to orchestrate the workflow
 def Main():
     if(len(sys.argv) != 3):
-        print("usage: " + sys.argv[0] + " <email> <working_directory = "
+        print("usage: " + sys.argv[0] + " <email> <working_directory>"
         )
         sys.exit(-1)
 
     # It is necessary to declare global variables to modify them inside the function
-    global working_directory, pdf_file_name, marc_output_file, email_recipient, db_connection, bnb_yaz_client
+    global working_directory,  email_recipient, db_connection, bnb_yaz_client
 
     email_recipient = sys.argv[1]
     working_directory = sys.argv[2]
@@ -265,16 +315,6 @@ def Main():
     Logging("Checking working directory: " + working_directory, 1)
     CheckWorkingDirectory()
     Logging("Working directory is valid.", 1)
-
-    # Check if the configuration file exists and get the input PDF file name
-    Logging("Getting PDF file name from configuration file.", 1)
-    pdf_file_name = GetPDFFileName()
-    Logging("Input PDF file name: " + pdf_file_name, 1)
-
-    # Prepare other file names
-    Logging("Preparing other file names.", 1)
-    marc_output_file = "BNB_records_" + datetime.datetime.now().strftime("%Y%m%d_%H%M%S") + ".mrc"
-    Logging("MARC output file name: " + marc_output_file, 1)
     
     # Initialize the database
     Logging("Initializing the database.", 1)
@@ -291,49 +331,43 @@ def Main():
     retrying_download = RetryingPreviousNotFoundBNBIDs()
     Logging("Retried previously not found BNB IDs.", 1)
 
-    # Extract BNB IDs from the input PDF file
-    Logging("Extracting BNB IDs from the input PDF file.", 1)
-    new_bnb_ids = ExtractBNBIDsFromPDF()
-    Logging("Extracted " + str(len(new_bnb_ids)) + " BNB IDs from the input PDF file.", 1)
-
-    # Download new BNB IDs from the input PDF file
-    Logging("Downloading new BNB IDs from the input PDF file.", 1)
-    new_download = DownloadNewBNBIDs(new_bnb_ids)
-    Logging("Downloaded new BNB IDs from the input PDF file.", 1)
+    Logging("Getting all PDF files in the working directory.", 1)
+    list_of_pdf_files = GetAllPdfFilesInDirectory(working_directory + "input")
+    Logging("Obtained all PDF files in the working directory.", 1)
+    
+    Logging("Processing all PDF files in the directory.", 1)
+    progress_info = ProcessingPDFFiles(list_of_pdf_files)
+    Logging("Processed all PDF files in the directory.", 1)
 
     # Upload MARC file to BSZ FTP server
-    Logging("Uploading MARC file to BSZ FTP server.", 1)
-    UploadToBSZFTPServer("/2001/BNB/input", working_directory + marc_output_file)
-    Logging("Uploaded MARC file to BSZ FTP server.", 1)
+    # Logging("Uploading MARC file to BSZ FTP server.", 1)
+    # UploadToBSZFTPServer("/2001/BNB/input", working_directory + marc_output_file)
+    # Logging("Uploaded MARC file to BSZ FTP server.", 1)
 
-    # Summary header
-    SUMMARY_HEADER = """PDF File Name: {0}
-    MARC Output File: {1}
-    Working Directory: {2}
-    Email Recipient: {3}
-    """.format(pdf_file_name, marc_output_file, working_directory, email_recipient)
-    Logging(SUMMARY_HEADER, 1)
-    print(SUMMARY_HEADER)
 
-    # Summary of the BNB download
-    SUMMARY_BODY = """Summary of BNB Download
-    Total previously not found BNB IDs: {0}
-    Total previously not found BNB IDs now found: {1}
-    Total new BNB IDs in the input PDF: {2}
-    Total new BNB IDs already existing in the database: {3}
-    Total new BNB IDs found: {4}
-    Total new BNB IDs not found: {5}
-    """.format(retrying_download[0], retrying_download[1], len(new_bnb_ids), new_download[2], new_download[0], new_download[1])
+
     
-    SUMMARY = "----- BNB DOWNLOAD SUMMARY -----\n" + SUMMARY_HEADER + SUMMARY_BODY + "--------------------------------\n"
-
-    Logging(SUMMARY, 1)
-
-
+    Logging("Closing database connection and BNB server connection.", 1)
     db_connection.commit()
     db_connection.close()
+    Logging("Database connection closed.", 1)
+
+    Logging("Closing BNB server connection.", 1)
     bnb_yaz_client.sendline("quit")
     bnb_yaz_client.expect(pexpect.EOF)
+    Logging("BNB server connection closed.", 1)
+
+    LOG_SUMMARY = "BNB Download Summary:\n" \
+    "Previously not found BNB IDs retried: " + str(retrying_download[0]) + "\n" \
+    "Previously not found BNB IDs found: " + str(retrying_download[1]) + "\n" \
+    + progress_info
+    
+    Logging("Finalizing and closing connections.", 1)
+    Logging("Final Summary:\n" + LOG_SUMMARY, 1)
+    # Send email with log summary
+    # os.system('echo "' + LOG_SUMMARY + '" | mail -s "BNB Download Summary" ' + email_recipient)
+    Logging("Email sent to " + email_recipient, 1)
+
 
 
 
