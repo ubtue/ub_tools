@@ -9,7 +9,7 @@
 # Requires 'pdftotext' utility to parse PDF files.
 # The working directory should have the following structure:
 # The 'input' directory should contain the PDF files with BNB IDs.
-# The 'loaded' directory will store processed PDF files.
+# The 'loaded' directory will store processed PDF files and successfully uploaded MARC files.
 # The 'marc' directory will store downloaded MARC files.
 # The 'logs' directory will store log files.
 
@@ -31,6 +31,11 @@ marc_output_file : str
 tmp_parse_file : str
 working_directory : str
 email_recipient : str
+total_new_extracted_ids : int = 0
+total_found_ids : int = 0
+total_not_found_ids : int = 0
+total_existing_ids : int = 0
+pdf_files : list = []
 DATABASE_NAME = "/usr/local/var/lib/tuelib/bnb_downloads.db"
 LOG_FILE = "log_bnb_downloader_" + datetime.datetime.now().strftime("%Y%m%d_%H%M%S") + ".log"
 
@@ -145,16 +150,24 @@ def DownloadRecordRange(bnb_ids):
     for bnb_id in bnb_ids:
         counter += 1
         if(not IsBNBIdInSuccessfulDownloadTable(bnb_id)):
-            bnb_yaz_client.sendline("find @attr 1=48 " + '"' + bnb_id + '"')
-            bnb_yaz_client.expect("Number of hits:.*", timeout=1000)
-            count_search = re.search(b"Number of hits: (\\d+), setno", bnb_yaz_client.after)
-            
-            if count_search.group(1).decode("utf-8") != "0":
-                bnb_yaz_client.sendline("show all")
-                bnb_yaz_client.expect("\r\n")
-                total_found += 1
-                found_ids.append(bnb_id)
-            else:
+            try:
+                bnb_yaz_client.sendline("find @attr 1=48 " + '"' + bnb_id + '"')
+                bnb_yaz_client.expect("Number of hits:.*", timeout=1000)
+                count_search = re.search(b"Number of hits: (\\d+), setno", bnb_yaz_client.after)
+                
+                if count_search.group(1).decode("utf-8") != "0":
+                    bnb_yaz_client.sendline("show all")
+                    bnb_yaz_client.expect("\r\n")
+                    total_found += 1
+                    found_ids.append(bnb_id)
+                else:
+                    not_found_ids.append(bnb_id)
+                    total_not_found += 1
+            except Exception as e:
+                Logging("An error occurred while downloading BNB ID " + bnb_id + ": " + str(e), 2)
+                Logging("Skipping BNB ID " + bnb_id + " due to error.", 1)
+                Logging("Continuing with next BNB ID.", 1)
+                Logging("Writing BNB ID " + bnb_id + " to not found list.", 1)
                 not_found_ids.append(bnb_id)
                 total_not_found += 1
         else:
@@ -184,8 +197,17 @@ def RetryingPreviousNotFoundBNBIDs():
             DeleteIdFromUnsuccessfulDownloadTable(found_id)
             InsertIdToSuccessfulDownloadTable(found_id, previous_not_found_ids_pair[found_id])
 
-    progress_info = "Retried downloading Info for previously not found BNB IDs.\n" \
-    "Found IDs: " + "\n ".join(found_ids) + "\n"
+    progress_info = "Retried downloading Info for previously not found BNB IDs.\n"
+    
+    if len(found_ids) == 0:
+        progress_info += "No BNB IDs were found.\n"
+    else:
+        progress_info += "------------------------------\n" \
+            "Total previously not found BNB IDs: " + str(total_previously_not_found) + "\n" \
+            "Total found BNB IDs: " + str(total_found) + "\n"\
+            "------------------------------\n"
+        
+    progress_info += "Found IDs: " + "\n".join(found_ids) + "\n"
 
     Logging(progress_info, 1)
     
@@ -204,9 +226,20 @@ def DownloadNewBNBIDs(bnb_ids):
     for not_found_id in not_found_ids:
         InsertIdToUnsuccessfulDownloadTable(not_found_id, pdf_file_name)
 
-    progress_info = "Downloaded Info for new BNB IDs from the input PDF file.\n" \
-    "Found IDs: " + "\n ".join(found_ids) + "\n" \
-    "Not Found IDs: " + "\n ".join(not_found_ids) + "\n"
+    progress_info = "Downloaded Info for new BNB IDs from the input PDF file.\n"
+    if len(found_ids) == 0:
+        progress_info += "No BNB IDs were found.\n"
+    else:
+        progress_info += "------------------------------\n" \
+            "From BNB IDs: " + str(len(bnb_ids)) + " in the input PDF file.\n" \
+            "Found IDs: \n" + "\n".join(found_ids) + "\n" \
+    
+    if len(not_found_ids) == 0:
+        progress_info += "All BNB IDs were found.\n"
+    else:
+        progress_info += "------------------------------\n" \
+            "From BNB IDs: " + str(len(bnb_ids)) + " in the input PDF file.\n" \
+            "Not Found IDs: \n" + "\n".join(not_found_ids) + "\n"
 
     Logging(progress_info, 1)
 
@@ -245,6 +278,7 @@ def ExtractBNBIDsFromPDF():
 
 # Get all PDF files in a directory
 def GetAllPdfFilesInDirectory(directory: str):
+    global pdf_files
     try:
         if not os.path.exists(directory):
             Logging("The specified directory does not exist: " + directory, 3)
@@ -253,20 +287,21 @@ def GetAllPdfFilesInDirectory(directory: str):
         Logging("An error occurred while checking the directory: " + str(e), 3)
         sys.exit(1)
 
-    pdf_files = []
     for file in os.listdir(directory):
         if file.lower().endswith(".pdf"):
             pdf_files.append(file)
-    return pdf_files
 
 
 def ProcessingPDFFiles(files: list):
-    global pdf_file_name, marc_output_file
-    progress_info = "Processing PDF files in directory.\n" \
-    "Files to process: " + "\n ".join(files) + "\n"
+    global pdf_file_name, marc_output_file, total_new_extracted_ids, total_found_ids, total_not_found_ids, total_existing_ids
+
+    progress_info = "Processing PDF files in the directory.\n" \
+    "Files to process: \n" + "\n".join(files) + "\n"
 
     for file in files:
-        pdf_file_name = file
+        pdf_file_name = file 
+
+        Logging("\n===============================", 1)
         Logging("Processing PDF file: " + file, 1)
         
         Logging("Preparing MARC output file name.", 1)
@@ -281,13 +316,19 @@ def ProcessingPDFFiles(files: list):
         new_download = DownloadNewBNBIDs(new_bnb_ids)
         Logging("Downloaded new BNB IDs from the PDF file.", 1)
 
-        processing_info = "Processed PDF file: " + file + ". Found: " + str(new_download[0]) + ", Not Found: " + str(new_download[1]) + ", Existing: " + str(new_download[2]) + "\n"
+        processing_info = "Processed PDF file: " + file + ". Extracting BNB IDs: " + str(len(new_bnb_ids)) + ", Found: " + str(new_download[0]) + ", Not Found: " + str(new_download[1]) + ", Existing: " + str(new_download[2]) + "\n"
         Logging(processing_info, 1)
         progress_info += processing_info
 
         Logging("Uploading MARC file to BSZ FTP server.", 1)
         # UploadToBSZFTPServer("/2001/BNB/input", working_directory + marc_output_file)
         Logging("Uploaded MARC file to BSZ FTP server.", 1)
+
+        # Update totals
+        total_new_extracted_ids += len(new_bnb_ids)
+        total_found_ids += new_download[0]
+        total_not_found_ids += new_download[1]
+        total_existing_ids += new_download[2]
 
         # move processed PDF file to 'loaded' directory
         os.rename(working_directory + "input/" + file, working_directory + "loaded/" + file)
@@ -332,11 +373,11 @@ def Main():
     Logging("Retried previously not found BNB IDs.", 1)
 
     Logging("Getting all PDF files in the working directory.", 1)
-    list_of_pdf_files = GetAllPdfFilesInDirectory(working_directory + "input")
+    GetAllPdfFilesInDirectory(working_directory + "input")
     Logging("Obtained all PDF files in the working directory.", 1)
     
     Logging("Processing all PDF files in the directory.", 1)
-    progress_info = ProcessingPDFFiles(list_of_pdf_files)
+    progress_info = ProcessingPDFFiles(pdf_files)
     Logging("Processed all PDF files in the directory.", 1)
 
     # Upload MARC file to BSZ FTP server
@@ -357,16 +398,32 @@ def Main():
     bnb_yaz_client.expect(pexpect.EOF)
     Logging("BNB server connection closed.", 1)
 
-    LOG_SUMMARY = "BNB Download Summary:\n" \
+    PROCESSING_INFO = "\n\n" \
+    "Processed PDF files: \n" + "\n".join(pdf_files) + "\n\n" + \
     "Previously not found BNB IDs retried: " + str(retrying_download[0]) + "\n" \
     "Previously not found BNB IDs found: " + str(retrying_download[1]) + "\n" \
-    + progress_info
+    "Total new extracted BNB IDs: " + str(total_new_extracted_ids) + "\n" \
+    "Total found BNB IDs: " + str(total_found_ids) + "\n" \
+    "Total not found BNB IDs: " + str(total_not_found_ids) + "\n" \
+    "Total existing BNB IDs: " + str(total_existing_ids) + "\n"
+
+    LOG_SUMMARY = "\n======================================\n" \
+    "Per File Download Info.:\n" \
+    + progress_info + \
+    "--------------------------------------\n" \
+    "LOG SUMMARY\n" \
+    "======================================\n" \
+    + PROCESSING_INFO
     
+
+    EMAIL_BODY = "BNB Download Summary\n\n" + PROCESSING_INFO
+
     Logging("Finalizing and closing connections.", 1)
     Logging("Final Summary:\n" + LOG_SUMMARY, 1)
     # Send email with log summary
     # os.system('echo "' + LOG_SUMMARY + '" | mail -s "BNB Download Summary" ' + email_recipient)
     Logging("Email sent to " + email_recipient, 1)
+    print(EMAIL_BODY)
 
 
 
