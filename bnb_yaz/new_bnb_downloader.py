@@ -78,9 +78,31 @@ def InitializeDatabase():
 
 # Check if the working directory exists
 def CheckWorkingDirectory():
+    global working_directory
     if not os.path.exists(working_directory):
         Logging("The specified working directory does not exist: " + working_directory, 3)
+        # send email about the error
+        # bsz_util.SendEmail(email_recipient, "BNB Downloader Error", "The specified working directory does not exist: " + working_directory)
         sys.exit(1)
+    else:
+        # ensure working_directory ends with a slash
+        if not working_directory.endswith("/"):
+            working_directory += "/"
+
+        # check for necessary subdirectories
+        if not os.path.exists(working_directory + "input/"):
+            Logging("The input directory does not exist: " + working_directory + "input/", 3)
+            # send email about the error
+            # bsz_util.SendEmail(email_recipient, "BNB Downloader Error", "The input directory does not exist: " + working_directory + "input/")
+            sys.exit(1)
+
+        # create 'loaded', 'marc', and 'logs' directories if they do not exist
+        if not os.path.exists(working_directory + "loaded/"):
+            os.makedirs(working_directory + "loaded/")
+        if not os.path.exists(working_directory + "marc/"):
+            os.makedirs(working_directory + "marc/")
+        if not os.path.exists(working_directory + "logs/"):
+            os.makedirs(working_directory + "logs/")
     
 
 # Connect to the YAZ server
@@ -165,11 +187,9 @@ def DownloadRecordRange(bnb_ids):
                     total_not_found += 1
             except Exception as e:
                 Logging("An error occurred while downloading BNB ID " + bnb_id + ": " + str(e), 2)
-                Logging("Skipping BNB ID " + bnb_id + " due to error.", 1)
-                Logging("Continuing with next BNB ID.", 1)
-                Logging("Writing BNB ID " + bnb_id + " to not found list.", 1)
                 not_found_ids.append(bnb_id)
                 total_not_found += 1
+                Logging("Continuing with next BNB ID.", 1)
         else:
             total_existing += 1
 
@@ -270,7 +290,7 @@ def ExtractBNBIDsFromPDF():
 # def UploadToBSZFTPServer(remote_folder_path: str, marc_filename: str):
 #     remote_file_name_tmp: str = marc_filename + ".tmp"
 
-#     ftp = bsz_util.GetFTPConnection()
+#     ftp = bsz_util.GetFTPConnection("SFTP_Upload")
 #     ftp.changeDirectory(remote_folder_path)
 #     ftp.uploadFile(marc_filename, remote_file_name_tmp)
 #     ftp.renameFile(remote_file_name_tmp, marc_filename)
@@ -279,13 +299,9 @@ def ExtractBNBIDsFromPDF():
 # Get all PDF files in a directory
 def GetAllPdfFilesInDirectory(directory: str):
     global pdf_files
-    try:
-        if not os.path.exists(directory):
-            Logging("The specified directory does not exist: " + directory, 3)
-            sys.exit(1)
-    except Exception as e:
-        Logging("An error occurred while checking the directory: " + str(e), 3)
-        sys.exit(1)
+    # check whether the directory exists is not end with a slash
+    if not directory.endswith("/"):
+        directory += "/"
 
     for file in os.listdir(directory):
         if file.lower().endswith(".pdf"):
@@ -320,9 +336,18 @@ def ProcessingPDFFiles(files: list):
         Logging(processing_info, 1)
         progress_info += processing_info
 
-        Logging("Uploading MARC file to BSZ FTP server.", 1)
+        # check whether the marc file size is greater than zero
+        # zero size means no records were downloaded
+        if os.path.getsize(working_directory + "marc/" + marc_output_file) > 0:
         # UploadToBSZFTPServer("/2001/BNB/input", working_directory + marc_output_file)
-        Logging("Uploaded MARC file to BSZ FTP server.", 1)
+            Logging("Uploading MARC file to BSZ FTP server.", 1)
+            # UploadToBSZFTPServer("/2001/BNB/input", working_directory + "marc/" + marc_output_file)
+            Logging("Uploaded MARC file to BSZ FTP server.", 1)
+            os.rename(working_directory + "marc/" + marc_output_file, working_directory + "loaded/" + marc_output_file)
+        else:
+            Logging("MARC file is empty, upload skipped.", 2)
+            # remove empty marc file
+            os.remove(working_directory + "marc/" + marc_output_file)
 
         # Update totals
         total_new_extracted_ids += len(new_bnb_ids)
@@ -331,9 +356,7 @@ def ProcessingPDFFiles(files: list):
         total_existing_ids += new_download[2]
 
         # move processed PDF file to 'loaded' directory
-        os.rename(working_directory + "input/" + file, working_directory + "loaded/" + file)
-
-        os.rename(working_directory + "marc/" + marc_output_file, working_directory + "loaded/" + marc_output_file)
+        os.rename(working_directory + "input/" + file, working_directory + "loaded/" + file)    
     
     return progress_info
 
@@ -373,20 +396,12 @@ def Main():
     Logging("Retried previously not found BNB IDs.", 1)
 
     Logging("Getting all PDF files in the working directory.", 1)
-    GetAllPdfFilesInDirectory(working_directory + "input")
+    GetAllPdfFilesInDirectory(working_directory + "input/")
     Logging("Obtained all PDF files in the working directory.", 1)
     
     Logging("Processing all PDF files in the directory.", 1)
     progress_info = ProcessingPDFFiles(pdf_files)
     Logging("Processed all PDF files in the directory.", 1)
-
-    # Upload MARC file to BSZ FTP server
-    # Logging("Uploading MARC file to BSZ FTP server.", 1)
-    # UploadToBSZFTPServer("/2001/BNB/input", working_directory + marc_output_file)
-    # Logging("Uploaded MARC file to BSZ FTP server.", 1)
-
-
-
     
     Logging("Closing database connection and BNB server connection.", 1)
     db_connection.commit()
@@ -421,7 +436,7 @@ def Main():
     Logging("Finalizing and closing connections.", 1)
     Logging("Final Summary:\n" + LOG_SUMMARY, 1)
     # Send email with log summary
-    # os.system('echo "' + LOG_SUMMARY + '" | mail -s "BNB Download Summary" ' + email_recipient)
+    # bsz_util.SendEmail(email_recipient, "BNB Downloader Summary", EMAIL_BODY)
     Logging("Email sent to " + email_recipient, 1)
     print(EMAIL_BODY)
 
