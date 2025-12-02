@@ -98,7 +98,6 @@ def InitializeDatabase():
                             date_delivered TIMESTAMP DEFAULT NULL
                             )'''
 
-
     with sqlite3.connect(DATABASE_NAME) as connection:
         cursor = connection.cursor()
         # create tables if they do not exist
@@ -118,7 +117,7 @@ def IsBNBIdInRecordsTable(bnb_id):
     
     
 # Insert a BNB ID into the records table when not exist
-def InsertIntoRecords(bnb_id, file_name):
+def InsertIntoRecordsIfNotExist(bnb_id, file_name):
     global new_bnb_info
     # insert if not exist
     if not IsBNBIdInRecordsTable(bnb_id):
@@ -151,7 +150,6 @@ def GetNotDeliveredIDs():
         bnb_ids.append((row[0], row[1]))
     
     return bnb_ids
-
 
 
 # Download records for a list of BNB IDs
@@ -194,7 +192,6 @@ def DownloadRecordRange(bnb_ids):
             new_bnb_info[source_file]["list_of_error_id"].append(bnb_id)
 
 
-
 # Convert PDF to text and extract BNB IDs
 def ExtractBNBIDsFromPDF(pdf_file_name):
     tmp_pdf_text_file = working_directory + "input/temp_pdf_text_" + pdf_file_name + ".txt"
@@ -214,6 +211,7 @@ def ExtractBNBIDsFromPDF(pdf_file_name):
 
     os.remove(tmp_pdf_text_file)
     return bnb_ids
+
 
 # Get all PDF files in a directory
 def GetAllPdfFilesInDirectory(directory: str):
@@ -251,7 +249,7 @@ def ProcessingPDFFiles():
                     new_bnb_info[file]["list_of_existing_id"].append(bnb_id)
                     set_of_existing_ids.add(bnb_id)
                 else:
-                    InsertIntoRecords(bnb_id, file)
+                    InsertIntoRecordsIfNotExist(bnb_id, file)
                     set_of_new_ids.add(bnb_id)
                     if "list_of_new_id" not in new_bnb_info[file]:
                         new_bnb_info[file]["list_of_new_id"] = list()
@@ -265,27 +263,27 @@ def ProcessingPDFFiles():
         # move processed file to loaded directory
         os.rename(working_directory + "input/" + file, working_directory + "loaded/" + file)
         util.Info("Moved processed file to loaded directory: " + working_directory + "loaded/" + file)
-        
+
 
 # Upload MARC files to FTP server
 def UploadMARCFilesToBSZFTPServer(remote_directory: str):
-    with(bsz_util.GetFTPConnection("SFTP_Upload")) as ftp:
-        MARC_FILE_DIRECTORY = working_directory + "marc/"
-        for file in os.listdir(MARC_FILE_DIRECTORY):
-            if file.lower().endswith(".mrc"):
-                file_with_path = MARC_FILE_DIRECTORY + file
-                # check if the file size is greater than 0
-                if os.path.getsize(file_with_path) > 0:
-                    util.Info("Uploading MARC file to BSZ FTP server: " + file)
-                    ftp.changeDirectory(remote_directory)
-                    ftp.uploadFile(file_with_path, file + ".tmp")
-                    ftp.renameFile(file + ".tmp", file)
-                    util.Info("Successfully uploaded MARC file: " + file)
-                    # move uploaded MARC file to loaded directory
-                    os.rename(file_with_path, working_directory + "loaded/" + file)
-                    util.Info("Moved uploaded MARC file to loaded directory: " + working_directory + "loaded/" + file)
-                    
-        ftp.close()
+    sftp = bsz_util.GetFTPConnection("SFTP_Upload")
+    MARC_FILE_DIRECTORY = working_directory + "marc/"
+    for file in os.listdir(MARC_FILE_DIRECTORY):
+        if file.lower().endswith(".mrc"):
+            file_with_path = MARC_FILE_DIRECTORY + file
+            # check if the file size is greater than 0
+            if os.path.getsize(file_with_path) > 0:
+                util.Info("Uploading MARC file to BSZ FTP server: " + file)
+                sftp.changeDirectory(remote_directory)
+                sftp.uploadFile(file_with_path, file + ".tmp")
+                sftp.renameFile(file + ".tmp", file)
+                util.Info("Successfully uploaded MARC file: " + file)
+                # move uploaded MARC file to loaded directory
+                os.rename(file_with_path, working_directory + "loaded/" + file)
+                util.Info("Moved uploaded MARC file to loaded directory: " + working_directory + "loaded/" + file)
+                
+    sftp.close()
     
 
 # Write summary report
