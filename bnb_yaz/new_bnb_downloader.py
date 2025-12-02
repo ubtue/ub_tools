@@ -11,52 +11,52 @@
 # The 'input' directory should contain the PDF files with BNB IDs.
 # The 'loaded' directory will store processed PDF files and successfully uploaded MARC files.
 # The 'marc' directory will store downloaded MARC files.
-# The 'logs' directory will store log files.
 
 
+from unittest import case
 import pexpect
 import re
 import os
 import sys
 import sqlite3
 import datetime
-# import bsz_util
+import util
+import bsz_util
 
 # Global variables
 db_connection : sqlite3.Connection
 bnb_yaz_client : pexpect.spawn
-pdf_file_name : str
-marc_output_file : str
-tmp_parse_file : str
 working_directory : str
 email_recipient : str
-total_new_extracted_ids : int = 0
-total_found_ids : int = 0
-total_not_found_ids : int = 0
-total_existing_ids : int = 0
+total_id_extracted : int = 0
+set_of_existing_ids : set = set()
+set_of_new_ids : set = set()
+number_of_downloaded_ids : int = 0
 pdf_files : list = []
 new_bnb_info : dict = {}
 
-DATABASE_NAME = "/usr/local/var/lib/tuelib/bnb_downloads.sq3"
-LOG_FILE = "log_bnb_downloader_" + datetime.datetime.now().strftime("%Y%m%d_%H%M%S") + ".log"
+CONFIG_DIRECTORY_PATH = "/usr/local/var/lib/tuelib/"
+DATABASE_NAME = CONFIG_DIRECTORY_PATH + "bnb_downloads.sq3"
 
-
-# Logging function to log messages (INFO, ERROR, etc.) to a log file
-# level: 1 = INFO, 2 = WARNING, 3 = ERROR
-def Logging(message, level=1):
-    LEVEL_INFO = {1: "INFO", 2: "WARNING", 3: "ERROR"}
-    with open(working_directory + "logs/" + LOG_FILE, "a") as log_file:
-        log_file.write(LEVEL_INFO.get(level, "INFO") + " -- " + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + " - " + message + "\n")
+# initialize new_bnb_info's key structure
+def InitializeNewBNBInfoStructure(key: str):
+    global new_bnb_info
+    if key not in new_bnb_info:
+        new_bnb_info[key] = {
+            "list_of_id_extracted": list(),
+            "list_of_existing_id": list(),
+            "list_of_new_id": list(),
+            "list_of_not_found_id": list(),
+            "list_of_error_id": list(),
+            "list_of_downloaded_id": list(),
+        }
 
 
 # Check if the working directory exists
 def CheckWorkingDirectory():
     global working_directory
     if not os.path.exists(working_directory):
-        Logging("The specified working directory does not exist: " + working_directory, 3)
-        # send email about the error
-        # bsz_util.SendEmail(email_recipient, "BNB Downloader Error", "The specified working directory does not exist: " + working_directory)
-        sys.exit(1)
+        util.Error("The specified working directory does not exist: " + working_directory)
     else:
         # ensure working_directory ends with a slash
         if not working_directory.endswith("/"):
@@ -64,23 +64,18 @@ def CheckWorkingDirectory():
 
         # check for necessary subdirectories
         if not os.path.exists(working_directory + "input/"):
-            Logging("The input directory does not exist: " + working_directory + "input/", 3)
-            # send email about the error
-            # bsz_util.SendEmail(email_recipient, "BNB Downloader Error", "The input directory does not exist: " + working_directory + "input/")
-            sys.exit(1)
+            util.Error("The input directory does not exist: " + working_directory + "input/")
 
         # create 'loaded', 'marc', and 'logs' directories if they do not exist
         if not os.path.exists(working_directory + "loaded/"):
             os.makedirs(working_directory + "loaded/")
         if not os.path.exists(working_directory + "marc/"):
             os.makedirs(working_directory + "marc/")
-        if not os.path.exists(working_directory + "logs/"):
-            os.makedirs(working_directory + "logs/")
 
 
 # Connect to the YAZ server
 def ConnectToBNBServer():
-    with open("/usr/local/var/lib/tuelib/bnb_username_password.conf", "r") as f:
+    with open(CONFIG_DIRECTORY_PATH + "bnb_username_password.conf", "r") as f:
             username_password = f.read()        
     yaz_client = pexpect.spawn("yaz-client")
     yaz_client.sendline("auth " + username_password)
@@ -97,29 +92,25 @@ def ConnectToBNBServer():
 # Initialize the SQLite database and create necessary tables if they do not exist
 def InitializeDatabase():
     RECORDS_TABLE_SCHEMA = '''CREATE TABLE IF NOT EXISTS records
-                            (id UNSIGNED BIG INT PRIMARY KEY AUTOINCREMENT,
+                            (id  INTEGER PRIMARY KEY AUTOINCREMENT,
                             bnb_id TEXT NOT NULL UNIQUE,
                             source_file_name TEXT NOT NULL,
                             date_added TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                             date_delivered TIMESTAMP DEFAULT NULL
                             )'''
 
-    try:
-        # create a database when it does not exists otherwise connect to the existing one
-        with sqlite3.connect(DATABASE_NAME) as connection:
-            cursor = connection.cursor()
-            # create tables if they do not exist
-            cursor.execute(RECORDS_TABLE_SCHEMA)
-            return connection
-    except sqlite3.Error as e:
-        Logging("An error occurred while initializing the database: " + str(e), 3)
-        sys.exit(1)
+
+    with sqlite3.connect(DATABASE_NAME) as connection:
+        cursor = connection.cursor()
+        # create tables if they do not exist
+        cursor.execute(RECORDS_TABLE_SCHEMA)
+        return connection
 
 
 # Check if a BNB ID is in the successful download table
 def IsBNBIdInRecordsTable(bnb_id):
     cursor = db_connection.cursor()
-    cursor.execute("SELECT COUNT(*) FROM records WHERE bnb_id=?", (bnb_id))
+    cursor.execute("SELECT COUNT(*) FROM records WHERE bnb_id='" + bnb_id + "'")
     row = cursor.fetchone()
     if row[0] > 0:
         return True
@@ -127,12 +118,19 @@ def IsBNBIdInRecordsTable(bnb_id):
         return False
     
     
-# Insert a BNB ID into the records table
+# Insert a BNB ID into the records table when not exist
 def InsertIntoRecords(bnb_id, file_name):
+    global new_bnb_info
     # insert if not exist
     if not IsBNBIdInRecordsTable(bnb_id):
         cursor = db_connection.cursor()
         cursor.execute("INSERT INTO records(bnb_id, source_file_name) VALUES (?,?)", (bnb_id, file_name))
+    else:
+        # check whether the key "list_of_existing_id" exists in new_bnb_info for the file_name
+        if file_name not in new_bnb_info:
+            InitializeNewBNBInfoStructure(file_name)
+
+        new_bnb_info[file_name]["list_of_existing_id"].append(bnb_id)
 
 
 # Insert a BNB ID into the unsuccessful download table
@@ -145,27 +143,38 @@ def UpdateDateDeliveredInRecords(bnb_id):
 # Get BNB IDs for downloading
 def GetNotDeliveredIDs():
     cursor = db_connection.cursor()
-    cursor.execute("SELECT bnb_id, source_file_name FROM records WHERE date_delivered = NULL ORDER BY source_file_name")
+    # select bnb_id and source_file_name where date_delivered is NULL
+    cursor.execute("SELECT bnb_id, source_file_name FROM records WHERE date_delivered IS NULL")
     rows = cursor.fetchall()
-    bnb_ids = {row[0]: row[1] for row in rows}
+    bnb_ids = []
+    
+    for row in rows:
+        bnb_ids.append((row[0], row[1]))
+    
     return bnb_ids
 
 
 
 # Download records for a list of BNB IDs
 def DownloadRecordRange(bnb_ids):
+    global marc_output_file, new_bnb_info, number_of_downloaded_ids
     bnb_yaz_client.sendline("format marc21")
-    bnb_yaz_client.expect("\r\n")
-    bnb_yaz_client.sendline("set_marcdump " + working_directory + "marc/" + marc_output_file)
     bnb_yaz_client.expect("\r\n")
 
     counter = 0
-    total_found = 0
-    total_not_found = 0
-    total_existing = 0
-    found_ids = []
-    not_found_ids = []
+    source_file_name = ""
     for bnb_id, source_file in bnb_ids:
+        # create new entry in new_bnb_info if not exist
+        if source_file not in new_bnb_info:
+            InitializeNewBNBInfoStructure(source_file)
+        
+        # group the output marc file by source file name
+        if( source_file != source_file_name):
+            source_file_name = source_file
+            marc_output_file = "bnb-" + datetime.datetime.now().strftime("%y%m%d") + "-" + source_file_name + ".mrc"
+            bnb_yaz_client.sendline("set_marcdump " + working_directory + "marc/" + marc_output_file)
+            bnb_yaz_client.expect("\r\n")
+            
         counter += 1
         try:
             bnb_yaz_client.sendline("find @attr 1=48 " + '"' + bnb_id + '"')
@@ -175,22 +184,20 @@ def DownloadRecordRange(bnb_ids):
             if count_search.group(1).decode("utf-8") != "0":
                 bnb_yaz_client.sendline("show all")
                 bnb_yaz_client.expect("\r\n")
-                total_found += 1
-                found_ids.append(bnb_id)
-            else:
-                not_found_ids.append(bnb_id)
-                total_not_found += 1
-        except Exception as e:
-            Logging("An error occurred while downloading BNB ID " + bnb_id + ": " + str(e), 2)
-            not_found_ids.append(bnb_id)
-            total_not_found += 1
-            Logging("Continuing with next BNB ID.", 1)
 
-    return [found_ids, not_found_ids, total_found, total_not_found, total_existing]
+                number_of_downloaded_ids += 1
+                new_bnb_info[source_file]["list_of_downloaded_id"].append(bnb_id)
+                UpdateDateDeliveredInRecords(bnb_id)
+            else:
+                new_bnb_info[source_file]["list_of_not_found_id"].append(bnb_id)
+        except Exception as e:
+            util.Info("An error occurred while downloading BNB ID " + bnb_id + ": " + str(e))
+            new_bnb_info[source_file]["list_of_error_id"].append(bnb_id)
+
 
 
 # Convert PDF to text and extract BNB IDs
-def ExtractBNBIDsFromPDF():
+def ExtractBNBIDsFromPDF(pdf_file_name):
     tmp_pdf_text_file = working_directory + "input/temp_pdf_text_" + pdf_file_name + ".txt"
     os.system("pdftotext " + working_directory + "input/" + pdf_file_name + " " + tmp_pdf_text_file)
     bnb_ids = []
@@ -223,118 +230,159 @@ def GetAllPdfFilesInDirectory(directory: str):
 
 # Processing all PDF files, extract the BNB IDs, and save it to records table
 def ProcessingPDFFiles():
-    global pdf_file_name, total_new_extracted_ids, total_found_ids, total_not_found_ids, total_existing_ids
-
-    progress_info = "Processing PDF files, extract the BNB IDs, and save it to records table.\n" \
-    "Files to process: \n" + "\n".join(pdf_files) + "\n"
+    global total_id_extracted, new_bnb_info, set_of_existing_ids, set_of_new_ids
 
     for file in pdf_files:
-        pdf_file_name = file
-
-        Logging("Extracting BNB IDs from file: " + file, 1)
-        bnb_ids = ExtractBNBIDsFromPDF()
-        no_of_id_extracted = len(bnb_ids)
-        total_new_extracted_ids = 0
-        total_new_extracted_ids_local = 0
+        util.Info("Processing file: " + file)
+        # initialize new_bnb_info for the file if not exist
+        if file not in new_bnb_info:
+            InitializeNewBNBInfoStructure(file)
         
-        if no_of_id_extracted > 0:
-            Logging(f"Found: {no_of_id_extracted} new IDs", 1)
-            no_of_existing_id = 0
+        # extract BNB IDs from the PDF file
+        bnb_ids = ExtractBNBIDsFromPDF(file)
+        
+        new_bnb_info[file]["list_of_id_extracted"] = bnb_ids
+        
+        total_id_extracted += len(bnb_ids)
+        
+        if len(new_bnb_info[file]["list_of_id_extracted"]) > 0:
+            util.Info(f"Extract: {len(new_bnb_info[file]['list_of_id_extracted'])} IDs")
             for bnb_id in bnb_ids:
                 if IsBNBIdInRecordsTable(bnb_id):
-                    no_of_existing_id += 1
+                    new_bnb_info[file]["list_of_existing_id"].append(bnb_id)
+                    set_of_existing_ids.add(bnb_id)
                 else:
                     InsertIntoRecords(bnb_id, file)
-
-            total_new_extracted_ids_local += no_of_id_extracted - no_of_existing_id
-            total_new_extracted_ids += total_new_extracted_ids_local
-            new_bnb_info[file]["no_of_id_extracted"] = no_of_id_extracted 
-            new_bnb_info[file]["total_new_extracted_ids"] = total_new_extracted_ids_local
-            new_bnb_info[file]["no_of_existing_id"] = no_of_existing_id
-            new_bnb_info[file]["new_ids"] = "\n".join(bnb_ids) + "\n"
+                    set_of_new_ids.add(bnb_id)
+                    if "list_of_new_id" not in new_bnb_info[file]:
+                        new_bnb_info[file]["list_of_new_id"] = list()
+                        
+                    new_bnb_info[file]["list_of_new_id"].append(bnb_id)
         else:
-            Logging(f"No BNB ID found in the file\n")
-            new_bnb_info[file]["no_of_id_extracted"] = 0 
-            new_bnb_info[file]["total_new_extracted_ids"] = 0
-            new_bnb_info[file]["no_of_existing_id"] = "\n"
-            new_bnb_info[file]["new_ids"] = ""
+            new_bnb_info[file]["list_of_id_extracted"] = []
+            new_bnb_info[file]["list_of_existing_id"] = []
+            new_bnb_info[file]["list_of_new_id"] = []
         
-        progress_info += f"File: {file} - Extracted IDs: {no_of_id_extracted}, New IDs: {new_bnb_info[file]['total_new_extracted_ids']}, Existing IDs: {new_bnb_info[file]['no_of_existing_id']}\n"
+        # move processed file to loaded directory
+        os.rename(working_directory + "input/" + file, working_directory + "loaded/" + file)
+        util.Info("Moved processed file to loaded directory: " + working_directory + "loaded/" + file)
         
+
+# Upload MARC files to FTP server
+def UploadMARCFilesToBSZFTPServer(remote_directory: str):
+    with(bsz_util.GetFTPConnection("SFTP_Upload")) as ftp:
+        MARC_FILE_DIRECTORY = working_directory + "marc/"
+        for file in os.listdir(MARC_FILE_DIRECTORY):
+            if file.lower().endswith(".mrc"):
+                file_with_path = MARC_FILE_DIRECTORY + file
+                # check if the file size is greater than 0
+                if os.path.getsize(file_with_path) > 0:
+                    util.Info("Uploading MARC file to BSZ FTP server: " + file)
+                    ftp.changeDirectory(remote_directory)
+                    ftp.uploadFile(file_with_path, file + ".tmp")
+                    ftp.renameFile(file + ".tmp", file)
+                    util.Info("Successfully uploaded MARC file: " + file)
+                    # move uploaded MARC file to loaded directory
+                    os.rename(file_with_path, working_directory + "loaded/" + file)
+                    util.Info("Moved uploaded MARC file to loaded directory: " + working_directory + "loaded/" + file)
+                    
+        ftp.close()
+    
+
+# Write summary report
+def WriteSummaryReport() -> str:
+    summary_report = "Detailed Summary Report of BNB Downloader\n"
+    summary_report += "=================================\n\n"
+    for file_name, info in new_bnb_info.items():
+        summary_report += f"File: {file_name}\n"
+        summary_report += f"  Extracted IDs: {len(info['list_of_id_extracted'])}\n"
+        summary_report += f"  Existing IDs: {len(info['list_of_existing_id'])}\n"
+        summary_report += f"  New IDs: {len(info['list_of_new_id'])}\n"
+        summary_report += f"  List of Not Found IDs: {', '.join(info['list_of_not_found_id'])}\n"
+        summary_report += f"  Not Found IDs: {len(info['list_of_not_found_id'])}\n"
+        summary_report += f"  List of Error IDs: {', '.join(info['list_of_error_id'])}\n"
+        summary_report += f"  Error IDs: {len(info['list_of_error_id'])}\n"
+        summary_report += f"  Downloaded IDs: {len(info['list_of_downloaded_id'])}\n\n"
         
+    summary_report += "BNB Downloader Summary Report\n"
+    summary_report += "=================================\n\n"
+    summary_report += f"List of processed PDF files: {', '.join(pdf_files)}\n"
+    summary_report += f"Total PDF files processed: {len(pdf_files)}\n"
+    summary_report += f"Total BNB IDs extracted: {total_id_extracted}\n"
+    summary_report += f"Total new BNB IDs to download: {len(set_of_new_ids)}\n"
+    summary_report += f"Total existing BNB IDs: {len(set_of_existing_ids)}\n"
+    summary_report += f"Total of not found BNB IDs: {sum(len(info['list_of_not_found_id']) for info in new_bnb_info.values())}\n"
+    summary_report += f"Total of error BNB IDs: {sum(len(info['list_of_error_id']) for info in new_bnb_info.values())}\n"
+    summary_report += f"Total downloaded BNB IDs: {number_of_downloaded_ids}\n\n"
     
     
-    progress_info += "Processing completed.\n"
-    Logging(progress_info, 1)
+    return summary_report
     
-
-# Download undeliverded BNB IDs
-def DownloadUndeliveredBNBIDs():
-    global marc_output_file, total_found_ids, total_not_found_ids, total_existing_ids
-
-    undelivered_bnb_ids = GetNotDeliveredIDs()
-    if len(undelivered_bnb_ids) == 0:
-        Logging("No undelivered BNB IDs found.", 1)
-        return
-
-
-    marc_output_file = "bnb_download_" + datetime.datetime.now().strftime("%Y%m%d_%H%M%S") + ".mrc"
-    Logging(f"Downloading undelivered BNB IDs to file: {marc_output_file}", 1)
-
-    [found_ids, not_found_ids, found_count, not_found_count, existing_count] = DownloadRecordRange(undelivered_bnb_ids)
-
-    total_found_ids += found_count
-    total_not_found_ids += not_found_count
-    total_existing_ids += existing_count
-
-    for bnb_id in found_ids:
-        UpdateDateDeliveredInRecords(bnb_id)
-
-    Logging(f"Download completed. Found: {found_count}, Not Found: {not_found_count}, Existing: {existing_count}", 1)
     
+    
+# Main function
 def Main():
     # check the command line arguments
     if len(sys.argv) != 3:
-        print("Usage: new_bnb_downloader.py <email> <working_directory>")
-        # send email about the error
-        # bsz_util.SendEmail(email_recipient, "BNB Downloader Error", "Usage: new_bnb_downloader.py <email> <working_directory>")
-        sys.exit(1)
+        util.Error("Invalid number of arguments. Usage: new_bnb_downloader.py <email> <working_directory>")
     
     # global variables that will be changed
-    global working_directory, email_recipient, db_connection, bnb_yaz_client, marc_output_file, new_bnb_info
+    global working_directory, email_recipient, db_connection, bnb_yaz_client
     
     email_recipient = sys.argv[1]
     working_directory = sys.argv[2]
     
-    Logging("Checking working directory...", 1)
-    CheckWorkingDirectory()
-    Logging("Initializing database...", 1)
-    db_connection = InitializeDatabase()
-    Logging("Connecting to BNB server...", 1)
-    bnb_yaz_client = ConnectToBNBServer()
-    Logging("Getting all PDF files in the input directory...", 1)
-    GetAllPdfFilesInDirectory(working_directory + "input/")
-    Logging("Processing PDF files...", 1)
-    ProcessingPDFFiles()
-
+    # set default email recipient in util module, needed for util.SendEmail() when error occurs
+    util.default_email_recipient = email_recipient
     
-    Logging("BNB Downloader completed successfully.", 1)
-    Logging("Closing connection to BNB server...", 1)
+    util.Info("Starting BNB Downloader...")
+    
+    CheckWorkingDirectory()
+    
+    util.Info("Initializing database...")
+    db_connection = InitializeDatabase()
+    
+    util.Info("Connecting to BNB server...")
+    bnb_yaz_client = ConnectToBNBServer()
+    
+    util.Info("Getting all PDF files in the input directory...")
+    GetAllPdfFilesInDirectory(working_directory + "input/")
+    
+    util.Info("Processing PDF files...")
+    ProcessingPDFFiles()
+    
+    util.Info("Getting undelivered BNB IDs...")
+    undelivered_bnb_ids = GetNotDeliveredIDs()
+    if len(undelivered_bnb_ids) > 0:
+        util.Info("Downloading undelivered BNB IDs...")
+        DownloadRecordRange(undelivered_bnb_ids)
+    else:
+        util.Info("No undelivered BNB IDs found.")
+    
+    util.Info("BNB Downloader completed successfully.")
+    
+    util.Info("Closing connection to BNB server...")
     bnb_yaz_client.sendline("quit")
     bnb_yaz_client.expect(pexpect.EOF)
     
-    Logging("Closing database connection...", 1)
+    util.Info("Closing database connection...")
     db_connection.commit()
     db_connection.close()
     
+    util.Info("Uploading MARC files to BSZ FTP server...")
+    UploadMARCFilesToBSZFTPServer("/2001/BNB_Test/input")
+
+    # write summary log
+    util.Info("Writing summary report...")
+    summary_report = WriteSummaryReport()
+    util.Info(summary_report)
+    
+    # send summary report via email
+    util.Info("Sending summary report via email to " + email_recipient + "...")
+    util.SendEmail("BNB Downloader Summary Report", summary_report, recipient=email_recipient)
     
 
 try:
     Main()
 except Exception as main_exception:
-    Logging("An unexpected error occurred: " + str(main_exception), 3)
-    # bsz_util.SendEmail(email_recipient, "BNB Downloader Error", "An unexpected error occurred: " + str(main_exception))
-    print("An unexpected error occurred: " + str(main_exception))
-    # send email about the error
-    # bsz_util.SendEmail(email_recipient, "BNB Downloader Error", "An unexpected error occurred: " + str(main_exception))
-    sys.exit(1) 
+    util.Error("An unexpected error occurred: " + str(main_exception))
