@@ -282,8 +282,6 @@ def UploadMARCFilesToBSZFTPServer(remote_directory: str):
                 # move uploaded MARC file to loaded directory
                 os.rename(file_with_path, working_directory + "loaded/" + file)
                 util.Info("Moved uploaded MARC file to loaded directory: " + working_directory + "loaded/" + file)
-                
-    sftp.close()
     
 
 # Write summary report
