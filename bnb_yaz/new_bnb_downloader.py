@@ -13,7 +13,6 @@
 # The 'marc' directory will store downloaded MARC files.
 
 
-from unittest import case
 import pexpect
 import re
 import os
