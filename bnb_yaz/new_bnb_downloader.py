@@ -75,17 +75,17 @@ def CheckWorkingDirectory():
 # Connect to the YAZ server
 def ConnectToBNBServer():
     with open(CONFIG_DIRECTORY_PATH + "bnb_username_password.conf", "r") as f:
-            username_password = f.read()        
-    yaz_client = pexpect.spawn("yaz-client")
-    yaz_client.sendline("auth " + username_password)
-    yaz_client.expect("Authentication set to Open.*")
-    yaz_client.sendline("open z3950cat.bl.uk:9909")
-    yaz_client.expect(".*Connection accepted.*")
-    yaz_client.sendline("base BNB03U")
-    yaz_client.expect("\r\n")
-    yaz_client.sendline("marccharset MARC8/UTF8")
-    yaz_client.expect("\r\n")
-    return yaz_client
+        username_password = f.read()  
+        yaz_client = pexpect.spawn("yaz-client")
+        yaz_client.sendline("auth " + username_password)
+        yaz_client.expect("Authentication set to Open.*")
+        yaz_client.sendline("open z3950cat.bl.uk:9909")
+        yaz_client.expect(".*Connection accepted.*")
+        yaz_client.sendline("base BNB03U")
+        yaz_client.expect("\r\n")
+        yaz_client.sendline("marccharset MARC8/UTF8")
+        yaz_client.expect("\r\n")
+        return yaz_client
 
 
 # Initialize the SQLite database and create necessary tables if they do not exist
@@ -131,7 +131,7 @@ def InsertIntoRecordsIfNotExist(bnb_id, file_name):
         new_bnb_info[file_name]["list_of_existing_id"].append(bnb_id)
 
 
-# Insert a BNB ID into the unsuccessful download table
+# Update date_delivered in records table
 def UpdateDateDeliveredInRecords(bnb_id):
     cursor = db_connection.cursor()
     # update date_delivered
@@ -231,35 +231,37 @@ def ProcessingPDFFiles():
 
     for file in pdf_files:
         util.Info("Processing file: " + file)
+        # extract the number only part from the file name, ex.: bnblist1234.pdf -> 1234
+        new_file_name_number_only = file[7:11]
         # initialize new_bnb_info for the file if not exist
-        if file not in new_bnb_info:
-            InitializeNewBNBInfoStructure(file)
+        if new_file_name_number_only not in new_bnb_info:
+            InitializeNewBNBInfoStructure(new_file_name_number_only)
         
         # extract BNB IDs from the PDF file
         bnb_ids = ExtractBNBIDsFromPDF(file)
         
-        new_bnb_info[file]["list_of_id_extracted"] = bnb_ids
+        new_bnb_info[new_file_name_number_only]["list_of_id_extracted"] = bnb_ids
         
         total_id_extracted += len(bnb_ids)
         
-        if len(new_bnb_info[file]["list_of_id_extracted"]) > 0:
-            util.Info(f"Extract: {len(new_bnb_info[file]['list_of_id_extracted'])} IDs")
+        if len(new_bnb_info[new_file_name_number_only]["list_of_id_extracted"]) > 0:
+            util.Info(f"Extract: {len(new_bnb_info[new_file_name_number_only]['list_of_id_extracted'])} IDs")
             for bnb_id in bnb_ids:
                 if IsBNBIdInRecordsTable(bnb_id):
-                    new_bnb_info[file]["list_of_existing_id"].append(bnb_id)
+                    new_bnb_info[new_file_name_number_only]["list_of_existing_id"].append(bnb_id)
                     set_of_existing_ids.add(bnb_id)
                 else:
                     InsertIntoRecordsIfNotExist(bnb_id, file)
                     set_of_new_ids.add(bnb_id)
-                    if "list_of_new_id" not in new_bnb_info[file]:
-                        new_bnb_info[file]["list_of_new_id"] = list()
-                        
-                    new_bnb_info[file]["list_of_new_id"].append(bnb_id)
+                    if "list_of_new_id" not in new_bnb_info[new_file_name_number_only]:
+                        new_bnb_info[new_file_name_number_only]["list_of_new_id"] = list()
+
+                    new_bnb_info[new_file_name_number_only]["list_of_new_id"].append(bnb_id)
         else:
-            new_bnb_info[file]["list_of_id_extracted"] = []
-            new_bnb_info[file]["list_of_existing_id"] = []
-            new_bnb_info[file]["list_of_new_id"] = []
-        
+            new_bnb_info[new_file_name_number_only]["list_of_id_extracted"] = []
+            new_bnb_info[new_file_name_number_only]["list_of_existing_id"] = []
+            new_bnb_info[new_file_name_number_only]["list_of_new_id"] = []
+
         # move processed file to loaded directory
         os.rename(working_directory + "input/" + file, working_directory + "loaded/" + file)
         util.Info("Moved processed file to loaded directory: " + working_directory + "loaded/" + file)
