@@ -12,7 +12,7 @@ function RemoveTempFiles {
 }
 
 function Usage() {
-  echo "Usage: $0 solr_server ppn"
+  echo "Usage: $0 [--omit-local-data ] solr_server ppn"
   exit 1;
 }
 
@@ -50,9 +50,8 @@ if [ "$num_found" -eq 0 ]; then
 fi
 
 set +o errexit
-marc_record=$(marc_grep --input-format=marc-21 <(yaz-marcdump -i json -o marc \
-    <(echo ${solr_record} | jq -r .response.docs[].fullrecord)) \
-    'if "001"==".*" extract *' marc_binary)
+marc_record=$(yaz-marcdump -i json -o marc \
+    <(echo ${solr_record} | jq -r .response.docs[].fullrecord))
 
 if [ $? -ne 0 ]; then
     echo "Error converting record $ppn"
@@ -64,7 +63,7 @@ if [ $omit_local_data -eq 1 ]; then
     make_named_pipe ${pass_file}
     (printf '%s' "${marc_record}" > ${pass_file}) &
     ln -s /dev/stdout ${out_file}
-    marc_filter ${pass_file} ${out_file} --remove-fields 'LOK:.*'
+    marc_filter ${pass_file} ${out_file} --remove-fields 'LOK:.*' --remove-fields '652:.*'
 else
     printf '%s' "${marc_record}"
 fi

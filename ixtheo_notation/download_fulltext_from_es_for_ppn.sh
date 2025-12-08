@@ -40,14 +40,15 @@ function GetCodeForTextType {
     echo "\"${text_type_to_int[${text_type}]}\""
 }
 
-if [ $# != 3 ]; then
-    echo "Usage $0: server outfile [fulltext|toc|summary]"
+if [ $# != 4 ]; then
+    echo "Usage $0: server ppn outfile [fulltext|toc|summary]"
     exit 1
 fi
 
 SERVER="$1"
-OUTFILE="$2"
-TEXTTYPE="$3"
+PPN="$2"
+OUTFILE="$3"
+TEXTTYPE="$4"
 
 #Abort if text_type is invalid
 GetCodeForTextType ${TEXTTYPE} 1>/dev/null
@@ -60,7 +61,7 @@ curl --silent -XGET $(GetCredentialRequest) "http://${SERVER}:9200/_search" \
        -H "kbn-xsrf: reporting" -H "Content-Type: application/json" \
        -d  '{ "_source":["id","text_type","full_text"],"size":"9000","sort":[{"_shard_doc": "desc"}],
              "query":{"bool":{"must":[{"match":{"text_type": $(GetCodeForTextType ${TEXTTYPE})}}, \
-                                      {"match" : {"id" : "1581948816"}}]}}, \
+                                      {"match" : {"id" : "$PPN"}}]}}, \
              "pit": { "id" : $(GetPIT ${SERVER})}
 EOM
 )
