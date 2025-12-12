@@ -2,262 +2,425 @@
 # -*- coding: utf-8 -*-
 #
 # A tool for the automation of MARC downloads from the BNB.
+# This version reads BNB IDs from a PDF file and downloads records from the BNB server.
+# Author: Steven Lolong (steven.lolong@uni-tuebingen.de)
+# First created: November 2025
+# Usage: new_bnb_downloader.py <email> <working_directory>
+# Requires 'pdftotext' utility to parse PDF files.
+# The working directory should have the following structure:
+# The 'input' directory should contain the PDF files with BNB IDs.
+# The 'loaded' directory will store processed PDF files and successfully uploaded MARC files.
+# The 'marc' directory will store downloaded MARC files.
 
-import bsz_util
-import datetime
-import os
+
 import pexpect
-import process_util
 import re
-import shutil
+import os
 import sys
-import time
-import traceback
-import urllib.request
+import sqlite3
+import datetime
 import util
-import xml.etree.ElementTree as ElementTree
-import zipfile
+import bsz_util
 
-dryrun = False
-dryrun_list_no = 3677
-number_of_runs = 2
-max_download_lists = 50
+# Global variables
+db_connection : sqlite3.Connection
+bnb_yaz_client : pexpect.spawn
+working_directory : str
+email_recipient : str
+total_id_extracted : int = 0
+set_of_existing_ids : set = set()
+set_of_new_ids : set = set()
+number_of_downloaded_ids : int = 0
+pdf_files : list = []
+marc_output_files : list = [] 
+new_bnb_info : dict = {}
+# The maximum number of records per batch for delivery
+# There is a limit of 5000 records per delivery from BNB
+the_max_records_per_batch_for_delivery : int = 5000
+ftp_tartget_directory : str = ""
 
-def ExtractRelevantIds(rdf_xml_document):
-    numbers = []
-    tree = ElementTree.parse(rdf_xml_document)
-    root = tree.getroot()
-    total_numbers = 0
-    for child in root:
-        total_numbers += 1
-        ddc = ""
-        for subject in child.iter('{http://purl.org/dc/terms/}subject'):
-            for subject_child in subject.iter("{http://www.w3.org/2004/02/skos/core#}notation"):
-                ddc = subject_child.text
-        if ddc and ddc[0] != '2': # Theology
-            continue
-        number = ""
-        for identifier in child.iter('{http://purl.org/dc/terms/}identifier'):
-            if identifier.text[0:2] == "GB":
-                number = identifier.text
-        if number:
-            numbers.append(number)
-    return numbers
+CONFIG_DIRECTORY_PATH = "/usr/local/var/lib/tuelib/"
+DATABASE_NAME = CONFIG_DIRECTORY_PATH + "bnb_downloads.sq3"
 
-
-def GetNewBNBNumbers(list_no):
-    zipped_rdf_filename = "bnbrdf_n" + str(list_no) + ".zip"
-    download_url = \
-        "https://www.bl.uk/britishlibrary/~/media/bl/global/services/collection%20metadata/pdfs/bnb%20records%20rdf/" \
-        + zipped_rdf_filename
-    if not util.WgetFetch(download_url):
-        util.Info("Failed to retrieve '" + download_url + "'!")
-        return []
-    with zipfile.ZipFile(zipped_rdf_filename, "r") as zip_file:
-        zip_file.extractall()
-
-    rdf_filename = "bnbrdf_N" + str(list_no) + ".rdf"
-    numbers = ExtractRelevantIds(rdf_filename)
-
-    return numbers
+# initialize new_bnb_info's key structure
+def InitializeNewBNBInfoStructure(key: str):
+    global new_bnb_info
+    if key not in new_bnb_info:
+        new_bnb_info[key] = {
+            "list_of_id_extracted": list(),
+            "list_of_existing_id": list(),
+            "list_of_new_id": list(),
+            "list_of_not_found_id": list(),
+            "list_of_error_id": list(),
+            "list_of_downloaded_id": list(),
+        }
 
 
-#  Attempts to group sequential numbers from 0 to 9 with a ? wildcard.
-def CoalesceNumbers(individual_numbers):
-    individual_numbers.sort()
-    compressed_list = []
-    subsequence = []
-    prefix = ""
-    for number in individual_numbers:
-        current_prefix = number[0:8]
-        if current_prefix != prefix:
-            if len(subsequence) == 10:
-                compressed_list.append(prefix + "?")
-            else:
-                compressed_list.extend(subsequence)
-            subsequence = []
-            prefix = current_prefix
-        subsequence.append(number)
-    compressed_list.extend(subsequence)
-    return compressed_list
-
-
-# @return Either a list of BNB numbers or None
-# @note A return code of None indicates w/ a high probablity that a document for "list_no" does not exist on the BNB web server
-def RetryGetNewBNBNumbers(list_no):
-    util.Info("Downloading BNB numbers for list #" + str(list_no))
-    MAX_NO_OF_ATTEMPTS = 4
-    sleep_interval = 10 # initial sleep interval after a failed attempt in seconds
-    for attempt in range(1, MAX_NO_OF_ATTEMPTS):
-        print("Attempt #" + str(attempt))
-        retval = GetNewBNBNumbers(list_no)
-        if type(retval) == list:
-            print("Downloaded and extracted " + str(len(retval)) + " BNB numbers.")
-            return None if len(retval) == 0 else retval
-        else:
-            print("Content-type of downloaded document was " + retval)
-            time.sleep(sleep_interval)
-            sleep_interval *= 2 # Exponential backoff
-    return None
-
-
-LAST_LIST_NUMBER_FILE = "/usr/local/var/lib/tuelib/cronjobs/bnb-downloader.last_list_number"
-
-
-def LoadStartListNumber():
-    if not os.path.isfile(LAST_LIST_NUMBER_FILE) or not os.access(LAST_LIST_NUMBER_FILE, os.R_OK):
-        util.Error(LAST_LIST_NUMBER_FILE + " not found.  You must initialise this file.\n"
-                   + "It might help to have a look at "
-                   + "https://www.bl.uk/bibliographic/natbibweekly.html?_ga=2.146847615.999275275.1565779921-903569786.1548059398")
-    with open(LAST_LIST_NUMBER_FILE, "r") as f:
-        return int(f.read())
-
-
-def StoreStartListNumber(last_list_number):
-    with open(LAST_LIST_NUMBER_FILE, "w") as f:
-        f.write(str(last_list_number))
-
-
-def ConnectToYAZServer():
-    with open("/usr/local/var/lib/tuelib/bnb_username_password.conf", "r") as f:
-        username_password = f.read()
-    yaz_client = pexpect.spawn("yaz-client")
-    yaz_client.sendline("auth " + username_password)
-    yaz_client.expect("Authentication set to Open.*")
-    yaz_client.sendline("open z3950cat.bl.uk:9909")
-    yaz_client.expect(".*Connection accepted.*")
-    yaz_client.sendline("base BNB03U")
-    yaz_client.expect("\r\n")
-    yaz_client.sendline("marccharset MARC8/UTF8")
-    yaz_client.expect("\r\n")
-    return yaz_client
-
-
-# @return The number of downloaded records.
-def DownloadRecordsRanges(yaz_client, ranges):
-    download_count = 0
-    total_number_of_ranges = len(ranges)
-    current_range = 0
-    for range in ranges:
-        current_range += 1
-        util.Info("Processing range #" + str(current_range) + " of " + str(total_number_of_ranges) + " ranges.")
-        yaz_client.sendline("find @and @attr 1=48 " + '"' + range + '"'
-                            + " @attr 1=13 @or @or @or @or @or @or @or @or @or 20* 21* 22* 23* 24* 25* 26* 27* 28* 29*")
-        yaz_client.expect("Number of hits: (\\d+), setno", timeout=1000)
-        count_search = re.search(b"Number of hits: (\\d+), setno", yaz_client.after)
-        if count_search:
-            download_count += int(count_search.group(1))
-        else:
-            util.Error('regular expression did not match "' + yaz_client.after + '"!')
-        yaz_client.sendline("show all")
-        yaz_client.expect("\r\n")
-    return download_count
-
-
-def SetupWorkDirectory():
-    work_directory: str = "/tmp/bnb-downloader.work"
-
-    # cleanup old files by re-creating work directory
-    if os.path.isdir(work_directory):
-        shutil.rmtree(work_directory)
-
-    os.mkdir(work_directory, mode=0o744)
-    os.chdir(work_directory)
-
-
-def UploadToBSZFTPServer(remote_folder_path: str, marc_filename: str):
-    remote_file_name_tmp: str = marc_filename + ".tmp"
-
-    ftp = bsz_util.GetFTPConnection()
-    ftp.changeDirectory(remote_folder_path)
-    ftp.uploadFile(marc_filename, remote_file_name_tmp)
-    ftp.renameFile(remote_file_name_tmp, marc_filename)
-
-
-def Main():
-    if dryrun != True:
-        if len(sys.argv) != 2:
-            print("usage: " + sys.argv[0] + " <default email recipient>")
-            util.SendEmail("BNB Downloader Invocation Failure",
-                            "This script needs to be called with one argument, the email address!\n", priority=1)
-            sys.exit(-1)
-
-        util.default_email_recipient = sys.argv[1]
-
-    SetupWorkDirectory()
-    OUTPUT_FILENAME_PREFIX: str = "bnb-" + datetime.datetime.now().strftime("%y%m%d") + "-"
-    FTP_UPLOAD_DIRECTORY: str = "/2001/BNB/input"
-
-    if dryrun == True:
-        list_no = dryrun_list_no
+# Check if the working directory exists
+def CheckWorkingDirectory():
+    global working_directory
+    if not os.path.exists(working_directory):
+        util.Error("The specified working directory does not exist: " + working_directory)
     else:
-        list_no = LoadStartListNumber()
+        # ensure working_directory ends with a slash
+        if not working_directory.endswith("/"):
+            working_directory += "/"
 
-    loop_counter = 0
-    total_count = 0
-    while True:
-        loop_counter += 1
-        if loop_counter > max_download_lists:
-            break
-        for run in range(number_of_runs):
-            last_run = (run == number_of_runs-1)
-            util.Info("Run " + str(run+1) + " out of " + str(number_of_runs) + " last run will be uploaded. Last run: " + str(last_run))
-            yaz_client = ConnectToYAZServer()
-            yaz_client.sendline("format marc21")
-            yaz_client.expect("\r\n")
+        # check for necessary subdirectories
+        if not os.path.exists(working_directory + "input/"):
+            util.Error("The input directory does not exist: " + working_directory + "input/")
 
-            OUTPUT_FILENAME: str = None
+        # create 'loaded', 'marc', and 'logs' directories if they do not exist
+        if not os.path.exists(working_directory + "loaded/"):
+            os.makedirs(working_directory + "loaded/")
+        if not os.path.exists(working_directory + "marc/"):
+            os.makedirs(working_directory + "marc/")
 
-            util.Info("About to process list #" + str(list_no))
-            bnb_numbers = RetryGetNewBNBNumbers(list_no)
-            if bnb_numbers is None:
-                loop_counter = max_download_lists
-                break
-            util.Info("Retrieved " + str(len(bnb_numbers)) + " BNB numbers for list #" + str(list_no))
-            if len(bnb_numbers) == 0:
-                list_no += 1
-                if dryrun != True:
-                    StoreStartListNumber(list_no)
-                break
 
-            # Open new MARC dump file for the current list:
-            OUTPUT_FILENAME = OUTPUT_FILENAME_PREFIX + str(list_no) + ".mrc"
-            yaz_client.sendline("set_marcdump " + OUTPUT_FILENAME)
-            yaz_client.expect("\r\n")
+# Connect to the YAZ server
+def ConnectToBNBServer():
+    with open(CONFIG_DIRECTORY_PATH + "bnb_username_password.conf", "r") as f:
+        username_password = f.read()  
+        yaz_client = pexpect.spawn("yaz-client")
+        yaz_client.sendline("auth " + username_password)
+        yaz_client.expect("Authentication set to Open.*")
+        yaz_client.sendline("open z3950cat.bl.uk:9909")
+        yaz_client.expect(".*Connection accepted.*")
+        yaz_client.sendline("base BNB03U")
+        yaz_client.expect("\r\n")
+        yaz_client.sendline("marccharset MARC8/UTF8")
+        yaz_client.expect("\r\n")
+        return yaz_client
 
-            ranges = CoalesceNumbers(bnb_numbers)
-            util.Info("The BNB numbers were coalesced into " + str(len(ranges)) + " ranges.")
 
-            count: int = DownloadRecordsRanges(yaz_client, ranges)
-            util.Info("Downloaded " + str(count) + " records for list #" + str(list_no) + ".")
-            yaz_client.sendline("exit")
-            yaz_client.expect(pexpect.EOF)
-            #yaz_client.close()
-            if count > 0 and dryrun != True and last_run == True:
-                UploadToBSZFTPServer(FTP_UPLOAD_DIRECTORY, OUTPUT_FILENAME)
-            if last_run == True:
-                total_count += count
-                if dryrun != True:
-                    list_no += 1
-                    StoreStartListNumber(list_no)
-        #end multiple run loop
-        if dryrun == True:
-            break
-    #end while true
+# Initialize the SQLite database and create necessary tables if they do not exist
+def InitializeDatabase():
+    RECORDS_TABLE_SCHEMA = '''CREATE TABLE IF NOT EXISTS records
+                            (id  INTEGER PRIMARY KEY AUTOINCREMENT,
+                            bnb_id TEXT NOT NULL UNIQUE,
+                            source_file_name TEXT NOT NULL,
+                            date_added TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                            date_delivered TIMESTAMP DEFAULT NULL
+                            )'''
 
-    util.Info("Downloaded a total of " + str(total_count) + " new record(s).")
-    if dryrun != True:
-        if total_count > 0:
-            util.SendEmail("BNB Downloader", "Uploaded " + str(total_count) + " records to the BSZ FTP-server.")
+    with sqlite3.connect(DATABASE_NAME) as connection:
+        cursor = connection.cursor()
+        # create tables if they do not exist
+        cursor.execute(RECORDS_TABLE_SCHEMA)
+        return connection
+
+
+# Check if a BNB ID is in the successful download table
+def IsBNBIdInRecordsTable(bnb_id):
+    cursor = db_connection.cursor()
+    cursor.execute("SELECT COUNT(*) FROM records WHERE bnb_id='" + bnb_id + "'")
+    row = cursor.fetchone()
+    if row[0] > 0:
+        return True
+    else:
+        return False
+    
+    
+# Insert a BNB ID into the records table when not exist
+def InsertIntoRecordsIfNotExist(bnb_id, file_name):
+    global new_bnb_info
+    # insert if not exist
+    if not IsBNBIdInRecordsTable(bnb_id):
+        cursor = db_connection.cursor()
+        cursor.execute("INSERT INTO records(bnb_id, source_file_name) VALUES (?,?)", (bnb_id, file_name))
+    else:
+        # check whether the key "list_of_existing_id" exists in new_bnb_info for the file_name
+        if file_name not in new_bnb_info:
+            InitializeNewBNBInfoStructure(file_name)
+
+        new_bnb_info[file_name]["list_of_existing_id"].append(bnb_id)
+
+
+# Update date_delivered in records table
+def UpdateDateDeliveredInRecords(bnb_id):
+    cursor = db_connection.cursor()
+    # update date_delivered
+    cursor.execute("UPDATE records SET date_delivered = ? WHERE bnb_id=?", (datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), bnb_id))
+
+
+# Get BNB IDs for downloading
+def GetNotDeliveredIDs():
+    cursor = db_connection.cursor()
+    # select bnb_id and source_file_name where date_delivered is NULL
+    cursor.execute("SELECT bnb_id, source_file_name FROM records WHERE date_delivered IS NULL")
+    rows = cursor.fetchall()
+    bnb_ids = []
+    
+    for row in rows:
+        bnb_ids.append((row[0], row[1]))
+    
+    return bnb_ids
+
+
+# Download records for a list of BNB IDs
+def DownloadRecordRange(bnb_ids):
+    global marc_output_files, new_bnb_info, number_of_downloaded_ids, the_max_records_per_batch_for_delivery
+    bnb_yaz_client.sendline("format marc21")
+    bnb_yaz_client.expect("\r\n")
+
+    counter = 0
+    source_file_name = ""
+    for bnb_id, source_file in bnb_ids:
+        # create new entry in new_bnb_info if not exist
+        if source_file not in new_bnb_info:
+            InitializeNewBNBInfoStructure(source_file)
+        
+        # group the output marc file by source file name
+        if( source_file != source_file_name):
+            source_file_name = source_file
+            marc_output_file = "bnb-" + datetime.datetime.now().strftime("%y%m%d") + "-" + source_file_name + ".mrc"
+            bnb_yaz_client.sendline("set_marcdump " + working_directory + "marc/" + marc_output_file)
+            bnb_yaz_client.expect("\r\n")
+            if(marc_output_file not in marc_output_files):
+                marc_output_files.append(marc_output_file)
+            
+        counter += 1
+        try:
+            bnb_yaz_client.sendline("find @attr 1=48 " + '"' + bnb_id + '"')
+            bnb_yaz_client.expect("Number of hits:.*", timeout=1000)
+            count_search = re.search(b"Number of hits: (\\d+), setno", bnb_yaz_client.after)
+            
+            if the_max_records_per_batch_for_delivery > 0:
+                if count_search.group(1).decode("utf-8") != "0":
+                    bnb_yaz_client.sendline("show all")
+                    bnb_yaz_client.expect("\r\n")
+
+                    number_of_downloaded_ids += 1
+                    new_bnb_info[source_file]["list_of_downloaded_id"].append(bnb_id)
+                    UpdateDateDeliveredInRecords(bnb_id)
+                    # if the maximum number of records per batch for delivery is reached, reset it and create a new marc output file
+                    the_max_records_per_batch_for_delivery -= 1
+                else:
+                    new_bnb_info[source_file]["list_of_not_found_id"].append(bnb_id)
+            else:
+                # exit the function when the maximum number of records per batch for delivery is reached
+                return 
+        except Exception as e:
+            util.Info("An error occurred while downloading BNB ID " + bnb_id + ": " + str(e))
+            new_bnb_info[source_file]["list_of_error_id"].append(bnb_id)
+
+
+# Convert PDF to text and extract BNB IDs
+def ExtractBNBIDsFromPDF(pdf_file_name):
+    tmp_pdf_text_file = working_directory + "input/temp_pdf_text_" + pdf_file_name + ".txt"
+    os.system("pdftotext " + working_directory + "input/" + pdf_file_name + " " + tmp_pdf_text_file)
+    bnb_ids = []
+    try_to_get = False 
+    with open(tmp_pdf_text_file, "r") as pdf_text_file:
+        for line in pdf_text_file:
+            line = line.strip()
+            if line[:5] == "DDC 2":
+                try_to_get = True 
+                continue
+
+            if line[:10] == "BNB NUMBER" and try_to_get:
+                bnb_ids.append(line[11:len(line)])
+                try_to_get = False
+
+    os.remove(tmp_pdf_text_file)
+    return bnb_ids
+
+
+# Get all PDF files in a directory
+def GetAllPdfFilesInDirectory(directory: str):
+    global pdf_files
+    # check whether the directory exists is not end with a slash
+    if not directory.endswith("/"):
+        directory += "/"
+
+    for file in os.listdir(directory):
+        if file.lower().endswith(".pdf"):
+            pdf_files.append(file)
+
+
+# Processing all PDF files, extract the BNB IDs, and save it to records table
+def ProcessingPDFFiles():
+    global total_id_extracted, new_bnb_info, set_of_existing_ids, set_of_new_ids
+
+    for file in pdf_files:
+        util.Info("Processing file: " + file)
+        # extract the number only part from the file name, ex.: bnblist1234.pdf -> 1234
+        new_file_name_number_only = file[7:11]
+        # initialize new_bnb_info for the file if not exist
+        if new_file_name_number_only not in new_bnb_info:
+            InitializeNewBNBInfoStructure(new_file_name_number_only)
+        
+        # extract BNB IDs from the PDF file
+        bnb_ids = ExtractBNBIDsFromPDF(file)
+        
+        new_bnb_info[new_file_name_number_only]["list_of_id_extracted"] = bnb_ids
+        
+        total_id_extracted += len(bnb_ids)
+        
+        if len(new_bnb_info[new_file_name_number_only]["list_of_id_extracted"]) > 0:
+            util.Info(f"Extract: {len(new_bnb_info[new_file_name_number_only]['list_of_id_extracted'])} IDs")
+            for bnb_id in bnb_ids:
+                if IsBNBIdInRecordsTable(bnb_id):
+                    new_bnb_info[new_file_name_number_only]["list_of_existing_id"].append(bnb_id)
+                    set_of_existing_ids.add(bnb_id)
+                else:
+                    InsertIntoRecordsIfNotExist(bnb_id, new_file_name_number_only)
+                    set_of_new_ids.add(bnb_id)
+                    if "list_of_new_id" not in new_bnb_info[new_file_name_number_only]:
+                        new_bnb_info[new_file_name_number_only]["list_of_new_id"] = list()
+
+                    new_bnb_info[new_file_name_number_only]["list_of_new_id"].append(bnb_id)
         else:
-            util.SendEmail("BNB Downloader", "No new records found.")
+            new_bnb_info[new_file_name_number_only]["list_of_id_extracted"] = []
+            new_bnb_info[new_file_name_number_only]["list_of_existing_id"] = []
+            new_bnb_info[new_file_name_number_only]["list_of_new_id"] = []
+            
+        
+        # check if the file exists in the target directory before moving
+        if os.path.exists(working_directory + "loaded/" + file):
+            util.Info("File already exists in loaded directory, skipping move: " + working_directory + "loaded/" + file)
+            # change the file name by appending a timestamp
+            timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+            new_file_name = file[:-4] + "_" + timestamp + ".pdf"
+            os.rename(working_directory + "input/" + file, working_directory + "loaded/" + new_file_name)
+            util.Info("Moved processed file to loaded directory with new name: " + working_directory + "loaded/" + new_file_name)
+        else:
+            # move processed file to loaded directory
+            os.rename(working_directory + "input/" + file, working_directory + "loaded/" + file)
+            util.Info("Moved processed file to loaded directory: " + working_directory + "loaded/" + file)
 
+# Upload MARC files to FTP server
+def UploadMARCFilesToBSZFTPServer(remote_directory: str):
+    sftp = bsz_util.GetFTPConnection("SFTP_Upload")
+    MARC_FILE_DIRECTORY = working_directory + "marc/"
+    for marc_file in marc_output_files:
+        file_with_path = MARC_FILE_DIRECTORY + marc_file
+        # check if the file is exist and size is greater than 0
+        if os.path.exists(file_with_path):
+            if os.path.getsize(file_with_path) > 0:
+                util.Info("Uploading MARC file to BSZ FTP server: " + marc_file)
+                sftp.changeDirectory(remote_directory)
+                sftp.uploadFile(file_with_path, marc_file + ".tmp")
+                sftp.renameFile(marc_file + ".tmp", marc_file)
+                util.Info("Successfully uploaded MARC file: " + marc_file)
+                # move uploaded MARC file to loaded directory
+                os.rename(file_with_path, working_directory + "loaded/" + marc_file)
+                util.Info("Moved uploaded MARC file to loaded directory: " + working_directory + "loaded/" + marc_file)
+            else:
+                util.Info("MARC file is empty, skipping upload: " + marc_file)
+                # remove the empty marc file
+                os.remove(file_with_path)
+        else:
+            util.Info("MARC file does not exist, skipping upload: " + marc_file)
+    
+
+# Write summary report
+def WriteSummaryReport() -> str:
+    summary_report = "Detailed Summary Report of BNB Downloader\n"
+    summary_report += "=================================\n\n"
+    for file_name, info in new_bnb_info.items():
+        summary_report += f"File: {file_name}\n"
+        summary_report += f"  Extracted IDs: {len(info['list_of_id_extracted'])}\n"
+        summary_report += f"  Existing IDs: {len(info['list_of_existing_id'])}\n"
+        summary_report += f"  New IDs: {len(info['list_of_new_id'])}\n"
+        summary_report += f"  List of Not Found IDs: {', '.join(info['list_of_not_found_id'])}\n"
+        summary_report += f"  Not Found IDs: {len(info['list_of_not_found_id'])}\n"
+        summary_report += f"  List of Error IDs: {', '.join(info['list_of_error_id'])}\n"
+        summary_report += f"  Error IDs: {len(info['list_of_error_id'])}\n"
+        summary_report += f"  Downloaded IDs: {len(info['list_of_downloaded_id'])}\n\n"
+        
+    summary_report += "BNB Downloader Summary Report\n"
+    summary_report += "=================================\n\n"
+    summary_report += f"List of processed PDF files: {', '.join(pdf_files)}\n"
+    summary_report += f"Total PDF files processed: {len(pdf_files)}\n"
+    summary_report += f"Total BNB IDs extracted: {total_id_extracted}\n"
+    summary_report += f"Total new BNB IDs to download: {len(set_of_new_ids)}\n"
+    summary_report += f"Total existing BNB IDs: {len(set_of_existing_ids)}\n"
+    summary_report += f"Total of not found BNB IDs: {sum(len(info['list_of_not_found_id']) for info in new_bnb_info.values())}\n"
+    summary_report += f"Total of error BNB IDs: {sum(len(info['list_of_error_id']) for info in new_bnb_info.values())}\n"
+    summary_report += f"Total downloaded BNB IDs: {number_of_downloaded_ids}\n\n"
+    
+    if the_max_records_per_batch_for_delivery == 0:
+        summary_report += "Note: The maximum number of records per batch for delivery has been reached. Please run the downloader again to process remaining IDs.\n"
+    
+    return summary_report
+    
+    
+    
+# Main function
+def Main():
+    # global variables that will be changed
+    global working_directory, email_recipient, db_connection, bnb_yaz_client, the_max_records_per_batch_for_delivery
+    
+    # check the command line arguments
+    number_of_arguments = len(sys.argv)
+    if number_of_arguments < 4 or number_of_arguments > 5:
+        util.Error("Invalid number of arguments. Usage: new_bnb_downloader.py <email> <working_directory> <ftp_target_directory> [max_records_per_batch]")
+    
+    
+    
+    email_recipient = sys.argv[1]
+    working_directory = sys.argv[2]
+    target_directory = sys.argv[3]
+    
+    if number_of_arguments == 5:
+        the_max_records_per_batch_for_delivery = int(sys.argv[4])
+        
+    
+    # set default email recipient in util module, needed for util.SendEmail() when error occurs
+    util.default_email_recipient = email_recipient
+    
+    util.Info("Starting BNB Downloader...")    
+    
+    util.Info("Initializing database...")
+    db_connection = InitializeDatabase()
+    
+    util.Info("Checking working directory...")
+    CheckWorkingDirectory() 
+    
+    util.Info("Getting all PDF files in the input directory...")
+    GetAllPdfFilesInDirectory(working_directory + "input/")
+    
+    util.Info("Processing PDF files...")
+    ProcessingPDFFiles()
+
+    
+    util.Info("Getting undelivered BNB IDs...")
+    undelivered_bnb_ids = GetNotDeliveredIDs()
+    if len(undelivered_bnb_ids) > 0:
+        util.Info("Connecting to BNB server...")
+        bnb_yaz_client = ConnectToBNBServer()
+        
+        util.Info("Downloading undelivered BNB IDs...")
+        DownloadRecordRange(undelivered_bnb_ids)
+        
+        util.Info("BNB Downloader completed successfully.")
+    
+        util.Info("Closing connection to BNB server...")
+        bnb_yaz_client.sendline("quit")
+        bnb_yaz_client.expect(pexpect.EOF)
+        
+        util.Info("Uploading MARC files to BSZ FTP server...")
+        UploadMARCFilesToBSZFTPServer(target_directory)
+    
+    else:
+        util.Info("No undelivered BNB IDs found.")
+    
+    util.Info("Closing database connection...")
+    db_connection.commit()
+    db_connection.close()
+
+    # write summary log
+    util.Info("Writing summary report...")
+    summary_report = WriteSummaryReport()
+    util.Info(summary_report)
+    
+    # send summary report via email
+    util.Info("Sending summary report via email to " + email_recipient + "...")
+    util.SendEmail("BNB Downloader Summary Report", summary_report, recipient=email_recipient)
+    
 
 try:
     Main()
-except Exception as e:
-    if dryrun != True:
-        util.SendEmail("BNB Downloader", "An unexpected error occurred: "
-                    + str(e) + "\n\n" + traceback.format_exc(20), priority=1)
-    else:
-        print(e)
+except Exception as main_exception:
+    util.Error("An unexpected error occurred: " + str(main_exception))
