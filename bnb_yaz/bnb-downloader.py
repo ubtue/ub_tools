@@ -5,7 +5,6 @@
 # This version reads BNB IDs from a PDF file and downloads records from the BNB server.
 # Author: Steven Lolong (steven.lolong@uni-tuebingen.de)
 # First created: November 2025
-# Usage: new_bnb_downloader.py <email> <working_directory>
 # Requires 'pdftotext' utility to parse PDF files.
 # The working directory should have the following structure:
 # The 'input' directory should contain the PDF files with BNB IDs.
@@ -185,7 +184,7 @@ def DownloadRecordRange(bnb_ids):
             bnb_yaz_client.expect("Number of hits:.*", timeout=1000)
             count_search = re.search(b"Number of hits: (\\d+), setno", bnb_yaz_client.after)
             
-            if the_max_records_per_batch_for_delivery > 0:
+            if number_of_downloaded_ids < the_max_records_per_batch_for_delivery:
                 if count_search.group(1).decode("utf-8") != "0":
                     bnb_yaz_client.sendline("show all")
                     bnb_yaz_client.expect("\r\n")
@@ -194,11 +193,11 @@ def DownloadRecordRange(bnb_ids):
                     new_bnb_info[source_file]["list_of_downloaded_id"].append(bnb_id)
                     UpdateDateDeliveredInRecords(bnb_id)
                     # if the maximum number of records per batch for delivery is reached, reset it and create a new marc output file
-                    the_max_records_per_batch_for_delivery -= 1
                 else:
                     new_bnb_info[source_file]["list_of_not_found_id"].append(bnb_id)
             else:
                 # exit the function when the maximum number of records per batch for delivery is reached
+                util.Info("The maximum number of records per batch for delivery has been reached: " + str(the_max_records_per_batch_for_delivery))
                 return 
         except Exception as e:
             util.Info("An error occurred while downloading BNB ID " + bnb_id + ": " + str(e))
@@ -207,7 +206,11 @@ def DownloadRecordRange(bnb_ids):
 
 # Convert PDF to text and extract BNB IDs
 def ExtractBNBIDsFromPDF(pdf_file_name):
-    tmp_pdf_text_file = working_directory + "input/temp_pdf_text_" + pdf_file_name + ".txt"
+    tmp_pdf_text_file = "/tmp/" + pdf_file_name + ".txt"
+    # check if the tmp_pdf_text_file already exists, if so, remove it
+    if os.path.exists(tmp_pdf_text_file):
+        os.remove(tmp_pdf_text_file)
+        
     os.system("pdftotext " + working_directory + "input/" + pdf_file_name + " " + tmp_pdf_text_file)
     bnb_ids = []
     try_to_get = False 
@@ -340,8 +343,8 @@ def WriteSummaryReport() -> str:
     summary_report += f"Total of error BNB IDs: {sum(len(info['list_of_error_id']) for info in new_bnb_info.values())}\n"
     summary_report += f"Total downloaded BNB IDs: {number_of_downloaded_ids}\n\n"
     
-    if the_max_records_per_batch_for_delivery == 0:
-        summary_report += "Note: The maximum number of records per batch for delivery has been reached. Please run the downloader again to process remaining IDs.\n"
+    if the_max_records_per_batch_for_delivery <= number_of_downloaded_ids:
+        summary_report += f"Note: The maximum number of records per batch for delivery ({the_max_records_per_batch_for_delivery} records) has been reached. Some records may not have been downloaded in this run.\n\n"
     
     return summary_report
     
@@ -355,7 +358,7 @@ def Main():
     # check the command line arguments
     number_of_arguments = len(sys.argv)
     if number_of_arguments < 4 or number_of_arguments > 5:
-        util.Error("Invalid number of arguments. Usage: new_bnb_downloader.py <email> <working_directory> <ftp_target_directory> [max_records_per_batch]")
+        util.Error("Invalid number of arguments. Usage:" + __file__ + " <email> <working_directory> <ftp_target_directory> [max_records_per_batch]")
     
     
     
