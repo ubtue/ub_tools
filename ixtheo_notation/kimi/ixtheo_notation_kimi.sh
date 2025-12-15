@@ -64,8 +64,8 @@ curl -X POST "https://api.together.xyz/v1/chat/completions" \
  -H "Authorization: Bearer $TOGETHER_API_KEY" \
  -H "Content-Type: application/json" \
  -d @<(echo $together_json) |  \
-jq .choices[].message.content | \
+jq '.choices[].message | {content} + {reasoning}' | \
 awk -F '```json|```' '{print $2}' | \
 sed -re 's/\\[nt]//g' | grep -v '^$' | \
 sed -re 's/(.*)/"\1"/' | jq -ra fromjson
- cat <(echo $together_json)
+# cat <(echo $together_json)
