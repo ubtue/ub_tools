@@ -9,4 +9,4 @@ fi
 ppns_files="$1"
 output_dir="$2"
 
-cat ${ppns_files} | xargs -I '{}' /bin/bash -c './ixtheo_notation_kimi.sh ptah nu "$1" | tee  "$2"/$1.txt ' _ '{}' ${output_dir}
+cat ${ppns_files} | xargs -n 1 -I '{}' /bin/bash -c './ixtheo_notation_kimi.sh ptah nu "$1" | tee  "$2"/$1.txt ' _ '{}' ${output_dir}
