@@ -22,6 +22,13 @@ ColorEcho "installing/updating ub_tools dependencies..."
 
 apt-get --yes update
 
+# ensure needrestart is installed and active
+if ! dpkg -l | grep -q '^ii.*needrestart '; then
+    apt-get --quiet --yes install needrestart
+fi
+systemctl is-enabled --quiet needrestart || systemctl enable --quiet needrestart
+systemctl is-active --quiet needrestart || systemctl start --quiet needrestart
+
 # install additional libraries for docker environment
 apt-get --yes install sudo wget
 
