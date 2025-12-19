@@ -184,6 +184,8 @@ for d in */ ; do
     fi
 
     current_source_filepath="$HARVESTER_OUTPUT_DIRECTORY/$d/$HARVESTER_OUTPUT_FILENAME"
+    # Remove tiep call sign from records (not used in retrokat context)
+    remove_tiep.sh "$current_source_filepath" >> "$LOG" 2>&1
 
     # Output filenames MUST start with 'ixtheo_' or 'krimdok_', else BSZ will ignore it.
     suffix=$(printf "%03d" "$file_counter")

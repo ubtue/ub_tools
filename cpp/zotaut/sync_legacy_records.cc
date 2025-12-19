@@ -1,7 +1,7 @@
-/** \brief Utility for syncing legacy records from the FID stock to zotero delivered records
+/** \brief Utility for syncing legacy records from the FID stock or the K10Plus to zotero delivered records
  *  \author Johannes Riedl (johannes.riedl@uni-tuebingen.de)
  *
- *  \copyright 2024 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2024,2025 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -31,6 +31,8 @@
 #include "DbRow.h"
 #include "DnsUtil.h"
 #include "EmailSender.h"
+#include "ExecUtil.h"
+#include "FileUtil.h"
 #include "IniFile.h"
 #include "MARC.h"
 #include "RegexMatcher.h"
@@ -49,7 +51,7 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    ::Usage("[--zotero-conf path] [--harvester-conf path] (--all (Beware - long runtime!!) | journal_name)");
+    ::Usage("[--include-k10plus] [--zotero-conf path] [--harvester-conf path] (--all (Beware - long runtime!!) | journal_name)");
 }
 
 
@@ -76,6 +78,7 @@ using LegacyEntryInformationSet =
 
 const std::string CONF_FILE_PATH(UBTools::GetTuelibPath() + "zotero.conf");
 const std::string LEGACY_RECORD_SECTION_NAME("LegacyRecordStock");
+const std::string GET_INFERIOR_K10PLUS_RECORDS_PATH("/usr/local/bin/get_inferior_k10plus_records_for_ppn.sh");
 
 
 void GetLegacyStockConfig(const IniFile &zotero_conf, LegacyRecordStock * const legacy_record_stock) {
@@ -94,8 +97,8 @@ void GetLegacyStockConfig(const IniFile &zotero_conf, LegacyRecordStock * const 
 }
 
 
-void GetLegacyEntriesInformationForJournal(const std::string &host_url, const std::string &host_port, const std::string &query,
-                                           LegacyEntryInformationSet * const legacy_entries_information) {
+void GetLegacyEntriesInformationForJournalFromFIDStock(const std::string &host_url, const std::string &host_port, const std::string &query,
+                                                       LegacyEntryInformationSet * const legacy_entries_information) {
     std::string result;
     std::string err_msg;
     if (not Solr::Query(query, "doi_str_mv, title_full, id", &result, &err_msg, host_url, std::stoi(host_port), 300 /*Timeout*/,
@@ -117,6 +120,29 @@ void GetLegacyEntriesInformationForJournal(const std::string &host_url, const st
             legacy_entry_information.main_title_ = doc["title_full"];
 
         legacy_entries_information->emplace(legacy_entry_information);
+    }
+}
+
+
+void GetLegacyEntriesInformationForJournalFromK10Plus(const std::vector<std::string> &journal_ppns,
+                                                      LegacyEntryInformationSet * const legacy_entries_information) {
+    for (const auto &journal_ppn : journal_ppns) {
+        FileUtil::AutoTempFile k10plus_results;
+        ExecUtil::ExecOrDie(GET_INFERIOR_K10PLUS_RECORDS_PATH, { journal_ppn, k10plus_results.getFilePath() });
+
+        const std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(k10plus_results.getFilePath()));
+        while (MARC::Record record = marc_reader.get()->read()) {
+            LegacyEntryInformation legacy_entry_information;
+            legacy_entry_information.record_id_ = record.getControlNumber();
+
+            const auto dois_set(record.getDOIs());
+            std::vector<std::string> dois(dois_set.begin(), dois_set.end());
+            std::transform(dois.begin(), dois.end(), dois.begin(), [](const std::string &doi) { return "https://doi.org/" + doi; });
+            std::copy(dois.begin(), dois.end(), std::back_inserter(legacy_entry_information.dois_));
+            legacy_entry_information.main_title_ = record.getMainTitle();
+
+            legacy_entries_information->emplace(legacy_entry_information);
+        }
     }
 }
 
@@ -148,21 +174,26 @@ void GetQueryHostUrlAndPort(const LegacyRecordStock &legacy_record_stock, const 
 }
 
 
-void SyncLegacyRecordsForJournal(const LegacyRecordStock &legacy_record_stock, const auto &harvester_journal_section) {
+void SyncLegacyRecordsForJournal(const LegacyRecordStock &legacy_record_stock, const bool include_k10plus,
+                                 const auto &harvester_journal_section) {
     std::vector<std::string> journal_ppns;
     journal_ppns.emplace_back(harvester_journal_section.getString("print_ppn", ""));
     journal_ppns.emplace_back(harvester_journal_section.getString("online_ppn", ""));
     journal_ppns.erase(std::remove_if(journal_ppns.begin(), journal_ppns.end(), [](const std::string &ppn) { return ppn.empty(); }),
                        journal_ppns.end());
-    std::transform(journal_ppns.begin(), journal_ppns.end(), journal_ppns.begin(),
+    std::vector<std::string> query_journal_ppns;
+    std::transform(journal_ppns.begin(), journal_ppns.end(), std::back_inserter(query_journal_ppns),
                    [](const std::string ppn) { return "superior_ppn:" + ppn; });
-    const std::string query(StringUtil::Join(journal_ppns, " OR "));
+    const std::string query(StringUtil::Join(query_journal_ppns, " OR "));
 
     std::string host_url, host_port;
     const std::string zotero_group(harvester_journal_section.getString("zotero_group", ""));
     GetQueryHostUrlAndPort(legacy_record_stock, zotero_group, &host_url, &host_port);
     LegacyEntryInformationSet legacy_entries_information;
-    GetLegacyEntriesInformationForJournal(host_url, host_port, query, &legacy_entries_information);
+    GetLegacyEntriesInformationForJournalFromFIDStock(host_url, host_port, query, &legacy_entries_information);
+
+    if (include_k10plus or harvester_journal_section.getBool("selective_evaluation"))
+        GetLegacyEntriesInformationForJournalFromK10Plus(journal_ppns, &legacy_entries_information);
 
     std::cout << "query: " << query << '\n';
     for (const auto &legacy_entry_information : legacy_entries_information) {
@@ -187,7 +218,8 @@ bool DeliveryModeIsNoneOrNewlySyncedEntry(const auto &section) {
 }
 
 
-void SyncLegacyRecords(const IniFile &zotero_conf, const IniFile &harvester_conf, const std::string &journal_name = "") {
+void SyncLegacyRecords(const IniFile &zotero_conf, const IniFile &harvester_conf, const bool include_k10plus,
+                       const std::string &journal_name = "") {
     LegacyRecordStock legacy_record_stock;
     GetLegacyStockConfig(zotero_conf, &legacy_record_stock);
 
@@ -201,7 +233,7 @@ void SyncLegacyRecords(const IniFile &zotero_conf, const IniFile &harvester_conf
             if (DeliveryModeIsNoneOrNewlySyncedEntry(section))
                 continue;
 
-            SyncLegacyRecordsForJournal(legacy_record_stock, section);
+            SyncLegacyRecordsForJournal(legacy_record_stock, include_k10plus, section);
         }
         return;
     }
@@ -212,7 +244,7 @@ void SyncLegacyRecords(const IniFile &zotero_conf, const IniFile &harvester_conf
             if (DeliveryModeIsNoneOrNewlySyncedEntry(section))
                 LOG_WARNING("Configuration Entry for \"" + journal_name +"\" found, but delivery mode is none \
                             or it is a newly_synced entry - continuing anyway");
-            SyncLegacyRecordsForJournal(legacy_record_stock, section);
+            SyncLegacyRecordsForJournal(legacy_record_stock, include_k10plus, section);
             return;
         }
     }
@@ -224,10 +256,11 @@ void SyncLegacyRecords(const IniFile &zotero_conf, const IniFile &harvester_conf
 
 
 int Main(int argc, char *argv[]) {
-    if (argc < 2 || argc > 6)
+    if (argc < 2 || argc > 7)
         Usage();
 
     bool all_journals(false);
+    bool include_k10plus(false);
     std::string zotero_conf_path;
     std::string harvester_conf_path;
     std::string journal_name;
@@ -251,6 +284,15 @@ int Main(int argc, char *argv[]) {
             continue;
         }
 
+
+        if (std::strcmp(argv[1], "--include-k10plus") == 0) {
+            include_k10plus = true;
+            ++argv;
+            --argc;
+            continue;
+        }
+
+
         if (std::strcmp(argv[1], "--all") == 0) {
             all_journals = true;
             ++argv;
@@ -273,7 +315,7 @@ int Main(int argc, char *argv[]) {
     const IniFile harvester_conf(harvester_conf_path.empty() ? UBTools::GetTuelibPath() + "zotero-enhancement-maps/zotero_harvester.conf"
                                                              : harvester_conf_path);
 
-    SyncLegacyRecords(zotero_conf, harvester_conf, all_journals ? "" : journal_name);
+    SyncLegacyRecords(zotero_conf, harvester_conf, include_k10plus, all_journals ? "" : journal_name);
 
     return EXIT_SUCCESS;
 }

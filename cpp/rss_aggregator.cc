@@ -46,7 +46,7 @@ namespace {
 
 [[noreturn]] void Usage() {
     ::Usage(
-        "[--download-feeds [--use-web-proxy]] subsystem_type email_address xml_output_path\n"
+        "email_address [--download-feeds [--use-web-proxy]] [subsystem_type xml_output_path]*\n"
         "where subsystem_type must be one of {ixtheo,relbib,krimdok}");
 }
 
@@ -314,38 +314,72 @@ void GenerateSubsystemSpecificXML(const std::string &subsystem_type, const std::
 
 
 int Main(int argc, char *argv[]) {
-    if (argc < 4 || argc > 6)
+    if (argc < 3)
         Usage();
 
     Downloader::Params params;
+    // first argument is email address, get and remove it from argv
+    const std::string email_address(argv[1]);
+    --argc, ++argv;
+
     bool download_feeds = false;
 
-    if (argc >= 5) {
-        if (std::strcmp(argv[1], "--download-feeds") == 0) {
-            download_feeds = true;
-            --argc, ++argv;
-        }
-        if (std::strcmp(argv[1], "--use-web-proxy") == 0) {
-            if (!download_feeds) {
-                Usage();
+    // check for optional --download-feeds and --use-web-proxy flags
+    if (std::strcmp(argv[1], "--download-feeds") == 0) {
+        download_feeds = true;
+        --argc, ++argv;
+        if (argc > 1) {
+            if (std::strcmp(argv[1], "--use-web-proxy") == 0) {
+                params.proxy_host_and_port_ = UBTools::GetUBWebProxyURL();
+                params.ignore_ssl_certificates_ = true;
+                --argc, ++argv;
             }
-            --argc, ++argv;
-            params.proxy_host_and_port_ = UBTools::GetUBWebProxyURL();
-            params.ignore_ssl_certificates_ = true;
         }
     }
 
     Downloader downloader(params);
 
-    const std::string subsystem_type(argv[1]);
-    if (subsystem_type != "ixtheo" and subsystem_type != "relbib" and subsystem_type != "krimdok") {
+    /*
+      Now, argc must be odd: program_name [subsystem_type xml_output_path]*
+    */
+    if (argc % 2 != 1) {
         Usage();
-        LOG_ERROR("subsystem_type must be one of {ixtheo,relbib,krimdok}!");
     }
 
+    // parse subsystem_type and xml_output_path pairs
+    std::vector<std::pair<std::string, std::string>> subsystem_type_and_output_path_vector;
+    for (int i = 1; i < argc; i += 2) {
+        const std::string subsystem_type(argv[i]);
+        const std::string xml_output_path(argv[i + 1]);
+        subsystem_type_and_output_path_vector.emplace_back(subsystem_type, xml_output_path);
+    }
+    bool mismatched_types = false;
+    std::vector<std::string> mismatched_types_list;
+
+    // check that all subsystem types are valid
+    for (const auto &pair : subsystem_type_and_output_path_vector) {
+        const std::string &subsystem_type = pair.first;
+        if (subsystem_type != "ixtheo" and subsystem_type != "relbib" and subsystem_type != "krimdok") {
+            mismatched_types_list.push_back(subsystem_type);
+            mismatched_types = true;
+        }
+    }
     const auto program_basename(FileUtil::GetBasename(::progname));
-    const std::string email_address(argv[2]);
-    const std::string xml_output_filename(argv[3]);
+    // report mismatched types
+    if (mismatched_types) {
+        const auto str_error("Subsystem_type must be one of {ixtheo,relbib,krimdok}! Mismatched types: "
+                             + StringUtil::Join(mismatched_types_list, ", "));
+        const auto subject(program_basename + " on " + DnsUtil::GetHostname());
+        LOG_WARNING(str_error);
+
+        if (!(EmailSender::SimplerSendEmail("no_reply@ub.uni-tuebingen.de", { email_address }, subject, str_error, EmailSender::VERY_HIGH)
+              < 299))
+        {
+            LOG_ERROR("Failed to send an email error report!");
+        }
+        return EXIT_FAILURE;
+    }
+
 
     auto db_connection(DbConnection::VuFindMySQLFactory());
     int number_feeds_with_error = 0;
@@ -355,14 +389,21 @@ int Main(int argc, char *argv[]) {
             number_feeds_with_error = ProcessFeeds(&db_connection, &downloader);
         }
 
-        GenerateSubsystemSpecificXML(subsystem_type, xml_output_filename, &db_connection);
+
+        if (!subsystem_type_and_output_path_vector.empty()) {
+            for (const auto &pair : subsystem_type_and_output_path_vector) {
+                // generate XML output for each subsystem type
+                GenerateSubsystemSpecificXML(pair.first, pair.second, &db_connection);
+            }
+        }
 
         if (number_feeds_with_error > 0) {
-            const auto subject(program_basename + " on " + DnsUtil::GetHostname() + " (subsystem_type: " + subsystem_type + ")");
+            const auto subject(program_basename + " on " + DnsUtil::GetHostname());
             const auto message_body("Number of feeds that could not be downloaded: " + std::to_string(number_feeds_with_error));
             if (EmailSender::SimplerSendEmail("no_reply@ub.uni-tuebingen.de", { email_address }, subject, message_body,
                                               EmailSender::VERY_HIGH)
-                < 299) {
+                < 299)
+            {
                 return EXIT_FAILURE;
             } else {
                 LOG_ERROR("Failed to send an email error report!");
@@ -371,10 +412,11 @@ int Main(int argc, char *argv[]) {
 
         return EXIT_SUCCESS;
     } catch (const std::runtime_error &x) {
-        const auto subject(program_basename + " failed on " + DnsUtil::GetHostname() + " (subsystem_type: " + subsystem_type + ")");
+        const auto subject(program_basename + " failed on " + DnsUtil::GetHostname());
         const auto message_body("Caught exception: " + std::string(x.what()));
         if (EmailSender::SimplerSendEmail("no_reply@ub.uni-tuebingen.de", { email_address }, subject, message_body, EmailSender::VERY_HIGH)
-            < 299) {
+            < 299)
+        {
             return EXIT_FAILURE;
         } else {
             LOG_ERROR("Failed to send an email error report!");
