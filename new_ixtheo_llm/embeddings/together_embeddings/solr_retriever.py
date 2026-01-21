@@ -12,7 +12,7 @@ class SolrConfig(BaseModel):
       host: str = "localhost"
       port: int = Field(default=8983, gt=0, le=65535)
       collection:  Optional[str] = Field(default="biblio")
-      max_records: int = Field(default=100)
+      max_records: int = Field(default=200)
 
       @classmethod
       def load_config(cls, config_file: str):
@@ -67,7 +67,6 @@ class SolrBatchRetriever(SolrRetriever):
     def __init__(self, query : str, config_file : str = 'rag_config.ini') :
       super().__init__(config_file)
       self._query = query
-      self
 
     def _get_relevant_documents(self, query: str) -> List[Document]:
        if not self.client:
