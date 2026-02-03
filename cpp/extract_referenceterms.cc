@@ -31,6 +31,7 @@
 #include <cstdlib>
 #include "Compiler.h"
 #include "MARC.h"
+#include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "util.h"
 
@@ -54,6 +55,25 @@ inline std::string GetSubfieldCodes(const std::string &tag_and_subfields_spec) {
 }
 
 
+std::vector<std::string> NormalizeSynonyms(const std::vector<std::string> &synonyms, const char separator) {
+    std::vector<std::string> normalized_synonyms;
+
+    // Normalize parts with separator
+    for (const auto &synonym : synonyms) {
+        std::vector<std::string> parts;
+        StringUtil::SplitThenTrimWhite(synonym, separator, &parts);
+        for (const auto &part : parts) {
+            // Remove parts that only contain an ID / GND number
+            static const std::string regex("(gnd/)?[0-9X]{8,}");
+            if (not RegexMatcher::Matched(regex, part))
+                normalized_synonyms.emplace_back(part);
+        }
+    }
+
+    return normalized_synonyms;
+}
+
+
 void ExtractSynonyms(MARC::Reader * const marc_reader, const std::set<std::string> &primary_tags_and_subfield_codes,
                      const std::set<std::string> &synonym_tags_and_subfield_codes,
                      std::vector<std::map<std::string, std::string>> * const synonym_maps, unsigned * const read_in_count) {
@@ -68,11 +88,15 @@ void ExtractSynonyms(MARC::Reader * const marc_reader, const std::set<std::strin
             // Partly, a very specific term has a very specific one term circumscription (e.g. Wilhelminische
             // Epoche => Deutschland).  Thus, we only insert terms we the synonym vector contains two elements to
             // prevent inappropriate additions
-            const auto primary_values(record.getSubfieldValues(GetTag(*primary), GetSubfieldCodes(*primary)));
-            const auto synonym_values(record.getSubfieldValues(GetTag(*synonym), GetSubfieldCodes(*synonym)));
+            auto primary_values(record.getSubfieldValues(GetTag(*primary), GetSubfieldCodes(*primary)));
+            auto synonym_values(record.getSubfieldValues(GetTag(*synonym), GetSubfieldCodes(*synonym)));
+
+            static const char separator = ',';
+            primary_values = NormalizeSynonyms(primary_values, separator);
+            synonym_values = NormalizeSynonyms(synonym_values, separator);
 
             if (not primary_values.empty() and synonym_values.size() > 1) {
-                (*synonym_maps)[i].emplace(StringUtil::Join(primary_values, ','), StringUtil::Join(synonym_values, ','));
+                (*synonym_maps)[i].emplace(StringUtil::Join(primary_values, separator), StringUtil::Join(synonym_values, separator));
                 ++*read_in_count;
             }
         }
