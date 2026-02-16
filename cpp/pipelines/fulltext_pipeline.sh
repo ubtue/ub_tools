@@ -85,6 +85,14 @@ EndPhase || Abort) &
 wait
 
 
+StartPhase "Remove VD-entries"
+(marc_filter \
+     GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
+     --drop 'LOKx:SPQUE#VD .*'
+>> "${log}" 2>&1 && \
+EndPhase || Abort) &
+wait
+
 
 StartPhase "Get New Publisher Fulltexts from Network Drive"
 (GetNewPublisherFulltexts >> "${log}" 2>&1 && \
@@ -127,6 +135,7 @@ StartPhase "Import Aschendorff Data"
 (find /usr/local/publisher_fulltexts/aschendorff/ -maxdepth 1 -name '*.txt' | xargs -n 50 store_in_elasticsearch --set-publisher-provided \
     >> "${log}" 2>&1 && \
 EndPhase || Abort) &
+wait
 
 
 StartPhase "Harvest Title Data Fulltext"
