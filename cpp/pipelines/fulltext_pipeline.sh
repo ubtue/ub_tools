@@ -78,6 +78,13 @@ CreateTemporaryNullDevice
 
 OVERALL_START=$(date +%s.%N)
 
+StartPhase "Add Local Data from Database"
+(add_local_data GesamtTiteldaten-"${date}".mrc \
+                GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+wait
+
+
 
 StartPhase "Get New Publisher Fulltexts from Network Drive"
 (GetNewPublisherFulltexts >> "${log}" 2>&1 && \
@@ -92,7 +99,7 @@ wait
 
 
 StartPhase "Augment Title Data With Mohr DOIs for Books"
-(AddMohrDOIsForBooks GesamtTiteldaten-"${date}".mrc $(ExtractMohrBookRecords) GesamtTiteldaten-augmented-"${date}".mrc >> "${log}" 2>&1 \
+(AddMohrDOIsForBooks GesamtTiteldaten-post-phase"$((PHASE-3))"-"${date}".mrc $(ExtractMohrBookRecords) GesamtTiteldaten-augmented-"${date}".mrc >> "${log}" 2>&1 \
 EndPhase || Abort) &
 wait
 
@@ -129,6 +136,12 @@ StartPhase "Harvest Title Data Fulltext"
         EndPhase || Abort) &
 wait
 
+
+StartPhase "Cleanup of Intermediate Files"
+for p in $(seq 0 "$((PHASE-1))"); do
+    rm -f GesamtTiteldaten-post-phase"$p"-??????.mrc
+done
+EndPhase
 
 echo -e "\n\nPipeline done after $(CalculateTimeDifference $OVERALL_START $(date +%s.%N)) minutes." | tee --append "${log}"
 echo "*** FULL TEXT PIPELINE DONE - $(date) ***" | tee --append "${log}"
