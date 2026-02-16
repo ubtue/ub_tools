@@ -7,12 +7,22 @@ from langchain_core.runnables import RunnablePassthrough
 from langchain_together import TogetherEmbeddings
 from langchain_milvus import Milvus
 
+from langfuse import Langfuse, observe
+from langfuse.langchain import CallbackHandler
 
+
+langfuse = Langfuse()
+lf_handler = CallbackHandler()
+
+
+@observe()
 async def ChatBot():
      # LLM for generation
      #llm = ChatTogether(model="meta-llama/Llama-3.1-8B-Instruct")
      #llm = ChatTogether(model="meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8")
      llm = ChatTogether(model="moonshotai/Kimi-K2-Instruct-0905")
+     #llm = ChatTogether(model="mistralai/Mixtral-8x7B-Instruct-v0.1")
+     #llm = ChatTogether(model="Qwen/Qwen3-235B-A22B-Instruct-2507-tput")
      #llm = ChatTogether(model="Qwen/Qwen3-Next-80B-A3B-Instruct")
 
      embeddings = TogetherEmbeddings(
@@ -23,7 +33,7 @@ async def ChatBot():
 
      # Prompt template
      prompt = ChatPromptTemplate.from_template(
-         """You are a consultant and specialist for theology. For answering the question you get a context of the closet matching bibliographic records. Use the context if appropriate and answer the question. If you you the context include the PPN please
+         """You are a consultant and specialist for theology. For answering the question you get a context of the closest matching bibliographic records. Use the context if appropriate and answer the question. If you use the context include the PPN please
      {context}
      Question: {question}"""
      )
@@ -66,7 +76,7 @@ async def ChatBot():
                  continue
 
              # Invoke the LangChain chain
-             response = await rag_chain.ainvoke(question)
+             response = await rag_chain.ainvoke(question, config={"callbacks": [lf_handler]})
              print(f"Answer: {response}")
 
          except KeyboardInterrupt:
@@ -77,6 +87,13 @@ async def ChatBot():
              print("Continuing loop...")
 
 
-asyncio.run(ChatBot())
+
+if __name__ == "__main__":
+    try:
+        asyncio.run(ChatBot())
+    except (KeyboardInterrupt, asyncio.CancelledError):
+        print("Interrupted by user")
+
+
 
 

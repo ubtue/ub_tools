@@ -26,15 +26,12 @@ async def AgentTest():
      llm = ChatTogether(model="zai-org/GLM-4.7")
      
      
-     @tool(response_format="content_and_artifact")
+#     @tool(response_format="content_and_artifact")
+     @tool()
      def retrieve_context(query: str):
          """Retrieve information to help answer a query."""
          retrieved_docs = vectorstore.similarity_search(query, k=5)
-         serialized = "\n\n".join(
-             (f"Source: {doc.metadata}\nContent: {doc.page_content}")
-             for doc in retrieved_docs
-         )
-         return serialized, retrieved_docs
+         return retrieved_docs
      
      
      tools = [retrieve_context]

@@ -26,17 +26,21 @@ function GetFulltextCategories {
 function GetAdmissableFulltexts {
      for ft_type in $(GetFulltextCategories ${solr_server} $ppn); do
         local outfile=$(mktemp -u)
+
+        echo ../download_fulltext_from_es_for_ppn.sh ${es_server} ${ppn} ${outfile} ${ft_type}
+        ../download_fulltext_from_es_for_ppn.sh ${es_server} ${ppn} ${outfile} ${ft_type}
         ../download_fulltext_from_es_for_ppn.sh ${es_server} ${ppn} ${outfile} ${ft_type}
         cat ${outfile}
         rm ${outfile}
      done
 }
 
-ixtheo_notation_prompt=./ixtheo_notation_prompt.txt
+ixtheo_notation_prompt=./ixtheo_notation_prompt7.txt
 
 #fulltexts_complete=$(for i in $(GetFulltextCategories ${solr_server} $ppn); do echo $i; done)
 
 record_information=$(cat <(GetRecord) <(GetAdmissableFulltexts))
+echo "$record_information"
 #record_information=$(cat <(GetRecord))
 #record_information=$(cat  <(GetAdmissableFulltexts))
 
