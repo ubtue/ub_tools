@@ -85,10 +85,11 @@ EndPhase || Abort) &
 wait
 
 
-StartPhase "Remove VD-entries"
+StartPhase "Remove VD-entries and other timeout-prone DOIs"
 (marc_filter \
      GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
-     --drop 'LOKx:SPQUE#VD .*'
+     --drop 'LOKx:SPQUE#VD .*' \
+     --drop '856u:https://doi[.]org.*(jwkg|thpq|zmr|svsh|ost-west|rtlu|tge|jrp|hlfr)[.].*' \
 >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
