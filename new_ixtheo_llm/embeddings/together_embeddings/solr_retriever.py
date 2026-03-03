@@ -2,11 +2,12 @@
 import configparser
 import jq
 import json
+import random
 from pydantic import BaseModel, Field, PrivateAttr, validator
 from langchain_core.retrievers import BaseRetriever
 from langchain_core.documents import Document
 from pysolr import Solr
-from typing import List,Dict,Optional
+from typing import List,Dict,Optional,Any
 
 class SolrConfig(BaseModel):
       host: str = "localhost"
@@ -36,11 +37,18 @@ class SolrRetriever(BaseRetriever):
     solr_url : str = ''
     client: Solr = None
     solr_config : SolrConfig = SolrConfig()
-    k: int = 100
+    k: int = 10
+    _lok_remover : Optional[Any] = PrivateAttr(default=None)
+    _custom_field_remove : Optional[Any] = PrivateAttr(default=None)
+
     def __init__(self, config_file : str = 'rag_config.ini'):
        super().__init__()
        self.solr_config = SolrConfig.load_config(config_file)
        self.solr_url = f"http://{self.solr_config.host}:{self.solr_config.port}/solr/{self.solr_config.collection}"
+       self.k = self.solr_config.max_records
+       self._lok_remover = jq.compile('.fields |= map(with_entries(select(.key | test("LOK") | not)))')
+       self._custom_field_remove = jq.compile('.fields |= map(with_entries(select(.key | test("^(S|O)") | not)))')
+
 
     def _get_relevant_documents(self, query: str) -> List[Document]:
         if not self.client:
@@ -56,6 +64,23 @@ class SolrRetriever(BaseRetriever):
                     **{k: v for k, v in doc.items() if k in ['id', 'author', 'title', 'year']}
                 }
             ))
+        return docs
+
+    def _remove_LOK_and_synonyms(self, record):
+         stripped = self._lok_remover.input_value(json.loads(record)).text()
+         return self._custom_field_remove.input_value(json.loads(stripped)).text()
+
+
+    def _get_plain_relevant_documents(self, query: str):
+        if not self.client:
+            self.client = Solr(self.solr_url)
+
+        results = self.client.search(query, fl='*', rows=self.k)
+        docs = []
+        for doc in results.docs:
+            record = doc.get('fullrecord', '') or ''
+            docs.append(Document(page_content=self._remove_LOK_and_synonyms(record)))
+          
         return docs
 
 
@@ -93,17 +118,23 @@ class SolrBatchRetriever(SolrRetriever):
            self._next_cursor = results.nextCursorMark
 
        for doc in results.docs:
+           keep_percentage = 0.05
+           if random.random() > keep_percentage:
+               continue
            content = doc.get('fullrecord', '') or ''
            lok_remover = jq.compile('.fields |= map(with_entries(select(.key | test("LOK") | not)))')
            content = lok_remover.input_value(json.loads(content)).text()
+           custom_field_remove = jq.compile('.fields |= map(with_entries(select(.key | test("^(S|O)") | not)))')
+           content = custom_field_remove.input_value(json.loads(content)).text()
            docs.append(Document(
                page_content=content,
                metadata={
                    **{k: v for k, v in doc.items() if k in ['id', 'author', 'title', 'year']}
                }
            ))
+           self.retrieved_records += 1
 
-       self.retrieved_records += len(results.docs)
+       #self.retrieved_records += len(results.docs)
        return docs
 
 

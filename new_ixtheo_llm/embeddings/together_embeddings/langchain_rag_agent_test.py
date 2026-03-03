@@ -23,7 +23,10 @@ async def AgentTest():
      
     # llm = ChatTogether(model="moonshotai/Kimi-K2-Instruct-0905")
     # llm = ChatTogether(model="moonshotai/Kimi-K2.5")
-     llm = ChatTogether(model="zai-org/GLM-4.7")
+    # llm = ChatTogether(model="zai-org/GLM-4.7")
+    # llm = ChatTogether(model="zai-org/GLM-5")
+     llm = ChatTogether(model="MiniMaxAI/MiniMax-M2.5")
+    # llm = ChatTogether(model="Qwen/Qwen3.5-397B-A17B")
      
      
 #     @tool(response_format="content_and_artifact")
