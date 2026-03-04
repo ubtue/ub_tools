@@ -14,6 +14,9 @@ class SolrConfig(BaseModel):
       port: int = Field(default=8983, gt=0, le=65535)
       collection:  Optional[str] = Field(default="biblio")
       max_records: int = Field(default=200)
+      batch_size: int = Field(default=100)
+      keep_ratio: float = Field(default=1.0, gt=0.0, le=1.0)
+      skip_pages: int = Field(default=0)
 
       @classmethod
       def load_config(cls, config_file: str):
@@ -30,6 +33,18 @@ class SolrConfig(BaseModel):
           if 'max_records' in solr_data:
               solr_data['max_records'] = int(solr_data['max_records'])
 
+          if 'batch_size' in solr_data:
+              solr_data['batch_size'] = int(solr_data['batch_size'])
+
+          if 'keep_ratio' in solr_data:
+              solr_data['keep_ratio'] = float(solr_data['keep_ratio'])
+
+          if 'skip_pages' in solr_data:
+              solr_data['skip_pages'] = int(solr_data['skip_pages'])
+              if (solr_data['skip_pages'] >= solr_data['max_records'] / solr_data['batch_size']):
+                  raise ValueError(f"Implausible skip_pages {solr_data['skip_pages']}")
+
+
           return cls(**solr_data)
 
 
@@ -45,7 +60,7 @@ class SolrRetriever(BaseRetriever):
        super().__init__()
        self.solr_config = SolrConfig.load_config(config_file)
        self.solr_url = f"http://{self.solr_config.host}:{self.solr_config.port}/solr/{self.solr_config.collection}"
-       self.k = self.solr_config.max_records
+       self.k = self.solr_config.batch_size
        self._lok_remover = jq.compile('.fields |= map(with_entries(select(.key | test("LOK") | not)))')
        self._custom_field_remove = jq.compile('.fields |= map(with_entries(select(.key | test("^(S|O)") | not)))')
 
@@ -80,27 +95,21 @@ class SolrRetriever(BaseRetriever):
         for doc in results.docs:
             record = doc.get('fullrecord', '') or ''
             docs.append(Document(page_content=self._remove_LOK_and_synonyms(record)))
-          
+
         return docs
 
 
 class SolrBatchRetriever(SolrRetriever):
     _next_cursor : str = PrivateAttr(default='*')
     _query : str = PrivateAttr(default='*:*')
+    retrieved_pages : int = 0
     retrieved_records : int = 0
 
     def __init__(self, query : str, config_file : str = 'rag_config.ini') :
-      super().__init__(config_file)
-      self._query = query
+       super().__init__(config_file)
+       self._query = query
 
-    def _get_relevant_documents(self, query: str) -> List[Document]:
-       if not self.client:
-           self.client = Solr(self.solr_url)
-
-       if self.retrieved_records > self.solr_config.max_records:
-           self._next_cursor = '*'
-           return []
-
+    def _get_page(self, query):
        params = {
           'q' :  query,
           'rows' : self.k,
@@ -110,22 +119,33 @@ class SolrBatchRetriever(SolrRetriever):
        }
 
        results = self.client.search(**params)
-       docs = []
        if results.nextCursorMark == self._next_cursor:
-           self._next_cursor = '*'
            return []
        else:
            self._next_cursor = results.nextCursorMark
 
+       self.retrieved_pages += 1
+       return results
+
+
+    def _get_relevant_documents(self, query: str) -> List[Document]:
+       if not self.client:
+           self.client = Solr(self.solr_url)
+
+       if self.retrieved_records > self.solr_config.max_records:
+           return []
+
+       results = self._get_page(query)
+       while self.solr_config.skip_pages != 0 and self.solr_config.skip_pages >= self.retrieved_pages:
+          print(f"SKIPPING PAGE {self.retrieved_pages}")
+          results = self._get_page(query)
+
+       docs = []
        for doc in results.docs:
-           keep_percentage = 0.05
-           if random.random() > keep_percentage:
+           if random.random() > self.solr_config.keep_ratio:
                continue
            content = doc.get('fullrecord', '') or ''
-           lok_remover = jq.compile('.fields |= map(with_entries(select(.key | test("LOK") | not)))')
-           content = lok_remover.input_value(json.loads(content)).text()
-           custom_field_remove = jq.compile('.fields |= map(with_entries(select(.key | test("^(S|O)") | not)))')
-           content = custom_field_remove.input_value(json.loads(content)).text()
+           content = self._remove_LOK_and_synonyms(content)
            docs.append(Document(
                page_content=content,
                metadata={
