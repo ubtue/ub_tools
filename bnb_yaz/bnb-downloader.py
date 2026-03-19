@@ -83,9 +83,9 @@ def ConnectToBNBServer():
         yaz_client = pexpect.spawn("yaz-client")
         yaz_client.sendline("auth " + username_password)
         yaz_client.expect("Authentication set to Open.*")
-        yaz_client.sendline("open z3950cat.bl.uk:9909")
+        yaz_client.sendline("open bl.alma.exlibrisgroup.com:1921")
         yaz_client.expect(".*Connection accepted.*")
-        yaz_client.sendline("base BNB03U")
+        yaz_client.sendline("base 44BL_MAIN")
         yaz_client.expect("\r\n")
         yaz_client.sendline("marccharset MARC8/UTF8")
         yaz_client.expect("\r\n")
@@ -180,7 +180,7 @@ def DownloadRecordRange(bnb_ids):
             
         counter += 1
         try:
-            bnb_yaz_client.sendline("find @attr 1=48 " + '"' + bnb_id + '"')
+            bnb_yaz_client.sendline("find @attr 1=1016 " + '"' + bnb_id + '"')
             bnb_yaz_client.expect("Number of hits:.*", timeout=1000)
             count_search = re.search(b"Number of hits: (\\d+), setno", bnb_yaz_client.after)
             
@@ -403,8 +403,8 @@ def Main():
         bnb_yaz_client.sendline("quit")
         bnb_yaz_client.expect(pexpect.EOF)
         
-        util.Info("Uploading MARC files to BSZ FTP server...")
-        UploadMARCFilesToBSZFTPServer(target_directory)
+        # util.Info("Uploading MARC files to BSZ FTP server...")
+        # UploadMARCFilesToBSZFTPServer(target_directory)
     
     else:
         util.Info("No undelivered BNB IDs found.")
@@ -419,8 +419,8 @@ def Main():
     util.Info(summary_report)
     
     # send summary report via email
-    util.Info("Sending summary report via email to " + email_recipient + "...")
-    util.SendEmail("BNB Downloader Summary Report", summary_report, recipient=email_recipient)
+    # util.Info("Sending summary report via email to " + email_recipient + "...")
+    # util.SendEmail("BNB Downloader Summary Report", summary_report, recipient=email_recipient)
     
 
 try:
