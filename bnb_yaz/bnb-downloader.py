@@ -403,8 +403,8 @@ def Main():
         bnb_yaz_client.sendline("quit")
         bnb_yaz_client.expect(pexpect.EOF)
         
-        # util.Info("Uploading MARC files to BSZ FTP server...")
-        # UploadMARCFilesToBSZFTPServer(target_directory)
+        util.Info("Uploading MARC files to BSZ FTP server...")
+        UploadMARCFilesToBSZFTPServer(target_directory)
     
     else:
         util.Info("No undelivered BNB IDs found.")
@@ -419,8 +419,8 @@ def Main():
     util.Info(summary_report)
     
     # send summary report via email
-    # util.Info("Sending summary report via email to " + email_recipient + "...")
-    # util.SendEmail("BNB Downloader Summary Report", summary_report, recipient=email_recipient)
+    util.Info("Sending summary report via email to " + email_recipient + "...")
+    util.SendEmail("BNB Downloader Summary Report", summary_report, recipient=email_recipient)
     
 
 try:
