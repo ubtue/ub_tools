@@ -83,9 +83,9 @@ def ConnectToBNBServer():
         yaz_client = pexpect.spawn("yaz-client")
         yaz_client.sendline("auth " + username_password)
         yaz_client.expect("Authentication set to Open.*")
-        yaz_client.sendline("open z3950cat.bl.uk:9909")
+        yaz_client.sendline("open bl.alma.exlibrisgroup.com:1921")
         yaz_client.expect(".*Connection accepted.*")
-        yaz_client.sendline("base BNB03U")
+        yaz_client.sendline("base 44BL_MAIN")
         yaz_client.expect("\r\n")
         yaz_client.sendline("marccharset MARC8/UTF8")
         yaz_client.expect("\r\n")
@@ -180,7 +180,7 @@ def DownloadRecordRange(bnb_ids):
             
         counter += 1
         try:
-            bnb_yaz_client.sendline("find @attr 1=48 " + '"' + bnb_id + '"')
+            bnb_yaz_client.sendline("find @attr 1=1016 " + '"' + bnb_id + '"')
             bnb_yaz_client.expect("Number of hits:.*", timeout=1000)
             count_search = re.search(b"Number of hits: (\\d+), setno", bnb_yaz_client.after)
             
