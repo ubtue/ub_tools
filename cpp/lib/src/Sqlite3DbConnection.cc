@@ -19,7 +19,7 @@
  */
 #include "Sqlite3DbConnection.h"
 #include <cerrno>
-//#include <cstdlib>
+// #include <cstdlib>
 #include "FileUtil.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
@@ -130,7 +130,7 @@ Sqlite3DbConnection::Sqlite3DbConnection(const std::string &database_path, const
     initialised_ = true;
     // Performance tweaks
     query("PRAGMA journal_mode = WAL");
-    query("PRAGMA mmap_size = 2147483648");
+    query("PRAGMA mmap_size = 536870912");
     query("PRAGMA synchronous = normal");
 }
 
