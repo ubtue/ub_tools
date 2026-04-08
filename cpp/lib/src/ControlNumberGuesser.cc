@@ -47,7 +47,7 @@ void ControlNumberGuesser::clearDatabase() {
 
 void ControlNumberGuesser::setAggressiveSpeedMode() {
     db_connection_.queryOrDie("PRAGMA journal_mode=MEMORY");
-    db_connection_.queryOrDie("PRAGMA synchrounous=OFF");
+    db_connection_.queryOrDie("PRAGMA synchronous=OFF");
 }
 
 void ControlNumberGuesser::beginUpdate() {
