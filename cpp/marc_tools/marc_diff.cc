@@ -26,7 +26,6 @@
 #include <vector>
 #include <cstdio>
 #include <cstdlib>
-#include "FileUtil.h"
 #include "MARC.h"
 #include "util.h"
 
@@ -35,13 +34,7 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname
-              << " [--verbose] [--extract] marc_collection1 marc_collection2 [filename_output1] [filename_output2]\n"
-              << "\t --extract\textracting the difference to filename_output1 and filename_output2\n"
-              << "\t\t\t-filename_ouput1 contains all ids exist in collection1 but not in collection2.\n"
-              << "\t\t\t-filename_output2 contains all records that not exist in collection1 but exist in collection2\n"
-              << "\t\t\t\tor the record has the same id but different content."
-              << "\n";
+    std::cerr << "Usage: " << ::progname << " [--verbose] marc_collection1 marc_collection2\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -59,15 +52,13 @@ std::vector<std::string> ExtractRepeatedContents(MARC::Record::const_iterator &f
 }
 
 
-bool RecordsDiffer(const MARC::Record &record1, const MARC::Record &record2, std::string * const difference,
-                   std::unordered_set<std::string> * const ppns_difference_content) {
+bool RecordsDiffer(const MARC::Record &record1, const MARC::Record &record2, std::string * const difference) {
     auto field1(record1.begin());
     auto field2(record2.begin());
 
     while (field1 != record1.end() and field2 != record2.end()) {
         if (unlikely(field1->getTag() != field2->getTag())) {
             *difference = field1->getTag().toString() + ", " + field2->getTag().toString();
-            ppns_difference_content->emplace(record1.getControlNumber());
             return true;
         }
 
@@ -78,7 +69,6 @@ bool RecordsDiffer(const MARC::Record &record1, const MARC::Record &record2, std
         {
             if (field1->getContents() != field2->getContents()) {
                 *difference = common_tag.toString() + ", " + common_tag.toString();
-                ppns_difference_content->emplace(record1.getControlNumber());
                 return true;
             }
             ++field1, ++field2;
@@ -98,7 +88,6 @@ bool RecordsDiffer(const MARC::Record &record1, const MARC::Record &record2, std
             while (content1 != contents1.cend()) {
                 if (*content1 != *content2) {
                     *difference = common_tag.toString() + ", " + common_tag.toString();
-                    ppns_difference_content->emplace(record1.getControlNumber());
                     return true;
                 }
                 ++content1, ++content2;
@@ -108,11 +97,9 @@ bool RecordsDiffer(const MARC::Record &record1, const MARC::Record &record2, std
 
     if (field1 != record1.end()) {
         *difference = field1->getTag().toString() + ", END";
-        ppns_difference_content->emplace(record1.getControlNumber());
         return true;
     } else if (field2 != record2.end()) {
         *difference = "END, " + field2->getTag().toString();
-        ppns_difference_content->emplace(record1.getControlNumber());
         return true;
     }
 
@@ -122,7 +109,7 @@ bool RecordsDiffer(const MARC::Record &record1, const MARC::Record &record2, std
 
 void EmitDifferenceReport(const bool verbose, const std::unordered_map<std::string, off_t> &control_number_to_offset_map1,
                           const std::unordered_map<std::string, off_t> &control_number_to_offset_map2, MARC::Reader * const reader1,
-                          MARC::Reader * const reader2, std::unordered_set<std::string> * const ppns_new_or_to_be_updated) {
+                          MARC::Reader * const reader2) {
     if (verbose)
         std::cout << "Records w/ identical control numbers but differing contents:\n";
 
@@ -141,7 +128,7 @@ void EmitDifferenceReport(const bool verbose, const std::unordered_map<std::stri
         const MARC::Record record2(reader2->read());
 
         std::string difference;
-        if (RecordsDiffer(record1, record2, &difference, ppns_new_or_to_be_updated)) {
+        if (RecordsDiffer(record1, record2, &difference)) {
             ++differ_count;
             if (verbose)
                 std::cout << '\t' << record1.getControlNumber() << " (fields: " << difference << ")\n";
@@ -165,15 +152,14 @@ inline void InitSortedControlNumbersList(const std::unordered_map<std::string, o
 void EmitStandardReport(const bool verbose, const std::string &collection1_name, const std::string &collection2_name,
                         const unsigned collection1_size, const unsigned collection2_size,
                         const std::unordered_map<std::string, off_t> &control_number_to_offset_map1,
-                        const std::unordered_map<std::string, off_t> &control_number_to_offset_map2,
-                        std::unordered_set<std::string> *in_map1_only, std::unordered_set<std::string> *in_map2_only) {
+                        const std::unordered_map<std::string, off_t> &control_number_to_offset_map2) {
     std::vector<std::string> sorted_control_numbers1;
     InitSortedControlNumbersList(control_number_to_offset_map1, &sorted_control_numbers1);
 
     std::vector<std::string> sorted_control_numbers2;
     InitSortedControlNumbersList(control_number_to_offset_map2, &sorted_control_numbers2);
 
-    // std::unordered_set<std::string> in_map1_only, in_map2_only;
+    std::unordered_set<std::string> in_map1_only, in_map2_only;
 
     auto control_number1(sorted_control_numbers1.cbegin());
     auto control_number2(sorted_control_numbers2.cbegin());
@@ -182,51 +168,34 @@ void EmitStandardReport(const bool verbose, const std::string &collection1_name,
             ++control_number1;
             ++control_number2;
         } else if (*control_number1 < *control_number2) {
-            in_map1_only->emplace(*control_number1);
+            in_map1_only.emplace(*control_number1);
             ++control_number1;
         } else { // *control_number2 < *control_number1
-            in_map2_only->emplace(*control_number2);
+            in_map2_only.emplace(*control_number2);
             ++control_number2;
         }
     }
 
-    const unsigned in_map1_only_count(in_map1_only->size() + (sorted_control_numbers1.cend() - control_number1));
-    const unsigned in_map2_only_count(in_map2_only->size() + (sorted_control_numbers2.cend() - control_number2));
+    const unsigned in_map1_only_count(in_map1_only.size() + (sorted_control_numbers1.cend() - control_number1));
+    const unsigned in_map2_only_count(in_map2_only.size() + (sorted_control_numbers2.cend() - control_number2));
 
     std::cout << '"' << collection1_name << "\" contains " << collection1_size << " record(s).\n";
     std::cout << '"' << collection2_name << "\" contains " << collection2_size << " record(s).\n";
     std::cout << in_map1_only_count << " control number(s) are only in \"" << collection1_name << "\" but not in \"" << collection2_name
               << "\".\n";
     if (verbose) {
-        for (const auto &control_number : *in_map1_only)
+        for (const auto &control_number : in_map1_only)
             std::cout << '\t' << control_number << '\n';
     }
     std::cout << in_map2_only_count << " control number(s) are only in \"" << collection2_name << "\" but not in \"" << collection1_name
               << "\".\n";
     if (verbose) {
-        for (const auto &control_number : *in_map2_only)
+        for (const auto &control_number : in_map2_only)
             std::cout << '\t' << control_number << '\n';
     }
     std::cout << (collection1_size - in_map1_only_count) << " are in both collections.\n";
 }
 
-void WriteToOutput1(const std::string filename, const std::unordered_set<std::string> diff_in_collection1) {
-    // open the output file
-    const auto output_file(FileUtil::OpenOutputFileOrDie(filename));
-
-    for (const auto &record_id : diff_in_collection1) {
-        (*output_file) << record_id << '\n';
-    }
-}
-
-
-void WriteToOutput2(const std::string &filename, const std::unordered_set<std::string> diff_in_collection2, MARC::Reader * const reader) {
-    auto marc_writer(MARC::Writer::Factory(filename));
-    for (reader->rewind(); const MARC::Record record = reader->read();) {
-        if (diff_in_collection2.find(record.getControlNumber()) != diff_in_collection2.cend())
-            marc_writer->write(record);
-    }
-}
 
 } // unnamed namespace
 
@@ -241,17 +210,7 @@ int Main(int argc, char *argv[]) {
     if (verbose)
         --argc, ++argv;
 
-    const bool extract(std::strcmp(argv[1], "--extract") == 0);
-    std::string filename_output1, filename_output2;
-
-    if (extract) {
-        if (argc != 6)
-            Usage();
-
-        --argc, ++argv;
-        filename_output1 = argv[3];
-        filename_output2 = argv[4];
-    } else if (argc != 3)
+    if (argc != 3)
         Usage();
 
     const std::string collection1_name(argv[1]);
@@ -261,23 +220,14 @@ int Main(int argc, char *argv[]) {
 
     std::unordered_map<std::string, off_t> control_number_to_offset_map1;
     const size_t collection1_size(MARC::CollectRecordOffsets(marc_reader1.get(), &control_number_to_offset_map1));
-    const std::string marc_output_filename = "test.mrc";
-    std::unordered_set<std::string> ppns_have_to_delete, ppns_new_or_to_be_updated;
-    auto marc_writer(MARC::Writer::Factory(marc_output_filename));
 
     std::unordered_map<std::string, off_t> control_number_to_offset_map2;
     const unsigned collection2_size(MARC::CollectRecordOffsets(marc_reader2.get(), &control_number_to_offset_map2));
 
-    EmitDifferenceReport(verbose, control_number_to_offset_map1, control_number_to_offset_map2, marc_reader1.get(), marc_reader2.get(),
-                         &ppns_new_or_to_be_updated);
+    EmitDifferenceReport(verbose, control_number_to_offset_map1, control_number_to_offset_map2, marc_reader1.get(), marc_reader2.get());
 
     EmitStandardReport(verbose, collection1_name, collection2_name, collection1_size, collection2_size, control_number_to_offset_map1,
-                       control_number_to_offset_map2, &ppns_have_to_delete, &ppns_new_or_to_be_updated);
-
-    if (extract) {
-        WriteToOutput1(filename_output1, ppns_have_to_delete);
-        WriteToOutput2(filename_output2, ppns_new_or_to_be_updated, marc_reader2.get());
-    }
+                       control_number_to_offset_map2);
 
     return EXIT_SUCCESS;
 }
