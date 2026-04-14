@@ -57,15 +57,15 @@ std::vector<std::string> ExtractRepeatedContents(MARC::Record::const_iterator &f
 }
 
 // Note: This function assumes that the two records have the same control number, and it adds the control number to
-// "ids_with_different_contents" if the records differ in content.
+// "same_ids_with_different_contents" if the records differ in content.
 void IsRecordsDiffer(const MARC::Record &record1, const MARC::Record &record2,
-                     std::unordered_set<std::string> * const ids_with_different_contents) {
+                     std::unordered_set<std::string> * const same_ids_with_different_contents) {
     auto field1(record1.begin());
     auto field2(record2.begin());
 
     while (field1 != record1.end() and field2 != record2.end()) {
         if (unlikely(field1->getTag() != field2->getTag())) {
-            ids_with_different_contents->emplace(record1.getControlNumber());
+            same_ids_with_different_contents->emplace(record1.getControlNumber());
             return;
         }
 
@@ -75,7 +75,7 @@ void IsRecordsDiffer(const MARC::Record &record1, const MARC::Record &record2,
             or (field2 + 1)->getTag() != common_tag)
         {
             if (field1->getContents() != field2->getContents()) {
-                ids_with_different_contents->emplace(record1.getControlNumber());
+                same_ids_with_different_contents->emplace(record1.getControlNumber());
                 return;
             }
             ++field1, ++field2;
@@ -83,7 +83,7 @@ void IsRecordsDiffer(const MARC::Record &record1, const MARC::Record &record2,
             std::vector<std::string> contents1(ExtractRepeatedContents(field1, record1.end()));
             std::vector<std::string> contents2(ExtractRepeatedContents(field2, record2.end()));
             if (contents1.size() != contents2.size()) {
-                ids_with_different_contents->emplace(record1.getControlNumber());
+                same_ids_with_different_contents->emplace(record1.getControlNumber());
                 return;
             }
 
@@ -94,7 +94,7 @@ void IsRecordsDiffer(const MARC::Record &record1, const MARC::Record &record2,
             auto content2(contents2.cbegin());
             while (content1 != contents1.cend()) {
                 if (*content1 != *content2) {
-                    ids_with_different_contents->emplace(record1.getControlNumber());
+                    same_ids_with_different_contents->emplace(record1.getControlNumber());
                     return;
                 }
                 ++content1, ++content2;
@@ -103,10 +103,10 @@ void IsRecordsDiffer(const MARC::Record &record1, const MARC::Record &record2,
     }
 
     if (field1 != record1.end()) {
-        ids_with_different_contents->emplace(record1.getControlNumber());
+        same_ids_with_different_contents->emplace(record1.getControlNumber());
         return;
     } else if (field2 != record2.end()) {
-        ids_with_different_contents->emplace(record1.getControlNumber());
+        same_ids_with_different_contents->emplace(record1.getControlNumber());
         return;
     }
 }
@@ -114,7 +114,7 @@ void IsRecordsDiffer(const MARC::Record &record1, const MARC::Record &record2,
 void ConstructListOfIdenticalIDButDifferentContents(MARC::Reader * const reader1, MARC::Reader * const reader2,
                                                     const std::unordered_map<std::string, off_t> &control_number_to_offset_map1,
                                                     const std::unordered_map<std::string, off_t> &control_number_to_offset_map2,
-                                                    std::unordered_set<std::string> *ids_with_different_contents) {
+                                                    std::unordered_set<std::string> *same_ids_with_different_contents) {
     for (const auto &control_number_and_offset1 : control_number_to_offset_map1) {
         const auto control_number_and_offset2(control_number_to_offset_map2.find(control_number_and_offset1.first));
         if (unlikely(control_number_and_offset2 == control_number_to_offset_map2.cend()))
@@ -128,7 +128,7 @@ void ConstructListOfIdenticalIDButDifferentContents(MARC::Reader * const reader1
             LOG_ERROR("seek in collection 2 failed!");
         const MARC::Record record2(reader2->read());
 
-        IsRecordsDiffer(record1, record2, ids_with_different_contents);
+        IsRecordsDiffer(record1, record2, same_ids_with_different_contents);
     }
 }
 
@@ -212,7 +212,7 @@ int Main(int argc, char *argv[]) {
     std::unordered_map<std::string, off_t> control_number_to_offset_map1;
     std::unordered_map<std::string, off_t> control_number_to_offset_map2;
 
-    std::unordered_set<std::string> ids_in_collection1_only, ids_in_collection2_only, same_ids_with_different_contents;
+    std::unordered_set<std::string> ids_in_collection1_only, ids_in_collection2_only, same_same_ids_with_different_contents;
 
     // Note: CollectRecordOffsets also returns the number of records in the collection, but we don't need that here.
     MARC::CollectRecordOffsets(marc_reader1.get(), &control_number_to_offset_map1);
@@ -220,7 +220,7 @@ int Main(int argc, char *argv[]) {
 
     // construct the list of the same IDs but different contents.
     ConstructListOfIdenticalIDButDifferentContents(marc_reader1.get(), marc_reader2.get(), control_number_to_offset_map1,
-                                                   control_number_to_offset_map2, &same_ids_with_different_contents);
+                                                   control_number_to_offset_map2, &same_same_ids_with_different_contents);
 
     // construct the list of different IDs.
     ConstructListOfDifferentIDs(control_number_to_offset_map1, control_number_to_offset_map2, &ids_in_collection1_only,
@@ -229,7 +229,8 @@ int Main(int argc, char *argv[]) {
     // construct the list of IDs need to be get from collection 2 but not in collection 1, which includes both the IDs that are only in
     // collection 2 and the IDs that are in both collections but have different contents.
     std::unordered_set<std::string> ids_in_collection2_only_or_different_content(ids_in_collection2_only);
-    ids_in_collection2_only_or_different_content.insert(same_ids_with_different_contents.cbegin(), same_ids_with_different_contents.cend());
+    ids_in_collection2_only_or_different_content.insert(same_same_ids_with_different_contents.cbegin(),
+                                                        same_same_ids_with_different_contents.cend());
 
     // writing the ids that are only in collection 1 to a text file, and writing the records with IDs that are only in collection 2 or have
     // different contents to a Marc file.
@@ -248,8 +249,9 @@ int Main(int argc, char *argv[]) {
         for (const auto &control_number : ids_in_collection2_only)
             std::cout << '\t' << control_number << '\n';
 
-        std::cout << same_ids_with_different_contents.size() << " control number(s) are in both collections but have different contents.\n";
-        for (const auto &control_number : same_ids_with_different_contents)
+        std::cout << same_same_ids_with_different_contents.size()
+                  << " control number(s) are in both collections but have different contents.\n";
+        for (const auto &control_number : same_same_ids_with_different_contents)
             std::cout << '\t' << control_number << '\n';
     }
 
