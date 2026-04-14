@@ -91,9 +91,8 @@ void BuildControlNumberToHashMap(MARC::Reader * const reader,
                                  std::unordered_map<std::string, std::string> * const control_number_to_record_hash_map) {
     while (const MARC::Record record = reader->read()) {
         const std::string record_in_string(record.toString(MARC::Record::RecordFormat::MARC21_BINARY));
-        // const uint64_t hash_low = XXH3_128bits(record_in_string.data(), record_in_string.size()).low64;
-        // (*control_number_to_record_hash_map)[record.getControlNumber()] = std::to_string(hash_low);
-        (*control_number_to_record_hash_map)[record.getControlNumber()] = std::to_string(std::hash<std::string>{}(record_in_string));
+        const uint64_t hash_low = XXH3_128bits(record_in_string.data(), record_in_string.size()).low64;
+        (*control_number_to_record_hash_map)[record.getControlNumber()] = std::to_string(hash_low);
     }
 }
 
