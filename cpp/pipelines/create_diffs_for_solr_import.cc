@@ -31,16 +31,15 @@ namespace {
 
 [[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname
-              << " [--verbose] previous_marc_filename current_marc_filename output_1_filename output_2_filename\n"
+              << " [--verbose] previous_marc_filename current_marc_filename to_delete_filename to_import_filename\n"
               << "\t-previous_marc_filename\tThe filename of the previous MARC collection.\n"
               << "\t-current_marc_filename\tThe filename of the current MARC collection.\n"
-              << "\t-output_1_filename\tThe target filename to hold lists of IDs scheduled for deletion in the next pipeline step.\n"
-              << "\t-output_2_filename\tThe target filename to hold all records scheduled for import in the next pipeline step.\n";
+              << "\t-to_delete_filename\tThe target filename to hold lists of IDs scheduled for deletion in the next pipeline step.\n"
+              << "\t-to_import_filename\tThe target filename to hold all records scheduled for import in the next pipeline step.\n";
     std::exit(EXIT_FAILURE);
 }
 
-// a comparator for XXH128_hash_t, which is needed for using XXH128_hash_t as the key in a boost::bimap. We compare the low64 part first,
-// and if they are equal, we compare the high64 part.
+
 struct XXH128_hash_t_cmp {
     bool operator()(const XXH128_hash_t &hash1, const XXH128_hash_t &hash2) const noexcept {
         if (hash1.high64 < hash2.high64)
