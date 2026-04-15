@@ -30,15 +30,17 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr
-        << "Usage: " << ::progname << " [--verbose] marc_collection1 marc_collection2 list_of_ids_to_delete list_of_record_to_import\n"
-        << "\t[--extract]\tprint more info.\n"
-        << "\t-marc_collection1\tfirst MARC collection.\n"
-        << "\t-marc_collection2\tsecond MARC collection.\n"
-        << "\t-list_of_ids_to_delete\twill be a text file that lists all the IDs from collection1 that are not found in collection2.\n"
-        << "\t-list_of_record_to_import\twill be a Marc file with all records that are found in collection2 but not in collection1, as "
-           "well "
-           "as records that have the same ID in both collections but different content.\n";
+    std::cerr << "Usage: " << ::progname
+              << " [--verbose] previous_marc_collection current_marc_collection list_of_ids_to_delete list_of_record_to_import\n"
+              << "\t[--extract]\tprint more info.\n"
+              << "\t-previous_marc_collection\tfirst MARC collection.\n"
+              << "\t-current_marc_collection\tsecond MARC collection.\n"
+              << "\t-list_of_ids_to_delete\twill be a text file that lists all the IDs from the previous collection that are not found in "
+                 "the current collection.\n"
+              << "\t-list_of_record_to_import\twill be a Marc file with all records that are found in the current collection but not in "
+                 "the previous collection, as "
+                 "well "
+                 "as records that have the same ID in both collections but different content.\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -46,53 +48,58 @@ namespace {
 // and if they are equal, we compare the high64 part.
 struct XXH128_hash_t_cmp {
     bool operator()(const XXH128_hash_t &hash1, const XXH128_hash_t &hash2) const noexcept {
-        if (hash1.low64 != hash2.low64)
-            return hash1.low64 < hash2.low64;
-        else
-            return hash1.high64 < hash2.high64;
+        if (hash1.high64 < hash2.high64)
+            return true;
+        if (hash1.high64 > hash2.high64)
+            return false;
+        return hash1.low64 < hash2.low64;
     }
 };
 
 // a bimap that maps control number to the hash of the record content, which can be used for quick comparison of record contents based on
 // control numbers. We use boost::bimap here because we need to search by both control number and hash value.
-using StringHashBimap = boost::bimap<boost::bimaps::set_of<std::string>, boost::bimaps::set_of<XXH128_hash_t, XXH128_hash_t_cmp>>;
+using PPNRecordHashBimap = boost::bimap<boost::bimaps::set_of<std::string>, boost::bimaps::set_of<XXH128_hash_t, XXH128_hash_t_cmp>>;
 
 
-void CollectIdsToBeDelete(const StringHashBimap &previous_ppn_to_record_hash_map, const StringHashBimap &current_ppn_to_record_hash_map,
-                          std::unordered_set<std::string> *ids_need_to_be_deleted) {
-    for (const auto &entry : previous_ppn_to_record_hash_map.left)
-        if (current_ppn_to_record_hash_map.left.find(entry.first) == current_ppn_to_record_hash_map.left.end())
-            ids_need_to_be_deleted->emplace(entry.first);
+void CollectIdsToBeDeleted(const PPNRecordHashBimap &previous_ppn_to_record_hash_map,
+                           const PPNRecordHashBimap &current_ppn_to_record_hash_map,
+                           std::unordered_set<std::string> *ids_need_to_be_deleted) {
+    for (const auto &[ppn, record_hash] : previous_ppn_to_record_hash_map.left) {
+        if (current_ppn_to_record_hash_map.left.find(ppn) == current_ppn_to_record_hash_map.left.end())
+            ids_need_to_be_deleted->emplace(ppn);
+    }
 }
 
-void CollectIdsToBeImported(const StringHashBimap &previous_ppn_to_record_hash_map, const StringHashBimap &current_ppn_to_record_hash_map,
+void CollectIdsToBeImported(const PPNRecordHashBimap &previous_ppn_to_record_hash_map,
+                            const PPNRecordHashBimap &current_ppn_to_record_hash_map,
                             std::unordered_set<std::string> *ids_need_to_be_imported) {
-    for (const auto &entry : current_ppn_to_record_hash_map.right)
-        if (previous_ppn_to_record_hash_map.right.find(entry.first) == previous_ppn_to_record_hash_map.right.end())
-            ids_need_to_be_imported->emplace(entry.second);
+    for (const auto &[ppn, record_hash] : current_ppn_to_record_hash_map.right) {
+        if (previous_ppn_to_record_hash_map.right.find(record_hash) == previous_ppn_to_record_hash_map.right.end())
+            ids_need_to_be_imported->emplace(ppn);
+    }
 }
 
-// build a map from control number to the hash using XXH3_128bits of the record content for all records in the collection, which can be used
-// for quick comparison of record contents based on control numbers.
-void BuildBimapStringHashMap(const std::string &marc_file_name, StringHashBimap * const control_number_to_record_hash_map) {
+// build a map from control number to the hash using XXH3_128bits of the record content for all records in the collection, which can be
+// used for quick comparison of record contents based on control numbers.
+void BuildBimapStringHashMap(const std::string &marc_file_name, PPNRecordHashBimap * const control_number_to_record_hash_map) {
     std::unique_ptr<MARC::Reader> reader(MARC::Reader::Factory(marc_file_name));
     while (const MARC::Record record = reader->read()) {
         const std::string record_in_string(record.toString(MARC::Record::RecordFormat::MARC21_BINARY));
         control_number_to_record_hash_map->insert(
-            StringHashBimap::value_type(record.getControlNumber(), XXH3_128bits(record_in_string.data(), record_in_string.size())));
+            PPNRecordHashBimap::value_type(record.getControlNumber(), XXH3_128bits(record_in_string.data(), record_in_string.size())));
     }
 }
 
-// A generic function of writing a list of IDs to a text file, which can be used for both the list of IDs that are only in collection 1 and
-// the list of IDs that are only in collection 2.
+// A generic function of writing a list of IDs to a text file, which can be used for both the list of IDs that are only in collection 1
+// and the list of IDs that are only in collection 2.
 void WriteListOfIdToTextFile(const std::string &filename, const std::unordered_set<std::string> &ids) {
     const auto output_file(FileUtil::OpenOutputFileOrDie(filename));
     for (const auto &id : ids)
         (*output_file) << id << '\n';
 }
 
-// A generic function of writing records with given IDs to a Marc file. The records will be read from the given reader, which can be either
-// the reader for collection 1 or the reader for collection 2.
+// A generic function of writing records with given IDs to a Marc file. The records will be read from the given reader, which can be
+// either the reader for collection 1 or the reader for collection 2.
 void GetRecordAndWriteToMarcFile(const std::string &filename, const std::unordered_set<std::string> &ids, MARC::Reader * const reader) {
     auto marc_writer(MARC::Writer::Factory(filename));
     for (reader->rewind(); const MARC::Record record = reader->read();) {
@@ -138,8 +145,8 @@ int Main(int argc, char *argv[]) {
     std::unique_ptr<MARC::Reader> marc_reader_of_current_file(MARC::Reader::Factory(current_marc_file_name));
 
     // Variables for collecting control numbers and their corresponding file offsets for both collections.
-    StringHashBimap previous_ppn_to_record_hash_map;
-    StringHashBimap current_ppn_to_record_hash_map;
+    PPNRecordHashBimap previous_ppn_to_record_hash_map;
+    PPNRecordHashBimap current_ppn_to_record_hash_map;
 
     std::unordered_set<std::string> ids_need_to_be_deleted, ids_need_to_be_imported;
 
@@ -152,8 +159,8 @@ int Main(int argc, char *argv[]) {
     // for multiple tasks, but since we only have a few tasks here, we can just create and join the threads directly without the need for a
     // thread pool.
     std::thread thread_build_previous_bimap(BuildBimapStringHashMap, previous_marc_file_name, &previous_ppn_to_record_hash_map);
-    thread_build_previous_bimap.join();
     std::thread thread_build_current_bimap(BuildBimapStringHashMap, current_marc_file_name, &current_ppn_to_record_hash_map);
+    thread_build_previous_bimap.join();
     thread_build_current_bimap.join();
 
     // collect the IDs that need to be deleted and imported in parallel using multiple threads, which can speed up the process significantly
@@ -163,13 +170,12 @@ int Main(int argc, char *argv[]) {
     // create and manage threads in C++. We can also use std::async and std::future for a more high-level approach, but std::thread is
     // sufficient for our needs here. We can also use a thread pool if we want to limit the number of threads and reuse them for multiple
     // tasks, but since we only have a few tasks here, we can just create and join the threads directly without the need for a thread pool.
-    std::thread thread_collect_ids_to_be_deleted(CollectIdsToBeDelete, previous_ppn_to_record_hash_map, current_ppn_to_record_hash_map,
+    std::thread thread_collect_ids_to_be_deleted(CollectIdsToBeDeleted, previous_ppn_to_record_hash_map, current_ppn_to_record_hash_map,
                                                  &ids_need_to_be_deleted);
-    thread_collect_ids_to_be_deleted.join();
     std::thread thread_collect_ids_to_be_imported(CollectIdsToBeImported, previous_ppn_to_record_hash_map, current_ppn_to_record_hash_map,
                                                   &ids_need_to_be_imported);
+    thread_collect_ids_to_be_deleted.join();
     thread_collect_ids_to_be_imported.join();
-
 
     // write the IDs in ids_need_to_be_deleted to the list_of_ids_to_delete file.
     WriteListOfIdToTextFile(list_of_ids_to_delete, ids_need_to_be_deleted);
@@ -180,6 +186,7 @@ int Main(int argc, char *argv[]) {
     // using multiple threads, but since we only need to read the current collection once, it may not be worth the overhead of creating and
     // managing multiple threads for this task. We can just do it in a single thread for simplicity and efficiency.
     GetRecordAndWriteToMarcFile(list_of_record_to_import, ids_need_to_be_imported, marc_reader_of_current_file.get());
+
 
     // print the report to the standard output when needed.
     if (verbose)
