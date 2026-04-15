@@ -17,20 +17,13 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <algorithm>
 #include <iostream>
-#include <map>
 #include <stdexcept>
-#include <vector>
-#include <cstdio>
-#include <cstdlib>
 #include <xxhash.h>
 #include <boost/bimap.hpp>
 #include <boost/bimap/set_of.hpp>
 #include "FileUtil.h"
 #include "MARC.h"
-#include "StringUtil.h"
-#include "util.h"
 
 namespace {
 
