@@ -21,12 +21,12 @@
 #include <iostream>
 #include <map>
 #include <stdexcept>
-#include <unordered_map>
-#include <unordered_set>
 #include <vector>
 #include <cstdio>
 #include <cstdlib>
 #include <xxhash.h>
+#include <boost/bimap.hpp>
+#include <boost/bimap/set_of.hpp>
 #include "FileUtil.h"
 #include "MARC.h"
 #include "StringUtil.h"
@@ -46,53 +46,57 @@ namespace {
     std::exit(EXIT_FAILURE);
 }
 
-inline void InitSortedControlNumbersList(const std::unordered_map<std::string, std::string> &control_number_to_offset_map,
-                                         std::vector<std::string> * const sorted_control_numbers) {
-    sorted_control_numbers->clear();
-    sorted_control_numbers->reserve(control_number_to_offset_map.size());
-    for (const auto &control_number_and_offset : control_number_to_offset_map)
-        sorted_control_numbers->emplace_back(control_number_and_offset.first);
-    std::sort(sorted_control_numbers->begin(), sorted_control_numbers->end());
-}
+// a comparator for XXH128_hash_t, which is needed for using XXH128_hash_t as the key in a boost::bimap. We compare the low64 part first,
+// and if they are equal, we compare the high64 part.
+struct XXH128_hash_t_cmp {
+    bool operator()(const XXH128_hash_t &hash1, const XXH128_hash_t &hash2) const noexcept {
+        if (hash1.low64 != hash2.low64)
+            return hash1.low64 < hash2.low64;
+        else
+            return hash1.high64 < hash2.high64;
+    }
+};
 
-void ConstructListOfDifferentIDs(const std::unordered_map<std::string, std::string> &control_number_to_record_hash_map1,
-                                 const std::unordered_map<std::string, std::string> &control_number_to_record_hash_map2,
+// a bimap that maps control number to the hash of the record content, which can be used for quick comparison of record contents based on
+// control numbers. We use boost::bimap here because we need to search by both control number and hash value.
+using StringHashBimap = boost::bimap<boost::bimaps::set_of<std::string>, boost::bimaps::set_of<XXH128_hash_t, XXH128_hash_t_cmp>>;
+
+
+// construct the list of IDs that are only in collection 1 but not in collection 2, and the list of IDs that are only in collection 2 but
+// not in collection 1 (including records with the same ID but different content), based on the control number to record hash map for both
+// collections.
+void ConstructListOfDifferentIDs(const StringHashBimap &control_number_to_record_hash_map1,
+                                 const StringHashBimap &control_number_to_record_hash_map2,
                                  std::unordered_set<std::string> *ids_in_collection1_only,
-                                 std::unordered_set<std::string> *ids_in_collection2_only,
-                                 std::unordered_set<std::string> *same_ids_with_different_contents) {
-    std::vector<std::string> sorted_control_numbers1;
-    InitSortedControlNumbersList(control_number_to_record_hash_map1, &sorted_control_numbers1);
+                                 std::unordered_set<std::string> *ids_in_collection2_only_or_different_content) {
+    // search for control numbers that are only in collection1 but not in collection2
+    for (const auto &entry : control_number_to_record_hash_map1.left) {
+        const std::string &control_number = entry.first;
+        const auto it_in_collection2 = control_number_to_record_hash_map2.left.find(control_number);
+        if (it_in_collection2 == control_number_to_record_hash_map2.left.end())
+            ids_in_collection1_only->emplace(control_number);
+    }
 
-    std::vector<std::string> sorted_control_numbers2;
-    InitSortedControlNumbersList(control_number_to_record_hash_map2, &sorted_control_numbers2);
-
-    auto control_number1(sorted_control_numbers1.cbegin());
-    auto control_number2(sorted_control_numbers2.cbegin());
-    while (control_number1 != sorted_control_numbers1.cend() and control_number2 != sorted_control_numbers2.cend()) {
-        if (*control_number1 == *control_number2) {
-            if (control_number_to_record_hash_map1.at(*control_number1) != control_number_to_record_hash_map2.at(*control_number2)) {
-                same_ids_with_different_contents->emplace(*control_number1);
-            }
-            ++control_number1;
-            ++control_number2;
-        } else if (*control_number1 < *control_number2) {
-            ids_in_collection1_only->emplace(*control_number1);
-            ++control_number1;
-        } else {
-            ids_in_collection2_only->emplace(*control_number2);
-            ++control_number2;
+    // search for control numbers that are only in collection2 but not in collection1, which includes both the control numbers that are only
+    // in collection2 and the control numbers that are in both collections but have different content (if the control number is in both
+    // collections but have different content, they will have different hash values, so they will be treated as if they are only in
+    // collection2).
+    for (const auto &entry : control_number_to_record_hash_map2.right) {
+        const XXH128_hash_t &hash_value = entry.first;
+        const auto it_in_collection1 = control_number_to_record_hash_map1.right.find(hash_value);
+        if (it_in_collection1 == control_number_to_record_hash_map1.right.end()) {
+            ids_in_collection2_only_or_different_content->emplace(control_number_to_record_hash_map2.right.at(hash_value));
         }
     }
 }
 
 // build a map from control number to the hash using XXH3_128bits of the record content for all records in the collection, which can be used
 // for quick comparison of record contents based on control numbers.
-void BuildControlNumberToHashMap(MARC::Reader * const reader,
-                                 std::unordered_map<std::string, std::string> * const control_number_to_record_hash_map) {
+void BuildBimapStringHashMap(MARC::Reader * const reader, StringHashBimap * const control_number_to_record_hash_map) {
     while (const MARC::Record record = reader->read()) {
         const std::string record_in_string(record.toString(MARC::Record::RecordFormat::MARC21_BINARY));
-        const uint64_t hash_low = XXH3_128bits(record_in_string.data(), record_in_string.size()).low64;
-        (*control_number_to_record_hash_map)[record.getControlNumber()] = std::to_string(hash_low);
+        control_number_to_record_hash_map->insert(
+            StringHashBimap::value_type(record.getControlNumber(), XXH3_128bits(record_in_string.data(), record_in_string.size())));
     }
 }
 
@@ -116,19 +120,15 @@ void GetRecordAndWriteToMarcFile(const std::string &filename, const std::unorder
 
 // Print the report to the standard output when needed.
 void PrintReport(const std::unordered_set<std::string> &ids_in_collection1_only,
-                 const std::unordered_set<std::string> &ids_in_collection2_only,
-                 const std::unordered_set<std::string> &same_ids_with_different_contents, const std::string &collection1_name,
+                 const std::unordered_set<std::string> &ids_in_collection2_only_or_different_content, const std::string &collection1_name,
                  const std::string &collection2_name) {
     std::cout << ids_in_collection1_only.size() << " control number(s) are only in \"" << collection1_name << "\" but not in \""
               << collection2_name << "\".\n";
     for (const auto &control_number : ids_in_collection1_only)
         std::cout << '\t' << control_number << '\n';
-    std::cout << ids_in_collection2_only.size() << " control number(s) are only in \"" << collection2_name << "\" but not in \""
-              << collection1_name << "\".\n";
-    for (const auto &control_number : ids_in_collection2_only)
-        std::cout << '\t' << control_number << '\n';
-    std::cout << same_ids_with_different_contents.size() << " control number(s) are in both collections but have different contents.\n";
-    for (const auto &control_number : same_ids_with_different_contents)
+    std::cout << ids_in_collection2_only_or_different_content.size() << " control number(s) are only in \"" << collection2_name
+              << "\" but not in \"" << collection1_name << "\".\n";
+    for (const auto &control_number : ids_in_collection2_only_or_different_content)
         std::cout << '\t' << control_number << '\n';
 }
 
@@ -142,7 +142,7 @@ int Main(int argc, char *argv[]) {
     if (verbose)
         --argc, ++argv;
 
-    if (argc < 5)
+    if (argc != 5)
         Usage();
 
     // build the parameters
@@ -157,24 +157,19 @@ int Main(int argc, char *argv[]) {
     std::unique_ptr<MARC::Reader> marc_reader2(MARC::Reader::Factory(collection2_name));
 
     // Variables for collecting control numbers and their corresponding file offsets for both collections.
-    std::unordered_map<std::string, std::string> control_number_to_record_hash_map1;
-    std::unordered_map<std::string, std::string> control_number_to_record_hash_map2;
+    StringHashBimap control_number_to_record_hash_map1;
+    StringHashBimap control_number_to_record_hash_map2;
 
-    std::unordered_set<std::string> ids_in_collection1_only, ids_in_collection2_only, same_ids_with_different_contents;
+    std::unordered_set<std::string> ids_in_collection1_only, ids_in_collection2_only_or_different_content;
 
     // Note: CollectRecordOffsets also returns the number of records in the collection, but we don't need that here.
-    BuildControlNumberToHashMap(marc_reader1.get(), &control_number_to_record_hash_map1);
-    BuildControlNumberToHashMap(marc_reader2.get(), &control_number_to_record_hash_map2);
+    BuildBimapStringHashMap(marc_reader1.get(), &control_number_to_record_hash_map1);
+    BuildBimapStringHashMap(marc_reader2.get(), &control_number_to_record_hash_map2);
 
 
     // construct the list of different IDs.
     ConstructListOfDifferentIDs(control_number_to_record_hash_map1, control_number_to_record_hash_map2, &ids_in_collection1_only,
-                                &ids_in_collection2_only, &same_ids_with_different_contents);
-
-    // construct the list of IDs need to be get from collection 2 but not in collection 1, which includes both the IDs that are only in
-    // collection 2 and the IDs that are in both collections but have different contents.
-    std::unordered_set<std::string> ids_in_collection2_only_or_different_content(ids_in_collection2_only);
-    ids_in_collection2_only_or_different_content.insert(same_ids_with_different_contents.cbegin(), same_ids_with_different_contents.cend());
+                                &ids_in_collection2_only_or_different_content);
 
     // writing the ids that are only in collection 1 to a text file, and writing the records with IDs that are only in collection 2 or have
     // different contents to a Marc file.
@@ -183,7 +178,7 @@ int Main(int argc, char *argv[]) {
 
     // print the report to the standard output when needed.
     if (verbose)
-        PrintReport(ids_in_collection1_only, ids_in_collection2_only, same_ids_with_different_contents, collection1_name, collection2_name);
+        PrintReport(ids_in_collection1_only, ids_in_collection2_only_or_different_content, collection1_name, collection2_name);
 
     return EXIT_SUCCESS;
 }
