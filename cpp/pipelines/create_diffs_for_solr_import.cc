@@ -19,6 +19,7 @@
 
 #include <iostream>
 #include <stdexcept>
+#include <thread>
 #include <xxhash.h>
 #include <boost/bimap.hpp>
 #include <boost/bimap/set_of.hpp>
@@ -29,13 +30,15 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--verbose] marc_collection1 marc_collection2 filename_output1 filename_output2\n"
-              << "\t[--extract]\tprint more info.\n"
-              << "\t-marc_collection1\tfirst MARC collection.\n"
-              << "\t-marc_collection2\tsecond MARC collection.\n"
-              << "\t-filename_ouput1\twill be a text file that lists all the IDs from collection1 that are not found in collection2.\n"
-              << "\t-filename_output2\twill be a Marc file with all records that are found in collection2 but not in collection1, as well "
-                 "as records that have the same ID in both collections but different content.\n";
+    std::cerr
+        << "Usage: " << ::progname << " [--verbose] marc_collection1 marc_collection2 list_of_ids_to_delete list_of_record_to_import\n"
+        << "\t[--extract]\tprint more info.\n"
+        << "\t-marc_collection1\tfirst MARC collection.\n"
+        << "\t-marc_collection2\tsecond MARC collection.\n"
+        << "\t-list_of_ids_to_delete\twill be a text file that lists all the IDs from collection1 that are not found in collection2.\n"
+        << "\t-list_of_record_to_import\twill be a Marc file with all records that are found in collection2 but not in collection1, as "
+           "well "
+           "as records that have the same ID in both collections but different content.\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -55,37 +58,24 @@ struct XXH128_hash_t_cmp {
 using StringHashBimap = boost::bimap<boost::bimaps::set_of<std::string>, boost::bimaps::set_of<XXH128_hash_t, XXH128_hash_t_cmp>>;
 
 
-// construct the list of IDs that are only in collection 1 but not in collection 2, and the list of IDs that are only in collection 2 but
-// not in collection 1 (including records with the same ID but different content), based on the control number to record hash map for both
-// collections.
-void ConstructListOfDifferentIDs(const StringHashBimap &control_number_to_record_hash_map1,
-                                 const StringHashBimap &control_number_to_record_hash_map2,
-                                 std::unordered_set<std::string> *ids_in_collection1_only,
-                                 std::unordered_set<std::string> *ids_in_collection2_only_or_different_content) {
-    // search for control numbers that are only in collection1 but not in collection2
-    for (const auto &entry : control_number_to_record_hash_map1.left) {
-        const std::string &control_number = entry.first;
-        const auto it_in_collection2 = control_number_to_record_hash_map2.left.find(control_number);
-        if (it_in_collection2 == control_number_to_record_hash_map2.left.end())
-            ids_in_collection1_only->emplace(control_number);
-    }
+void CollectIdsToBeDelete(const StringHashBimap &previous_ppn_to_record_hash_map, const StringHashBimap &current_ppn_to_record_hash_map,
+                          std::unordered_set<std::string> *ids_need_to_be_deleted) {
+    for (const auto &entry : previous_ppn_to_record_hash_map.left)
+        if (current_ppn_to_record_hash_map.left.find(entry.first) == current_ppn_to_record_hash_map.left.end())
+            ids_need_to_be_deleted->emplace(entry.first);
+}
 
-    // search for control numbers that are only in collection2 but not in collection1, which includes both the control numbers that are only
-    // in collection2 and the control numbers that are in both collections but have different content (if the control number is in both
-    // collections but have different content, they will have different hash values, so they will be treated as if they are only in
-    // collection2).
-    for (const auto &entry : control_number_to_record_hash_map2.right) {
-        const XXH128_hash_t &hash_value = entry.first;
-        const auto it_in_collection1 = control_number_to_record_hash_map1.right.find(hash_value);
-        if (it_in_collection1 == control_number_to_record_hash_map1.right.end()) {
-            ids_in_collection2_only_or_different_content->emplace(control_number_to_record_hash_map2.right.at(hash_value));
-        }
-    }
+void CollectIdsToBeImported(const StringHashBimap &previous_ppn_to_record_hash_map, const StringHashBimap &current_ppn_to_record_hash_map,
+                            std::unordered_set<std::string> *ids_need_to_be_imported) {
+    for (const auto &entry : current_ppn_to_record_hash_map.right)
+        if (previous_ppn_to_record_hash_map.right.find(entry.first) == previous_ppn_to_record_hash_map.right.end())
+            ids_need_to_be_imported->emplace(entry.second);
 }
 
 // build a map from control number to the hash using XXH3_128bits of the record content for all records in the collection, which can be used
 // for quick comparison of record contents based on control numbers.
-void BuildBimapStringHashMap(MARC::Reader * const reader, StringHashBimap * const control_number_to_record_hash_map) {
+void BuildBimapStringHashMap(const std::string &marc_file_name, StringHashBimap * const control_number_to_record_hash_map) {
+    std::unique_ptr<MARC::Reader> reader(MARC::Reader::Factory(marc_file_name));
     while (const MARC::Record record = reader->read()) {
         const std::string record_in_string(record.toString(MARC::Record::RecordFormat::MARC21_BINARY));
         control_number_to_record_hash_map->insert(
@@ -112,16 +102,16 @@ void GetRecordAndWriteToMarcFile(const std::string &filename, const std::unorder
 }
 
 // Print the report to the standard output when needed.
-void PrintReport(const std::unordered_set<std::string> &ids_in_collection1_only,
-                 const std::unordered_set<std::string> &ids_in_collection2_only_or_different_content, const std::string &collection1_name,
-                 const std::string &collection2_name) {
-    std::cout << ids_in_collection1_only.size() << " control number(s) are only in \"" << collection1_name << "\" but not in \""
-              << collection2_name << "\".\n";
-    for (const auto &control_number : ids_in_collection1_only)
+void PrintReport(const std::unordered_set<std::string> &ids_need_to_be_deleted,
+                 const std::unordered_set<std::string> &ids_need_to_be_imported, const std::string &previous_marc_file_name,
+                 const std::string &current_marc_file_name) {
+    std::cout << ids_need_to_be_deleted.size() << " control number(s) are only in \"" << previous_marc_file_name << "\" but not in \""
+              << current_marc_file_name << "\".\n";
+    for (const auto &control_number : ids_need_to_be_deleted)
         std::cout << '\t' << control_number << '\n';
-    std::cout << ids_in_collection2_only_or_different_content.size() << " control number(s) are only in \"" << collection2_name
-              << "\" but not in \"" << collection1_name << "\".\n";
-    for (const auto &control_number : ids_in_collection2_only_or_different_content)
+    std::cout << ids_need_to_be_imported.size() << " control number(s) are only in \"" << current_marc_file_name << "\" but not in \""
+              << previous_marc_file_name << "\".\n";
+    for (const auto &control_number : ids_need_to_be_imported)
         std::cout << '\t' << control_number << '\n';
 }
 
@@ -139,39 +129,61 @@ int Main(int argc, char *argv[]) {
         Usage();
 
     // build the parameters
-    const std::string collection1_name(argv[1]);
-    const std::string collection2_name(argv[2]);
-    const std::string filename_output1(argv[3]);
-    const std::string filename_output2(argv[4]);
+    const std::string previous_marc_file_name(argv[1]);
+    const std::string current_marc_file_name(argv[2]);
+    const std::string list_of_ids_to_delete(argv[3]);
+    const std::string list_of_record_to_import(argv[4]);
 
-    // We need to create the readers before collecting the control numbers and their corresponding file offsets, because
-    // CollectRecordOffsets needs to read the records in the collections.
-    std::unique_ptr<MARC::Reader> marc_reader1(MARC::Reader::Factory(collection1_name));
-    std::unique_ptr<MARC::Reader> marc_reader2(MARC::Reader::Factory(collection2_name));
+
+    std::unique_ptr<MARC::Reader> marc_reader_of_current_file(MARC::Reader::Factory(current_marc_file_name));
 
     // Variables for collecting control numbers and their corresponding file offsets for both collections.
-    StringHashBimap control_number_to_record_hash_map1;
-    StringHashBimap control_number_to_record_hash_map2;
+    StringHashBimap previous_ppn_to_record_hash_map;
+    StringHashBimap current_ppn_to_record_hash_map;
 
-    std::unordered_set<std::string> ids_in_collection1_only, ids_in_collection2_only_or_different_content;
+    std::unordered_set<std::string> ids_need_to_be_deleted, ids_need_to_be_imported;
 
-    // Note: CollectRecordOffsets also returns the number of records in the collection, but we don't need that here.
-    BuildBimapStringHashMap(marc_reader1.get(), &control_number_to_record_hash_map1);
-    BuildBimapStringHashMap(marc_reader2.get(), &control_number_to_record_hash_map2);
+    // build the bimap for both collections and collect the IDs that need to be deleted and imported in parallel using multiple threads,
+    // which can speed up the process significantly when the collections are large. We can do this because building the bimap and collecting
+    // the IDs are independent tasks that do not need to be done sequentially. We can also use multiple threads to build the bimap for each
+    // collection in parallel, which can further speed up the process. We can use std::thread for this purpose, which is a simple and
+    // efficient way to create and manage threads in C++. We can also use std::async and std::future for a more high-level approach, but
+    // std::thread is sufficient for our needs here. We can also use a thread pool if we want to limit the number of threads and reuse them
+    // for multiple tasks, but since we only have a few tasks here, we can just create and join the threads directly without the need for a
+    // thread pool.
+    std::thread thread_build_previous_bimap(BuildBimapStringHashMap, previous_marc_file_name, &previous_ppn_to_record_hash_map);
+    thread_build_previous_bimap.join();
+    std::thread thread_build_current_bimap(BuildBimapStringHashMap, current_marc_file_name, &current_ppn_to_record_hash_map);
+    thread_build_current_bimap.join();
+
+    // collect the IDs that need to be deleted and imported in parallel using multiple threads, which can speed up the process significantly
+    // when the collections are large. We can do this because collecting the IDs that need to be deleted and imported are independent tasks
+    // that do not need to be done sequentially. We can also use multiple threads to collect the IDs that need to be deleted and imported in
+    // parallel, which can further speed up the process. We can use std::thread for this purpose, which is a simple and efficient way to
+    // create and manage threads in C++. We can also use std::async and std::future for a more high-level approach, but std::thread is
+    // sufficient for our needs here. We can also use a thread pool if we want to limit the number of threads and reuse them for multiple
+    // tasks, but since we only have a few tasks here, we can just create and join the threads directly without the need for a thread pool.
+    std::thread thread_collect_ids_to_be_deleted(CollectIdsToBeDelete, previous_ppn_to_record_hash_map, current_ppn_to_record_hash_map,
+                                                 &ids_need_to_be_deleted);
+    thread_collect_ids_to_be_deleted.join();
+    std::thread thread_collect_ids_to_be_imported(CollectIdsToBeImported, previous_ppn_to_record_hash_map, current_ppn_to_record_hash_map,
+                                                  &ids_need_to_be_imported);
+    thread_collect_ids_to_be_imported.join();
 
 
-    // construct the list of different IDs.
-    ConstructListOfDifferentIDs(control_number_to_record_hash_map1, control_number_to_record_hash_map2, &ids_in_collection1_only,
-                                &ids_in_collection2_only_or_different_content);
-
-    // writing the ids that are only in collection 1 to a text file, and writing the records with IDs that are only in collection 2 or have
-    // different contents to a Marc file.
-    WriteListOfIdToTextFile(filename_output1, ids_in_collection1_only);
-    GetRecordAndWriteToMarcFile(filename_output2, ids_in_collection2_only_or_different_content, marc_reader2.get());
+    // write the IDs in ids_need_to_be_deleted to the list_of_ids_to_delete file.
+    WriteListOfIdToTextFile(list_of_ids_to_delete, ids_need_to_be_deleted);
+    // write the records with the IDs in ids_need_to_be_imported to the list_of_record_to_import file. The records will be read from the
+    // current collection, which is represented by marc_reader_of_current_file. We can do this in a single pass through the current
+    // collection, which can be efficient even when the collection is large, because we only need to check if the control number of each
+    // record is in ids_need_to_be_imported, which can be done in constant time using an unordered_set. We can also do this in parallel
+    // using multiple threads, but since we only need to read the current collection once, it may not be worth the overhead of creating and
+    // managing multiple threads for this task. We can just do it in a single thread for simplicity and efficiency.
+    GetRecordAndWriteToMarcFile(list_of_record_to_import, ids_need_to_be_imported, marc_reader_of_current_file.get());
 
     // print the report to the standard output when needed.
     if (verbose)
-        PrintReport(ids_in_collection1_only, ids_in_collection2_only_or_different_content, collection1_name, collection2_name);
+        PrintReport(ids_need_to_be_deleted, ids_need_to_be_imported, previous_marc_file_name, current_marc_file_name);
 
     return EXIT_SUCCESS;
 }
