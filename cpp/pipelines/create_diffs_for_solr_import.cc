@@ -32,7 +32,6 @@ namespace {
 [[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname
               << " [--verbose] previous_marc_collection current_marc_collection list_of_ids_to_delete list_of_record_to_import\n"
-              << "\t[--extract]\tprint more info.\n"
               << "\t-previous_marc_collection\tfirst MARC collection.\n"
               << "\t-current_marc_collection\tsecond MARC collection.\n"
               << "\t-list_of_ids_to_delete\twill be a text file that lists all the IDs from the previous collection that are not found in "
@@ -61,7 +60,7 @@ struct XXH128_hash_t_cmp {
 using PPNRecordHashBimap = boost::bimap<boost::bimaps::set_of<std::string>, boost::bimaps::set_of<XXH128_hash_t, XXH128_hash_t_cmp>>;
 
 
-void CollectIdsToBeDeleted(const PPNRecordHashBimap &previous_ppn_to_record_hash_map,
+void CollectIDsToBeDeleted(const PPNRecordHashBimap &previous_ppn_to_record_hash_map,
                            const PPNRecordHashBimap &current_ppn_to_record_hash_map,
                            std::unordered_set<std::string> *ids_need_to_be_deleted) {
     for (const auto &[ppn, record_hash] : previous_ppn_to_record_hash_map.left) {
@@ -70,7 +69,7 @@ void CollectIdsToBeDeleted(const PPNRecordHashBimap &previous_ppn_to_record_hash
     }
 }
 
-void CollectIdsToBeImported(const PPNRecordHashBimap &previous_ppn_to_record_hash_map,
+void CollectIDsToBeImported(const PPNRecordHashBimap &previous_ppn_to_record_hash_map,
                             const PPNRecordHashBimap &current_ppn_to_record_hash_map,
                             std::unordered_set<std::string> *ids_need_to_be_imported) {
     for (const auto &[ppn, record_hash] : current_ppn_to_record_hash_map.right) {
@@ -80,9 +79,8 @@ void CollectIdsToBeImported(const PPNRecordHashBimap &previous_ppn_to_record_has
 }
 
 // build a map from control number to the hash using XXH3_128bits of the record content for all records in the collection, which can be
-// used for quick comparison of record contents based on control numbers.
-void BuildBimapStringHashMap(const std::string &marc_file_name, PPNRecordHashBimap * const control_number_to_record_hash_map) {
-    std::unique_ptr<MARC::Reader> reader(MARC::Reader::Factory(marc_file_name));
+// used for quick comparison of record contents based on control numbers or hash values of the record content.
+void BuildBimapStringHashMap(std::unique_ptr<MARC::Reader> &reader, PPNRecordHashBimap * const control_number_to_record_hash_map) {
     while (const MARC::Record record = reader->read()) {
         const std::string record_in_string(record.toString(MARC::Record::RecordFormat::MARC21_BINARY));
         control_number_to_record_hash_map->insert(
@@ -90,18 +88,15 @@ void BuildBimapStringHashMap(const std::string &marc_file_name, PPNRecordHashBim
     }
 }
 
-// A generic function of writing a list of IDs to a text file, which can be used for both the list of IDs that are only in collection 1
-// and the list of IDs that are only in collection 2.
-void WriteListOfIdToTextFile(const std::string &filename, const std::unordered_set<std::string> &ids) {
-    const auto output_file(FileUtil::OpenOutputFileOrDie(filename));
+void WriteListOfIDsToTextFileToBeDeleted(const std::unique_ptr<File> &list_of_ids_to_delete_file,
+                                         const std::unordered_set<std::string> &ids) {
     for (const auto &id : ids)
-        (*output_file) << id << '\n';
+        list_of_ids_to_delete_file->write(id + "\n");
 }
 
-// A generic function of writing records with given IDs to a Marc file. The records will be read from the given reader, which can be
-// either the reader for collection 1 or the reader for collection 2.
-void GetRecordAndWriteToMarcFile(const std::string &filename, const std::unordered_set<std::string> &ids, MARC::Reader * const reader) {
-    auto marc_writer(MARC::Writer::Factory(filename));
+
+void WriteListOfIDsToMarcFileToBeImported(MARC::Reader * const reader, MARC::Writer * const marc_writer,
+                                          const std::unordered_set<std::string> &ids) {
     for (reader->rewind(); const MARC::Record record = reader->read();) {
         if (ids.find(record.getControlNumber()) != ids.cend())
             marc_writer->write(record);
@@ -110,14 +105,14 @@ void GetRecordAndWriteToMarcFile(const std::string &filename, const std::unorder
 
 // Print the report to the standard output when needed.
 void PrintReport(const std::unordered_set<std::string> &ids_need_to_be_deleted,
-                 const std::unordered_set<std::string> &ids_need_to_be_imported, const std::string &previous_marc_file_name,
-                 const std::string &current_marc_file_name) {
-    std::cout << ids_need_to_be_deleted.size() << " control number(s) are only in \"" << previous_marc_file_name << "\" but not in \""
-              << current_marc_file_name << "\".\n";
+                 const std::unordered_set<std::string> &ids_need_to_be_imported, const std::string &previous_marc_filename,
+                 const std::string &current_marc_filename) {
+    std::cout << ids_need_to_be_deleted.size() << " control number(s) are only in \"" << previous_marc_filename << "\" but not in \""
+              << current_marc_filename << "\".\n";
     for (const auto &control_number : ids_need_to_be_deleted)
         std::cout << '\t' << control_number << '\n';
-    std::cout << ids_need_to_be_imported.size() << " control number(s) are only in \"" << current_marc_file_name << "\" but not in \""
-              << previous_marc_file_name << "\".\n";
+    std::cout << ids_need_to_be_imported.size() << " control number(s) are only in \"" << current_marc_filename << "\" but not in \""
+              << previous_marc_filename << "\".\n";
     for (const auto &control_number : ids_need_to_be_imported)
         std::cout << '\t' << control_number << '\n';
 }
@@ -136,13 +131,17 @@ int Main(int argc, char *argv[]) {
         Usage();
 
     // build the parameters
-    const std::string previous_marc_file_name(argv[1]);
-    const std::string current_marc_file_name(argv[2]);
-    const std::string list_of_ids_to_delete(argv[3]);
-    const std::string list_of_record_to_import(argv[4]);
+    const std::string previous_marc_filename(argv[1]);
+    const std::string current_marc_filename(argv[2]);
+    const std::string list_of_ids_to_delete_filename(argv[3]);
+    const std::string list_of_record_to_import_filename(argv[4]);
 
 
-    std::unique_ptr<MARC::Reader> marc_reader_of_current_file(MARC::Reader::Factory(current_marc_file_name));
+    std::unique_ptr<MARC::Reader> marc_reader_of_previous_file(MARC::Reader::Factory(previous_marc_filename));
+    std::unique_ptr<MARC::Reader> marc_reader_of_current_file(MARC::Reader::Factory(current_marc_filename));
+    auto list_of_ids_to_delete_file(FileUtil::OpenOutputFileOrDie(list_of_ids_to_delete_filename));
+
+    std::unique_ptr<MARC::Writer> marc_writer_for_records_to_import(MARC::Writer::Factory(list_of_record_to_import_filename));
 
     // Variables for collecting control numbers and their corresponding file offsets for both collections.
     PPNRecordHashBimap previous_ppn_to_record_hash_map;
@@ -158,8 +157,9 @@ int Main(int argc, char *argv[]) {
     // std::thread is sufficient for our needs here. We can also use a thread pool if we want to limit the number of threads and reuse them
     // for multiple tasks, but since we only have a few tasks here, we can just create and join the threads directly without the need for a
     // thread pool.
-    std::thread thread_build_previous_bimap(BuildBimapStringHashMap, previous_marc_file_name, &previous_ppn_to_record_hash_map);
-    std::thread thread_build_current_bimap(BuildBimapStringHashMap, current_marc_file_name, &current_ppn_to_record_hash_map);
+    std::thread thread_build_previous_bimap(BuildBimapStringHashMap, std::ref(marc_reader_of_previous_file),
+                                            &previous_ppn_to_record_hash_map);
+    std::thread thread_build_current_bimap(BuildBimapStringHashMap, std::ref(marc_reader_of_current_file), &current_ppn_to_record_hash_map);
     thread_build_previous_bimap.join();
     thread_build_current_bimap.join();
 
@@ -170,27 +170,29 @@ int Main(int argc, char *argv[]) {
     // create and manage threads in C++. We can also use std::async and std::future for a more high-level approach, but std::thread is
     // sufficient for our needs here. We can also use a thread pool if we want to limit the number of threads and reuse them for multiple
     // tasks, but since we only have a few tasks here, we can just create and join the threads directly without the need for a thread pool.
-    std::thread thread_collect_ids_to_be_deleted(CollectIdsToBeDeleted, previous_ppn_to_record_hash_map, current_ppn_to_record_hash_map,
+    std::thread thread_collect_ids_to_be_deleted(CollectIDsToBeDeleted, previous_ppn_to_record_hash_map, current_ppn_to_record_hash_map,
                                                  &ids_need_to_be_deleted);
-    std::thread thread_collect_ids_to_be_imported(CollectIdsToBeImported, previous_ppn_to_record_hash_map, current_ppn_to_record_hash_map,
+    std::thread thread_collect_ids_to_be_imported(CollectIDsToBeImported, previous_ppn_to_record_hash_map, current_ppn_to_record_hash_map,
                                                   &ids_need_to_be_imported);
     thread_collect_ids_to_be_deleted.join();
     thread_collect_ids_to_be_imported.join();
 
     // write the IDs in ids_need_to_be_deleted to the list_of_ids_to_delete file.
-    WriteListOfIdToTextFile(list_of_ids_to_delete, ids_need_to_be_deleted);
+    WriteListOfIDsToTextFileToBeDeleted(list_of_ids_to_delete_file, ids_need_to_be_deleted);
+
     // write the records with the IDs in ids_need_to_be_imported to the list_of_record_to_import file. The records will be read from the
     // current collection, which is represented by marc_reader_of_current_file. We can do this in a single pass through the current
     // collection, which can be efficient even when the collection is large, because we only need to check if the control number of each
     // record is in ids_need_to_be_imported, which can be done in constant time using an unordered_set. We can also do this in parallel
     // using multiple threads, but since we only need to read the current collection once, it may not be worth the overhead of creating and
     // managing multiple threads for this task. We can just do it in a single thread for simplicity and efficiency.
-    GetRecordAndWriteToMarcFile(list_of_record_to_import, ids_need_to_be_imported, marc_reader_of_current_file.get());
+    WriteListOfIDsToMarcFileToBeImported(marc_reader_of_current_file.get(), marc_writer_for_records_to_import.get(),
+                                         ids_need_to_be_imported);
 
 
     // print the report to the standard output when needed.
     if (verbose)
-        PrintReport(ids_need_to_be_deleted, ids_need_to_be_imported, previous_marc_file_name, current_marc_file_name);
+        PrintReport(ids_need_to_be_deleted, ids_need_to_be_imported, previous_marc_filename, current_marc_filename);
 
     return EXIT_SUCCESS;
 }
