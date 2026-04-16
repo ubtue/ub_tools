@@ -117,12 +117,12 @@ void PrintReport(const std::unordered_set<std::string> &ids_need_to_be_deleted,
 int Main(int argc, char *argv[]) {
     ::progname = argv[0];
 
+    if (argc < 5 || argc > 6)
+        Usage();
+
     const bool verbose(std::strcmp(argv[1], "--verbose") == 0);
     if (verbose)
         --argc, ++argv;
-
-    if (argc != 5)
-        Usage();
 
     // build the parameters
     const std::string previous_marc_filename(argv[1]);
