@@ -155,12 +155,37 @@ def ImportIntoVuFind(title_pattern, authority_pattern, log_file_name, clear_solr
     util.ExecOrDie("/usr/local/bin/summarize_logs", [log_file_name, import_log_summary])
     util.ExecOrDie("/usr/local/bin/log_rotate", [os.path.dirname(log_file_name), os.path.basename(log_file_name)])
 
+def RunCreateDiffsForSolrImport(script_name, conf):
+    title_pattern = conf.get("FileNames", "title_marc_data")
+    
+    previous_marc_filename = sorted(glob.glob(title_pattern), reverse=True)[1]
+    if not previous_marc_filename:
+        util.Error("Could not find previous MARC file matching pattern.")
+        
+    current_marc_filename =  sorted(glob.glob(title_pattern), reverse=True)[0]
+    if not current_marc_filename:
+        util.Error("Could not find current MARC file matching pattern.")
+        
+    previous_date = previous_marc_filename.split("-")[-1].split(".")[0]
+    current_date = current_marc_filename.split("-")[-1].split(".")[0]
+    
+    title_marc_data_diff_template = conf.get("DiffImport", "title_marc_data").rsplit("-",2)[0] + "-"
+    deletion_list_filename_template = conf.get("DiffImport", "deletion_list").rsplit("-",2)[0] + "-"
+    
+    to_delete_filename =  deletion_list_filename_template + previous_date + "-" + current_date + ".txt"
+    to_import_filename = title_marc_data_diff_template + previous_date + "-" + current_date + ".mrc"
+        
+    util.ExecOrDie(util.Which(script_name), [previous_marc_filename, current_marc_filename, to_delete_filename, to_import_filename])
+
 
 def RunPipelineAndImportIntoSolr(pipeline_script_name, marc_title, conf, clear_solr_index):
     log_file_name = util.MakeLogFileName(pipeline_script_name, util.GetLogDirectory())
     util.ExecOrDie(pipeline_script_name, [ marc_title ], log_file_name)
     log_file_name = util.MakeLogFileName("import_into_vufind", util.GetLogDirectory())
-    ImportIntoVuFind(conf.get("FileNames", "title_marc_data"), conf.get("FileNames", "authority_marc_data"), log_file_name, clear_solr_index)
+    
+    RunCreateDiffsForSolrImport("create_diffs_for_solr_import", conf)
+    
+    ImportIntoVuFind(conf.get("DiffImport", "title_marc_data"), conf.get("FileNames", "authority_marc_data"), log_file_name, clear_solr_index)
 
     # Write timestamp file for last successful Solr import:
     with open(os.open('/usr/local/vufind/public/last_solr_import', os.O_CREAT | os.O_WRONLY, 0o644), 'w') as output:
