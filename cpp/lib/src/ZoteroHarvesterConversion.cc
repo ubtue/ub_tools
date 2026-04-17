@@ -373,7 +373,8 @@ ThreadSafeRegexMatcher InitializeBlacklistedAuthorTokenMatcher() {
             is_first_token = false;
         match_pattern += RegexMatcher::Escape(blacklisted_token);
     }
-    match_pattern += ")\\b";
+    match_pattern += ")\\b(\\W+)?";
+
 
     return ThreadSafeRegexMatcher(
         match_pattern, ThreadSafeRegexMatcher::ENABLE_UTF8 | ThreadSafeRegexMatcher::ENABLE_UCP | ThreadSafeRegexMatcher::CASE_INSENSITIVE);
