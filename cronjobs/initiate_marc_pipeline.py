@@ -28,6 +28,7 @@ def ClearSolrIndex(index):
         sys.exit(-1)
 
 
+
 def OptimizeSolrIndex(index):
     try:
         # since Solr 7.5, optimization is Solr-internally based on thresholds and therefore no longer forced to be executed on each call.
@@ -100,6 +101,81 @@ def RemoveExcessRecordsFromIndex(index, marc_file):
     except Exception as e:
         util.SendEmail("MARC-21 Pipeline", "Failed to remove excess records from \"" + index + "\" [" + str(e) + "]!", priority=1)
         sys.exit(-1)
+        
+        
+def RemoveExcessRecordsFromIndexByIDs(index, to_delete_filename):
+    with open(to_delete_filename, 'r') as to_delete_file:
+        ids_to_delete = [line.strip() for line in to_delete_file if line.strip()]
+        
+    
+    if len(ids_to_delete) == 0:
+        return
+    
+    try:
+        for to_delete_batch in batched(ids_to_delete, 10000):
+            url = "http://localhost:8983/solr/" + index + "/update?commit=true"
+            headers = {"Content-Type": "application/json"}
+            values = r'{ "delete" : { "query" : "filter(id:(' +  ' '.join(to_delete_batch) + r'))" } }'
+            data = values.encode('utf-8')
+            request = urllib.request.Request(url, data, headers)
+            urllib.request.urlopen(request, timeout=300)
+    except Exception as e:
+        util.SendEmail("MARC-21 Pipeline", "Failed to remove excess records from \"" + index + "\" [" + str(e) + "]!", priority=1)
+        sys.exit(-1)
+            
+
+def GetLastSuccessfulImportDate():
+    try:
+        with open('/usr/local/vufind/public/last_import.txt', 'r') as timestamp_file:
+            timestamp_str = timestamp_file.read().strip()
+            dt = datetime.datetime.strptime(timestamp_str, "%Y%m%d-%H%M%S")
+            formatted_date = dt.strftime("%y%m%d")
+            return formatted_date
+    except Exception as e:
+        util.SendEmail("MARC-21 Pipeline", "Failed to read last successful import date [" + str(e) + "]!", priority=1)
+        return None
+
+
+def IsDiffImportRequirementFulfilled():
+    last_import_date = GetLastSuccessfulImportDate()
+    
+    # If we can't determine the last import time, we can't check for the file, so we assume a diff is not required.
+    if not last_import_date:
+        return False 
+        
+    # Check if the file with the last import time exists in the specified directory.
+    filename = f"GesamtTiteldaten-post-pipeline-{last_import_date}.mrc"
+    return os.path.exists(filename) # Return True if the file exists, False otherwise.
+
+
+def RunCreateDiffsForSolrImport(conf, log_file_name):
+    title_pattern = conf.get("FileNames", "title_marc_data")
+    
+    last_successful_import_date = GetLastSuccessfulImportDate()
+    last_successful_import_filename = f"GesamtTiteldaten-post-pipeline-{last_successful_import_date}.mrc"
+    
+    latest_marc_filename =  sorted(glob.glob(title_pattern), reverse=True)[0]
+    if not latest_marc_filename:
+        util.Error("Could not find current MARC file matching pattern.")
+
+
+    latest_marc_file_date = latest_marc_filename.split("-")[-1].split(".")[0]
+    
+    # Check if the latest MARC file is newer than the last successful import. If not, we can't create diffs, so we exit.
+    if last_successful_import_date >= latest_marc_file_date:
+        return None, None
+    
+    
+    title_marc_data_diff_template = conf.get("DiffImport", "title_marc_data").rsplit("-",2)[0] + "-"
+    deletion_list_filename_template = conf.get("DiffImport", "deletion_list").rsplit("-",2)[0] + "-"
+    
+    to_delete_filename =  deletion_list_filename_template + last_successful_import_date + "-" + latest_marc_file_date + ".txt"
+    to_import_filename = title_marc_data_diff_template + last_successful_import_date + "-" + latest_marc_file_date + ".mrc"
+        
+    util.ExecOrDie(util.Which("create_diffs_for_solr_import"), [last_successful_import_filename, latest_marc_filename, to_delete_filename, to_import_filename], log_file_name)
+    
+    return to_delete_filename, to_import_filename
+    
 
 def ClearIndexAndImportRecords(vufind_dir, script_name, marc_file, log_file_name):
     ClearSolrIndex(index)
@@ -109,13 +185,16 @@ def ClearIndexAndImportRecords(vufind_dir, script_name, marc_file, log_file_name
 def ImportRecordsAndRemoveExcessRecords(vufind_dir, script_name, index, marc_file, log_file_name):
     util.ExecOrDie(vufind_dir + '/' + script_name, [ marc_file ], log_file_name)
     RemoveExcessRecordsFromIndex(index, marc_file)
+    
+def ImportDiffRecords(vufind_dir, script_name, marc_file_name, log_file_name):
+    util.ExecOrDie(os.path.join(vufind_dir, script_name), [marc_file_name], log_file_name)
 
 
 solrmarc_log_summary = "/tmp/solrmarc_log.summary"
 import_log_summary = "/tmp/import_into_vufind_log.summary"
 
 
-def ImportIntoVuFind(title_pattern, authority_pattern, log_file_name, clear_solr_index):
+def ImportIntoVuFind(conf, title_pattern, authority_pattern, log_file_name, clear_solr_index):
     vufind_dir = os.getenv("VUFIND_HOME");
     if vufind_dir == None:
         util.Error("VUFIND_HOME not set, cannot start solr import!")
@@ -128,7 +207,13 @@ def ImportIntoVuFind(title_pattern, authority_pattern, log_file_name, clear_solr
                    + " files! (Should have matched exactly 1 file!)")
 
     if not clear_solr_index:
-        ImportRecordsAndRemoveExcessRecords(vufind_dir, 'import-marc.sh', title_index, title_args[0], log_file_name)
+        if IsDiffImportRequirementFulfilled():
+            [to_delete_filename, to_import_filename] = RunCreateDiffsForSolrImport(conf, log_file_name)
+            if to_delete_filename != None and to_import_filename != None:
+                ImportDiffRecords("/usr/local/vufind", "import-marc.sh", to_import_filename, log_file_name)
+                RemoveExcessRecordsFromIndexByIDs("biblio", to_delete_filename)
+        else:
+            ImportRecordsAndRemoveExcessRecords(vufind_dir, 'import-marc.sh', title_index, title_args[0], log_file_name)
     else:
         ClearIndexAndImportRecords(vufind_dir, 'import-marc.sh', title_args[0], log_file_name)
 
@@ -155,37 +240,14 @@ def ImportIntoVuFind(title_pattern, authority_pattern, log_file_name, clear_solr
     util.ExecOrDie("/usr/local/bin/summarize_logs", [log_file_name, import_log_summary])
     util.ExecOrDie("/usr/local/bin/log_rotate", [os.path.dirname(log_file_name), os.path.basename(log_file_name)])
 
-def RunCreateDiffsForSolrImport(conf):
-    title_pattern = conf.get("FileNames", "title_marc_data")
-    
-    previous_marc_filename = sorted(glob.glob(title_pattern), reverse=True)[1]
-    if not previous_marc_filename:
-        util.Error("Could not find previous MARC file matching pattern.")
-        
-    current_marc_filename =  sorted(glob.glob(title_pattern), reverse=True)[0]
-    if not current_marc_filename:
-        util.Error("Could not find current MARC file matching pattern.")
-        
-    previous_date = previous_marc_filename.split("-")[-1].split(".")[0]
-    current_date = current_marc_filename.split("-")[-1].split(".")[0]
-    
-    title_marc_data_diff_template = conf.get("DiffImport", "title_marc_data").rsplit("-",2)[0] + "-"
-    deletion_list_filename_template = conf.get("DiffImport", "deletion_list").rsplit("-",2)[0] + "-"
-    
-    to_delete_filename =  deletion_list_filename_template + previous_date + "-" + current_date + ".txt"
-    to_import_filename = title_marc_data_diff_template + previous_date + "-" + current_date + ".mrc"
-        
-    util.ExecOrDie(util.Which("create_diffs_for_solr_import"), [previous_marc_filename, current_marc_filename, to_delete_filename, to_import_filename])
-
 
 def RunPipelineAndImportIntoSolr(pipeline_script_name, marc_title, conf, clear_solr_index):
     log_file_name = util.MakeLogFileName(pipeline_script_name, util.GetLogDirectory())
     util.ExecOrDie(pipeline_script_name, [ marc_title ], log_file_name)
     log_file_name = util.MakeLogFileName("import_into_vufind", util.GetLogDirectory())
     
-    RunCreateDiffsForSolrImport(conf)
     
-    ImportIntoVuFind(conf.get("DiffImport", "title_marc_data"), conf.get("FileNames", "authority_marc_data"), log_file_name, clear_solr_index)
+    ImportIntoVuFind(conf, conf.get("FileNames", "title_marc_data"), conf.get("FileNames", "authority_marc_data"), log_file_name, clear_solr_index)
 
     # Write timestamp file for last successful Solr import:
     with open(os.open('/usr/local/vufind/public/last_solr_import', os.O_CREAT | os.O_WRONLY, 0o644), 'w') as output:
