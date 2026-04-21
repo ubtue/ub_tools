@@ -131,29 +131,26 @@ def GetLastSuccessfulImportDate():
         return None
 
 
+def IsFullImportDay(conf):
+    try:
+        full_import_day_of_week = conf.get("DiffImport", "full_import_day_of_week")
+        normalized_full_import_day_of_week_iso = full_import_day_of_week.strip().lower().capitalize()
+        # Convert to ISO weekday (1-7, Monday-Sunday)
+        full_import_day_of_week_iso = (list(calendar.day_name).index(normalized_full_import_day_of_week_iso) + 1)
+        current_day_of_week_iso = datetime.datetime.now().isoweekday()
+        return current_day_of_week_iso == full_import_day_of_week_iso
+    except Exception as e:
+        return False
+
+
 def IsDiffImportRequirementFulfilled(conf):
     last_import_date = GetLastSuccessfulImportDate()
-    title_pattern = conf.get("FileNames", "title_marc_data")
-    latest_marc_filename =  sorted(glob.glob(title_pattern), reverse=True)[0]
-    latest_marc_file_date = latest_marc_filename.split("-")[-1].split(".")[0]
-    latest_marc_file_day_of_week_iso = datetime.datetime.strptime(latest_marc_file_date, "%y%m%d").isoweekday()
     
-    # Diff import is only for IxTheo and not for KrimDok.
-    try:
-        full_import_day_of_week = conf.get("FullImportSchedule", "day")
-    except Exception as e:
-        return False # If we can't determine the full import schedule, we assume that a diff import is not required.
-
     # If we can't determine the last import time, we can't check for the file, so we assume a diff is not required.
     if not last_import_date:
         return False 
     
-    normalized_full_import_day_of_week_iso = full_import_day_of_week.strip().lower().capitalize()
-    # Convert to ISO weekday (1-7, Monday-Sunday)
-    full_import_day_of_week_iso = (list(calendar.day_name).index(normalized_full_import_day_of_week_iso) + 1)
-
-    # No diff import if the latest MARC file is from the same day of week as the full import schedule, since we can assume that this file will be used for a full import.
-    if latest_marc_file_day_of_week_iso == full_import_day_of_week_iso:
+    if IsFullImportDay(conf):
         return False 
 
     # Check if the file with the last import time exists in the specified directory.
@@ -225,8 +222,8 @@ def ImportIntoVuFind(conf, title_pattern, authority_pattern, log_file_name, clea
         if IsDiffImportRequirementFulfilled(conf):
             [to_delete_filename, to_import_filename] = RunCreateDiffsForSolrImport(conf, log_file_name)
             if to_delete_filename != None and to_import_filename != None:
-                ImportDiffRecords("/usr/local/vufind", "import-marc.sh", to_import_filename, log_file_name)
                 RemoveExcessRecordsFromIndexByIDs("biblio", to_delete_filename)
+                ImportDiffRecords("/usr/local/vufind", "import-marc.sh", to_import_filename, log_file_name)
         else:
             ImportRecordsAndRemoveExcessRecords(vufind_dir, 'import-marc.sh', title_index, title_args[0], log_file_name)
     else:
@@ -260,7 +257,6 @@ def RunPipelineAndImportIntoSolr(pipeline_script_name, marc_title, conf, clear_s
     log_file_name = util.MakeLogFileName(pipeline_script_name, util.GetLogDirectory())
     util.ExecOrDie(pipeline_script_name, [ marc_title ], log_file_name)
     log_file_name = util.MakeLogFileName("import_into_vufind", util.GetLogDirectory())
-    
     
     ImportIntoVuFind(conf, conf.get("FileNames", "title_marc_data"), conf.get("FileNames", "authority_marc_data"), log_file_name, clear_solr_index)
 
