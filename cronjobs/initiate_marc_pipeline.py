@@ -92,7 +92,7 @@ def DeleteIDsFromSolrIndex(index, ids_to_delete):
         return
     
     try:
-        for to_delete_batch in batched(ids_to_delete, 3):
+        for to_delete_batch in batched(ids_to_delete, 10000):
             url = SOLR_URL + index + "/update?commit=true"
             headers = {"Content-Type": "application/json"}
             values = r'{ "delete" : { "query" : "filter(id:(' +  ' '.join(to_delete_batch) + r'))" } }'
