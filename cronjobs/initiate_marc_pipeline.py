@@ -1,5 +1,6 @@
 #!/bin/python3
 # -*- coding: utf-8 -*-
+import calendar
 import datetime
 import glob
 import itertools
@@ -29,7 +30,6 @@ def ClearSolrIndex(index):
     except Exception as e:
         util.SendEmail("MARC-21 Pipeline", "Failed to clear the SOLR index \"" + index + "\" [" + str(e) + "]!", priority=1)
         sys.exit(-1)
-
 
 
 def OptimizeSolrIndex(index):
@@ -133,21 +133,32 @@ def GetLastSuccessfulImportDate():
 
 def IsDiffImportRequirementFulfilled(conf):
     last_import_date = GetLastSuccessfulImportDate()
-    full_import_day_of_week_iso = conf.get("FullImportSchedule", "day")
     title_pattern = conf.get("FileNames", "title_marc_data")
     latest_marc_filename =  sorted(glob.glob(title_pattern), reverse=True)[0]
     latest_marc_file_date = latest_marc_filename.split("-")[-1].split(".")[0]
     latest_marc_file_day_of_week_iso = datetime.datetime.strptime(latest_marc_file_date, "%y%m%d").isoweekday()
     
+    # Diff import is only for IxTheo and not for KrimDok.
+    try:
+        full_import_day_of_week = conf.get("FullImportSchedule", "day")
+    except Exception as e:
+        return False # If we can't determine the full import schedule, we assume that a diff import is not required.
+
     # If we can't determine the last import time, we can't check for the file, so we assume a diff is not required.
     if not last_import_date:
         return False 
     
+    normalized_full_import_day_of_week_iso = full_import_day_of_week.strip().lower().capitalize()
+    # Convert to ISO weekday (1-7, Monday-Sunday)
+    full_import_day_of_week_iso = (list(calendar.day_name).index(normalized_full_import_day_of_week_iso) + 1)
+
+    # No diff import if the latest MARC file is from the same day of week as the full import schedule, since we can assume that this file will be used for a full import.
     if latest_marc_file_day_of_week_iso == full_import_day_of_week_iso:
-        return False # No diff import if the latest MARC file is from the same day of week as the full import schedule, since we can assume that this file will be used for a full import.
-        
+        return False 
+
     # Check if the file with the last import time exists in the specified directory.
     filename = f"GesamtTiteldaten-post-pipeline-{last_import_date}.mrc"
+
     return os.path.exists(filename) # Return True if the file exists, False otherwise.
 
 
@@ -188,7 +199,8 @@ def ClearIndexAndImportRecords(vufind_dir, index, script_name, marc_file, log_fi
 def ImportRecordsAndRemoveExcessRecords(vufind_dir, script_name, index, marc_file, log_file_name):
     util.ExecOrDie(vufind_dir + '/' + script_name, [ marc_file ], log_file_name)
     RemoveExcessRecordsFromIndex(index, marc_file)
-    
+
+
 def ImportDiffRecords(vufind_dir, script_name, marc_file_name, log_file_name):
     util.ExecOrDie(os.path.join(vufind_dir, script_name), [marc_file_name], log_file_name)
 
