@@ -13,11 +13,14 @@ import traceback
 import util
 from itertools import islice
 
+
+SOLR_URL = "http://localhost:8983/solr/"
+
 # Clear the index to do away with old data that might remain otherwise
 # Since no commit is executed here we avoid the empty index problem
 def ClearSolrIndex(index):
     try:
-        url = "http://localhost:8983/solr/" + index + "/update"
+        url = SOLR_URL + index + "/update"
         values = "<delete><query>*:*</query></delete>"
         data = values.encode('utf-8')
         headers = {"Content-Type": "application/xml"}
@@ -35,7 +38,7 @@ def OptimizeSolrIndex(index):
         # to force optimization every time, it would be necessary to add the maxSegments parameter to force optimization on each call.
         # see also: https://lucidworks.com/post/solr-optimize-merge-expungedeletes-tips/
         request = urllib.request.Request(
-            "http://localhost:8983/solr/" + index + "/update?optimize=true")
+            SOLR_URL + index + "/update?optimize=true")
         urllib.request.urlopen(request, timeout=3600)
     except:
         util.SendEmail("MARC-21 Pipeline", "Failed to optimize the SOLR index \"" + index + "\"!", priority=1)
@@ -44,7 +47,7 @@ def OptimizeSolrIndex(index):
 
 def GetPPNsInIndex(index):
    try:
-      url = "http://localhost:8983/solr/" + index + "/export"
+      url = SOLR_URL + index + "/export"
       values = r'q=id:*&sort=id+desc&fl=id'
       data = values.encode('utf-8')
       request = urllib.request.Request(url, data)
@@ -82,17 +85,15 @@ def batched(iterable, n):
         if not batch:
             return
         yield batch
+        
 
-
-def RemoveExcessRecordsFromIndex(index, marc_file):
-    index_ppns = GetPPNsInIndex(index)
-    marc_file_ppns = GetPPNsInMarcFile(marc_file)
-    to_delete =  index_ppns - marc_file_ppns
-    if len(to_delete) == 0:
+def DeleteIDsFromSolrIndex(index, ids_to_delete):
+    if len(ids_to_delete) == 0:
         return
+    
     try:
-        for to_delete_batch in batched(to_delete, 10000):
-            url = "http://localhost:8983/solr/" + index + "/update?commit=true"
+        for to_delete_batch in batched(ids_to_delete, 3):
+            url = SOLR_URL + index + "/update?commit=true"
             headers = {"Content-Type": "application/json"}
             values = r'{ "delete" : { "query" : "filter(id:(' +  ' '.join(to_delete_batch) + r'))" } }'
             data = values.encode('utf-8')
@@ -101,27 +102,21 @@ def RemoveExcessRecordsFromIndex(index, marc_file):
     except Exception as e:
         util.SendEmail("MARC-21 Pipeline", "Failed to remove excess records from \"" + index + "\" [" + str(e) + "]!", priority=1)
         sys.exit(-1)
+        
+        
+def RemoveExcessRecordsFromIndex(index, marc_file):
+    index_ppns = GetPPNsInIndex(index)
+    marc_file_ppns = GetPPNsInMarcFile(marc_file)
+    to_delete =  index_ppns - marc_file_ppns
+    
+    DeleteIDsFromSolrIndex(index, to_delete)
         
         
 def RemoveExcessRecordsFromIndexByIDs(index, to_delete_filename):
     with open(to_delete_filename, 'r') as to_delete_file:
         ids_to_delete = [line.strip() for line in to_delete_file if line.strip()]
         
-    
-    if len(ids_to_delete) == 0:
-        return
-    
-    try:
-        for to_delete_batch in batched(ids_to_delete, 10000):
-            url = "http://localhost:8983/solr/" + index + "/update?commit=true"
-            headers = {"Content-Type": "application/json"}
-            values = r'{ "delete" : { "query" : "filter(id:(' +  ' '.join(to_delete_batch) + r'))" } }'
-            data = values.encode('utf-8')
-            request = urllib.request.Request(url, data, headers)
-            urllib.request.urlopen(request, timeout=300)
-    except Exception as e:
-        util.SendEmail("MARC-21 Pipeline", "Failed to remove excess records from \"" + index + "\" [" + str(e) + "]!", priority=1)
-        sys.exit(-1)
+    DeleteIDsFromSolrIndex(index, ids_to_delete)
             
 
 def GetLastSuccessfulImportDate():
@@ -136,12 +131,20 @@ def GetLastSuccessfulImportDate():
         return None
 
 
-def IsDiffImportRequirementFulfilled():
+def IsDiffImportRequirementFulfilled(conf):
     last_import_date = GetLastSuccessfulImportDate()
+    full_import_day_of_week_iso = conf.get("FullImportSchedule", "day")
+    title_pattern = conf.get("FileNames", "title_marc_data")
+    latest_marc_filename =  sorted(glob.glob(title_pattern), reverse=True)[0]
+    latest_marc_file_date = latest_marc_filename.split("-")[-1].split(".")[0]
+    latest_marc_file_day_of_week_iso = datetime.datetime.strptime(latest_marc_file_date, "%y%m%d").isoweekday()
     
     # If we can't determine the last import time, we can't check for the file, so we assume a diff is not required.
     if not last_import_date:
         return False 
+    
+    if latest_marc_file_day_of_week_iso == full_import_day_of_week_iso:
+        return False # No diff import if the latest MARC file is from the same day of week as the full import schedule, since we can assume that this file will be used for a full import.
         
     # Check if the file with the last import time exists in the specified directory.
     filename = f"GesamtTiteldaten-post-pipeline-{last_import_date}.mrc"
@@ -177,7 +180,7 @@ def RunCreateDiffsForSolrImport(conf, log_file_name):
     return to_delete_filename, to_import_filename
     
 
-def ClearIndexAndImportRecords(vufind_dir, script_name, marc_file, log_file_name):
+def ClearIndexAndImportRecords(vufind_dir, index, script_name, marc_file, log_file_name):
     ClearSolrIndex(index)
     util.ExecOrDie(vufind_dir + '/' + script_name, [ marc_file ], log_file_name)
 
@@ -207,7 +210,7 @@ def ImportIntoVuFind(conf, title_pattern, authority_pattern, log_file_name, clea
                    + " files! (Should have matched exactly 1 file!)")
 
     if not clear_solr_index:
-        if IsDiffImportRequirementFulfilled():
+        if IsDiffImportRequirementFulfilled(conf):
             [to_delete_filename, to_import_filename] = RunCreateDiffsForSolrImport(conf, log_file_name)
             if to_delete_filename != None and to_import_filename != None:
                 ImportDiffRecords("/usr/local/vufind", "import-marc.sh", to_import_filename, log_file_name)
@@ -215,7 +218,7 @@ def ImportIntoVuFind(conf, title_pattern, authority_pattern, log_file_name, clea
         else:
             ImportRecordsAndRemoveExcessRecords(vufind_dir, 'import-marc.sh', title_index, title_args[0], log_file_name)
     else:
-        ClearIndexAndImportRecords(vufind_dir, 'import-marc.sh', title_args[0], log_file_name)
+        ClearIndexAndImportRecords(vufind_dir, title_index, 'import-marc.sh', title_args[0], log_file_name)
 
     OptimizeSolrIndex(title_index)
 
@@ -229,7 +232,7 @@ def ImportIntoVuFind(conf, title_pattern, authority_pattern, log_file_name, clea
     if not clear_solr_index:
         ImportRecordsAndRemoveExcessRecords(vufind_dir, 'import-marc-auth.sh', authority_index, authority_args[0], log_file_name)
     else:
-        ClearIndexAndImportRecords(vufind_dir, 'import-marc-auth.sh', authority_args[0], log_file_name)
+        ClearIndexAndImportRecords(vufind_dir, authority_index, 'import-marc-auth.sh', authority_args[0], log_file_name)
 
     OptimizeSolrIndex(authority_index)
     util.ExecOrDie(util.Which("sudo"), ["-u", "solr", "-E", vufind_dir + "/index-alphabetic-browse.sh"], log_file_name)
