@@ -223,7 +223,7 @@ def ImportIntoVuFind(conf, title_pattern, authority_pattern, log_file_name, clea
             [to_delete_filename, to_import_filename] = RunCreateDiffsForSolrImport(conf, log_file_name)
             if to_delete_filename != None and to_import_filename != None:
                 RemoveExcessRecordsFromIndexByIDs("biblio", to_delete_filename)
-                ImportDiffRecords("/usr/local/vufind", "import-marc.sh", to_import_filename, log_file_name)
+                ImportDiffRecords(vufind_dir, "import-marc.sh", to_import_filename, log_file_name)
         else:
             ImportRecordsAndRemoveExcessRecords(vufind_dir, 'import-marc.sh', title_index, title_args[0], log_file_name)
     else:
