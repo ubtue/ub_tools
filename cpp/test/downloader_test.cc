@@ -26,7 +26,8 @@
 
 
 void Usage() {
-    std::cerr << "Usage: " << progname << " [--timeout milli_seconds] [--honour-robots-dot-txt] [--ignore-ssl-certificates] url\n";
+    std::cerr << "Usage: " << progname
+              << " [--timeout milli_seconds] [--honour-robots-dot-txt] [--ignore-ssl-certificates] url1 [url2 urln]\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -61,17 +62,21 @@ int main(int argc, char *argv[]) {
         params.ignore_ssl_certificates_ = true;
         --argc, ++argv;
     }
-    if (argc != 2)
-        Usage();
 
-    const std::string url(argv[1]);
-
-    try {
-        Downloader downloader(url, params, time_limit);
-        if (downloader.anErrorOccurred())
-            logger->error(downloader.getLastErrorMessage());
-        std::cout << downloader.getMessageBody() << '\n';
-    } catch (const std::exception &e) {
-        logger->error("Caught exception: " + std::string(e.what()));
-    }
+    // Make sure the same Downloader object is re-used for all URLs,
+    // this way we can e.g. check whether Cookies are set correctly
+    // using https://httpbin.org/cookies
+    Downloader downloader(params);
+    do {
+        const std::string url(argv[1]);
+        try {
+            downloader.newUrl(url, time_limit);
+            if (downloader.anErrorOccurred())
+                logger->error(downloader.getLastErrorMessage());
+            std::cout << downloader.getMessageBody() << '\n';
+        } catch (const std::exception &e) {
+            logger->error("Caught exception: " + std::string(e.what()));
+        }
+        --argc, ++argv;
+    } while (argc > 1);
 }
