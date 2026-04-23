@@ -18,7 +18,7 @@ if [[  ${system_type} != ixtheo && ${system_type} != krimdok ]]; then
     Usage
 fi
 
-title_file=$(ls -1 GesamtTiteldaten-post-pipeline-* | grep -v 'GesamtTiteldaten-post-pipeline-diff-' | sort --reverse | head --lines 1)
+title_file=$(ls -1 GesamtTiteldaten-post-pipeline-[0-9][0-9][0-9][0-9][0-9][0-9].mrc | sort --reverse | head --lines 1)
 if [[ ! "${title_file}" =~ GesamtTiteldaten-post-pipeline-[0-9][0-9][0-9][0-9][0-9][0-9].mrc ]]; then
     echo 'Could not identify a file matching GesamtTiteldaten-post-pipeline-[0-9][0-9][0-9][0-9][0-9][0-9].mrc!'
     exit 1
