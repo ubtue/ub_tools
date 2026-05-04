@@ -146,6 +146,9 @@ def IsFullImportDay(conf):
 def IsDiffImportRequirementFulfilled(conf):
     last_import_date = GetLastSuccessfulImportDate()
     
+    if not conf.has_section("DiffImport"):
+        return False
+    
     # If we can't determine the last import time, we can't check for the file, so we assume a diff is not required.
     if not last_import_date:
         return False 
