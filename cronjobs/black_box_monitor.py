@@ -58,10 +58,11 @@ def RunTest(test_name, url, ssl_context, timeout, expected):
 def Main():
     util.default_email_recipient = sys.argv[1]
     config = util.LoadConfigFile()
+    ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
     if config.getboolean("Global", "validate_ssl_certificates", fallback=True):
-        ssl_context = ssl.SSLContext(ssl.CERT_REQUIRED)
+        ssl_context.verify_mode = ssl.CERT_REQUIRED
     else:
-        ssl_context = ssl.SSLContext(ssl.CERT_NONE)
+        ssl_context.verify_mode = ssl.CERT_NONE
 
     for section in config.sections():
         if section == "Global":
