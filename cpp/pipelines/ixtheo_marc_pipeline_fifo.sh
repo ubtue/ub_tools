@@ -233,14 +233,6 @@ EndPhase || Abort) &
 wait
 
 
-StartPhase "Extracting Keywords from Titles"
-make_named_pipe --buffer-size=$FIFO_BUFFER_SIZE GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1
-(enrich_keywords_with_title_words GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
-                                 GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
-                                 /usr/local/var/lib/tuelib/stopwords.???  >> "${log}" 2>&1 && \
-EndPhase || Abort) &
-
-
 StartPhase "Flag Electronic and Open-Access Records"
 (flag_electronic_and_open_access_records GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                                          GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
