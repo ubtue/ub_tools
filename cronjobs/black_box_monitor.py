@@ -59,9 +59,7 @@ def Main():
     util.default_email_recipient = sys.argv[1]
     config = util.LoadConfigFile()
     ssl_context = ssl.create_default_context()
-    if config.getboolean("Global", "validate_ssl_certificates", fallback=True):
-        ssl_context.verify_mode = ssl.CERT_REQUIRED
-    else:
+    if not config.getboolean("Global", "validate_ssl_certificates", fallback=True):
         ssl_context.check_hostname = False
         ssl_context.verify_mode = ssl.CERT_NONE
 
