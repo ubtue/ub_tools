@@ -405,7 +405,7 @@ bool Is655Keyword(const std::string &keyword) {
 }
 
 
-static const std::set<std::string> VALID_TITLES{ "jr", "sr", "sj", "s.j", "s.j.", "fr", "hr", "dr", "prof", "em" };
+static const std::set<std::string> VALID_TITLES{ "jr", "sr", "sj", "s.j", "s.j.", "fr" };
 
 
 bool IsAuthorNameTokenTitle(std::string token) {
