@@ -18,6 +18,7 @@
  */
 
 #include <ranges>
+#include <regex>
 #include "BSZUtil.h"
 #include "Downloader.h"
 #include "FileUtil.h"
@@ -1082,18 +1083,43 @@ void AddMarcFieldsIf(MARC::Record * const marc_record, const ConversionParams &p
 void RewriteMarcFieldsForParams(MARC::Record * const marc_record, const Config::MarcMetadataParams &marc_metadata_params) {
     std::vector<MARC::Record::iterator> matched_fields;
     for (const auto &filter : marc_metadata_params.rewrite_filters_) {
-        const auto &tag_and_subfield_code(filter.first);
-        auto &matcher(*filter.second.first.get());
-        GetMatchedMARCFields(marc_record, filter.first, matcher, &matched_fields);
-        for (const auto &matched_field : matched_fields) {
-            char subfield_code(tag_and_subfield_code[3]);
-            if (matched_field->hasSubfield(subfield_code)) {
-                const std::string old_subfield_value(matched_field->getFirstSubfieldWithCode(subfield_code));
+        const auto &tag_or_tag_and_subfield_code(filter.first);
+        if (tag_or_tag_and_subfield_code.length() == MARC::Record::TAG_LENGTH + 1) {
+            const auto &tag_and_subfield_code(tag_or_tag_and_subfield_code);
+            auto &matcher(*filter.second.first.get());
+            GetMatchedMARCFields(marc_record, filter.first, matcher, &matched_fields);
+            for (const auto &matched_field : matched_fields) {
+                char subfield_code(tag_and_subfield_code[3]);
+                if (matched_field->hasSubfield(subfield_code)) {
+                    const std::string old_subfield_value(matched_field->getFirstSubfieldWithCode(subfield_code));
+                    const std::string replacement(filter.second.second);
+                    const std::string new_subfield_value(matcher.replaceWithBackreferences(old_subfield_value, replacement));
+                    matched_field->insertOrReplaceSubfield(subfield_code, new_subfield_value);
+                    LOG_DEBUG("Rewrote '" + tag_and_subfield_code + "' with content '" + old_subfield_value + "' due to filter '"
+                              + matcher.getPattern() + "', replacement string '" + replacement + "' and result '" + new_subfield_value
+                              + "'");
+                }
+            }
+        } else { // Tag only branch
+            auto &matcher(*filter.second.first.get());
+            GetMatchedMARCFields(marc_record, filter.first, matcher, &matched_fields);
+            for (const auto &matched_field : matched_fields) {
+                const auto tag(tag_or_tag_and_subfield_code);
+                std::string field_value(matched_field->getContents());
                 const std::string replacement(filter.second.second);
-                const std::string new_subfield_value(matcher.replaceWithBackreferences(old_subfield_value, replacement));
-                matched_field->insertOrReplaceSubfield(subfield_code, new_subfield_value);
-                LOG_DEBUG("Rewrote '" + tag_and_subfield_code + "' with content '" + old_subfield_value + "' due to filter '"
-                          + matcher.getPattern() + "', replacement string '" + replacement + "' and result '" + new_subfield_value + "'");
+                std::string escaped_field_value(StringUtil::ReplaceString(std::string(1, 0x1F), "\\037", field_value, true));
+                std::string new_field_value(
+                    std::regex_replace(escaped_field_value, std::regex(StringUtil::ReplaceString("\\037", "\\\\037", matcher.getPattern())),
+                                       std::regex_replace(replacement, std::regex(R"(\\(?=\d{1,2}(?!\d)))"), R"($)")));
+                new_field_value = StringUtil::ReplaceString("\\037", std::string(1, 0x1F), new_field_value, true);
+                if (new_field_value.length() < 2 /* Indicators */ + 2 + 1 /*  At least one non-empty subfield */)
+                    LOG_ERROR("Invalid new field after replacement");
+                const char indicator1(new_field_value[0]);
+                const char indicator2(new_field_value[1]);
+                // The MARC-Subfields constructor expects the indicators to be included...
+                marc_record->replaceField(tag, MARC::Subfields(new_field_value), indicator1, indicator2);
+                LOG_DEBUG("Rewrote '" + tag + "' with content '" + field_value + "' due to filter '" + matcher.getPattern()
+                          + "', replacement string '" + replacement + "' and result '" + new_field_value + "'");
             }
         }
     }
