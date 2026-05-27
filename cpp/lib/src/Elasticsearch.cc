@@ -31,7 +31,7 @@ const std::string DEFAULT_CONFIG_FILE_PATH(UBTools::GetTuelibPath() + "Elasticse
 
 
 static void LoadIniParameters(const std::string &config_file_path, std::string * const host, std::string * const username,
-                              std::string * const password, bool * const ignore_ssl_certificates) {
+                              std::string * const password, std::string * const token, bool * const ignore_ssl_certificates) {
     if (not FileUtil::Exists(config_file_path))
         LOG_ERROR("Elasticsearch config file missing: " + config_file_path);
 
@@ -40,12 +40,13 @@ static void LoadIniParameters(const std::string &config_file_path, std::string *
     *host = ini_file.getString("Elasticsearch", "host");
     *username = ini_file.getString("Elasticsearch", "username", "");
     *password = ini_file.getString("Elasticsearch", "password", "");
+    *token = ini_file.getString("Elasticsearch", "token", "");
     *ignore_ssl_certificates = ini_file.getBool("Elasticsearch", "ignore_ssl_certificates", false);
 }
 
 
 Elasticsearch::Elasticsearch(const std::string &index): index_(index) {
-    LoadIniParameters(DEFAULT_CONFIG_FILE_PATH, &host_, &username_, &password_, &ignore_ssl_certificates_);
+    LoadIniParameters(DEFAULT_CONFIG_FILE_PATH, &host_, &username_, &password_, &token_, &ignore_ssl_certificates_);
 }
 
 
@@ -278,10 +279,16 @@ bool Elasticsearch::fieldWithValueExists(const std::string &field, const std::st
 std::shared_ptr<JSON::ObjectNode> Elasticsearch::query(const std::string &action, const REST::QueryType query_type,
                                                        const JSON::ObjectNode &data, const bool suppress_index_name) const {
     Downloader::Params downloader_params;
-    downloader_params.authentication_username_ = username_;
-    downloader_params.authentication_password_ = password_;
+
+    if (token_.empty()) {
+        downloader_params.authentication_username_ = username_;
+        downloader_params.authentication_password_ = password_;
+    } else
+        downloader_params.additional_headers_.push_back("Authorization: ApiKey " + token_);
+
     downloader_params.ignore_ssl_certificates_ = ignore_ssl_certificates_;
     downloader_params.additional_headers_.push_back("Content-Type: application/json");
+
     Url url;
     url = Url(host_ + (not suppress_index_name ? "/" + index_ : "") + (action.empty() ? "" : "/" + action));
 

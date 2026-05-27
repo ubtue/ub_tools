@@ -32,7 +32,7 @@ const unsigned ELASTICSEARCH_DEFAULT_MAX_COUNT(10000); /* Default max number of 
 
 
 class Elasticsearch {
-    std::string host_, index_, username_, password_;
+    std::string host_, index_, username_, password_, token_;
     bool ignore_ssl_certificates_;
 
 public:
