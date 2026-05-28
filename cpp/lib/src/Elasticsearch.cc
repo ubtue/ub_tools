@@ -234,6 +234,60 @@ static std::string ToString(const Elasticsearch::RangeOperator op) {
     }
 }
 
+std::vector<std::map<std::string, std::string>> Elasticsearch::simpleSelectRange(const std::set<std::string> &select_fields,
+                                                                                 const std::string &range_field,
+                                                                                 const RangeOperator operator1, const std::string &operand1,
+                                                                                 const RangeOperator operator2, const std::string &operand2,
+                                                                                 const unsigned int max_count) const {
+    const unsigned int MAX_RESULTS_PER_REQUEST(10000); // Elasticsearch Default
+    const bool use_scrolling(max_count > MAX_RESULTS_PER_REQUEST);
+    std::string query_string("{\n");
+
+    if (not select_fields.empty()) {
+        query_string += "    \"_source\": [";
+        for (const auto &field : select_fields)
+            query_string += "\"" + field + "\", ";
+        query_string.resize(query_string.size() - 2); // Remove trailing comma and space.
+        query_string += "],\n";
+    }
+
+    const std::string range_node((operator2 == RO_NOOP or operand2.empty()) ?
+                                    "\"query\":"
+                                    "    { \"range\":"
+                                    "        { \"" + range_field + "\": {"
+                                    "            \"" + ToString(operator1) + "\": \"" + operand1 + "\""
+                                        + ((operator2 == RO_NOOP or operand2.empty())
+                                               ? std::string()
+                                               : "      ,\"" + ToString(operator2) + "\": \"" + operand2 + "\"") +
+                                    "        }}"
+                                    "    }"
+                                                                            :
+                                    "");
+    query_string += range_node + ",\n";
+    query_string += "    \"size\": " + std::to_string(use_scrolling ? MAX_RESULTS_PER_REQUEST : max_count) + "\n";
+    query_string += "}\n";
+
+
+    const std::string search_parameter(use_scrolling ? "_search?scroll=1m" : "_search");
+    auto result_node(query(search_parameter, REST::POST, JSON::ObjectNode(query_string)));
+
+    if (use_scrolling) {
+        std::vector<std::map<std::string, std::string>> search_results_all;
+        std::vector<std::map<std::string, std::string>> search_results_bunch(extractResultsHelper(result_node, select_fields));
+        // Iterate until hits are empty
+        while (search_results_bunch.size()) {
+            search_results_all.insert(std::end(search_results_all), std::begin(search_results_bunch), std::end(search_results_bunch));
+            std::string scroll_id(extractScrollId(result_node));
+            result_node =
+                query("_search/scroll", REST::POST, JSON::ObjectNode("{ \"scroll\": \"1m\", \"scroll_id\" : \"" + scroll_id + "\"}"),
+                      true /* suppress index name */);
+            search_results_bunch = extractResultsHelper(result_node, select_fields);
+        }
+        return search_results_all;
+    }
+
+    return extractResultsHelper(result_node, select_fields);
+}
 
 bool Elasticsearch::deleteRange(const std::string &field, const RangeOperator operator1, const std::string &operand1,
                                 const RangeOperator operator2, const std::string &operand2) {

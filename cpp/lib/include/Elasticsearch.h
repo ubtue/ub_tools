@@ -87,6 +87,12 @@ public:
         return simpleSelect(fields, std::map<std::string, std::string>{ { filter_field, filter_value } }, max_count);
     }
 
+    std::vector<std::map<std::string, std::string>> simpleSelectRange(const std::set<std::string> &select_fields,
+                                                                      const std::string &range_field, const RangeOperator operator1,
+                                                                      const std::string &operand1, const RangeOperator operator2 = RO_NOOP,
+                                                                      const std::string &operand2 = "",
+                                                                      const unsigned int max_count = ELASTICSEARCH_DEFAULT_MAX_COUNT) const;
+
     /** \note Specify one or two range conditions. */
     bool deleteRange(const std::string &field, const RangeOperator operator1, const std::string &operand1,
                      const RangeOperator operator2 = RO_NOOP, const std::string &operand2 = "");
