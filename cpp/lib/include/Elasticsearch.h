@@ -98,8 +98,8 @@ public:
                      const RangeOperator operator2 = RO_NOOP, const std::string &operand2 = "");
 
     bool fieldWithValueExists(const std::string &field, const std::string &value);
-    std::vector<std::map<std::string, std::string>> scrollingSelect(const std::set<std::string> &fields,
-                                                                    std::shared_ptr<JSON::ObjectNode> result_node) const;
+    std::vector<std::map<std::string, std::string>> scrollingResults(const std::set<std::string> &fields,
+                                                                     std::shared_ptr<JSON::ObjectNode> result_node) const;
 
 private:
     /** \brief A powerful general query.
