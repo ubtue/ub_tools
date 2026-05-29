@@ -8,8 +8,8 @@ if [ ! -f "$FILE" ]; then
 fi
 
 
-
 HOST_AND_PORT=$(inifile_lookup "$FILE" Elasticsearch host)
+
 if [ $? -ne 0 ]; then
     echo "Error: Could not read host from configuration file."
     exit 1
