@@ -178,10 +178,10 @@ int Main(int argc, char *argv[]) {
                                                  &ids_need_to_be_deleted);
     std::thread thread_collect_ids_to_be_imported(CollectIDsToBeImported, previous_ppn_to_record_hash_map, current_ppn_to_record_hash_map,
                                                   &ids_need_to_be_imported);
-    std::thread thread_collect_ids_to_be_imported_from_full_text_cache(CollectIDsToBeImportedFromFullTextCache, &ids_need_to_be_imported);
     thread_collect_ids_to_be_deleted.join();
     thread_collect_ids_to_be_imported.join();
-    thread_collect_ids_to_be_imported_from_full_text_cache.join();
+
+    CollectIDsToBeImportedFromFullTextCache(&ids_need_to_be_imported);
 
     // write the IDs in ids_need_to_be_deleted to the list_of_ids_to_delete file.
     WriteListOfIDsToBeDeletedToTextFile(list_of_ids_to_delete_file, ids_need_to_be_deleted);

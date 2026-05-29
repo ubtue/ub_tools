@@ -166,6 +166,20 @@ std::string Elasticsearch::extractScrollId(const std::shared_ptr<JSON::ObjectNod
     return scroll_id_string_node->getValue();
 }
 
+std::vector<std::map<std::string, std::string>> Elasticsearch::scrollingSelect(const std::set<std::string> &fields,
+                                                                               std::shared_ptr<JSON::ObjectNode> result_node) const {
+    std::vector<std::map<std::string, std::string>> search_results_all;
+    std::vector<std::map<std::string, std::string>> search_results_bunch(extractResultsHelper(result_node, fields));
+    // Iterate until hits are empty
+    while (search_results_bunch.size()) {
+        search_results_all.insert(std::end(search_results_all), std::begin(search_results_bunch), std::end(search_results_bunch));
+        std::string scroll_id(extractScrollId(result_node));
+        result_node = query("_search/scroll", REST::POST, JSON::ObjectNode("{ \"scroll\": \"1m\", \"scroll_id\" : \"" + scroll_id + "\"}"),
+                            true /* suppress index name */);
+        search_results_bunch = extractResultsHelper(result_node, fields);
+    }
+    return search_results_all;
+}
 
 std::vector<std::map<std::string, std::string>> Elasticsearch::simpleSelect(const std::set<std::string> &fields,
                                                                             const std::map<std::string, std::string> &filter,
@@ -202,18 +216,7 @@ std::vector<std::map<std::string, std::string>> Elasticsearch::simpleSelect(cons
     auto result_node(query(search_parameter, REST::POST, JSON::ObjectNode(query_string)));
 
     if (use_scrolling) {
-        std::vector<std::map<std::string, std::string>> search_results_all;
-        std::vector<std::map<std::string, std::string>> search_results_bunch(extractResultsHelper(result_node, fields));
-        // Iterate until hits are empty
-        while (search_results_bunch.size()) {
-            search_results_all.insert(std::end(search_results_all), std::begin(search_results_bunch), std::end(search_results_bunch));
-            std::string scroll_id(extractScrollId(result_node));
-            result_node =
-                query("_search/scroll", REST::POST, JSON::ObjectNode("{ \"scroll\": \"1m\", \"scroll_id\" : \"" + scroll_id + "\"}"),
-                      true /* suppress index name */);
-            search_results_bunch = extractResultsHelper(result_node, fields);
-        }
-        return search_results_all;
+        return scrollingSelect(fields, result_node);
     }
     return extractResultsHelper(result_node, fields);
 }
@@ -272,18 +275,7 @@ std::vector<std::map<std::string, std::string>> Elasticsearch::simpleSelectRange
     auto result_node(query(search_parameter, REST::POST, JSON::ObjectNode(query_string)));
 
     if (use_scrolling) {
-        std::vector<std::map<std::string, std::string>> search_results_all;
-        std::vector<std::map<std::string, std::string>> search_results_bunch(extractResultsHelper(result_node, select_fields));
-        // Iterate until hits are empty
-        while (search_results_bunch.size()) {
-            search_results_all.insert(std::end(search_results_all), std::begin(search_results_bunch), std::end(search_results_bunch));
-            std::string scroll_id(extractScrollId(result_node));
-            result_node =
-                query("_search/scroll", REST::POST, JSON::ObjectNode("{ \"scroll\": \"1m\", \"scroll_id\" : \"" + scroll_id + "\"}"),
-                      true /* suppress index name */);
-            search_results_bunch = extractResultsHelper(result_node, select_fields);
-        }
-        return search_results_all;
+        return scrollingSelect(select_fields, result_node);
     }
 
     return extractResultsHelper(result_node, select_fields);
