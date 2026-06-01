@@ -944,6 +944,10 @@ void ConfigureFullTextBackend(const bool production, const bool install_cronjobs
                         "" /* new_stdin */, "" /* new_stdout */, "" /* new_stderr */, 0 /* timeout_in_seconds */,
                         SIGKILL /* tardy_child_signal */, std::unordered_map<std::string, std::string>() /* envs */,
                         elasticsearch_programs_dir);
+
+    ExecUtil::ExecOrDie(elasticsearch_programs_dir + "/create_pipeline.sh", std::vector<std::string>{} /* args */, "" /* new_stdin */,
+                        "" /* new_stdout */, "" /* new_stderr */, 0 /* timeout_in_seconds */, SIGKILL /* tardy_child_signal */,
+                        std::unordered_map<std::string, std::string>() /* envs */, elasticsearch_programs_dir);
     if (not es_was_already_running) {
         if (SystemdUtil::IsAvailable())
             SystemdUtil::StopUnit("elasticsearch");
