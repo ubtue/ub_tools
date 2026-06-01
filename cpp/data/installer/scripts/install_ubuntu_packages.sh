@@ -84,14 +84,14 @@ if [[ $1 == "ixtheo" || $1 == "krimdok" ]]; then
     add-apt-repository --yes --update ppa:ondrej/php
     apt-get --quiet --yes install \
         composer npm node-grunt-cli \
-        php8.5 php8.5-curl php8.5-gd php8.5-intl php8.5-ldap php8.5-mbstring php8.5-memcached php8.5-mysql php8.5-soap php8.5-xml \
-        php8.5-fpm
+        php8.4 php8.4-curl php8.4-gd php8.4-intl php8.4-ldap php8.4-mbstring php8.4-memcached php8.4-mysql php8.4-soap php8.4-xml \
+        php8.4-fpm
 
     update-alternatives --set php /usr/bin/php8.3
 
     a2dismod mpm_prefork
     a2enmod mpm_event proxy_fcgi http2 rewrite setenvif ssl
-    a2enconf php8.5-fpm
+    a2enconf php8.4-fpm
     /etc/init.d/apache2 restart
 fi
 
