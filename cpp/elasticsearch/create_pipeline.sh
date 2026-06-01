@@ -23,15 +23,15 @@ URL_SET_DEFAULT_PIPELINE_FULLTEXT_CACHE="$HOST_AND_PORT/full_text_cache/_setting
 URL_SET_DEFAULT_PIPELINE_FULLTEXT_CACHE_HTML="$HOST_AND_PORT/full_text_cache_html/_settings"
 URL_SET_DEFAULT_PIPELINE_FULLTEXT_CACHE_URLS="$HOST_AND_PORT/full_text_cache_urls/_settings"
 
-TOKEN=$(inifile_lookup "$FILE" Elasticsearch token)
+TOKEN=$(inifile_lookup "$FILE" Elasticsearch token "")
 
 if [ $? -eq 0 ]; then
   if [ -n "$TOKEN" ]; then
     authorization_args=(-H "Authorization: ApiKey $TOKEN")
   fi
 else
-  username=$(inifile_lookup "$FILE" Elasticsearch username)
-  password=$(inifile_lookup "$FILE" Elasticsearch password)
+  username=$(inifile_lookup "$FILE" Elasticsearch username "")
+  password=$(inifile_lookup "$FILE" Elasticsearch password "")
 
   if [ $? -eq 0 ]; then
     if [ -n "$username" ] && [ -n "$password" ]; then
