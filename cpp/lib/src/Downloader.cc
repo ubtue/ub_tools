@@ -401,8 +401,9 @@ void Downloader::init() {
 
     if (params_.use_cookies_txt_) /*Use local cookie storage only*/ {
         // Use same store for reading and writing, thus we are to mimic browser behaviour and send back received cookies
-        curlEasySetopt(CURLOPT_COOKIEFILE, "", "Download::init::CURLOPT_COOKIEFILE");
-        curlEasySetopt(CURLOPT_COOKIEJAR, "", "Download::init::CURLOPT_COOKIEJAR");
+        const std::string cookies_txt_path("/tmp/cookies.txt");
+        curlEasySetopt(CURLOPT_COOKIEFILE, cookies_txt_path.c_str(), "Downloader::init::CURLOPT_COOKIEFILE");
+        curlEasySetopt(CURLOPT_COOKIEJAR, cookies_txt_path.c_str(), "Downloader::init::CURLOPT_COOKIEJAR");
     }
 }
 
