@@ -1,8 +1,10 @@
 #FORMAT: BEACON
 #PREFIX: http://d-nb.info/gnd/
 #TARGET: https://relbib.de/Search/Results?lookfor={ID}&Type=GND
+#FEED: https://relbib.de/relbib_docs/relbib-beacon.txt
 #NAME: BIBLIOGRAPHY OF THE STUDY OF RELIGION (RelBib)
 #MESSAGE: BIBLIOGRAPHY OF THE STUDY OF RELIGION: Publications in RelBib
 #DESCRIPTION: The database "RelBib" (https://relbib.de) is an international open access bibliography of the general and comparative study of religion. RelBib indexes monographs (books) and articles from about 160 journals relevant to the study of religion as well as articles from collective publications (e.g. festschrifts and congress publications). Relevant databases, weblogs and internet links are also included. Statistics: more than 110,000 name authority files (from the GND), more than 480,000 titles (as of January 2020).
 #INSTITUTION: Tübingen University Library
 #CONTACT: relbib@ub.uni-tuebingen.de
+#UPDATE: daily

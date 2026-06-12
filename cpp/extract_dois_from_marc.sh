@@ -19,5 +19,5 @@ function ExtractDOIs {
 marc_directory=$1
 doi_output=$2
 
-latest_post_pipeline_file=$(ls -t ${marc_directory}/GesamtTiteldaten-post-pipeline-* | head -1)
+latest_post_pipeline_file=$(ls -t ${marc_directory}/GesamtTiteldaten-post-pipeline-[0-9][0-9][0-9][0-9][0-9][0-9].mrc | head -1)
 ExtractDOIs ${latest_post_pipeline_file} ${doi_output}
