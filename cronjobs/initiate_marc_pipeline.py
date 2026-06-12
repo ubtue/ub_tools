@@ -186,7 +186,7 @@ def RunCreateDiffsForSolrImport(conf, log_file_name):
     to_delete_filename =  deletion_list_filename_template + last_successful_import_date + "-" + latest_marc_file_date + ".txt"
     to_import_filename = title_marc_data_diff_template + last_successful_import_date + "-" + latest_marc_file_date + ".mrc"
         
-    util.ExecOrDie(util.Which("create_diffs_for_solr_import"), [last_successful_import_filename, latest_marc_filename, to_delete_filename, to_import_filename], log_file_name)
+    util.ExecOrDie(util.Which("create_diffs_for_solr_import"), ["--include-fulltext", last_successful_import_filename, latest_marc_filename, to_delete_filename, to_import_filename], log_file_name)
     
     return to_delete_filename, to_import_filename
     

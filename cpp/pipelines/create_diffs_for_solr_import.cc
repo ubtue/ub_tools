@@ -23,7 +23,9 @@
 #include <xxhash.h>
 #include <boost/bimap.hpp>
 #include <boost/bimap/set_of.hpp>
+#include "Elasticsearch.h"
 #include "FileUtil.h"
+#include "JSON.h"
 #include "MARC.h"
 
 namespace {
@@ -31,7 +33,7 @@ namespace {
 
 [[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname
-              << " [--verbose] previous_marc_filename current_marc_filename to_delete_filename to_import_filename\n"
+              << " [--verbose] [--include-fulltext] previous_marc_filename current_marc_filename to_delete_filename to_import_filename\n"
               << "\t-previous_marc_filename\tThe filename of the previous MARC collection.\n"
               << "\t-current_marc_filename\tThe filename of the current MARC collection.\n"
               << "\t-to_delete_filename\tThe target filename to hold lists of IDs scheduled for deletion in the next pipeline step.\n"
@@ -73,6 +75,14 @@ void CollectIDsToBeImported(const PPNRecordHashBimap &previous_ppn_to_record_has
     }
 }
 
+void CollectIDsToBeImportedFromFullTextCache(std::unordered_set<std::string> *ids_need_to_be_imported) {
+    auto elasticsearch = new Elasticsearch("full_text_cache");
+    const auto results(elasticsearch->simpleSelectRange({ "id" }, "last_update", Elasticsearch::RO_GTE, "now-24h"));
+    for (const auto &result : results) {
+        if (result.find("id") != result.cend())
+            ids_need_to_be_imported->emplace(result.find("id")->second);
+    }
+}
 
 void BuildBimapStringHashMap(std::unique_ptr<MARC::Reader> &reader, PPNRecordHashBimap * const control_number_to_record_hash_map) {
     while (const MARC::Record record = reader->read()) {
@@ -124,6 +134,10 @@ int Main(int argc, char *argv[]) {
     if (verbose)
         --argc, ++argv;
 
+    const bool include_fulltext(std::strcmp(argv[1], "--include-fulltext") == 0);
+    if (include_fulltext)
+        --argc, ++argv;
+
     // build the parameters
     const std::string previous_marc_filename(argv[1]);
     const std::string current_marc_filename(argv[2]);
@@ -170,6 +184,9 @@ int Main(int argc, char *argv[]) {
                                                   &ids_need_to_be_imported);
     thread_collect_ids_to_be_deleted.join();
     thread_collect_ids_to_be_imported.join();
+
+    if (include_fulltext)
+        CollectIDsToBeImportedFromFullTextCache(&ids_need_to_be_imported);
 
     // write the IDs in ids_need_to_be_deleted to the list_of_ids_to_delete file.
     WriteListOfIDsToBeDeletedToTextFile(list_of_ids_to_delete_file, ids_need_to_be_deleted);

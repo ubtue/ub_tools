@@ -32,7 +32,7 @@ const unsigned ELASTICSEARCH_DEFAULT_MAX_COUNT(10000); /* Default max number of 
 
 
 class Elasticsearch {
-    std::string host_, index_, username_, password_;
+    std::string host_, index_, username_, password_, token_;
     bool ignore_ssl_certificates_;
 
 public:
@@ -87,11 +87,19 @@ public:
         return simpleSelect(fields, std::map<std::string, std::string>{ { filter_field, filter_value } }, max_count);
     }
 
+    std::vector<std::map<std::string, std::string>> simpleSelectRange(const std::set<std::string> &select_fields,
+                                                                      const std::string &range_field, const RangeOperator operator1,
+                                                                      const std::string &operand1, const RangeOperator operator2 = RO_NOOP,
+                                                                      const std::string &operand2 = "",
+                                                                      const unsigned int max_count = ELASTICSEARCH_DEFAULT_MAX_COUNT) const;
+
     /** \note Specify one or two range conditions. */
     bool deleteRange(const std::string &field, const RangeOperator operator1, const std::string &operand1,
                      const RangeOperator operator2 = RO_NOOP, const std::string &operand2 = "");
 
     bool fieldWithValueExists(const std::string &field, const std::string &value);
+    std::vector<std::map<std::string, std::string>> scrollingResults(const std::set<std::string> &fields,
+                                                                     std::shared_ptr<JSON::ObjectNode> result_node) const;
 
 private:
     /** \brief A powerful general query.
