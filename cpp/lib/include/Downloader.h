@@ -101,6 +101,7 @@ public:
         std::string authentication_username_;
         std::string authentication_password_;
         bool use_cookies_txt_;
+        std::string cookies_txt_path_;
         bool fail_on_error_;
 
     public:
@@ -113,7 +114,8 @@ public:
                         const bool ignore_ssl_certificates = false, const std::string &proxy_host_and_port = "",
                         const std::vector<std::string> &additional_headers = {}, const std::string &post_data = "",
                         const std::string &authentication_username = "", const std::string &authentication_password = "",
-                        const bool use_cookies_txt = true, const bool fail_on_error = true);
+                        const bool use_cookies_txt = true, const std::string cookies_txt_path = "/tmp/cookies.txt",
+                        const bool fail_on_error = true);
     };
 
     typedef size_t (*WriteFunc)(void *data, size_t size, size_t nmemb, void *this_pointer);

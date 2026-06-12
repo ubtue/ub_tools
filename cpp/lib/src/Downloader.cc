@@ -134,14 +134,15 @@ Downloader::Params::Params(const std::string &user_agent, const std::string &acc
                            const unsigned meta_redirect_threshold, const bool ignore_ssl_certificates,
                            const std::string &proxy_host_and_port, const std::vector<std::string> &additional_headers,
                            const std::string &post_data, const std::string &authentication_username,
-                           const std::string &authentication_password, const bool use_cookies_txt, const bool fail_on_error)
+                           const std::string &authentication_password, const bool use_cookies_txt, const std::string cookies_txt_path,
+                           const bool fail_on_error)
     : user_agent_(user_agent), acceptable_languages_(acceptable_languages), max_redirect_count_(max_redirect_count),
       dns_cache_timeout_(dns_cache_timeout), honour_robots_dot_txt_(honour_robots_dot_txt), text_translation_mode_(text_translation_mode),
       banned_reg_exps_(banned_reg_exps), debugging_(debugging), follow_redirects_(follow_redirects),
       meta_redirect_threshold_(meta_redirect_threshold), ignore_ssl_certificates_(ignore_ssl_certificates),
       proxy_host_and_port_(proxy_host_and_port), additional_headers_(additional_headers), post_data_(post_data),
       authentication_username_(authentication_username), authentication_password_(authentication_password),
-      use_cookies_txt_(use_cookies_txt), fail_on_error_(fail_on_error) {
+      use_cookies_txt_(use_cookies_txt), cookies_txt_path_(cookies_txt_path), fail_on_error_(fail_on_error) {
     max_redirect_count_ = follow_redirects_ ? max_redirect_count_ : 0;
 
     if (unlikely(max_redirect_count_ < 0 or max_redirect_count_ > MAX_MAX_REDIRECT_COUNT))
@@ -401,9 +402,10 @@ void Downloader::init() {
 
     if (params_.use_cookies_txt_) /*Use local cookie storage only*/ {
         // Use same store for reading and writing, thus we are to mimic browser behaviour and send back received cookies
-        const std::string cookies_txt_path("/tmp/cookies.txt");
-        curlEasySetopt(CURLOPT_COOKIEFILE, cookies_txt_path.c_str(), "Downloader::init::CURLOPT_COOKIEFILE");
-        curlEasySetopt(CURLOPT_COOKIEJAR, cookies_txt_path.c_str(), "Downloader::init::CURLOPT_COOKIEJAR");
+        // Note that if cookies_txt_path_ is an empty string / no explicit path is given,
+        // cookies will only be re-used within the same downloader object instance.
+        curlEasySetopt(CURLOPT_COOKIEFILE, params_.cookies_txt_path_.c_str(), "Downloader::init::CURLOPT_COOKIEFILE");
+        curlEasySetopt(CURLOPT_COOKIEJAR, params_.cookies_txt_path_.c_str(), "Downloader::init::CURLOPT_COOKIEJAR");
     }
 }
 
