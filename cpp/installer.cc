@@ -84,10 +84,7 @@
 
 // Print a log message to the terminal with a bright green background.
 void Echo(const std::string &log_message) {
-    std::cout << "\x1B"
-              << "[42m--- "
-              << "Installer -> " + log_message << "\x1B"
-              << "[0m\n";
+    std::cout << "\x1B" << "[42m--- " << "Installer -> " + log_message << "\x1B" << "[0m\n";
 }
 
 
@@ -441,7 +438,7 @@ static void GenerateAndInstallVuFindServiceTemplate(const VuFindSystemType syste
     FileUtil::AutoTempDirectory temp_dir;
 
     Template::Map names_to_values_map;
-    names_to_values_map.insertScalar("solr_heap", system_type == KRIMDOK ? "6G" : "12G");
+    names_to_values_map.insertScalar("solr_heap", system_type == KRIMDOK ? "8G" : "16G");
     // names_to_values_map.insertScalar("solr_heap", system_type == KRIMDOK ? "4G" : "4G");
     const std::string vufind_service(Template::ExpandTemplate(
         FileUtil::ReadStringOrDie(INSTALLER_DATA_DIRECTORY + "/" + service_name + ".service.template"), names_to_values_map));
