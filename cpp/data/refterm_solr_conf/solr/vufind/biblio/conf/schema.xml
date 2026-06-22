@@ -1,72 +1,71 @@
 <?xml version="1.0" ?>
-<schema name="VuFind Bibliographic Index" version="1.2">
+<schema name="VuFind Bibliographic Index" version="1.7">
   <types>
-    <!-- Define fieldType long as it is needed by the _version_ field required by Solr 4.x -->
     <fieldType name="long" class="solr.LongPointField" positionIncrementGap="0"/>
-    <fieldType name="string" class="solr.StrField" sortMissingLast="true" omitNorms="true"/>
-    <fieldType name="textFacet" class="solr.TextField" sortMissingLast="true" omitNorms="true">
+    <fieldType name="string" class="solr.StrField" sortMissingLast="true"/>
+    <fieldType name="textFacet" class="solr.TextField" sortMissingLast="true" omitNorms="true" uninvertible="true">
       <analyzer>
-        <tokenizer class="solr.KeywordTokenizerFactory"/>
+        <tokenizer name="keyword"/>
         <!-- strip trailing punctuation from facets: -->
-        <filter class="solr.PatternReplaceFilterFactory" pattern="(?&lt;!\b[A-Z])[.\s]*$" replacement="" replace="first"/>
+        <filter name="patternReplace" pattern="(?&lt;!\b[A-Z])[.\s]*$" replacement="" replace="first"/>
       </analyzer>
     </fieldType>
     <fieldType name="text" class="solr.TextField" positionIncrementGap="100">
       <analyzer type="index">
-        <tokenizer class="solr.ICUTokenizerFactory"/>
-        <filter class="solr.WordDelimiterGraphFilterFactory" generateWordParts="1" generateNumberParts="1" catenateWords="1" catenateNumbers="1" catenateAll="0" splitOnCaseChange="1" splitOnNumerics="0"/>
-        <filter class="solr.ICUFoldingFilterFactory"/>
-        <filter class="solr.KeywordMarkerFilterFactory" protected="protwords.txt"/>
+        <tokenizer name="icu"/>
+        <filter name="wordDelimiterGraph" generateWordParts="1" generateNumberParts="1" catenateWords="1" catenateNumbers="1" catenateAll="0" splitOnCaseChange="1" splitOnNumerics="0"/>
+        <filter name="icuFolding"/>
+        <filter name="keywordMarker" protected="protwords.txt"/>
         <filter class="solr.SnowballPorterFilterFactory" language="English"/>
-        <filter class="solr.RemoveDuplicatesTokenFilterFactory"/>
+        <filter name="removeDuplicates"/>
       </analyzer>
       <analyzer type="query">
-        <tokenizer class="solr.ICUTokenizerFactory"/>
-        <filter class="solr.SynonymGraphFilterFactory" synonyms="synonyms.txt" ignoreCase="true" expand="true"/>
-        <filter class="solr.WordDelimiterGraphFilterFactory" generateWordParts="1" generateNumberParts="1" catenateWords="0" catenateNumbers="0" catenateAll="0" splitOnCaseChange="1" splitOnNumerics="0"/>
-        <filter class="solr.ICUFoldingFilterFactory"/>
-        <filter class="solr.KeywordMarkerFilterFactory" protected="protwords.txt"/>
+        <tokenizer name="icu"/>
+        <filter name="synonymGraph" synonyms="synonyms.txt" ignoreCase="true" expand="true"/>
+        <filter name="wordDelimiterGraph" generateWordParts="1" generateNumberParts="1" catenateWords="0" catenateNumbers="0" catenateAll="0" splitOnCaseChange="1" splitOnNumerics="0"/>
+        <filter name="icuFolding"/>
+        <filter name="keywordMarker" protected="protwords.txt"/>
         <filter class="solr.SnowballPorterFilterFactory" language="English"/>
-        <filter class="solr.RemoveDuplicatesTokenFilterFactory"/>
+        <filter name="removeDuplicates"/>
       </analyzer>
     </fieldType>
     <!-- Text Field without Stemming and Synonyms -->
     <fieldType name="textProper" class="solr.TextField" positionIncrementGap="100">
       <analyzer type="index">
-        <tokenizer class="solr.ICUTokenizerFactory"/>
-        <filter class="solr.WordDelimiterGraphFilterFactory" generateWordParts="1" generateNumberParts="1" catenateWords="1" catenateNumbers="1" catenateAll="0" splitOnNumerics="0"/>
-        <filter class="solr.ICUFoldingFilterFactory"/>
-        <filter class="solr.RemoveDuplicatesTokenFilterFactory"/>
+        <tokenizer name="icu"/>
+        <filter name="wordDelimiterGraph" generateWordParts="1" generateNumberParts="1" catenateWords="1" catenateNumbers="1" catenateAll="0" splitOnNumerics="0"/>
+        <filter name="icuFolding"/>
+        <filter name="removeDuplicates"/>
       </analyzer>
       <analyzer type="query">
-        <tokenizer class="solr.ICUTokenizerFactory"/>
-        <filter class="solr.WordDelimiterGraphFilterFactory" generateWordParts="1" generateNumberParts="1" catenateWords="0" catenateNumbers="0" catenateAll="0" splitOnNumerics="0"/>
-        <filter class="solr.ICUFoldingFilterFactory"/>
-        <filter class="solr.RemoveDuplicatesTokenFilterFactory"/>
+        <tokenizer name="icu"/>
+        <filter name="wordDelimiterGraph" generateWordParts="1" generateNumberParts="1" catenateWords="0" catenateNumbers="0" catenateAll="0" splitOnNumerics="0"/>
+        <filter name="icuFolding"/>
+        <filter name="removeDuplicates"/>
       </analyzer>
     </fieldType>
     <!-- Basic Text Field for use with Spell Correction -->
     <fieldType name="textSpell" class="solr.TextField" positionIncrementGap="100">
       <analyzer>
-        <tokenizer class="solr.ICUTokenizerFactory"/>
-        <filter class="solr.WordDelimiterGraphFilterFactory" generateWordParts="1" generateNumberParts="1" catenateWords="0" catenateNumbers="0" catenateAll="0" splitOnNumerics="0"/>
-        <filter class="solr.ICUFoldingFilterFactory"/>
-        <filter class="solr.RemoveDuplicatesTokenFilterFactory"/>
+        <tokenizer name="icu"/>
+        <filter name="wordDelimiterGraph" generateWordParts="1" generateNumberParts="1" catenateWords="0" catenateNumbers="0" catenateAll="0" splitOnNumerics="0"/>
+        <filter name="icuFolding"/>
+        <filter name="removeDuplicates"/>
       </analyzer>
     </fieldType>
     <!-- More advanced spell checking field. -->
     <fieldType name="textSpellShingle" class="solr.TextField" positionIncrementGap="100">
       <analyzer type="index">
-        <tokenizer class="solr.ICUTokenizerFactory"/>
-        <filter class="solr.ICUFoldingFilterFactory"/>
-        <filter class="solr.ShingleFilterFactory" maxShingleSize="2" outputUnigrams="false"/>
-        <filter class="solr.RemoveDuplicatesTokenFilterFactory"/>
+        <tokenizer name="icu"/>
+        <filter name="icuFolding"/>
+        <filter name="shingle" maxShingleSize="2" outputUnigrams="false"/>
+        <filter name="removeDuplicates"/>
       </analyzer>
       <analyzer type="query">
-        <tokenizer class="solr.ICUTokenizerFactory"/>
-        <filter class="solr.ICUFoldingFilterFactory"/>
-        <filter class="solr.ShingleFilterFactory" maxShingleSize="2" outputUnigrams="false"/>
-        <filter class="solr.RemoveDuplicatesTokenFilterFactory"/>
+        <tokenizer name="icu"/>
+        <filter name="icuFolding"/>
+        <filter name="shingle" maxShingleSize="2" outputUnigrams="false"/>
+        <filter name="removeDuplicates"/>
       </analyzer>
     </fieldType>
     <!-- Text Field for Normalized ISBN/ISSN Numbers - take first chunk of text
@@ -74,38 +73,41 @@
          omit results that are empty after stripping. -->
     <fieldType name="isn" class="solr.TextField" positionIncrementGap="100">
       <analyzer>
-        <tokenizer class="solr.PatternTokenizerFactory" pattern="^(\S*)\s*.*$" group="1"/>
-        <filter class="solr.LowerCaseFilterFactory"/>
-        <filter class="solr.PatternReplaceFilterFactory" pattern="[^0-9x]" replacement="" replace="all"/>
-        <filter class="solr.LengthFilterFactory" min="4" max="100"/>
+        <tokenizer name="pattern" pattern="^(\S*)\s*.*$" group="1"/>
+        <filter name="lowercase"/>
+        <filter name="patternReplace" pattern="[^0-9x]" replacement="" replace="all"/>
+        <filter name="length" min="4" max="100" />
       </analyzer>
     </fieldType>
     <!-- case-insensitive/whitespace-agnostic field type for callnumber searching -->
     <fieldType name="callnumberSearch" class="solr.TextField" sortMissingLast="true" omitNorms="true">
       <analyzer>
-        <charFilter class="solr.PatternReplaceCharFilterFactory" pattern="(\s)" replacement=""/>
-        <tokenizer class="solr.KeywordTokenizerFactory"/>
-        <filter class="solr.ICUFoldingFilterFactory"/>
+        <charFilter name="patternReplace" pattern="(\s)" replacement=""/>
+        <tokenizer name="keyword"/>
+        <filter name="icuFolding"/>
       </analyzer>
     </fieldType>
     <!-- Field for SolrPrefix autocomplete -->
     <fieldType name="text_autocomplete" class="solr.TextField" positionIncrementGap="100" omitNorms="true">
       <analyzer type="index">
-        <tokenizer class="solr.WhitespaceTokenizerFactory"/>
-        <filter class="solr.ICUFoldingFilterFactory"/>
-        <filter class="solr.EdgeNGramFilterFactory" minGramSize="1" maxGramSize="25"/>
+        <tokenizer name="whitespace"/>
+        <filter name="icuFolding"/>
+        <filter name="edgeNGram" minGramSize="1" maxGramSize="25" />
       </analyzer>
       <analyzer type="query">
-        <tokenizer class="solr.WhitespaceTokenizerFactory"/>
-        <filter class="solr.ICUFoldingFilterFactory"/>
+        <tokenizer name="whitespace"/>
+        <filter name="icuFolding"/>
       </analyzer>
     </fieldType>
     <fieldType name="date" class="solr.DatePointField" sortMissingLast="true" omitNorms="true"/>
+    <fieldType name="dateRange" class="solr.DateRangeField" sortMissingLast="true" uninvertible="false"/>
     <fieldType name="random" class="solr.RandomSortField" indexed="true"/>
     <fieldType name="boolean" class="solr.BoolField" sortMissingLast="true" omitNorms="true"/>
+    <!-- add geo field to handle geographic search and display capabilities -->
+    <fieldType name="geo" class="solr.SpatialRecursivePrefixTreeFieldType" distErrPct="0.025" maxDistErr="0.000009" distanceUnits="degrees" />
   </types>
  <fields>
-   <!-- Required by Solr 4.x -->
+   <!-- Required by Solr -->
    <field name="_version_" type="long" indexed="true" stored="true"/>
    <!-- Core Fields  -->
    <field name="id" type="string" indexed="true" stored="true"/>
