@@ -9,11 +9,11 @@ SOURCE_DIR_CROWDSEC := /mnt/ZE020150/FID-Entwicklung/crowdsec
 install: deps install_analysis_icu install_crowdsec_watch
 
 deps:
-	@if [ -r /etc/debian_version ] && systemctl status crowdsec.service > /dev/null 2>&1; then \
+	@if systemctl is-enabled crowdsec.service > /dev/null 2>&1 && dpkg -s inotify-tools > /dev/null 2>&1; then \
 		echo "Installing dependencies for crowdsec-watch service."; \
 		apt-get install -y inotify-tools; \
 	else \
-		echo "Non-Debian system or crowdsec.service not installed — skipping apt installation."; \
+		echo "crowdsec.service not enabled or inotify already installed — skipping apt installation."; \
 	fi
 
 install_analysis_icu: elasticsearch-plugin-reinstall.sh 80elasticsearch-icu-reinstall
@@ -35,6 +35,7 @@ install_crowdsec_watch: \
 		install -m 755 $(SOURCE_DIR_CROWDSEC)/restart_crowdsec_on_lapi_error.sh $(SCRIPT_TARGET); \
 		install -m 644 $(SOURCE_DIR_CROWDSEC)/crowdsec-watch.service $(SERVICE_TARGET); \
 		touch /var/log/crowdsec-watch.log; \
+		install -m 644 $(SOURCE_DIR_CROWDSEC)/crowdsec-watch /etc/logrotate.d/; \
 		echo "Reloading systemd."; \
 		systemctl daemon-reload; \
 		echo "Enabling and restarting crowdsec-watch service."; \
