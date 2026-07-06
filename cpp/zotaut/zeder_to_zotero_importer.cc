@@ -280,6 +280,12 @@ bool GetValidValue(const Config::JournalParams::IniKey &key, std::string * const
     if (value->empty())
         return true;
 
+    // Special rule according to ubtue/DatenProbleme#2447
+    if (key == Config::JournalParams::IniKey::ADDITIONAL_SELECTORS and *value == "-?-") {
+        *value = "";
+        return true;
+    }
+
     if (*value == "-?-")
         return false;
 
@@ -490,7 +496,6 @@ unsigned UpdateZederEntries(const Zeder::EntryCollection &zeder_entries, Harvest
                 }
                 continue;
             }
-
             const auto ini_key_str(Config::JournalParams::GetIniKeyString(field_to_update));
             const auto ini_old_val_str(existing_journal_section->getString(ini_key_str, ""));
             auto ini_new_val_str(ZederInterop::GetJournalParamsIniValueFromZederEntry(zeder_entry, zeder_flavour, field_to_update));
