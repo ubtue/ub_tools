@@ -26,13 +26,13 @@
 Process logic:
 1. Check whether the gnd file "authorities-gnd-person_lds_*.jsonld.gz" on https://data.dnb.de/opendata/ is newer
     than the last successful parse to gnd_wiki.csv.
-    To doing this, there is a config file "/mnt/ZE020150/FID-Entwicklung/ub_tools/config_file_add_authority_ext_ref.cnf" that contain 2 lines of information the first line for the lastest successful date generating gnd_wiki data and the second line is the information about the lastest version on the web.
+    To doing this, there is a config file "/mnt/ZE020150/FID-Entwicklung/ub_tools/add_authority_external_ref.state" that containing the latest successful date generating gnd_wiki data.
     If the date of successful generating gnd_wiki (on first line) is older compare with the one on the web then:
     a. Download the newer file from the web and put it into folder "/tmp"
     b. The download file is a zip file, it needs to be extracted first
     c. Get the information needed by gnd_wiki and put it into the file "/tmp/input_file_for_add_authority_external_ref.txt" using jq:
         jq -c --stream '.' < authorities-gnd-person_lds.jsonld |grep -E 'https://d-nb\\.info/gnd/|wikidata|wikipedia' > input_file_for_add_authority_external_ref.txt
-    d. Run "add_authority_external_ref" program. This program will check whether the lastest version date is newer compare to the lastest successful date generating gnd_wiki, if so then generate a new gnd_wiki.csv file. If it success generating gnd_wiki file then update the date on the config file.
+    d. Run "add_authority_external_ref" program. This program will check whether the latest version date is newer compare to the latest successful date generating gnd_wiki, if so then generate a new gnd_wiki.csv file. If it success generating gnd_wiki file then update the date on the config file.
     e. Update the information in the config file
 
 """
@@ -134,7 +134,7 @@ def Main():
             #  c. Get the information needed by gnd_wiki and put it into the file
             print(
                 "Process 4/7 -- Parse the file and extract the essential information needed")
-            jq_prog_with_pipe = f"jq -c --stream '[.[]]' < /tmp/{newer_file_name} | grep -E 'https://d-nb\\.info/gnd/|wikidata|wikipedia' > /tmp/{input_file_name_for_add_auth}"
+            jq_prog_with_pipe = f"jq -c --stream '[.[]]' < /tmp/{newer_file_name} | grep -E 'https://d-nb\\.info/gnd/|wikidata|wikipedia|dateOfBirth' > /tmp/{input_file_name_for_add_auth}"
             if os.system(jq_prog_with_pipe) == 0:
                 # d. Run "add_authority_external_ref" program
                 print("Process 5/7 -- Generate a new gnd_wiki_file")
