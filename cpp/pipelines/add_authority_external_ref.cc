@@ -38,10 +38,11 @@
  * Scenario 1:
  * use --create_mapping_file <input_txt_file> <output_csv_file> to generate the mapping file.
  * All processes from downloading data to generating output file is managed by the script 'add_authority_external_ref.automation.py'.
- * The output_csv_file is 'gnd_to_wiki.csv', this file will be used in scenario 2.
+ * The output_csv_file is 'gnd_to_wiki.csv'. Each row contains the GND ID, Wikidata ID, Wikipedia URL, and birth year.
+ * This file will be used in scenario 2.
  *
  * Scenario 2:
- * Use the converted file from the Scenario 1 to creata a map during pipeline processing.
+ * Use the converted file from the Scenario 1 to create a map during pipeline processing.
  * The norm_data_input is extended by Wikidata ids where possible and saved to 024 field indicator1:7 where wikidata id is not yet present.
  * The data can be taken from the file '/mnt/ZE020150/FID-Entwicklung/ub_tools/gnd_to_wiki.csv'
  */
@@ -52,12 +53,18 @@
         "1) <norm_data_marc_input> <norm_data_marc_output> <mapping_txt_file>\n"
         "2) --create_mapping_file <input_txt_file> <output_csv_file>\n"
         "\tinput_txt_file: The essential information from authorities-gnd-person_lds.jsonld.\n"
-        "\toutput_csv_file: the gnd_to_wiki file to write to, it is a csv with ';' as delimiter.\n");
+        "\toutput_csv_file: the gnd_to_wiki file to write to; it is a headerless CSV with ';' as delimiter.\n");
 }
 
 
 struct GNDStructure {
-    std::string gnd_id, wikidata_personal_entity_id, wikipedia_personal_address;
+    std::string gnd_id, wikidata_personal_entity_id, wikipedia_personal_address, birth_year_from_date, birth_year_from_g_year;
+
+    std::string getBirthYear() const { return birth_year_from_date.empty() ? birth_year_from_g_year : birth_year_from_date; }
+};
+
+struct DateOfBirthStructure {
+    std::string type, value;
 };
 
 bool IsThisCloseBracketForId(const std::string &url) {
@@ -79,6 +86,21 @@ bool DoesTheUrlAddressMatch(const std::string &url_based, const std::string &url
     return false;
 }
 
+void UpdateBirthYear(const DateOfBirthStructure &date_of_birth, GNDStructure * const gnd_data) {
+    static const std::string DATE_TYPE("http://www.w3.org/2001/XMLSchema#date");
+    static const std::string G_YEAR_TYPE("http://www.w3.org/2001/XMLSchema#gYear");
+    static const std::regex YEAR_AT_START("^([[:digit:]]{4})");
+    std::smatch year_match;
+
+    if (not std::regex_search(date_of_birth.value, year_match, YEAR_AT_START))
+        return;
+
+    if (date_of_birth.type == DATE_TYPE)
+        gnd_data->birth_year_from_date = year_match[1];
+    else if (date_of_birth.type == G_YEAR_TYPE)
+        gnd_data->birth_year_from_g_year = year_match[1];
+}
+
 bool GenerateGNDAuthorityExternalRef(char *argv[]) {
     const auto load_file_start(std::chrono::high_resolution_clock::now());
     std::ifstream input_file(argv[2]);
@@ -92,9 +114,11 @@ bool GenerateGNDAuthorityExternalRef(char *argv[]) {
     const std::string dnb_address("https://d-nb.info/gnd/");
     const std::string wikidata_address("http://www.wikidata.org/entity/");
     const std::string wikipedia_address("https://de.wikipedia.org/wiki/");
+    const std::string date_of_birth_address("https://d-nb.info/standards/elementset/gnd#dateOfBirth");
     std::string gnd_id;
     bool is_start_group(false);
     GNDStructure gnd_data;
+    std::unordered_map<std::string, DateOfBirthStructure> date_of_birth_by_path;
     int top_level_number(-1), total_numbers_of_gnd_id_generated(0), total_number_of_wikidata(0), total_number_of_wikipedia(0);
     const int dnb_add_str_length(dnb_address.length()), wikidata_address_str_length(wikidata_address.length());
     std::string line, id_annotaton(""), second_element_of_array;
@@ -131,11 +155,13 @@ bool GenerateGNDAuthorityExternalRef(char *argv[]) {
                 if (IsThisCloseBracketForId(line_parsed[1])) {
                     csv_file->write(TextUtil::CSVEscape(gnd_data.gnd_id) + ";");
                     csv_file->write(TextUtil::CSVEscape(gnd_data.wikidata_personal_entity_id) + ";");
-                    csv_file->write(TextUtil::CSVEscape(gnd_data.wikipedia_personal_address) + "\n");
+                    csv_file->write(TextUtil::CSVEscape(gnd_data.wikipedia_personal_address) + ";");
+                    csv_file->write(TextUtil::CSVEscape(gnd_data.getBirthYear()) + "\n");
                     top_level_number = -1;
                     is_start_group = false;
                     gnd_id_temp_string = "";
                     gnd_data = {};
+                    date_of_birth_by_path.clear();
                 }
             }
 
@@ -157,6 +183,20 @@ bool GenerateGNDAuthorityExternalRef(char *argv[]) {
                                     wikidata_address_str_length + 1, (wikidata_temp_string.length() - (wikidata_address_str_length + 2)));
 
                                 ++total_number_of_wikidata;
+                            }
+
+                            if (line_parsed[0][2].get<std::string>() == date_of_birth_address) {
+                                nlohmann::json date_of_birth_path(line_parsed[0]);
+                                const std::string date_of_birth_attribute(date_of_birth_path.back().get<std::string>());
+                                date_of_birth_path.erase(--date_of_birth_path.end());
+                                DateOfBirthStructure &date_of_birth(date_of_birth_by_path[date_of_birth_path.dump()]);
+                                if (date_of_birth_attribute == "@type")
+                                    date_of_birth.type = line_parsed[1].get<std::string>();
+                                else if (date_of_birth_attribute == "@value")
+                                    date_of_birth.value = line_parsed[1].get<std::string>();
+
+                                if (not date_of_birth.type.empty() and not date_of_birth.value.empty())
+                                    UpdateBirthYear(date_of_birth, &gnd_data);
                             }
                         }
                     }
