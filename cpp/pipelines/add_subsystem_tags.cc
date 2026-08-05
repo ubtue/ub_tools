@@ -43,7 +43,8 @@ namespace {
 // See https://github.com/ubtue/tuefind/wiki/Daten-Abzugskriterien#abzugskriterien-bibelwissenschaften, both entries Nr. 6 in order
 // to understand this implementation.
 void CollectGNDNumbers(MARC::Reader * const authority_reader, std::unordered_set<std::string> * const bible_studies_gnd_numbers,
-                       std::unordered_set<std::string> * const canon_law_gnd_numbers) {
+                       std::unordered_set<std::string> * const canon_law_gnd_numbers,
+                       std::unordered_set<std::string> * const augustine_gnd_numbers) {
     unsigned record_count(0);
     while (MARC::Record record = authority_reader->read()) {
         ++record_count;
@@ -62,6 +63,11 @@ void CollectGNDNumbers(MARC::Reader * const authority_reader, std::unordered_set
                 std::string gnd_code;
                 if (MARC::GetGNDCode(record, &gnd_code))
                     canon_law_gnd_numbers->emplace(gnd_code);
+            }
+            if (subfields.hasSubfieldWithValue('2', "ssau")) {
+                std::string gnd_code;
+                if (MARC::GetGNDCode(record, &gnd_code))
+                    augustine_gnd_numbers->emplace(gnd_code);
             }
         }
     }
@@ -363,7 +369,7 @@ bool IsCanonLawRecord(const MARC::Record &record, const std::unordered_set<std::
 }
 
 /* Need to specify the rules for identifying Augustine records */
-bool isAugustineRecord(const MARC::Record &record, const std::unordered_set<std::string> &augustine_gnd_numbers) {
+bool IsAugustineRecord(const MARC::Record &record, const std::unordered_set<std::string> &augustine_gnd_numbers) {
     // 1. Abrufzeichen
     for (const auto &field : record.getTagRange("935")) {
         if (field.hasSubfieldWithValue('a', "AUGU"))
@@ -473,12 +479,14 @@ void TagTitlesKrimdok(MARC::Reader * const title_reader, MARC::Writer * const ti
 
 void ExtractAuthorsIxtheo(MARC::Reader * const title_reader, std::unordered_map<std::string, std::map<std::string, int>> * const authors,
                           const std::unordered_set<std::string> &bible_studies_gnd_numbers,
-                          const std::unordered_set<std::string> &canon_law_gnd_numbers) {
+                          const std::unordered_set<std::string> &canon_law_gnd_numbers,
+                          const std::unordered_set<std::string> &augustine_gnd_numbers) {
     static std::vector<std::string> tags_to_check{ "100", "110", "111", "700", "710", "711" };
     while (const MARC::Record record = title_reader->read()) {
         bool is_relbib_record = IsRelBibRecord(record);
         bool is_canonlaw_record = IsCanonLawRecord(record, canon_law_gnd_numbers);
         bool is_biblestudies_record = IsBibleStudiesRecord(record, bible_studies_gnd_numbers);
+        bool is_augustine_record = IsAugustineRecord(record, augustine_gnd_numbers);
 
         for (auto tag_to_check : tags_to_check) {
             for (auto &field : record.getTagRange(tag_to_check)) {
@@ -497,6 +505,10 @@ void ExtractAuthorsIxtheo(MARC::Reader * const title_reader, std::unordered_map<
                     }
                     if (is_biblestudies_record) {
                         auto it_author_count = it_author->second.emplace("b", 0).first;
+                        (it_author_count->second)++;
+                    }
+                    if (is_augustine_record) {
+                        auto it_author_count = it_author->second.emplace("g", 0).first;
                         (it_author_count->second)++;
                     }
                     auto it_author_count = it_author->second.emplace("i", 0).first;
