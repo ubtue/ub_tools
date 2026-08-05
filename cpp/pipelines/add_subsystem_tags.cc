@@ -362,13 +362,31 @@ bool IsCanonLawRecord(const MARC::Record &record, const std::unordered_set<std::
     return false;
 }
 
+/* Need to specify the rules for identifying Augustine records */
+bool isAugustineRecord(const MARC::Record &record, const std::unordered_set<std::string> &augustine_gnd_numbers) {
+    // 1. Abrufzeichen
+    for (const auto &field : record.getTagRange("935")) {
+        if (field.hasSubfieldWithValue('a', "AUGU"))
+            return true;
+    }
 
-enum SubSystem { RELBIB, BIBSTUDIES, CANON_LAW, NUM_OF_SUBSYSTEMS };
+    // 2. Titel, die mit einem Normsatz verknüpft sind, der die GND Systematik enthält
+    const auto gnd_references(record.getReferencedGNDNumbers());
+    for (const auto &gnd_reference : gnd_references) {
+        if (augustine_gnd_numbers.find(gnd_reference) != augustine_gnd_numbers.cend())
+            return true;
+    }
+
+    return false;
+}
+
+enum SubSystem { RELBIB, BIBSTUDIES, CANON_LAW, AUGUSTINE, NUM_OF_SUBSYSTEMS };
 
 
 // Get set of immediately belonging or superior or parallel records
 void GetSubsystemPPNSet(MARC::Reader * const title_reader, const std::unordered_set<std::string> &bible_studies_gnd_numbers,
                         const std::unordered_set<std::string> &canon_law_gnd_numbers,
+                        const std::unordered_set<std::string> &augustine_gnd_numbers,
                         std::vector<std::unordered_set<std::string>> * const subsystem_sets) {
     while (const MARC::Record record = title_reader->read()) {
         if (IsRelBibRecord(record)) {
@@ -383,11 +401,16 @@ void GetSubsystemPPNSet(MARC::Reader * const title_reader, const std::unordered_
             ((*subsystem_sets)[CANON_LAW]).emplace(record.getControlNumber());
             CollectSuperiorOrParallelWorks(record, &((*subsystem_sets)[CANON_LAW]));
         }
+        if (IsAugustineRecord(record, augustine_gnd_numbers)) {
+            ((*subsystem_sets)[AUGUSTINE]).emplace(record.getControlNumber());
+            CollectSuperiorOrParallelWorks(record, &((*subsystem_sets)[AUGUSTINE]));
+        }
     }
 
     LOG_INFO("collected " + std::to_string((*subsystem_sets)[RELBIB].size()) + " RelBib PPN's.");
     LOG_INFO("collected " + std::to_string((*subsystem_sets)[BIBSTUDIES].size()) + " BibStudies PPN's.");
     LOG_INFO("collected " + std::to_string((*subsystem_sets)[CANON_LAW].size()) + " CanonLaw PPN's.");
+    LOG_INFO("collected " + std::to_string((*subsystem_sets)[AUGUSTINE].size()) + " Augustine PPN's.");
 }
 
 
@@ -396,6 +419,7 @@ const std::string BIBSTUDIES_TAG("BIB");
 const std::string CANON_LAW_TAG("CAN");
 const std::string IXTHEO_TAG("IXT");
 const std::string KRIMDOK_TAG("KRI");
+const std::string AUGUSTINE_TAG("AUG");
 
 
 void TagTitlesIxtheo(MARC::Reader * const title_reader, MARC::Writer * const title_writer,
@@ -417,6 +441,11 @@ void TagTitlesIxtheo(MARC::Reader * const title_reader, MARC::Writer * const tit
         if ((subsystem_sets[CANON_LAW]).find(record.getControlNumber()) != subsystem_sets[CANON_LAW].end()) {
             AddSubsystemTag(&record, CANON_LAW_TAG); // remove after migration
             record.addSubfieldCreateFieldUnique("SUB", 'a', CANON_LAW_TAG);
+            modified_record = true;
+        }
+        if ((subsystem_sets[AUGUSTINE]).find(record.getControlNumber()) != subsystem_sets[AUGUSTINE].end()) {
+            AddSubsystemTag(&record, AUGUSTINE_TAG); // remove after migration
+            record.addSubfieldCreateFieldUnique("SUB", 'a', AUGUSTINE_TAG);
             modified_record = true;
         }
         if (modified_record)
@@ -513,6 +542,8 @@ void TagAuthorsIxtheo(MARC::Reader * const authority_reader, MARC::Writer * cons
                 tit_instances.push_back({ 'a', "biblestudies" });
             if (instances.find("c") != instances.end())
                 tit_instances.push_back({ 'a', "canonlaw" });
+            if (instances.find("g") != instances.end())
+                tit_instances.push_back({ 'a', "augustine" });
             record.insertField("TIT", tit_instances);
 
             // New "SUB" to keep it similar to title records
@@ -524,6 +555,8 @@ void TagAuthorsIxtheo(MARC::Reader * const authority_reader, MARC::Writer * cons
                 record.insertField("SUB", { { 'a', CANON_LAW_TAG }, { 'b', std::to_string(instances.find("c")->second) } });
             if (instances.find("i") != instances.end())
                 record.insertField("SUB", { { 'a', IXTHEO_TAG }, { 'b', std::to_string(instances.find("i")->second) } });
+            if (instances.find("g") != instances.end())
+                record.insertField("SUB", { { 'g', AUGUSTINE_TAG }, { 'b', std::to_string(instances.find("g")->second) } });
         }
         authority_writer->write(record);
     }
@@ -569,13 +602,14 @@ int Main(int argc, char **argv) {
     std::unordered_map<std::string, std::map<std::string, int>> authors;
 
     if (system_type == "ixtheo") {
-        std::unordered_set<std::string> bible_studies_gnd_numbers, canon_law_gnd_numbers;
-        CollectGNDNumbers(authority_reader.get(), &bible_studies_gnd_numbers, &canon_law_gnd_numbers);
+        std::unordered_set<std::string> bible_studies_gnd_numbers, canon_law_gnd_numbers, augustine_gnd_numbers;
+        CollectGNDNumbers(authority_reader.get(), &bible_studies_gnd_numbers, &canon_law_gnd_numbers, &augustine_gnd_numbers);
         authority_reader->rewind();
-        ExtractAuthorsIxtheo(title_reader.get(), &authors, bible_studies_gnd_numbers, canon_law_gnd_numbers);
+        ExtractAuthorsIxtheo(title_reader.get(), &authors, bible_studies_gnd_numbers, canon_law_gnd_numbers, augustine_gnd_numbers);
         title_reader->rewind();
-        GetSubsystemPPNSet(title_reader.get(), bible_studies_gnd_numbers, canon_law_gnd_numbers, &subsystem_sets);
+        GetSubsystemPPNSet(title_reader.get(), bible_studies_gnd_numbers, canon_law_gnd_numbers, augustine_gnd_numbers, &subsystem_sets);
         title_reader->rewind();
+
     } else if (system_type == "krimdok") {
         ExtractAuthorsKrimdok(title_reader.get(), &authors);
         title_reader->rewind();

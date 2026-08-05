@@ -39,6 +39,7 @@ struct TitleRecordCounter {
     unsigned religious_studies_count_;
     unsigned bibstudies_count_;
     unsigned canonlaw_count_;
+    unsigned augustine_count_;
 
 public:
     TitleRecordCounter(): total_count_(0), religious_studies_count_(0) { }
@@ -52,9 +53,13 @@ public:
     inline bool exceedsCanonLawThreshold() const {
         return 100.0 * static_cast<double>(canonlaw_count_) / static_cast<double>(total_count_) >= 10.0 /* percent */;
     }
+    inline bool exceedsAugustineThreshold() const {
+        return 100.0 * static_cast<double>(augustine_count_) / static_cast<double>(total_count_) >= 10.0 /* percent */;
+    }
     inline bool hasReligiousStudies() const { return religious_studies_count_ > 0; }
     inline bool hasBibStudies() const { return bibstudies_count_ > 0; }
     inline bool hasCanonLaw() const { return canonlaw_count_ > 0; }
+    inline bool hasAugustine() const { return augustine_count_ > 0; }
 };
 
 
@@ -69,6 +74,8 @@ void CopyMarcAndCollectSubsystemFrequencies(
             record.findTag("BIB") != record.end() /*remove after migration*/ or record.hasFieldWithSubfieldValue("SUB", 'a', "BIB"));
         const bool can_tag_found(
             record.findTag("CAN") != record.end() /*remove after migration*/ or record.hasFieldWithSubfieldValue("SUB", 'a', "CAN"));
+        const bool aug_tag_found(
+            record.findTag("AUG") != record.end() /*remove after migration*/ or record.hasFieldWithSubfieldValue("SUB", 'a', "AUG"));
 
         for (const auto &author_name_and_author_ppn : record.getAllAuthorsAndPPNs()) {
             auto author_ppn_and_counter(author_ppn_to_subsystem_title_counters->find(author_name_and_author_ppn.second));
@@ -83,6 +90,8 @@ void CopyMarcAndCollectSubsystemFrequencies(
                 ++(author_ppn_and_counter->second.bibstudies_count_);
             if (can_tag_found)
                 ++(author_ppn_and_counter->second.canonlaw_count_);
+            if (aug_tag_found)
+                ++(author_ppn_and_counter->second.augustine_count_);
         }
 
         title_writer->write(record);
@@ -237,6 +246,11 @@ void LoadAuthorGNDNumbersAndTagAuthors(
                     SetSubsystemCounter(record, "CAN", 1);
                     ++tagged_count;
                 }
+                if (subsystem_record_counter.augustine_count_ > 0) {
+                    record.insertField("AUG", { { 'a', "1" }, { 'o', FileUtil::GetBasename(::progname) } }); // remove after migration
+                    SetSubsystemCounter(record, "AUG", 1);
+                    ++tagged_count;
+                }
             }
         }
 
@@ -337,6 +351,10 @@ void AppendLiteraryRemainsRecords(
                 if (author_ppn_and_subsystem_titles_counter->second.hasCanonLaw()) {
                     new_record.insertField("CAN", { { 'a', "1" }, { 'o', FileUtil::GetBasename(::progname) } }); // remove after migration
                     new_record.addSubfieldCreateFieldUnique("SUB", 'a', "CAN");
+                }
+                if (author_ppn_and_subsystem_titles_counter->second.hasAugustine()) {
+                    new_record.insertField("AUG", { { 'a', "1" }, { 'o', FileUtil::GetBasename(::progname) } }); // remove after migration
+                    new_record.addSubfieldCreateFieldUnique("SUB", 'a', "AUG");
                 }
             }
         }
