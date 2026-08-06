@@ -370,13 +370,19 @@ bool IsCanonLawRecord(const MARC::Record &record, const std::unordered_set<std::
 
 /* Need to specify the rules for identifying Augustine records */
 bool IsAugustineRecord(const MARC::Record &record, const std::unordered_set<std::string> &augustine_gnd_numbers) {
-    // 1. Abrufzeichen
+    // 1. Checking for specific values in the 935 field that indicate Augustine records
     for (const auto &field : record.getTagRange("935")) {
-        if (field.hasSubfieldWithValue('a', "AUGU"))
+        if (field.hasSubfieldWithValue('a', "AUGU") or field.hasSubfieldWithValue('a', "bami") or field.hasSubfieldWithValue('a', "wumi"))
             return true;
     }
 
-    // 2. Titel, die mit einem Normsatz verknüpft sind, der die GND Systematik enthält
+    // 2. Checking by Location code in the 852a
+    for (const auto &field : record.getTagRange("852")) {
+        if (field.hasSubfieldWithValue('a', "DE-4020")
+            return true;
+    }
+
+    // 3. Titles that are linked to an authority record that contains the GND systematics
     const auto gnd_references(record.getReferencedGNDNumbers());
     for (const auto &gnd_reference : gnd_references) {
         if (augustine_gnd_numbers.find(gnd_reference) != augustine_gnd_numbers.cend())
@@ -568,7 +574,7 @@ void TagAuthorsIxtheo(MARC::Reader * const authority_reader, MARC::Writer * cons
             if (instances.find("i") != instances.end())
                 record.insertField("SUB", { { 'a', IXTHEO_TAG }, { 'b', std::to_string(instances.find("i")->second) } });
             if (instances.find("g") != instances.end())
-                record.insertField("SUB", { { 'g', AUGUSTINE_TAG }, { 'b', std::to_string(instances.find("g")->second) } });
+                record.insertField("SUB", { { 'a', AUGUSTINE_TAG }, { 'b', std::to_string(instances.find("g")->second) } });
         }
         authority_writer->write(record);
     }
