@@ -64,6 +64,11 @@ void CollectGNDNumbers(MARC::Reader * const authority_reader, std::unordered_set
                 if (MARC::GetGNDCode(record, &gnd_code))
                     canon_law_gnd_numbers->emplace(gnd_code);
             }
+            /*  Check for Augustine records based on the GND systematics, need to clarify the exact criteria for identifying Augustine
+             * records in the GND systematics with the relevant authorities. For now, we will check for the presence of the "ssau" subfield
+             * in the 065 field. The word "ssau" is just our current best guess and may need to be updated based on further information from
+             * the authorities.
+             */
             if (subfields.hasSubfieldWithValue('2', "ssau")) {
                 std::string gnd_code;
                 if (MARC::GetGNDCode(record, &gnd_code))
@@ -73,8 +78,8 @@ void CollectGNDNumbers(MARC::Reader * const authority_reader, std::unordered_set
     }
 
     LOG_INFO("Processed " + std::to_string(record_count) + " authority record(s) and found "
-             + std::to_string(bible_studies_gnd_numbers->size()) + " bible studies and " + std::to_string(canon_law_gnd_numbers->size())
-             + " canon law GND number(s).");
+             + std::to_string(bible_studies_gnd_numbers->size()) + " bible studies, " + std::to_string(canon_law_gnd_numbers->size())
+             + " canon law GND number(s), and " + std::to_string(augustine_gnd_numbers->size()) + " augustine GND number(s).");
 }
 
 
