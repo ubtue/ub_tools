@@ -435,7 +435,7 @@ EndPhase || Abort) &
 wait
 
 
-StartPhase "Patch Transitive Church Law, Religous Studies and Bible Studies Records"
+StartPhase "Patch Transitive Church Law, Religous Studies, Bible Studies, and Augustine Records"
 (find_transitive_record_set GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                             GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc 2>&1 \
                             dangling_references.list && \

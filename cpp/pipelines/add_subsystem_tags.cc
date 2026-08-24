@@ -383,7 +383,7 @@ bool IsAugustineRecord(const MARC::Record &record, const std::unordered_set<std:
 
     // 2. Checking by Location code in the 852a
     for (const auto &field : record.getTagRange("852")) {
-        if (field.hasSubfieldWithValue('a', "DE-4020")
+        if (field.hasSubfieldWithValue('a', "DE-4020"))
             return true;
     }
 
