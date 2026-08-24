@@ -50,6 +50,7 @@ MARC::Record GenerateBundleRecord(const std::string &record_id, const std::strin
     const bool include_relbib(std::find(instances.begin(), instances.end(), "relbib") != instances.end());
     const bool include_bibstudies(std::find(instances.begin(), instances.end(), "bibstudies") != instances.end());
     const bool include_churchlaw(std::find(instances.begin(), instances.end(), "churchlaw") != instances.end());
+    const bool include_augustine(std::find(instances.begin(), instances.end(), "augustine") != instances.end());
     MARC::Record record("00000nac a2200000 u 4500");
     record.insertField("001", record_id);
     record.insertField("005", "20" + today + "12000000.0:");
@@ -87,6 +88,10 @@ MARC::Record GenerateBundleRecord(const std::string &record_id, const std::strin
     if (include_churchlaw) {
         record.insertField("CAN", { { 'a', "1" } }); // remove after migration
         record.addSubfieldCreateFieldUnique("SUB", 'a', "CAN");
+    }
+    if (include_augustine) {
+        record.insertField("AUG", { { 'a', "1" } }); // remove after migration
+        record.addSubfieldCreateFieldUnique("SUB", 'a', "AUG");
     }
 
     std::vector<MARC::Subfield> elc_subfields;

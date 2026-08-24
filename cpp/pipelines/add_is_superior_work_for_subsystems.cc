@@ -63,6 +63,9 @@ void CollectSubsystemInfo(MARC::Reader * const marc_reader,
             /*if (record.hasSubfieldWithValue("SUB", 'a', "REL"))*/
             if (record.hasTag("REL")) // remove after migration
                 superior_ppn_and_subsystem_types->second.emplace("REL");
+            /*if (record.hasSubfieldWithValue("SUB", 'a', "AUG"))*/
+            if (record.hasTag("AUG")) // remove after migration
+                superior_ppn_and_subsystem_types->second.emplace("AUG");
         }
     }
 
