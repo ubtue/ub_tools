@@ -833,7 +833,7 @@ void ConfigureVuFind(const bool production, const VuFindSystemType vufind_system
     ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("sudo"), { "npm", "install" });
 
     Echo("Building CSS");
-    ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("grunt"), { "less" });
+    ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("npm"), { "run", "build" });
 
     const std::string vufind_system_type_string(VuFindSystemTypeToString(vufind_system_type));
     Echo("Starting configuration for " + vufind_system_type_string);
