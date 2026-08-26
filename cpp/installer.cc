@@ -888,8 +888,8 @@ void ConfigureVuFind(const bool production, const VuFindSystemType vufind_system
     Echo("Generating HMAC hash");
     const std::string HMAC_FILE_PATH(VUFIND_LOCAL_OVERRIDES_DIRECTORY + "/hmac.conf");
     if (not FileUtil::Exists(HMAC_FILE_PATH))
-        FileUtil::WriteStringOrDie(HMAC_FILE_PATH,
-                                   StringUtil::GenerateRandom(/*length=*/32, /*alphabet=*/"abcdefghijklmnopqrstuvwxyz0123456789"));
+        FileUtil::WriteStringOrDie(
+            HMAC_FILE_PATH, "HMACkey = " + StringUtil::GenerateRandom(/*length=*/32, /*alphabet=*/"abcdefghijklmnopqrstuvwxyz0123456789"));
 
     Echo(vufind_system_type_string + " configuration completed!");
 }
