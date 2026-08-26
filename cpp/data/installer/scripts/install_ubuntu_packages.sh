@@ -28,7 +28,7 @@ apt-get --yes install sudo wget
 # install software-properties-common for apt-add-repository
 apt-get --yes install software-properties-common
 curl -fsSL https://artifacts.elastic.co/GPG-KEY-elasticsearch | gpg --dearmor -o /etc/apt/keyrings/elastic-archive-keyring.gpg
-apt-add-repository --yes --update 'deb https://artifacts.elastic.co/packages/8.x/apt stable main'
+apt-add-repository --yes --update 'deb [signed-by=/etc/apt/keyrings/elastic-archive-keyring.gpg] https://artifacts.elastic.co/packages/8.x/apt stable main'
 apt-add-repository --yes --update 'ppa:alex-p/tesseract-ocr5'
 
 
@@ -41,7 +41,6 @@ apt-get --quiet --yes --allow-unauthenticated install \
         poppler-utils postgresql-client python3 python3-paramiko rsync sqlite3 tesseract-ocr tesseract-ocr-all \
         expect-dev tidy unzip uuid-dev xsltproc
 
-dpkg -l | grep -E 'gcc|g\+\+|libstdc\+\+'
 # Explicitly enable mod_cgi. If we would use `a2enmod cgi`, it would enable mod_cgid, which would fail on apache startup.
 a2enmod cgi
 
@@ -80,19 +79,19 @@ fi
 #---------------------------------- TUEFIND ---------------------------------#
 if [[ $1 == "ixtheo" || $1 == "krimdok" ]]; then
     ColorEcho "installing/updating tuefind dependencies..."
-    # 22.04 uses 8.1 by default, but we want to use 8.3 due to longer support period
+    # 26.04 uses 8.5 by default
     # Also, we use php-fpm with fcgi instead of libapache2-mod-php to avoid HTTP/2 compatibility issues with mpm_prefork.
     add-apt-repository --yes --update ppa:ondrej/php
     apt-get --quiet --yes install \
         composer npm node-grunt-cli \
-        php8.4 php8.4-curl php8.4-gd php8.4-intl php8.4-ldap php8.4-mbstring php8.4-memcached php8.4-mysql php8.4-soap php8.4-xml \
-        php8.4-fpm
+        php php-curl php-gd php-intl php-ldap php-mbstring php-memcached php-mysql php-soap php-xml \
+        php-fpm
 
-    update-alternatives --set php /usr/bin/php8.3
+    update-alternatives --set php /usr/bin/php8.5
 
     a2dismod mpm_prefork
     a2enmod mpm_event proxy_fcgi http2 rewrite setenvif ssl
-    a2enconf php8.4-fpm
+    a2enconf php-fpm
     /etc/init.d/apache2 restart
 fi
 

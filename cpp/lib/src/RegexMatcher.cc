@@ -54,7 +54,7 @@ std::string ThreadSafeRegexMatcher::MatchResult::operator[](const unsigned group
 }
 
 
-bool CompileRegex(const std::string &pattern, const unsigned options, ::pcre **pcre_arg, ::pcre_extra **pcre_extra_arg,
+bool CompileRegex(const std::string &pattern, const unsigned options, ::pcre2_code **pcre_arg, ::pcre_extra **pcre_extra_arg,
                   std::string * const err_msg) {
     if (err_msg != nullptr)
         err_msg->clear();
@@ -243,7 +243,7 @@ RegexMatcher *RegexMatcher::RegexMatcherFactory(const std::string &pattern, std:
         RegexMatcher::utf8_configured_ = true;
     }
 
-    ::pcre *pcre_ptr;
+    ::pcre2_code *pcre_ptr;
     ::pcre_extra *pcre_extra_ptr;
     if (not CompileRegex(pattern, options, &pcre_ptr, &pcre_extra_ptr, err_msg)) {
         if (err_msg != nullptr and err_msg->empty())

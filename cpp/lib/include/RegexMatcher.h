@@ -19,12 +19,13 @@
  */
 #pragma once
 
+#define PCRE2_CODE_UNIT_WIDTH 8
 
 #include <memory>
 #include <stdexcept>
 #include <string>
 #include <vector>
-#include <pcre.h>
+#include <pcre2.h>
 
 
 class ThreadSafeRegexMatcher {
@@ -54,7 +55,7 @@ public:
     // We need this wrapper class to use the incomplete
     // PCRE types with the STL smart pointers
     struct PcreData {
-        ::pcre *pcre_;
+        ::pcre2_code *pcre_;
         ::pcre_extra *pcre_extra_;
 
     public:
@@ -100,7 +101,7 @@ class RegexMatcher {
     static bool utf8_configured_;
     std::string pattern_;
     unsigned options_;
-    pcre *pcre_;
+    pcre2_code *pcre_;
     pcre_extra *pcre_extra_;
     static constexpr size_t MAX_SUBSTRING_MATCHES = 20;
     mutable std::string last_subject_;
@@ -208,7 +209,7 @@ public:
     static std::string Escape(const std::string &subpattern);
 
 private:
-    RegexMatcher(const std::string &pattern, const unsigned options, pcre * const pcre_arg, pcre_extra * const pcre_extra_arg)
+    RegexMatcher(const std::string &pattern, const unsigned options, pcre2_code * const pcre_arg, pcre_extra * const pcre_extra_arg)
         : pattern_(pattern), options_(options), pcre_(pcre_arg), pcre_extra_(pcre_extra_arg),
           substr_vector_((1 + MAX_SUBSTRING_MATCHES) * 3), last_match_count_(0) { }
 };

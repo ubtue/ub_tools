@@ -327,7 +327,7 @@ bool PerlCompatRegExp::IsValid(const std::string &test_pattern) {
     const char *err_ptr;
     int err_offset;
     UpdateCharacterTable();
-    pcre *compiled_pattern = ::pcre_compile(test_pattern.c_str(), 0, &err_ptr, &err_offset, PerlCompatRegExp::GetCharacterTable());
+    pcre2_code *compiled_pattern = ::pcre_compile(test_pattern.c_str(), 0, &err_ptr, &err_offset, PerlCompatRegExp::GetCharacterTable());
     if (compiled_pattern == nullptr)
         return false;
     else {

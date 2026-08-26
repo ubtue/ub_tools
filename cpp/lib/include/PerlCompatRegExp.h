@@ -26,12 +26,13 @@
  */
 #pragma once
 
+#define PCRE2_CODE_UNIT_WIDTH 8
 
 #include <list>
 #include <stdexcept>
 #include <string>
 #include <vector>
-#include <pcre.h>
+#include <pcre2.h>
 
 
 /** \class  PerlCompatRegExp
@@ -39,7 +40,7 @@
  */
 class PerlCompatRegExp {
     mutable std::string subject_text_; // The "subject text" to be processed.
-    pcre *compiled_pattern_;
+    pcre2_code *compiled_pattern_;
     pcre_extra *extra_pattern_info_;
     mutable unsigned substring_match_count_;
     std::string pattern_;
