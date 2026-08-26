@@ -811,19 +811,18 @@ void ConfigureVuFind(const bool production, const VuFindSystemType vufind_system
     TemporaryChDir tmp2(VUFIND_DIRECTORY);
 
     // Copy Solr Installation file from network drive if exists (fallback will be to download, which might take ages)
-    const std::string VUFIND_DOWNLOADS_DIR_REMOTE("/mnt/ZE020150/FID-Entwicklung/");
-    const std::string VUFIND_DOWNLOADS_DIR_LOCAL(VUFIND_DIRECTORY + "/downloads/");
+    const std::string VUFIND_DOWNLOADS_DIR_REMOTE("/mnt/ZE020150/FID-Entwicklung");
+    const std::string VUFIND_DOWNLOADS_DIR_LOCAL(VUFIND_DIRECTORY + "/downloads");
     FileUtil::Directory vufind_downloads_dir(VUFIND_DOWNLOADS_DIR_REMOTE);
     for (const auto entry : vufind_downloads_dir) {
         if (entry.getType() == DT_REG && RegexMatcher::Matched("solr-\\d+\\.\\d+\\.\\d\\.tgz", entry.getName())) {
-            const std::string target_path(VUFIND_DOWNLOADS_DIR_LOCAL + entry.getName());
+            const std::string target_path(VUFIND_DOWNLOADS_DIR_LOCAL + "/" + entry.getName());
             if (not FileUtil::Exists(target_path)) {
                 Echo("Copying " + entry.getFullName() + " to " + target_path);
                 FileUtil::CopyOrDie(entry.getFullName(), target_path);
             }
         }
     }
-
 
     Echo("Installing VuFind dependencies from Composer");
     ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("php"), { "-d", "default_socket_timeout=600", ExecUtil::LocateOrDie("composer"), "install" });
