@@ -46,6 +46,7 @@
 #include "FileUtil.h"
 #include "IniFile.h"
 #include "MiscUtil.h"
+#include "RegexMatcher.h"
 #include "Solr.h"
 #include "StringUtil.h"
 #include "SystemdUtil.h"
@@ -808,9 +809,23 @@ void ConfigureVuFind(const bool production, const VuFindSystemType vufind_system
     // We need to increase default_socket_timeout for big downloads on slow mirrors, especially Solr (default 60 seconds) .
     TemporaryChDir tmp2(VUFIND_DIRECTORY);
 
+    // Copy Solr Installation file from network drive if exists (fallback will be to download, which might take ages)
+    const std::string VUFIND_DOWNLOADS_DIR_REMOTE("/mnt/ZE020150/FID-Entwicklung/");
+    const std::string VUFIND_DOWNLOADS_DIR_LOCAL(VUFIND_DIRECTORY + "downloads/");
+    FileUtil::Directory vufind_downloads_dir(VUFIND_DOWNLOADS_DIR_REMOTE);
+    for (const auto entry : vufind_downloads_dir) {
+        if (entry.getType() == DT_REG && RegexMatcher::Matched("solr-\\d+\\.\\d+\\.\\d\\.tgz", entry.getName())) {
+            const std::string target_path(VUFIND_DOWNLOADS_DIR_LOCAL + entry.getName());
+            if (not FileUtil::Exists(target_path)) {
+                Echo("Copying " + entry.getFullName() + " to " + target_path);
+                FileUtil::CopyOrDie(entry.getFullName(), target_path);
+            }
+        }
+    }
+
+
     Echo("Installing VuFind dependencies from Composer");
     ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("php"), { "-d", "default_socket_timeout=600", ExecUtil::LocateOrDie("composer"), "install" });
-
 
     Echo("Installing VuFind dependencies from NPM");
     // We explicitly need to use sudo here, even if we're already root, or it will fail, see
@@ -818,7 +833,7 @@ void ConfigureVuFind(const bool production, const VuFindSystemType vufind_system
     ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("sudo"), { "npm", "install" });
 
     Echo("Building CSS");
-    ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("grunt"), { "less" });
+    ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("npm"), { "run", "build" });
 
     const std::string vufind_system_type_string(VuFindSystemTypeToString(vufind_system_type));
     Echo("Starting configuration for " + vufind_system_type_string);
