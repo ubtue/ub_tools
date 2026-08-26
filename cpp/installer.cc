@@ -813,6 +813,8 @@ void ConfigureVuFind(const bool production, const VuFindSystemType vufind_system
     // Copy Solr Installation file from network drive if exists (fallback will be to download, which might take ages)
     const std::string VUFIND_DOWNLOADS_DIR_REMOTE("/mnt/ZE020150/FID-Entwicklung");
     const std::string VUFIND_DOWNLOADS_DIR_LOCAL(VUFIND_DIRECTORY + "/downloads");
+    if (not FileUtil::Exists(VUFIND_DOWNLOADS_DIR_LOCAL))
+        FileUtil::MakeDirectoryOrDie(VUFIND_DOWNLOADS_DIR_LOCAL);
     FileUtil::Directory vufind_downloads_dir(VUFIND_DOWNLOADS_DIR_REMOTE);
     for (const auto entry : vufind_downloads_dir) {
         if (entry.getType() == DT_REG && RegexMatcher::Matched("solr-\\d+\\.\\d+\\.\\d\\.tgz", entry.getName())) {
