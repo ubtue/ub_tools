@@ -1,8 +1,9 @@
 /** \brief A tool for installing IxTheo and KrimDok from scratch on Ubuntu systems.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
+ *  \author Mario Trojan (mario.trojan@uni-tuebingen.de)
  *  \author Steven Lolong (steven.lolong@uni-tuebingen.de)
  *
- *  \copyright 2016-2024 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2016-2026 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -409,7 +410,7 @@ void InstallSoftwareDependencies(const std::string vufind_system_type_string, co
         Echo("Starting systemctl for Apache2 and MySQL");
         std::string apache_unit_name("apache2");
         std::string mysql_unit_name("mysql");
-        std::string php_unit_name("php8.3-fpm");
+        std::string php_unit_name("php8.4-fpm");
         SystemdEnableAndRunUnit(apache_unit_name);
         SystemdEnableAndRunUnit(mysql_unit_name);
         SystemdEnableAndRunUnit(php_unit_name);
@@ -708,7 +709,7 @@ void ConfigureApacheUser() {
     FileUtil::ChangeOwnerOrDie(UBTools::GetTueFindLogPath(), username, username, /*recursive=*/true);
 
     // Also change user for php-fpm service
-    config_filename = "/etc/php/8.3/fpm/pool.d/www.conf";
+    config_filename = "/etc/php/8.4/fpm/pool.d/www.conf";
     ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("sed"), { "-i", "s/user = www-data/user = " + username + "/", config_filename });
     ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("sed"), { "-i", "s/group = www-data/group = " + username + "/", config_filename });
     ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("sed"),
