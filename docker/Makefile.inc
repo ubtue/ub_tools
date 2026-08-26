@@ -18,6 +18,7 @@ ubuntu_prepare_deps:
 		cp -r /mnt/ZE020150/FID-Entwicklung/ub_tools mnt/ZE020150/FID-Entwicklung; \
 		cp -r /mnt/ZE020150/FID-Entwicklung/IxTheo mnt/ZE020150/FID-Entwicklung; \
 		cp -r /mnt/ZE020150/FID-Entwicklung/KrimDok mnt/ZE020150/FID-Entwicklung; \
+		cp -r /mnt/ZE020150/FID-Entwicklung/crowdsec mnt/ZE020150/FID-Entwicklung; \
 		mkdir -p mnt/ZE020150/FID-Entwicklung/fulltext; \
 		cp -r /mnt/ZE020150/FID-Entwicklung/fulltext/synonyms mnt/ZE020150/FID-Entwicklung/fulltext; \
 	fi
