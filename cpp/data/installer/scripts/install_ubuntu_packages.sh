@@ -31,7 +31,6 @@ curl -fsSL https://artifacts.elastic.co/GPG-KEY-elasticsearch | gpg --dearmor -o
 apt-add-repository --yes --update 'deb [signed-by=/etc/apt/keyrings/elastic-archive-keyring.gpg] https://artifacts.elastic.co/packages/8.x/apt stable main'
 apt-add-repository --yes --update 'ppa:alex-p/tesseract-ocr5'
 
-
 # main installation
 apt-get --quiet --yes --allow-unauthenticated install \
         ant apache2 apparmor-utils ca-certificates cifs-utils clang clang-format cron curl gcc git imagemagick incron ipset jq libarchive-dev \
@@ -79,7 +78,7 @@ fi
 #---------------------------------- TUEFIND ---------------------------------#
 if [[ $1 == "ixtheo" || $1 == "krimdok" ]]; then
     ColorEcho "installing/updating tuefind dependencies..."
-    # 22.04 uses 8.1 by default, but we want to use 8.3 due to longer support period
+    # 24.04 uses 8.3 by default, but we want to use 8.4 due to longer support period
     # Also, we use php-fpm with fcgi instead of libapache2-mod-php to avoid HTTP/2 compatibility issues with mpm_prefork.
     add-apt-repository --yes --update ppa:ondrej/php
     apt-get --quiet --yes install \
@@ -87,7 +86,7 @@ if [[ $1 == "ixtheo" || $1 == "krimdok" ]]; then
         php8.4 php8.4-curl php8.4-gd php8.4-intl php8.4-ldap php8.4-mbstring php8.4-memcached php8.4-mysql php8.4-soap php8.4-xml \
         php8.4-fpm
 
-    update-alternatives --set php /usr/bin/php8.3
+    update-alternatives --set php /usr/bin/php8.4
 
     a2dismod mpm_prefork
     a2enmod mpm_event proxy_fcgi http2 rewrite setenvif ssl
