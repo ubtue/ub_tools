@@ -14,6 +14,7 @@ ubuntu_prepare_deps:
 		cp /mnt/ZE020150/FID-Entwicklung/Makefile mnt/ZE020150/FID-Entwicklung; \
 		cp /mnt/ZE020150/FID-Entwicklung/github-robot mnt/ZE020150/FID-Entwicklung; \
 		cp /mnt/ZE020150/FID-Entwicklung/github-robot.pub mnt/ZE020150/FID-Entwicklung; \
+		cp /mnt/ZE020150/FID-Entwicklung/solr-* mnt/ZE020150/FID-Entwicklung; \
 		cp -r /mnt/ZE020150/FID-Entwicklung/ub_tools mnt/ZE020150/FID-Entwicklung; \
 		cp -r /mnt/ZE020150/FID-Entwicklung/IxTheo mnt/ZE020150/FID-Entwicklung; \
 		cp -r /mnt/ZE020150/FID-Entwicklung/KrimDok mnt/ZE020150/FID-Entwicklung; \
