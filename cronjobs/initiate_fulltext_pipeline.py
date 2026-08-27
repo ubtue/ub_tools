@@ -14,7 +14,7 @@ def RunPipeline(pipeline_script_name, marc_title, conf):
 
 def Main():
     if len(sys.argv) != 3:
-         print("invalid arguments! usage: initiate_marc_pipeline.py <default email recipient> <MARC21 pipeline script name>")
+         print("invalid arguments! usage: initiate_fulltext_pipeline.py <default email recipient> <MARC21 pipeline script name>")
          util.SendEmail("Fulltext Pipeline Kick-Off (Failure)",
                         "This script needs to be called with two arguments,\n"
                         + "the default email recipient and the name of the Fulltext\n"
