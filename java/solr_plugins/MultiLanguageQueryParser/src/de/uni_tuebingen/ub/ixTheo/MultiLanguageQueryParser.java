@@ -16,6 +16,7 @@ import org.apache.lucene.search.MatchAllDocsQuery;
 import org.apache.lucene.search.PhraseQuery;
 import org.apache.lucene.search.PrefixQuery;
 import org.apache.lucene.search.Query;
+import org.apache.lucene.search.RegexpQuery;
 import org.apache.lucene.search.SynonymQuery;
 import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.TermRangeQuery;
@@ -468,6 +469,10 @@ public class MultiLanguageQueryParser extends QParser {
     }
 
 
+    private Query processRegexpQuery(final RegexpQuery queryCandidate){
+        return queryCandidate;
+    }
+
     private void handleLuceneParser(String[] query, SolrQueryRequest request, String lang, IndexSchema schema) throws MultiLanguageQueryParserException {
         if (query.length != 1)
            throw new MultiLanguageQueryParserException("Only one q-parameter is supported [1]");
@@ -490,6 +495,12 @@ public class MultiLanguageQueryParser extends QParser {
                 newQuery = processMatchAllDocsQuery((MatchAllDocsQuery)newQuery);
             else if (newQuery instanceof SolrRangeQuery)
                 newQuery = processSolrRangeQuery((SolrRangeQuery)newQuery);
+            else if (newQuery instanceof SolrRangeQuery)
+                newQuery = processSolrRangeQuery((SolrRangeQuery)newQuery);
+            else if (newQuery instanceof RegexpQuery)
+                newQuery = processRegexpQuery((RegexpQuery) newQuery);
+            else if(newQuery.getClass().getName().equals("de.uni_tuebingen.ub.ixTheo.bibleRangeSearch.BibleRangeQuery") || newQuery.getClass().getName().equals("de.uni_tuebingen.ub.ixTheo.canonesRangeSearch.CanonesRangeQuery"))
+                ; // just ignore and it will pass automatically to the RangedSearches 
             else
                 logger.warn("No rewrite rule did match for " + newQuery.getClass());
             this.searchString = newQuery.toString();
