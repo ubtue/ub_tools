@@ -22,6 +22,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <algorithm>
 #include <iostream>
 #include <span>
 #include <string>
@@ -30,6 +31,7 @@
 #include <unordered_set>
 #include <utility>
 #include <vector>
+#include <cmath>
 #include <cstdlib>
 #include <nlohmann/json.hpp>
 #include "Compiler.h"
@@ -55,7 +57,16 @@ static DbConnection *shared_connection;
 static std::unordered_set<std::string> *ppns_already_present;
 enum Status { RELIABLE, UNRELIABLE, UNRELIABLE_CAT2, RELIABLE_SYNONYM, UNRELIABLE_SYNONYM };
 const std::string CONF_FILE_PATH(UBTools::GetTuelibPath() + "translations.conf");
-const unsigned WIKIDATA_FULL_DOWNLOAD_BATCH_SIZE(3000);
+const unsigned WIKIDATA_FULL_DOWNLOAD_BATCH_SIZE(500); // 3000 is over timeout 60s WDQS (Wikidata Query Service) limit, 500 is safe
+const std::string WIKIDATA_SPARQL_URL("https://query.wikidata.org/sparql");
+const unsigned WIKIDATA_MAX_DOWNLOAD_ATTEMPTS(5);
+const unsigned WIKIDATA_DEFAULT_BACKOFF_SECONDS(5);
+const unsigned WIKIDATA_MAX_BACKOFF_SECONDS(300);
+// Must exceed the 60 s timeout WDQS applies to its own queries, otherwise we hang up on a query
+// that the server is still working on and see it as a dropped connection.
+const unsigned WIKIDATA_TIME_LIMIT(90000); // In ms.
+// WDQS expects sequential queries; firing them back-to-back gets us rate limited.
+const unsigned WIKIDATA_INTER_QUERY_DELAY(1000); // In ms.
 
 
 struct WikidataTranslation {
@@ -210,45 +221,81 @@ std::string GetWikidataPostQuery(const std::span<std::string> &gnd_codes, const 
 }
 
 
-int GetRetryAfterSeconds(const HttpHeader &http_header) {
-    const std::string retry_after(http_header.getRetryAfter());
-    if (not retry_after.empty() and std::isdigit(retry_after[0]))
-        return StringUtil::ToInt(retry_after);
-    const double diff_time(
-        TimeUtil::DiffStructTm(TimeUtil::StringToStructTm(retry_after, TimeUtil::RFC822_FORMAT), TimeUtil::GetCurrentTimeGMT()));
-    if (diff_time < 0)
-        LOG_ERROR("Invalid Time difference");
-    return std::round(diff_time);
+// A single, long-lived Downloader so that curl can reuse its keep-alive connection to WDQS instead
+// of performing a fresh DNS lookup plus TCP and TLS handshake for every single query.
+Downloader &GetWikidataDownloader() {
+    static Downloader *downloader;
+    if (downloader == nullptr) {
+        Downloader::Params params;
+        params.additional_headers_ = { "Accept: application/sparql-results+json" };
+        params.user_agent_ = downloader->GetDefaultUserAgentString();
+        // We want to inspect 429 and 5xx responses ourselves instead of having curl abort the
+        // transfer before we get a chance to look at the Retry-After header.
+        params.fail_on_error_ = false;
+        downloader = new Downloader(params);
+    }
+    return *downloader;
 }
 
-const unsigned MAX_429_ITERATIONS(5);
 
-void DownloadWikidataTranslations(const std::string &query, std::string * const results) {
-    Downloader::Params params;
-    params.additional_headers_ = { "Accept: application/sparql-results+json" };
-    Downloader downloader(params);
-    const Url wikidata_url("https://query.wikidata.org/sparql");
-    downloader.postData(wikidata_url, query, Downloader::DEFAULT_TIME_LIMIT * 2);
-    unsigned response_code(downloader.getResponseCode());
-    if (response_code != 200) {
-        LOG_WARNING("Could not download Wikidata Translations for query \"" + query + "\"(Error Code " + std::to_string(response_code)
-                    + ")");
-        if (response_code == 429) {
-            for (unsigned iteration = 0; iteration < MAX_429_ITERATIONS; ++iteration) {
-                const unsigned wait_seconds(GetRetryAfterSeconds(downloader.getMessageHeaderObject()));
-                TimeUtil::Millisleep(wait_seconds * 1000 + 1);
-                downloader.postData(wikidata_url, query);
-                response_code = downloader.getResponseCode();
-                if (response_code == 200)
-                    break;
-            }
-            if (response_code != 200)
-                LOG_ERROR("Failed to download Wikidata Translations for query \"" + query + "\"(Error Code "
-                          + std::to_string(response_code));
-        } else
-            LOG_ERROR("Aborting because of Error Code " + std::to_string(response_code));
+// \param retry_after  The value of the Retry-After header or the empty string if there was none.
+unsigned GetBackoffSeconds(const std::string &retry_after, const unsigned attempt) {
+    if (not retry_after.empty()) {
+        if (std::isdigit(static_cast<unsigned char>(retry_after[0])))
+            return std::min(static_cast<unsigned>(StringUtil::ToInt(retry_after)), WIKIDATA_MAX_BACKOFF_SECONDS);
+        try {
+            const double diff_time(
+                TimeUtil::DiffStructTm(TimeUtil::StringToStructTm(retry_after, TimeUtil::RFC822_FORMAT), TimeUtil::GetCurrentTimeGMT()));
+            if (diff_time > 0)
+                return std::min(static_cast<unsigned>(std::round(diff_time)), WIKIDATA_MAX_BACKOFF_SECONDS);
+        } catch (const std::exception &x) {
+            LOG_WARNING("unparsable Retry-After \"" + retry_after + "\": " + std::string(x.what()));
+        }
     }
-    *results = downloader.getMessageBody();
+
+    // No usable Retry-After: fall back to an exponential backoff.
+    return std::min(WIKIDATA_DEFAULT_BACKOFF_SECONDS << attempt, WIKIDATA_MAX_BACKOFF_SECONDS);
+}
+
+
+/** \brief  Runs a SPARQL query against WDQS, retrying transient failures.
+ *  \return True if we got a result, false if Wikidata could not be reached.  A failure here must not
+ *          be fatal: callers carry on without Wikidata translations rather than aborting a run that
+ *          may already have taken hours.
+ */
+bool DownloadWikidataTranslations(const std::string &query, std::string * const results) {
+    Downloader &downloader(GetWikidataDownloader());
+    const Url wikidata_url(WIKIDATA_SPARQL_URL);
+
+    for (unsigned attempt(0); attempt < WIKIDATA_MAX_DOWNLOAD_ATTEMPTS; ++attempt) {
+        if (not downloader.postData(wikidata_url, query, WIKIDATA_TIME_LIMIT)) {
+            // A transport-level failure, i.e. a reset connection, a timeout, a DNS hiccup etc.  We
+            // never get an HTTP status code for these, so they always warrant a retry.
+            LOG_WARNING("Wikidata query failed on attempt " + std::to_string(attempt + 1) + ": " + downloader.getLastErrorMessage());
+            TimeUtil::Millisleep(GetBackoffSeconds("", attempt) * 1000);
+            continue;
+        }
+
+        const unsigned response_code(downloader.getResponseCode());
+        if (response_code == 200) {
+            *results = downloader.getMessageBody();
+            TimeUtil::Millisleep(WIKIDATA_INTER_QUERY_DELAY);
+            return true;
+        }
+
+        // 429 means we were rate limited, 5xx is usually a server-side query timeout.  Everything
+        // else, a malformed query in particular, will not get better by trying again.
+        if (response_code != 429 and response_code / 100 != 5) {
+            LOG_WARNING("Wikidata returned HTTP " + std::to_string(response_code) + " for query \"" + query + "\"");
+            return false;
+        }
+
+        LOG_WARNING("Wikidata returned HTTP " + std::to_string(response_code) + " on attempt " + std::to_string(attempt + 1));
+        TimeUtil::Millisleep(GetBackoffSeconds(downloader.getMessageHeaderObject().getRetryAfter(), attempt) * 1000);
+    }
+
+    LOG_WARNING("giving up on Wikidata query after " + std::to_string(WIKIDATA_MAX_DOWNLOAD_ATTEMPTS) + " attempts");
+    return false;
 }
 
 
@@ -274,7 +321,15 @@ std::vector<std::string> GetAllTranslatorLanguages(const IniFile &ini_file) {
 
 
 void AddWikidataTranslationsToLookupTable(const std::string batch_results, wikidata_translation_lookup_table * const wikidata_info) {
-    nlohmann::json wikidata_json(nlohmann::json::parse(batch_results));
+    nlohmann::json wikidata_json;
+    try {
+        wikidata_json = nlohmann::json::parse(batch_results);
+    } catch (const std::exception &x) {
+        // A connection that dropped mid-transfer leaves us with a truncated body.  Skip it rather
+        // than let the exception tear down the whole run.
+        LOG_WARNING("could not parse Wikidata response: " + std::string(x.what()));
+        return;
+    }
     for (const auto &result : wikidata_json["results"]["bindings"]) {
         const std::string gnd_code(result["gnd"]["value"]);
         const std::string translation(result["title"]["value"]);
@@ -305,7 +360,8 @@ void GetWikidataTranslationsForASingleRecord(const IniFile &ini_file, const std:
                                              wikidata_translation_lookup_table * const wikidata_translations) {
     std::string results;
     std::vector<std::string> gnd_codes({ gnd_code });
-    DownloadWikidataTranslations(GetWikidataPostQuery(std::span{ gnd_codes }, GetAllTranslatorLanguages(ini_file)), &results);
+    if (not DownloadWikidataTranslations(GetWikidataPostQuery(std::span{ gnd_codes }, GetAllTranslatorLanguages(ini_file)), &results))
+        return;
     AddWikidataTranslationsToLookupTable(results, wikidata_translations);
 }
 
@@ -319,13 +375,18 @@ void GetAllWikidataTranslations(MARC::Reader * const authority_reader, const Ini
     std::copy(all_subject_keywords_gnds_set.begin(), all_subject_keywords_gnds_set.end(),
               std::back_inserter(all_subject_keywords_gnds_vector));
     auto all_subject_keywords_gnds(std::span(all_subject_keywords_gnds_vector.begin(), all_subject_keywords_gnds_vector.end()));
-    const unsigned all_iterations(std::ceil(all_subject_keywords_gnds.size() / batch_size));
-    for (unsigned iteration = 0; iteration <= all_iterations; ++iteration) {
-        auto gnd_batch(
-            all_subject_keywords_gnds.subspan(batch_size * iteration, (iteration == all_iterations) ? std::dynamic_extent : batch_size));
-        const auto joined_gnds(StringUtil::Join(gnd_batch.begin(), gnd_batch.end(), "\n"));
+    // Round up.  Note that the integer division has to happen inside the addition, not inside a call
+    // to std::ceil(), which would be a no-op here and would leave us generating one trailing empty
+    // batch whenever the GND count is a multiple of the batch size.
+    const unsigned all_iterations((all_subject_keywords_gnds.size() + batch_size - 1) / batch_size);
+    for (unsigned iteration = 0; iteration < all_iterations; ++iteration) {
+        const size_t offset(static_cast<size_t>(batch_size) * iteration);
+        auto gnd_batch(all_subject_keywords_gnds.subspan(offset, std::min<size_t>(batch_size, all_subject_keywords_gnds.size() - offset)));
         std::string batch_results;
-        DownloadWikidataTranslations(GetWikidataPostQuery(gnd_batch, GetAllTranslatorLanguages(ini_file)), &batch_results);
+        if (not DownloadWikidataTranslations(GetWikidataPostQuery(gnd_batch, GetAllTranslatorLanguages(ini_file)), &batch_results)) {
+            LOG_WARNING("skipping Wikidata batch " + std::to_string(iteration + 1) + "/" + std::to_string(all_iterations));
+            continue;
+        }
         AddWikidataTranslationsToLookupTable(batch_results, wikidata_translations);
     }
     for (const auto &[key, value] : *wikidata_translations)
