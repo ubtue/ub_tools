@@ -62,6 +62,11 @@ public:
     static const std::string DEFAULT_ACCEPTABLE_LANGUAGES;
     static const unsigned DEFAULT_TIME_LIMIT = 20000;       // In ms.
     static const long DEFAULT_META_REDIRECT_THRESHOLD = 30; // In s
+    static const unsigned DEFAULT_RETRY_BACKOFF_SECONDS = 5;
+    static const unsigned DEFAULT_RETRY_MAX_BACKOFF_SECONDS = 300;
+    // HTTP status codes that are worth retrying: 429 (rate limited) and the 5xx codes a server
+    // typically returns for a transient overload or a query that timed out on its end.
+    static const std::vector<unsigned> DEFAULT_RETRY_ON_HTTP_STATUS_CODES;
 
 private:
     CURLcode curl_error_code_;
@@ -104,6 +109,15 @@ public:
         std::string
             cookies_txt_path_; // default empty = RAM only, set this to a specific file path to share cookies across instances+processes
         bool fail_on_error_;
+        // 0 (the default) disables retries entirely, preserving prior behaviour for existing callers.
+        // When non-zero, a request that fails at the transport level (e.g. a reset connection) or
+        // that comes back with a status code in retry_on_http_status_codes_ is retried this many
+        // times, honouring a Retry-After header if the server sent one and otherwise backing off
+        // exponentially starting at retry_default_backoff_seconds_, capped at retry_max_backoff_seconds_.
+        unsigned max_retry_attempts_;
+        std::vector<unsigned> retry_on_http_status_codes_;
+        unsigned retry_default_backoff_seconds_;
+        unsigned retry_max_backoff_seconds_;
 
     public:
         explicit Params(const std::string &user_agent = DEFAULT_USER_AGENT_STRING,
@@ -115,7 +129,11 @@ public:
                         const bool ignore_ssl_certificates = false, const std::string &proxy_host_and_port = "",
                         const std::vector<std::string> &additional_headers = {}, const std::string &post_data = "",
                         const std::string &authentication_username = "", const std::string &authentication_password = "",
-                        const bool use_cookies_txt = true, const std::string cookies_txt_path = "", const bool fail_on_error = true);
+                        const bool use_cookies_txt = true, const std::string cookies_txt_path = "", const bool fail_on_error = true,
+                        const unsigned max_retry_attempts = 0,
+                        const std::vector<unsigned> &retry_on_http_status_codes = DEFAULT_RETRY_ON_HTTP_STATUS_CODES,
+                        const unsigned retry_default_backoff_seconds = DEFAULT_RETRY_BACKOFF_SECONDS,
+                        const unsigned retry_max_backoff_seconds = DEFAULT_RETRY_MAX_BACKOFF_SECONDS);
     };
 
     typedef size_t (*WriteFunc)(void *data, size_t size, size_t nmemb, void *this_pointer);
@@ -139,7 +157,7 @@ public:
 
     bool postData(const Url &url, const std::string &data, const TimeLimit &time_limit = DEFAULT_TIME_LIMIT);
     bool postData(const std::string &url, const std::string &data, const TimeLimit &time_limit = DEFAULT_TIME_LIMIT) {
-        return putData(Url(url), data, time_limit);
+        return postData(Url(url), data, time_limit);
     }
 
     bool putData(const Url &url, const std::string &data, const TimeLimit &time_limit = DEFAULT_TIME_LIMIT);
@@ -213,6 +231,12 @@ private:
 
     void init();
     bool internalNewUrl(const Url &url, const TimeLimit &time_limit);
+    // Wraps internalNewUrl() with the retry/backoff behaviour described at Params::max_retry_attempts_.
+    // When retries are disabled (the default), this calls internalNewUrl() exactly once and returns its
+    // result unchanged, so existing callers see no behaviour change whatsoever.
+    bool performRequestWithRetries(const TimeLimit &time_limit);
+    bool shouldRetryOnStatusCode(const unsigned response_code) const;
+    unsigned getRetryBackoffSeconds(const std::string &retry_after, const unsigned attempt) const;
     size_t writeFunction(void *data, size_t size, size_t nmemb);
     static size_t WriteFunction(void *data, size_t size, size_t nmemb, void *this_pointer);
     static void LockFunction(CURL *handle, curl_lock_data data, curl_lock_access access, void * /* unused */);
