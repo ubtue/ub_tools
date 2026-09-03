@@ -26,11 +26,14 @@
  */
 
 #include "Downloader.h"
+#include <algorithm>
+#include <cmath>
 #include "FileUtil.h"
 #include "IniFile.h"
 #include "MediaTypeUtil.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
+#include "TimeUtil.h"
 #include "WebUtil.h"
 
 
@@ -124,6 +127,7 @@ std::mutex Downloader::write_mutex_;
 std::unordered_map<std::string, RobotsDotTxt> Downloader::url_to_robots_dot_txt_map_;
 const std::string Downloader::DEFAULT_USER_AGENT_STRING("UB Tübingen C++ Downloader");
 const std::string Downloader::DEFAULT_ACCEPTABLE_LANGUAGES("en,eng,english");
+const std::vector<unsigned> Downloader::DEFAULT_RETRY_ON_HTTP_STATUS_CODES{ 429, 500, 502, 503, 504 };
 const std::string Downloader::DENIED_BY_ROBOTS_DOT_TXT_ERROR_MSG("Disallowed by robots.txt.");
 std::string Downloader::default_user_agent_string_;
 
@@ -135,14 +139,18 @@ Downloader::Params::Params(const std::string &user_agent, const std::string &acc
                            const std::string &proxy_host_and_port, const std::vector<std::string> &additional_headers,
                            const std::string &post_data, const std::string &authentication_username,
                            const std::string &authentication_password, const bool use_cookies_txt, const std::string cookies_txt_path,
-                           const bool fail_on_error)
+                           const bool fail_on_error, const unsigned max_retry_attempts,
+                           const std::vector<unsigned> &retry_on_http_status_codes, const unsigned retry_default_backoff_seconds,
+                           const unsigned retry_max_backoff_seconds)
     : user_agent_(user_agent), acceptable_languages_(acceptable_languages), max_redirect_count_(max_redirect_count),
       dns_cache_timeout_(dns_cache_timeout), honour_robots_dot_txt_(honour_robots_dot_txt), text_translation_mode_(text_translation_mode),
       banned_reg_exps_(banned_reg_exps), debugging_(debugging), follow_redirects_(follow_redirects),
       meta_redirect_threshold_(meta_redirect_threshold), ignore_ssl_certificates_(ignore_ssl_certificates),
       proxy_host_and_port_(proxy_host_and_port), additional_headers_(additional_headers), post_data_(post_data),
       authentication_username_(authentication_username), authentication_password_(authentication_password),
-      use_cookies_txt_(use_cookies_txt), cookies_txt_path_(cookies_txt_path), fail_on_error_(fail_on_error) {
+      use_cookies_txt_(use_cookies_txt), cookies_txt_path_(cookies_txt_path), fail_on_error_(fail_on_error),
+      max_retry_attempts_(max_retry_attempts), retry_on_http_status_codes_(retry_on_http_status_codes),
+      retry_default_backoff_seconds_(retry_default_backoff_seconds), retry_max_backoff_seconds_(retry_max_backoff_seconds) {
     max_redirect_count_ = follow_redirects_ ? max_redirect_count_ : 0;
 
     if (unlikely(max_redirect_count_ < 0 or max_redirect_count_ > MAX_MAX_REDIRECT_COUNT))
@@ -223,7 +231,7 @@ bool Downloader::newUrl(const Url &url, const TimeLimit &time_limit) {
 
         curlEasySetopt(CURLOPT_MAXREDIRS, getRemainingNoOfRedirects(), "Downloader::newUrl:CURLOPT_MAXREDIRS");
 
-        if (not internalNewUrl(current_url_, time_limit))
+        if (not performRequestWithRetries(time_limit))
             return false;
 
         std::string redirect_url;
@@ -358,6 +366,12 @@ void Downloader::init() {
     curlEasySetopt(CURLOPT_NOSIGNAL, 1L, "Downloader::init:CURLOPT_NOSIGNAL");
     curlEasySetopt(CURLOPT_WRITEFUNCTION, WriteFunction, "Downloader::init:CURLOPT_WRITEFUNCTION");
 
+    // Negotiate and transparently decompress gzip/deflate responses.  An empty string tells curl to
+    // advertise every encoding it was built with support for; curl decompresses the body before we
+    // ever see it in writeFunction(), so this is a pure bandwidth/latency win with no visible effect
+    // on any caller.
+    curlEasySetopt(CURLOPT_ACCEPT_ENCODING, "", "Downloader::init:CURLOPT_ACCEPT_ENCODING");
+
     if (params_.fail_on_error_)
         curlEasySetopt(CURLOPT_FAILONERROR, 1L, "Downloader::init:CURLOPT_FAILONERROR");
 
@@ -431,6 +445,65 @@ bool Downloader::internalNewUrl(const Url &url, const TimeLimit &time_limit) {
         return curl_error_code_ == CURLE_OK;
     } else
         return false;
+}
+
+
+bool Downloader::shouldRetryOnStatusCode(const unsigned response_code) const {
+    return std::find(params_.retry_on_http_status_codes_.begin(), params_.retry_on_http_status_codes_.end(), response_code)
+           != params_.retry_on_http_status_codes_.end();
+}
+
+
+unsigned Downloader::getRetryBackoffSeconds(const std::string &retry_after, const unsigned attempt) const {
+    if (not retry_after.empty()) {
+        if (std::isdigit(static_cast<unsigned char>(retry_after[0])))
+            return std::min(static_cast<unsigned>(StringUtil::ToInt(retry_after)), params_.retry_max_backoff_seconds_);
+        try {
+            const double diff_time(
+                TimeUtil::DiffStructTm(TimeUtil::StringToStructTm(retry_after, TimeUtil::RFC822_FORMAT), TimeUtil::GetCurrentTimeGMT()));
+            if (diff_time > 0)
+                return std::min(static_cast<unsigned>(std::round(diff_time)), params_.retry_max_backoff_seconds_);
+        } catch (const std::exception &x) {
+            LOG_WARNING("Downloader: unparsable Retry-After value \"" + retry_after + "\": " + std::string(x.what()));
+        }
+    }
+
+    // No usable Retry-After header: fall back to an exponential backoff.  The shift amount is capped
+    // so that this can never overflow regardless of how large max_retry_attempts_ is configured.
+    const unsigned capped_attempt(std::min(attempt, 16u));
+    return std::min(params_.retry_default_backoff_seconds_ << capped_attempt, params_.retry_max_backoff_seconds_);
+}
+
+
+bool Downloader::performRequestWithRetries(const TimeLimit &time_limit) {
+    for (unsigned attempt(0);; ++attempt) {
+        const bool success(internalNewUrl(current_url_, time_limit));
+
+        // Retries disabled (the default): behave exactly as a direct internalNewUrl() call would.
+        if (params_.max_retry_attempts_ == 0)
+            return success;
+
+        bool retry_needed(not success);
+        std::string retry_after;
+        if (success) {
+            const unsigned response_code(getResponseCode());
+            retry_needed = shouldRetryOnStatusCode(response_code);
+            if (retry_needed)
+                retry_after = getMessageHeaderObject().getRetryAfter();
+        }
+
+        if (not retry_needed or attempt >= params_.max_retry_attempts_)
+            return success;
+
+        LOG_WARNING("Downloader: retrying \"" + current_url_.toString() + "\" (attempt " + std::to_string(attempt + 2) + "/"
+                    + std::to_string(params_.max_retry_attempts_ + 1) + ")" + (success ? "" : ": " + getLastErrorMessage()));
+
+        // Don't let a retry attempt count against the redirect budget or clutter getRedirectUrls().
+        if (not redirect_urls_.empty())
+            redirect_urls_.pop_back();
+
+        TimeUtil::Millisleep(getRetryBackoffSeconds(retry_after, attempt) * 1000);
+    }
 }
 
 

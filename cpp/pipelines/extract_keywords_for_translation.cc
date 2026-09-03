@@ -3,6 +3,7 @@
  *           translations will be stored in a SQL database.
  *  \author  Dr. Johannes Ruscheinski
  *  \author  Johannes Riedl
+ *  \author  Steven Lolong
  */
 
 /*
