@@ -139,7 +139,7 @@ public:
 
     bool postData(const Url &url, const std::string &data, const TimeLimit &time_limit = DEFAULT_TIME_LIMIT);
     bool postData(const std::string &url, const std::string &data, const TimeLimit &time_limit = DEFAULT_TIME_LIMIT) {
-        return putData(Url(url), data, time_limit);
+        return postData(Url(url), data, time_limit);
     }
 
     bool putData(const Url &url, const std::string &data, const TimeLimit &time_limit = DEFAULT_TIME_LIMIT);
