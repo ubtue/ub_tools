@@ -462,17 +462,6 @@ public class MultiLanguageQueryParser extends QParser {
         return synonymQueryBuilder.build();
     }
 
-
-    private Query processMatchAllDocsQuery(final MatchAllDocsQuery queryCandidate) {
-        //Since all docs are matched, no modifications are needed
-        return queryCandidate;
-    }
-
-
-    private Query processRegexpQuery(final RegexpQuery queryCandidate){
-        return queryCandidate;
-    }
-
     private void handleLuceneParser(String[] query, SolrQueryRequest request, String lang, IndexSchema schema) throws MultiLanguageQueryParserException {
         if (query.length != 1)
            throw new MultiLanguageQueryParserException("Only one q-parameter is supported [1]");
@@ -491,14 +480,14 @@ public class MultiLanguageQueryParser extends QParser {
                 newQuery = processDisjunctionMaxQuery((DisjunctionMaxQuery)newQuery);
             else if (newQuery instanceof BoostQuery)
                 newQuery = processBoostQuery((BoostQuery)newQuery);
-            else if (newQuery instanceof MatchAllDocsQuery)
-                newQuery = processMatchAllDocsQuery((MatchAllDocsQuery)newQuery);
             else if (newQuery instanceof SolrRangeQuery)
                 newQuery = processSolrRangeQuery((SolrRangeQuery)newQuery);
+            else if (newQuery instanceof MatchAllDocsQuery)
+                ; // No special processing necessary
             else if (newQuery instanceof RegexpQuery)
-                newQuery = processRegexpQuery((RegexpQuery) newQuery);
+                ; // No special processing necessary
             else if (newQuery instanceof de.uni_tuebingen.ub.ixTheo.rangeSearch.RangeQuery)
-                ; // just ignore and it will pass automatically to the RangedSearches
+                ; // No special processing necessary
             else
                 logger.warn("No rewrite rule did match for " + newQuery.getClass());
             this.searchString = newQuery.toString();
