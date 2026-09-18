@@ -481,7 +481,6 @@ public class MultiLanguageQueryParser extends QParser {
             LuceneQParser tmpParser = new LuceneQParser(searchString, localParams, newParams, this.newRequest);
             newQuery = tmpParser.getQuery();
             newQuery = newQuery.rewrite(request.getSearcher());
-            final String newQueryClassName = newQuery.getClass().getName();
             if (newQuery instanceof BooleanQuery)
                 newQuery = processBooleanQuery((BooleanQuery)newQuery);
             else if (newQuery instanceof TermRangeQuery)
