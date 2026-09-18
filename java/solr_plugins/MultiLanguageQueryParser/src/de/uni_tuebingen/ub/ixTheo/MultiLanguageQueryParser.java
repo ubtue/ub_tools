@@ -473,21 +473,6 @@ public class MultiLanguageQueryParser extends QParser {
         return queryCandidate;
     }
 
-    private boolean isRangeQuery(final Query query) {
-        Class<?> queryClass = query.getClass();
-
-        while (queryClass != null) {
-            if (queryClass.getName().equals(
-                    "de.uni_tuebingen.ub.ixTheo.rangeSearch.RangeQuery")) {
-                return true;
-            }
-
-            queryClass = queryClass.getSuperclass();
-        }
-
-        return false;
-    }
-
     private void handleLuceneParser(String[] query, SolrQueryRequest request, String lang, IndexSchema schema) throws MultiLanguageQueryParserException {
         if (query.length != 1)
            throw new MultiLanguageQueryParserException("Only one q-parameter is supported [1]");
@@ -513,8 +498,8 @@ public class MultiLanguageQueryParser extends QParser {
                 newQuery = processSolrRangeQuery((SolrRangeQuery)newQuery);
             else if (newQuery instanceof RegexpQuery)
                 newQuery = processRegexpQuery((RegexpQuery) newQuery);
-            else if(isRangeQuery(newQuery))
-                ; // just ignore and it will pass automatically to the RangedSearches 
+            else if (newQuery instanceof de.uni_tuebingen.ub.ixTheo.rangeSearch.RangeQuery)
+                ; // just ignore and it will pass automatically to the RangedSearches
             else
                 logger.warn("No rewrite rule did match for " + newQuery.getClass());
             this.searchString = newQuery.toString();
