@@ -481,6 +481,7 @@ public class MultiLanguageQueryParser extends QParser {
             LuceneQParser tmpParser = new LuceneQParser(searchString, localParams, newParams, this.newRequest);
             newQuery = tmpParser.getQuery();
             newQuery = newQuery.rewrite(request.getSearcher());
+            final String newQueryClassName = newQuery.getClass().getName();
             if (newQuery instanceof BooleanQuery)
                 newQuery = processBooleanQuery((BooleanQuery)newQuery);
             else if (newQuery instanceof TermRangeQuery)
@@ -495,11 +496,9 @@ public class MultiLanguageQueryParser extends QParser {
                 newQuery = processMatchAllDocsQuery((MatchAllDocsQuery)newQuery);
             else if (newQuery instanceof SolrRangeQuery)
                 newQuery = processSolrRangeQuery((SolrRangeQuery)newQuery);
-            else if (newQuery instanceof SolrRangeQuery)
-                newQuery = processSolrRangeQuery((SolrRangeQuery)newQuery);
             else if (newQuery instanceof RegexpQuery)
                 newQuery = processRegexpQuery((RegexpQuery) newQuery);
-            else if(newQuery.getClass().getName().equals("de.uni_tuebingen.ub.ixTheo.bibleRangeSearch.BibleRangeQuery") || newQuery.getClass().getName().equals("de.uni_tuebingen.ub.ixTheo.canonesRangeSearch.CanonesRangeQuery"))
+            else if(newQueryClassName.equals("de.uni_tuebingen.ub.ixTheo.bibleRangeSearch.BibleRangeQuery") || newQueryClassName.equals("de.uni_tuebingen.ub.ixTheo.canonesRangeSearch.CanonesRangeQuery") || newQueryClassName.equals("de.uni_tuebingen.ub.ixTheo.timeAspectRangeSearch.TimeAspectRangeQuery"))
                 ; // just ignore and it will pass automatically to the RangedSearches 
             else
                 logger.warn("No rewrite rule did match for " + newQuery.getClass());
