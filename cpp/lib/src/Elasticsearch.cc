@@ -31,7 +31,7 @@ const std::string DEFAULT_CONFIG_FILE_PATH(UBTools::GetTuelibPath() + "Elasticse
 
 
 static void LoadIniParameters(const std::string &config_file_path, std::string * const host, std::string * const username,
-                              std::string * const password, bool * const ignore_ssl_certificates) {
+                              std::string * const password, std::string * const token, bool * const ignore_ssl_certificates) {
     if (not FileUtil::Exists(config_file_path))
         LOG_ERROR("Elasticsearch config file missing: " + config_file_path);
 
@@ -40,12 +40,13 @@ static void LoadIniParameters(const std::string &config_file_path, std::string *
     *host = ini_file.getString("Elasticsearch", "host");
     *username = ini_file.getString("Elasticsearch", "username", "");
     *password = ini_file.getString("Elasticsearch", "password", "");
+    *token = ini_file.getString("Elasticsearch", "token", "");
     *ignore_ssl_certificates = ini_file.getBool("Elasticsearch", "ignore_ssl_certificates", false);
 }
 
 
 Elasticsearch::Elasticsearch(const std::string &index): index_(index) {
-    LoadIniParameters(DEFAULT_CONFIG_FILE_PATH, &host_, &username_, &password_, &ignore_ssl_certificates_);
+    LoadIniParameters(DEFAULT_CONFIG_FILE_PATH, &host_, &username_, &password_, &token_, &ignore_ssl_certificates_);
 }
 
 
@@ -165,6 +166,20 @@ std::string Elasticsearch::extractScrollId(const std::shared_ptr<JSON::ObjectNod
     return scroll_id_string_node->getValue();
 }
 
+std::vector<std::map<std::string, std::string>> Elasticsearch::scrollingResults(const std::set<std::string> &fields,
+                                                                                std::shared_ptr<JSON::ObjectNode> result_node) const {
+    std::vector<std::map<std::string, std::string>> search_results_all;
+    std::vector<std::map<std::string, std::string>> search_results_bunch(extractResultsHelper(result_node, fields));
+    // Iterate until hits are empty
+    while (search_results_bunch.size()) {
+        search_results_all.insert(std::end(search_results_all), std::begin(search_results_bunch), std::end(search_results_bunch));
+        std::string scroll_id(extractScrollId(result_node));
+        result_node = query("_search/scroll", REST::POST, JSON::ObjectNode("{ \"scroll\": \"1m\", \"scroll_id\" : \"" + scroll_id + "\"}"),
+                            true /* suppress index name */);
+        search_results_bunch = extractResultsHelper(result_node, fields);
+    }
+    return search_results_all;
+}
 
 std::vector<std::map<std::string, std::string>> Elasticsearch::simpleSelect(const std::set<std::string> &fields,
                                                                             const std::map<std::string, std::string> &filter,
@@ -201,18 +216,7 @@ std::vector<std::map<std::string, std::string>> Elasticsearch::simpleSelect(cons
     auto result_node(query(search_parameter, REST::POST, JSON::ObjectNode(query_string)));
 
     if (use_scrolling) {
-        std::vector<std::map<std::string, std::string>> search_results_all;
-        std::vector<std::map<std::string, std::string>> search_results_bunch(extractResultsHelper(result_node, fields));
-        // Iterate until hits are empty
-        while (search_results_bunch.size()) {
-            search_results_all.insert(std::end(search_results_all), std::begin(search_results_bunch), std::end(search_results_bunch));
-            std::string scroll_id(extractScrollId(result_node));
-            result_node =
-                query("_search/scroll", REST::POST, JSON::ObjectNode("{ \"scroll\": \"1m\", \"scroll_id\" : \"" + scroll_id + "\"}"),
-                      true /* suppress index name */);
-            search_results_bunch = extractResultsHelper(result_node, fields);
-        }
-        return search_results_all;
+        return scrollingResults(fields, result_node);
     }
     return extractResultsHelper(result_node, fields);
 }
@@ -233,6 +237,49 @@ static std::string ToString(const Elasticsearch::RangeOperator op) {
     }
 }
 
+std::vector<std::map<std::string, std::string>> Elasticsearch::simpleSelectRange(const std::set<std::string> &select_fields,
+                                                                                 const std::string &range_field,
+                                                                                 const RangeOperator operator1, const std::string &operand1,
+                                                                                 const RangeOperator operator2, const std::string &operand2,
+                                                                                 const unsigned int max_count) const {
+    const unsigned int MAX_RESULTS_PER_REQUEST(10000); // Elasticsearch Default
+    const bool use_scrolling(max_count > MAX_RESULTS_PER_REQUEST);
+    std::string query_string("{\n");
+
+    if (not select_fields.empty()) {
+        query_string += "    \"_source\": [";
+        for (const auto &field : select_fields)
+            query_string += "\"" + field + "\", ";
+        query_string.resize(query_string.size() - 2); // Remove trailing comma and space.
+        query_string += "],\n";
+    }
+
+    const std::string range_node((operator2 == RO_NOOP or operand2.empty()) ?
+                                    "\"query\":"
+                                    "    { \"range\":"
+                                    "        { \"" + range_field + "\": {"
+                                    "            \"" + ToString(operator1) + "\": \"" + operand1 + "\""
+                                        + ((operator2 == RO_NOOP or operand2.empty())
+                                               ? std::string()
+                                               : "      ,\"" + ToString(operator2) + "\": \"" + operand2 + "\"") +
+                                    "        }}"
+                                    "    }"
+                                                                            :
+                                    "");
+    query_string += range_node + ",\n";
+    query_string += "    \"size\": " + std::to_string(use_scrolling ? MAX_RESULTS_PER_REQUEST : max_count) + "\n";
+    query_string += "}\n";
+
+
+    const std::string search_parameter(use_scrolling ? "_search?scroll=1m" : "_search");
+    auto result_node(query(search_parameter, REST::POST, JSON::ObjectNode(query_string)));
+
+    if (use_scrolling) {
+        return scrollingResults(select_fields, result_node);
+    }
+
+    return extractResultsHelper(result_node, select_fields);
+}
 
 bool Elasticsearch::deleteRange(const std::string &field, const RangeOperator operator1, const std::string &operand1,
                                 const RangeOperator operator2, const std::string &operand2) {
@@ -278,10 +325,16 @@ bool Elasticsearch::fieldWithValueExists(const std::string &field, const std::st
 std::shared_ptr<JSON::ObjectNode> Elasticsearch::query(const std::string &action, const REST::QueryType query_type,
                                                        const JSON::ObjectNode &data, const bool suppress_index_name) const {
     Downloader::Params downloader_params;
-    downloader_params.authentication_username_ = username_;
-    downloader_params.authentication_password_ = password_;
+
+    if (token_.empty()) {
+        downloader_params.authentication_username_ = username_;
+        downloader_params.authentication_password_ = password_;
+    } else
+        downloader_params.additional_headers_.push_back("Authorization: ApiKey " + token_);
+
     downloader_params.ignore_ssl_certificates_ = ignore_ssl_certificates_;
     downloader_params.additional_headers_.push_back("Content-Type: application/json");
+
     Url url;
     url = Url(host_ + (not suppress_index_name ? "/" + index_ : "") + (action.empty() ? "" : "/" + action));
 

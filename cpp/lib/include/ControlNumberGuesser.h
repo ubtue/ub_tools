@@ -46,6 +46,7 @@ public:
 
 public:
     void clearDatabase();
+    void setAggressiveSpeedMode();
     void beginUpdate();
     void endUpdate();
 

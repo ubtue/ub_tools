@@ -40,6 +40,7 @@ namespace {
 
 void PopulateTables(ControlNumberGuesser * const control_number_guesser, MARC::Reader * const reader) {
     control_number_guesser->clearDatabase();
+    control_number_guesser->setAggressiveSpeedMode();
     control_number_guesser->beginUpdate();
 
     unsigned processed_record_count(0), records_with_empty_titles(0);

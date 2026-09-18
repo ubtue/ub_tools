@@ -11,15 +11,15 @@ readonly MOHR_EXTRACTED="/usr/local/publisher_fulltexts/mohr/"
 TMP_NULL="/tmp/null"
 function CreateTemporaryNullDevice {
     if [ ! -c ${TMP_NULL} ]; then
-        mknod ${TMP_NULL} c 1 3
-        chmod 666 ${TMP_NULL}
+	mknod ${TMP_NULL} c 1 3
+	chmod 666 ${TMP_NULL}
     fi
 }
 
 
 function GetNewPublisherFulltexts {
     find ${FULLTEXT_EXCHANGE_ROOT} -type f -mmin +5 -printf '%P\0' | rsync --archive --verbose --recursive --from0 \
-        --files-from=- ${FULLTEXT_EXCHANGE_ROOT} ${FULLTEXT_LOCAL_ROOT}/publisher_files
+	--files-from=- ${FULLTEXT_EXCHANGE_ROOT} ${FULLTEXT_LOCAL_ROOT}/publisher_files
 }
 
 
@@ -29,11 +29,11 @@ function ConvertNewMohrData {
     mapfile -t < <(find ${MOHR_ARCHIVE_DIR} -name '*.zip' -exec sh -c 'printf "%s\n" $(basename "${0%.*}")' {} ';') new_fulltexts
     readonly new_to_import=( $(printf "%s\n" "${present_fulltexts[@]}" "${new_fulltexts[@]}" | sort | uniq --unique) )
     for item in ${new_to_import[@]}; do
-        echo "Extracting item ${item} to ${MOHR_EXTRACTED}/${item}"
-        unzip -o ${MOHR_ARCHIVE_DIR}/${item}.zip -d ${MOHR_EXTRACTED}/${item}
-        echo "Converting item ${item}"
-        marcxml_metadata_processor ${MOHR_EXTRACTED}/${item}/*atalogue_md.xml \
-            ${MOHR_EXTRACTED}/${item}/*ontent/${item}.pdf ${MOHR_EXTRACTED}/${item}.txt
+	echo "Extracting item ${item} to ${MOHR_EXTRACTED}/${item}"
+	unzip -o ${MOHR_ARCHIVE_DIR}/${item}.zip -d ${MOHR_EXTRACTED}/${item}
+	echo "Converting item ${item}"
+	marcxml_metadata_processor ${MOHR_EXTRACTED}/${item}/*atalogue_md.xml \
+	    ${MOHR_EXTRACTED}/${item}/*ontent/${item}.pdf ${MOHR_EXTRACTED}/${item}.txt
     done;
 }
 
@@ -42,7 +42,7 @@ function ExtractMohrBookRecords {
     local readonly mohr_books_marc_file="/tmp/mohr_books.mrc"
     #find ${MOHR_EXTRACTED} -maxdepth 1 -type d -exec marc_grep '{}'/catalogue_md.xml 'if "020" exists extract * marc_binary' \; 2>/tmp/null
     find ${MOHR_EXTRACTED}  -maxdepth 2 -name '*atalogue_md.xml' -print0 | xargs -0 -I'{}'  marc_grep '{}' \
-         'if "020" exists extract *' marc_binary 2>/tmp/null | cat > ${mohr_books_marc_file}
+	 'if "020" exists extract *' marc_binary 2>/tmp/null | cat > ${mohr_books_marc_file}
     echo ${mohr_books_marc_file}
 }
 
@@ -78,6 +78,22 @@ CreateTemporaryNullDevice
 
 OVERALL_START=$(date +%s.%N)
 
+StartPhase "Add Local Data from Database"
+(add_local_data GesamtTiteldaten-"${date}".mrc \
+		GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+wait
+
+
+StartPhase "Remove VD-entries and other timeout-prone DOIs"
+(marc_filter \
+     GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
+     --drop 'LOKx:SPQUE#VD .*' \
+     --drop '856u:https://doi[.]org.*(jwkg|thpq|zmr|svsh|ost-west|rtlu|tge|jrp|hlfr|stz)[.].*' \
+>> "${log}" 2>&1 && \
+EndPhase || Abort) &
+wait
+
 
 StartPhase "Get New Publisher Fulltexts from Network Drive"
 (GetNewPublisherFulltexts >> "${log}" 2>&1 && \
@@ -92,7 +108,7 @@ wait
 
 
 StartPhase "Augment Title Data With Mohr DOIs for Books"
-(AddMohrDOIsForBooks GesamtTiteldaten-"${date}".mrc $(ExtractMohrBookRecords) GesamtTiteldaten-augmented-"${date}".mrc >> "${log}" 2>&1 \
+(AddMohrDOIsForBooks GesamtTiteldaten-post-phase"$((PHASE-3))"-"${date}".mrc $(ExtractMohrBookRecords) GesamtTiteldaten-augmented-"${date}".mrc >> "${log}" 2>&1 \
 EndPhase || Abort) &
 wait
 
@@ -120,6 +136,7 @@ StartPhase "Import Aschendorff Data"
 (find /usr/local/publisher_fulltexts/aschendorff/ -maxdepth 1 -name '*.txt' | xargs -n 50 store_in_elasticsearch --set-publisher-provided \
     >> "${log}" 2>&1 && \
 EndPhase || Abort) &
+wait
 
 
 StartPhase "Harvest Title Data Fulltext"
@@ -129,6 +146,12 @@ StartPhase "Harvest Title Data Fulltext"
         EndPhase || Abort) &
 wait
 
+
+StartPhase "Cleanup of Intermediate Files"
+for p in $(seq 0 "$((PHASE-1))"); do
+    rm -f GesamtTiteldaten-post-phase"$p"-??????.mrc
+done
+EndPhase
 
 echo -e "\n\nPipeline done after $(CalculateTimeDifference $OVERALL_START $(date +%s.%N)) minutes." | tee --append "${log}"
 echo "*** FULL TEXT PIPELINE DONE - $(date) ***" | tee --append "${log}"

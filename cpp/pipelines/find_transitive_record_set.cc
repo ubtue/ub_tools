@@ -39,7 +39,7 @@ namespace {
 }
 
 
-enum RecordType { BIBLESTUDIES, CHURCHLAW, RELSTUDIES };
+enum RecordType { BIBLESTUDIES, CHURCHLAW, RELSTUDIES, AUGUSTINE };
 
 
 typedef bool (*RecordTypeOfInterestPredicate)(const MARC::Record &record);
@@ -62,6 +62,10 @@ inline bool IsRelStudiesRecord(const MARC::Record &record) {
     return record.findTag("REL") != record.end(); // remove after migration
 }
 
+inline bool IsAugustineRecord(const MARC::Record &record) {
+    // return record.hasSubfieldWithValue("SUB", 'a', "AUG");
+    return record.findTag("AUG") != record.end(); // remove after migration
+}
 
 std::set<RecordType> GetRecordTypes(const MARC::Record &record) {
     std::set<RecordType> record_types;
@@ -71,6 +75,8 @@ std::set<RecordType> GetRecordTypes(const MARC::Record &record) {
         record_types.emplace(CHURCHLAW);
     if (IsRelStudiesRecord(record))
         record_types.emplace(RELSTUDIES);
+    if (IsAugustineRecord(record))
+        record_types.emplace(AUGUSTINE);
 
     return record_types;
 }
@@ -107,6 +113,7 @@ std::map<RecordType, RecordTypeOfInterestPredicate> record_type_to_predicate_map
     { BIBLESTUDIES, IsBibleStudiesRecord },
     { CHURCHLAW, IsChurchLawRecord },
     { RELSTUDIES, IsRelStudiesRecord },
+    { AUGUSTINE, IsAugustineRecord },
 };
 
 
@@ -115,11 +122,13 @@ std::map<RecordType, MARC::Tag> record_type_to_tag_map{
     { BIBLESTUDIES, "BIB" },
     { CHURCHLAW, "CAN" },
     { RELSTUDIES, "REL" },
+    { AUGUSTINE, "AUG" },
 };
 std::map<RecordType, std::string> record_type_to_subfield_map{
     { BIBLESTUDIES, "BIB" },
     { CHURCHLAW, "CAN" },
     { RELSTUDIES, "REL" },
+    { AUGUSTINE, "AUG" },
 };
 
 unsigned PropagateTypes(File * const dangling_references_file, std::unordered_map<std::string, NodeInfo> * const ppns_to_node_infos,

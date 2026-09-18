@@ -1,8 +1,9 @@
 /** \brief A tool for installing IxTheo and KrimDok from scratch on Ubuntu systems.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
+ *  \author Mario Trojan (mario.trojan@uni-tuebingen.de)
  *  \author Steven Lolong (steven.lolong@uni-tuebingen.de)
  *
- *  \copyright 2016-2024 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2016-2026 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -46,6 +47,7 @@
 #include "FileUtil.h"
 #include "IniFile.h"
 #include "MiscUtil.h"
+#include "RegexMatcher.h"
 #include "Solr.h"
 #include "StringUtil.h"
 #include "SystemdUtil.h"
@@ -84,10 +86,7 @@
 
 // Print a log message to the terminal with a bright green background.
 void Echo(const std::string &log_message) {
-    std::cout << "\x1B"
-              << "[42m--- "
-              << "Installer -> " + log_message << "\x1B"
-              << "[0m\n";
+    std::cout << "\x1B" << "[42m--- " << "Installer -> " + log_message << "\x1B" << "[0m\n";
 }
 
 
@@ -411,7 +410,7 @@ void InstallSoftwareDependencies(const std::string vufind_system_type_string, co
         Echo("Starting systemctl for Apache2 and MySQL");
         std::string apache_unit_name("apache2");
         std::string mysql_unit_name("mysql");
-        std::string php_unit_name("php8.3-fpm");
+        std::string php_unit_name("php8.4-fpm");
         SystemdEnableAndRunUnit(apache_unit_name);
         SystemdEnableAndRunUnit(mysql_unit_name);
         SystemdEnableAndRunUnit(php_unit_name);
@@ -441,7 +440,7 @@ static void GenerateAndInstallVuFindServiceTemplate(const VuFindSystemType syste
     FileUtil::AutoTempDirectory temp_dir;
 
     Template::Map names_to_values_map;
-    names_to_values_map.insertScalar("solr_heap", system_type == KRIMDOK ? "6G" : "12G");
+    names_to_values_map.insertScalar("solr_heap", system_type == KRIMDOK ? "8G" : "16G");
     // names_to_values_map.insertScalar("solr_heap", system_type == KRIMDOK ? "4G" : "4G");
     const std::string vufind_service(Template::ExpandTemplate(
         FileUtil::ReadStringOrDie(INSTALLER_DATA_DIRECTORY + "/" + service_name + ".service.template"), names_to_values_map));
@@ -710,7 +709,7 @@ void ConfigureApacheUser() {
     FileUtil::ChangeOwnerOrDie(UBTools::GetTueFindLogPath(), username, username, /*recursive=*/true);
 
     // Also change user for php-fpm service
-    config_filename = "/etc/php/8.3/fpm/pool.d/www.conf";
+    config_filename = "/etc/php/8.4/fpm/pool.d/www.conf";
     ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("sed"), { "-i", "s/user = www-data/user = " + username + "/", config_filename });
     ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("sed"), { "-i", "s/group = www-data/group = " + username + "/", config_filename });
     ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("sed"),
@@ -811,9 +810,24 @@ void ConfigureVuFind(const bool production, const VuFindSystemType vufind_system
     // We need to increase default_socket_timeout for big downloads on slow mirrors, especially Solr (default 60 seconds) .
     TemporaryChDir tmp2(VUFIND_DIRECTORY);
 
+    // Copy Solr Installation file from network drive if exists (fallback will be to download, which might take ages)
+    const std::string VUFIND_DOWNLOADS_DIR_REMOTE("/mnt/ZE020150/FID-Entwicklung");
+    const std::string VUFIND_DOWNLOADS_DIR_LOCAL(VUFIND_DIRECTORY + "/downloads");
+    if (not FileUtil::Exists(VUFIND_DOWNLOADS_DIR_LOCAL))
+        FileUtil::MakeDirectoryOrDie(VUFIND_DOWNLOADS_DIR_LOCAL);
+    FileUtil::Directory vufind_downloads_dir(VUFIND_DOWNLOADS_DIR_REMOTE);
+    for (const auto entry : vufind_downloads_dir) {
+        if (entry.getType() == DT_REG && RegexMatcher::Matched("solr-\\d+\\.\\d+\\.\\d\\.tgz", entry.getName())) {
+            const std::string target_path(VUFIND_DOWNLOADS_DIR_LOCAL + "/" + entry.getName());
+            if (not FileUtil::Exists(target_path)) {
+                Echo("Copying " + entry.getFullName() + " to " + target_path);
+                FileUtil::CopyOrDie(entry.getFullName(), target_path);
+            }
+        }
+    }
+
     Echo("Installing VuFind dependencies from Composer");
     ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("php"), { "-d", "default_socket_timeout=600", ExecUtil::LocateOrDie("composer"), "install" });
-
 
     Echo("Installing VuFind dependencies from NPM");
     // We explicitly need to use sudo here, even if we're already root, or it will fail, see
@@ -821,7 +835,7 @@ void ConfigureVuFind(const bool production, const VuFindSystemType vufind_system
     ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("sudo"), { "npm", "install" });
 
     Echo("Building CSS");
-    ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("grunt"), { "less" });
+    ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("npm"), { "run", "build" });
 
     const std::string vufind_system_type_string(VuFindSystemTypeToString(vufind_system_type));
     Echo("Starting configuration for " + vufind_system_type_string);
@@ -874,8 +888,8 @@ void ConfigureVuFind(const bool production, const VuFindSystemType vufind_system
     Echo("Generating HMAC hash");
     const std::string HMAC_FILE_PATH(VUFIND_LOCAL_OVERRIDES_DIRECTORY + "/hmac.conf");
     if (not FileUtil::Exists(HMAC_FILE_PATH))
-        FileUtil::WriteStringOrDie(HMAC_FILE_PATH,
-                                   StringUtil::GenerateRandom(/*length=*/32, /*alphabet=*/"abcdefghijklmnopqrstuvwxyz0123456789"));
+        FileUtil::WriteStringOrDie(
+            HMAC_FILE_PATH, "HMACkey = " + StringUtil::GenerateRandom(/*length=*/32, /*alphabet=*/"abcdefghijklmnopqrstuvwxyz0123456789"));
 
     Echo(vufind_system_type_string + " configuration completed!");
 }
@@ -944,6 +958,10 @@ void ConfigureFullTextBackend(const bool production, const bool install_cronjobs
                         "" /* new_stdin */, "" /* new_stdout */, "" /* new_stderr */, 0 /* timeout_in_seconds */,
                         SIGKILL /* tardy_child_signal */, std::unordered_map<std::string, std::string>() /* envs */,
                         elasticsearch_programs_dir);
+
+    ExecUtil::ExecOrDie(elasticsearch_programs_dir + "/create_pipeline.sh", std::vector<std::string>{} /* args */, "" /* new_stdin */,
+                        "" /* new_stdout */, "" /* new_stderr */, 0 /* timeout_in_seconds */, SIGKILL /* tardy_child_signal */,
+                        std::unordered_map<std::string, std::string>() /* envs */, elasticsearch_programs_dir);
     if (not es_was_already_running) {
         if (SystemdUtil::IsAvailable())
             SystemdUtil::StopUnit("elasticsearch");

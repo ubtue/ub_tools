@@ -31,7 +31,7 @@ OVERALL_START=$(date +%s.%N)
 
 StartPhase "Check Record Integrity at the Beginning of the Pipeline"
 (marc_check --do-not-abort-on-empty-subfields --do-not-abort-on-invalid-repeated-fields \
-            --write-data=GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc GesamtTiteldaten-"${date}".mrc
+            --write-data=GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc GesamtTiteldaten-"${date}".mrc \
     >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
@@ -231,14 +231,6 @@ StartPhase "Adding of ISBN's and ISSN's to Component Parts"
                                 GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
-
-
-StartPhase "Extracting Keywords from Titles"
-make_named_pipe --buffer-size=$FIFO_BUFFER_SIZE GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1
-(enrich_keywords_with_title_words GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
-                                 GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
-                                 /usr/local/var/lib/tuelib/stopwords.???  >> "${log}" 2>&1 && \
-EndPhase || Abort) &
 
 
 StartPhase "Flag Electronic and Open-Access Records"
@@ -443,7 +435,7 @@ EndPhase || Abort) &
 wait
 
 
-StartPhase "Patch Transitive Church Law, Religous Studies and Bible Studies Records"
+StartPhase "Patch Transitive Church Law, Religous Studies, Bible Studies, and Augustine Records"
 (find_transitive_record_set GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                             GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc 2>&1 \
                             dangling_references.list && \

@@ -730,13 +730,15 @@ void Filter(const std::vector<FilterDescriptor> &filters, MARC::Reader * const m
                 }
             } else if (filter.getFilterType() == FilterType::DROP_BIBLIOGRAPHIC_LEVEL) {
                 if (std::strchr(filter.getBiblioLevels().c_str(), MARC::Record::BibliographicLevelToChar(record.getBibliographicLevel()))
-                    != nullptr) {
+                    != nullptr)
+                {
                     deleted_record = true;
                     continue;
                 }
             } else if (filter.getFilterType() == FilterType::KEEP_BIBLIOGRAPHIC_LEVEL) {
                 if (std::strchr(filter.getBiblioLevels().c_str(), MARC::Record::BibliographicLevelToChar(record.getBibliographicLevel()))
-                    != nullptr) {
+                    == nullptr)
+                {
                     deleted_record = true;
                     continue;
                 }
@@ -758,7 +760,8 @@ void Filter(const std::vector<FilterDescriptor> &filters, MARC::Reader * const m
                 }
             } else if (filter.getFilterType() == FilterType::REPLACE) {
                 if (ReplaceSubfields(filter.getSubfieldSpecs(), filter.getRegexMatcher(), filter.getStringFragmentsAndBackreferences(),
-                                     &record)) {
+                                     &record))
+                {
                     modified_record = true;
                     continue;
                 }
@@ -782,8 +785,10 @@ void Filter(const std::vector<FilterDescriptor> &filters, MARC::Reader * const m
                         record.deleteFields(matched_field_indices);
                         modified_record = true;
                     }
-                } else if (filter.getFilterType() == FilterType::KEEP)
+                } else if (filter.getFilterType() == FilterType::KEEP) {
+                    deleted_record = true;
                     continue;
+                }
             }
         }
 
