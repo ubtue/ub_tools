@@ -23,7 +23,7 @@ CREATE TABLE keyword_translations (
   wikidata_id CHAR(12),
   language_code CHAR(4) NOT NULL,
   translation VARCHAR(1024) NOT NULL,
-  status ENUM('reliable_synonym', 'reliable', 'unreliable', 'unreliable_cat2'
+  status ENUM('reliable_synonym', 'reliable', 'unreliable', 'unreliable_cat2',
               'unreliable_synonym', 'replaced', 'replaced_synonym',
               'new', 'new_synonym') NOT NULL,
   origin CHAR(3) NOT NULL,
