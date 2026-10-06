@@ -36,7 +36,7 @@ public:
         std::string subject_;
         bool matched_;
         unsigned match_count_;
-        std::vector<int> substr_indices_;
+        std::vector<PCRE2_SIZE> substr_indices_;
         std::string error_message_;
 
     public:
@@ -56,24 +56,15 @@ public:
     // PCRE types with the STL smart pointers
     struct PcreData {
         ::pcre2_code *pcre_;
-        ::pcre_extra *pcre_extra_;
 
     public:
-        PcreData(): pcre_(nullptr), pcre_extra_(nullptr) { }
-        ~PcreData() {
-            if (pcre_extra_ != nullptr)
-                ::pcre_free_study(pcre_extra_);
-
-            if (pcre_)
-                ::pcre_free(pcre_);
-        }
+        PcreData(): pcre_(nullptr) { }
+        ~PcreData() { ::pcre2_code_free(pcre_); }
     };
 
     enum Option { ENABLE_UTF8 = 1, CASE_INSENSITIVE = 2, MULTILINE = 4, ENABLE_UCP = 8 };
 
 private:
-    static constexpr size_t MAX_SUBSTRING_MATCHES = 40;
-
     const std::string pattern_;
     const unsigned options_;
     std::shared_ptr<PcreData> pcre_data_;
@@ -102,10 +93,8 @@ class RegexMatcher {
     std::string pattern_;
     unsigned options_;
     pcre2_code *pcre_;
-    pcre_extra *pcre_extra_;
-    static constexpr size_t MAX_SUBSTRING_MATCHES = 20;
     mutable std::string last_subject_;
-    mutable std::vector<int> substr_vector_;
+    mutable std::vector<PCRE2_SIZE> substr_vector_;
     mutable unsigned last_match_count_;
 
 public:
@@ -118,10 +107,7 @@ public:
     RegexMatcher(RegexMatcher &&that);
 
     /** Destructor. */
-    virtual ~RegexMatcher() {
-        ::pcre_free_study(pcre_extra_);
-        ::pcre_free(pcre_);
-    }
+    virtual ~RegexMatcher() { ::pcre2_code_free(pcre_); }
 
     /** Returns true if "s" was matched, false, if an error occurred or no match was found. In the case of an
      *  error "err_msg", if provided, will be set to a non-empty string, otherwise "err_msg" will be cleared.
@@ -157,7 +143,7 @@ public:
     /** \return The number of matched parenthesised groups in the pattern.
      *  \note   Obviously you may only call this after a call to matched().
      */
-    unsigned getNoOfGroups() const { return last_match_count_ - 1; }
+    unsigned getNoOfGroups() const { return last_match_count_ == 0 ? 0 : last_match_count_ - 1; }
 
     /** \brief Returns either the full last match or matched substrings.
      *  \param group  When "group" is 0, the full last match will be returned, o/w the n-th substring match
@@ -209,7 +195,7 @@ public:
     static std::string Escape(const std::string &subpattern);
 
 private:
-    RegexMatcher(const std::string &pattern, const unsigned options, pcre2_code * const pcre_arg, pcre_extra * const pcre_extra_arg)
-        : pattern_(pattern), options_(options), pcre_(pcre_arg), pcre_extra_(pcre_extra_arg),
-          substr_vector_((1 + MAX_SUBSTRING_MATCHES) * 3), last_match_count_(0) { }
+    RegexMatcher(const std::string &pattern, const unsigned options, pcre2_code * const pcre_arg)
+        : pattern_(pattern), options_(options), pcre_(pcre_arg),
+          last_match_count_(0) { }
 };

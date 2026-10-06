@@ -1,6 +1,7 @@
 /** \file    PerlCompatRegExp.cc
- *  \brief   Implementation of class PerlCompatRegExp, a wrapper around libpcre.
+ *  \brief   Implementation of class PerlCompatRegExp, a wrapper around libpcre2.
  *  \author  Dr. Johannes Ruscheinski
+ *  \author  Steven Lolong (steven.lolong@uni-tuebingen.de)
  */
 
 /*
@@ -27,51 +28,76 @@
 #include "PerlCompatRegExp.h"
 #include <stdexcept>
 #include <cassert>
-#include <langinfo.h>
-#include "StringUtil.h"
+#include <cstring>
+#include <memory>
+#include <utility>
+#include "Compiler.h"
 
 
-/**
- *  These globals need to be made into functions to fix a problem with static initialization order. Without this, declaring a static
- *  PerlCompatRegExp in another file crashes due to these values being unitialized.
- */
-inline const unsigned char *&PerlCompatRegExp::GetCharacterTable() {
-    static const unsigned char *character_table = nullptr;
-    return character_table;
+namespace {
+
+using CompiledPattern = std::unique_ptr<pcre2_code, decltype(&::pcre2_code_free)>;
+
+CompiledPattern CompilePattern(const std::string &pattern, const unsigned options, int * const error_code,
+                               PCRE2_SIZE * const error_offset) {
+    const auto free_tables = [](const uint8_t *tables) { ::pcre2_maketables_free(nullptr, tables); };
+    const std::unique_ptr<const uint8_t, decltype(free_tables)> tables(::pcre2_maketables(nullptr), free_tables);
+    const std::unique_ptr<pcre2_compile_context, decltype(&::pcre2_compile_context_free)> context(
+        ::pcre2_compile_context_create(nullptr), &::pcre2_compile_context_free);
+    if (not tables or not context)
+        throw std::bad_alloc();
+    ::pcre2_set_character_tables(context.get(), tables.get());
+
+    CompiledPattern compiled(::pcre2_compile(reinterpret_cast<PCRE2_SPTR>(pattern.data()), pattern.size(), options, error_code,
+                                            error_offset, context.get()), &::pcre2_code_free);
+    if (not compiled)
+        return compiled;
+
+    // Each compiled pattern owns its tables, so changing the locale or resetting
+    // another expression cannot invalidate tables used by an existing pattern.
+    CompiledPattern owned(::pcre2_code_copy_with_tables(compiled.get()), &::pcre2_code_free);
+    if (not owned)
+        throw std::bad_alloc();
+    return owned;
 }
 
-
-inline std::string &PerlCompatRegExp::GetCodeset() {
-    static std::string codeset(::nl_langinfo(CODESET));
-    return codeset;
-}
+} // namespace
 
 
 PerlCompatRegExp::PerlCompatRegExp(const std::string &pattern, const ProcessingMode processing_mode, const int options)
-    : compiled_pattern_(nullptr), extra_pattern_info_(nullptr), substring_match_count_(0) {
+    : PerlCompatRegExp() {
     resetPattern(pattern, processing_mode, options);
 }
 
 
 PerlCompatRegExp::PerlCompatRegExp(const PerlCompatRegExp &rhs)
-    : compiled_pattern_(nullptr), extra_pattern_info_(nullptr), substring_match_count_(rhs.substring_match_count_) {
-    resetPattern(rhs.pattern_, rhs.processing_mode_, rhs.options_);
+    : subject_text_(rhs.subject_text_), compiled_pattern_(nullptr), substring_match_count_(rhs.substring_match_count_),
+      pattern_(rhs.pattern_), processing_mode_(rhs.processing_mode_), options_(rhs.options_), offset_vector_(rhs.offset_vector_) {
+    if (rhs.compiled_pattern_ != nullptr) {
+        compiled_pattern_ = ::pcre2_code_copy_with_tables(rhs.compiled_pattern_);
+        if (compiled_pattern_ == nullptr)
+            throw std::bad_alloc();
+    }
 }
 
 
 PerlCompatRegExp::~PerlCompatRegExp() {
     if (compiled_pattern_ != nullptr)
-        ::pcre_free(compiled_pattern_);
-    if (extra_pattern_info_ != nullptr)
-        ::pcre_free(extra_pattern_info_);
+        ::pcre2_code_free(compiled_pattern_);
 }
 
 
 const PerlCompatRegExp &PerlCompatRegExp::operator=(const PerlCompatRegExp &rhs) {
     // Prevent self-assignment:
     if (this != &rhs) {
-        substring_match_count_ = rhs.substring_match_count_;
-        resetPattern(rhs.pattern_, rhs.processing_mode_, rhs.options_);
+        PerlCompatRegExp copy(rhs);
+        std::swap(subject_text_, copy.subject_text_);
+        std::swap(compiled_pattern_, copy.compiled_pattern_);
+        std::swap(substring_match_count_, copy.substring_match_count_);
+        std::swap(pattern_, copy.pattern_);
+        std::swap(processing_mode_, copy.processing_mode_);
+        std::swap(options_, copy.options_);
+        std::swap(offset_vector_, copy.offset_vector_);
     }
 
     return *this;
@@ -96,17 +122,24 @@ bool PerlCompatRegExp::match(const std::string &subject_text, const size_t start
     assert(compiled_pattern_ != nullptr);
 
     subject_text_ = subject_text;
-    const int match_count(::pcre_exec(compiled_pattern_, extra_pattern_info_, subject_text_.c_str(),
-                                      static_cast<int>(subject_text_.length()), static_cast<int>(start_offset), options, offset_vector_,
-                                      OFFSET_VECTOR_SIZE));
-    if (match_count > 1)
-        substring_match_count_ = match_count - 1;
-    else
-        substring_match_count_ = 0;
+    substring_match_count_ = 0;
+    offset_vector_.clear();
+    if (compiled_pattern_ == nullptr or start_offset > subject_text_.size())
+        return false;
+
+    const std::unique_ptr<pcre2_match_data, decltype(&::pcre2_match_data_free)> match_data(
+        ::pcre2_match_data_create_from_pattern(compiled_pattern_, nullptr), &::pcre2_match_data_free);
+    if (not match_data)
+        throw std::bad_alloc();
+    const int match_count(::pcre2_match(compiled_pattern_, reinterpret_cast<PCRE2_SPTR>(subject_text_.data()), subject_text_.size(),
+                                       start_offset, static_cast<uint32_t>(options), match_data.get(), nullptr));
 
     if (match_count < 1)
         return false;
     else {
+        const PCRE2_SIZE *offsets = ::pcre2_get_ovector_pointer(match_data.get());
+        offset_vector_.assign(offsets, offsets + 2 * match_count);
+        substring_match_count_ = match_count - 1;
         if (start_pos != nullptr)
             *start_pos = offset_vector_[0];
         if (length != nullptr)
@@ -204,7 +237,7 @@ bool PerlCompatRegExp::getMatchedSubstring(unsigned index, std::string * const m
         return false;
 
     index <<= 1; // Indexes come in pairs.
-    if (offset_vector_[index] == -1) {
+    if (offset_vector_[index] == PCRE2_UNSET) {
         matched_substring->clear();
         return true;
     }
@@ -225,7 +258,7 @@ std::string PerlCompatRegExp::getMatchedSubstring(unsigned index) const {
         throw std::runtime_error("in PerlCompatRegExp::getMatchedSubstring: asked for substring beyond available count!");
 
     index <<= 1; // Indexes come in pairs.
-    if (offset_vector_[index] == -1)
+    if (offset_vector_[index] == PCRE2_UNSET)
         return "";
 
     return subject_text_.substr(offset_vector_[index], offset_vector_[index + 1] - offset_vector_[index]);
@@ -324,66 +357,38 @@ std::string PerlCompatRegExp::Subst(const std::string &subst_expression, const s
 
 
 bool PerlCompatRegExp::IsValid(const std::string &test_pattern) {
-    const char *err_ptr;
-    int err_offset;
-    UpdateCharacterTable();
-    pcre2_code *compiled_pattern = ::pcre_compile(test_pattern.c_str(), 0, &err_ptr, &err_offset, PerlCompatRegExp::GetCharacterTable());
-    if (compiled_pattern == nullptr)
-        return false;
-    else {
-        ::pcre_free(compiled_pattern);
-        return true;
-    }
+    int error_code;
+    PCRE2_SIZE error_offset;
+    return CompilePattern(test_pattern, 0, &error_code, &error_offset) != nullptr;
 }
 
 
 bool PerlCompatRegExp::internalResetPattern(const std::string &new_pattern, const ProcessingMode new_processing_mode, const int new_options,
                                             std::string * const error_message) {
-    pattern_ = new_pattern;
-    processing_mode_ = new_processing_mode;
-    options_ = new_options;
-
-    if (compiled_pattern_ != nullptr)
-        ::pcre_free(compiled_pattern_);
-    if (extra_pattern_info_ != nullptr)
-        ::pcre_free(extra_pattern_info_);
-
-    const char *err_ptr;
-    int err_offset;
-    UpdateCharacterTable();
-    compiled_pattern_ = ::pcre_compile(new_pattern.c_str(), new_options, &err_ptr, &err_offset, PerlCompatRegExp::GetCharacterTable());
-    if (compiled_pattern_ == nullptr) {
-        *error_message = StringUtil::Format("error \"%s\" while compiling pattern at offset %u (%s)!", err_ptr, err_offset,
-                                            new_pattern.c_str() + err_offset);
+    int error_code;
+    PCRE2_SIZE error_offset;
+    auto compiled = CompilePattern(new_pattern, static_cast<uint32_t>(new_options), &error_code, &error_offset);
+    if (not compiled) {
+        PCRE2_UCHAR error_text[256];
+        const int error_length = ::pcre2_get_error_message(error_code, error_text, sizeof(error_text));
+        const std::string description = error_length >= 0
+                                           ? std::string(reinterpret_cast<const char *>(error_text), error_length)
+                                           : "PCRE2 error " + std::to_string(error_code);
+        *error_message = "error \"" + description + "\" while compiling pattern at offset " + std::to_string(error_offset)
+                         + " (" + new_pattern.substr(error_offset) + ")!";
         return false;
     }
 
-#if 0 // The "studying" seems to currently be broken for the general case!
-    if (new_processing_mode == OPTIMIZE_FOR_MULTIPLE_USE) {
-        extra_pattern_info_ = ::pcre_study(compiled_pattern_, 0, &err_ptr);
-        if (extra_pattern_info_ == nullptr) {
-            *error_message = "error while optimizing the pattern \"";
-            *error_message += pattern;
-            *error_message += "\" (";
-            *error_message += err_ptr;
-            *error_message += ")!";
-            return false;
-        }
-    }
-#endif
-
+    pattern_ = new_pattern;
+    processing_mode_ = new_processing_mode;
+    options_ = new_options;
+    ::pcre2_code_free(compiled_pattern_);
+    compiled_pattern_ = compiled.release();
+    substring_match_count_ = 0;
+    subject_text_.clear();
+    offset_vector_.clear();
+    error_message->clear();
     return true;
-}
-
-
-void PerlCompatRegExp::UpdateCharacterTable() {
-    const std::string current_codeset(::nl_langinfo(CODESET));
-    if (PerlCompatRegExp::GetCodeset() != current_codeset) {
-        PerlCompatRegExp::GetCodeset() = current_codeset;
-        if (GetCharacterTable() != nullptr)
-            ::pcre_free(reinterpret_cast<void *>(const_cast<unsigned char *>(PerlCompatRegExp::GetCharacterTable())));
-        PerlCompatRegExp::GetCharacterTable() = ::pcre_maketables();
-    }
 }
 
 
