@@ -16,6 +16,7 @@ import org.apache.lucene.search.MatchAllDocsQuery;
 import org.apache.lucene.search.PhraseQuery;
 import org.apache.lucene.search.PrefixQuery;
 import org.apache.lucene.search.Query;
+import org.apache.lucene.search.RegexpQuery;
 import org.apache.lucene.search.SynonymQuery;
 import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.TermRangeQuery;
@@ -461,13 +462,6 @@ public class MultiLanguageQueryParser extends QParser {
         return synonymQueryBuilder.build();
     }
 
-
-    private Query processMatchAllDocsQuery(final MatchAllDocsQuery queryCandidate) {
-        //Since all docs are matched, no modifications are needed
-        return queryCandidate;
-    }
-
-
     private void handleLuceneParser(String[] query, SolrQueryRequest request, String lang, IndexSchema schema) throws MultiLanguageQueryParserException {
         if (query.length != 1)
            throw new MultiLanguageQueryParserException("Only one q-parameter is supported [1]");
@@ -486,10 +480,14 @@ public class MultiLanguageQueryParser extends QParser {
                 newQuery = processDisjunctionMaxQuery((DisjunctionMaxQuery)newQuery);
             else if (newQuery instanceof BoostQuery)
                 newQuery = processBoostQuery((BoostQuery)newQuery);
-            else if (newQuery instanceof MatchAllDocsQuery)
-                newQuery = processMatchAllDocsQuery((MatchAllDocsQuery)newQuery);
             else if (newQuery instanceof SolrRangeQuery)
                 newQuery = processSolrRangeQuery((SolrRangeQuery)newQuery);
+            else if (newQuery instanceof MatchAllDocsQuery)
+                ; // No special processing necessary
+            else if (newQuery instanceof RegexpQuery)
+                ; // No special processing necessary
+            else if (newQuery instanceof de.uni_tuebingen.ub.ixTheo.rangeSearch.RangeQuery)
+                ; // No special processing necessary
             else
                 logger.warn("No rewrite rule did match for " + newQuery.getClass());
             this.searchString = newQuery.toString();

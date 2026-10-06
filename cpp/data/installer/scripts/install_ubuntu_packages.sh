@@ -31,7 +31,6 @@ curl -fsSL https://artifacts.elastic.co/GPG-KEY-elasticsearch | gpg --dearmor -o
 apt-add-repository --yes --update 'deb [signed-by=/etc/apt/keyrings/elastic-archive-keyring.gpg] https://artifacts.elastic.co/packages/8.x/apt stable main'
 apt-add-repository --yes --update 'ppa:alex-p/tesseract-ocr5'
 
-
 # main installation
 apt-get --quiet --yes --allow-unauthenticated install \
         ant apache2 apparmor-utils build-essential ca-certificates cifs-utils clang clang-format cron curl gcc git imagemagick incron ipset jq libarchive-dev \
