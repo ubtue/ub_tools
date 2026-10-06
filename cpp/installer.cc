@@ -408,7 +408,7 @@ void InstallSoftwareDependencies(const std::string vufind_system_type_string, co
         Echo("Starting systemctl for Apache2 and MySQL");
         std::string apache_unit_name("apache2");
         std::string mysql_unit_name("mysql");
-        std::string php_unit_name("php8.3-fpm");
+        std::string php_unit_name("php8.4-fpm");
         SystemdEnableAndRunUnit(apache_unit_name);
         SystemdEnableAndRunUnit(mysql_unit_name);
         SystemdEnableAndRunUnit(php_unit_name);

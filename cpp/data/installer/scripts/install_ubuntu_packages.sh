@@ -39,7 +39,7 @@ apt-get --quiet --yes --allow-unauthenticated install \
         libpcre2-dev libpq-dev libsqlite3-dev libssl-dev libstemmer-dev libsystemd-dev libtesseract-dev libwebp-dev libxerces-c-dev \
         libxml2-dev libxml2-utils locales-all libxxhash-dev make mawk moreutils mpack mutt needrestart nlohmann-json3-dev openjdk-21-jdk p7zip-full \
         poppler-utils postgresql-client python3 python3-paramiko rsync sqlite3 tesseract-ocr tesseract-ocr-all \
-        expect-dev tidy unzip uuid-dev xsltproc
+        tcl-expect-dev  tidy unzip uuid-dev xsltproc
 
 # Explicitly enable mod_cgi. If we would use `a2enmod cgi`, it would enable mod_cgid, which would fail on apache startup.
 a2enmod cgi
@@ -79,19 +79,21 @@ fi
 #---------------------------------- TUEFIND ---------------------------------#
 if [[ $1 == "ixtheo" || $1 == "krimdok" ]]; then
     ColorEcho "installing/updating tuefind dependencies..."
-    # 26.04 uses 8.5 by default
+    # 26.04 uses 8.5 by default, but we need 8.4 for tuefind.
     # Also, we use php-fpm with fcgi instead of libapache2-mod-php to avoid HTTP/2 compatibility issues with mpm_prefork.
+    PHP_VERSION=8.4
     add-apt-repository --yes --update ppa:ondrej/php
     apt-get --quiet --yes install \
         composer npm node-grunt-cli \
-        php php-curl php-gd php-intl php-ldap php-mbstring php-memcached php-mysql php-soap php-xml \
-        php-fpm
+        "php${PHP_VERSION}" "php${PHP_VERSION}-cli" "php${PHP_VERSION}-curl" "php${PHP_VERSION}-gd" \
+        "php${PHP_VERSION}-intl" "php${PHP_VERSION}-ldap" "php${PHP_VERSION}-mbstring" "php${PHP_VERSION}-memcached" \
+        "php${PHP_VERSION}-mysql" "php${PHP_VERSION}-soap" "php${PHP_VERSION}-xml" "php${PHP_VERSION}-fpm"
 
-    update-alternatives --set php /usr/bin/php8.5
+    update-alternatives --set php "/usr/bin/php${PHP_VERSION}"
 
     a2dismod mpm_prefork
     a2enmod mpm_event proxy_fcgi http2 rewrite setenvif ssl
-    a2enconf php-fpm
+    a2enconf "php${PHP_VERSION}-fpm"
     /etc/init.d/apache2 restart
 fi
 
