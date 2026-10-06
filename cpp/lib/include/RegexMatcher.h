@@ -48,6 +48,8 @@ public:
         inline operator bool() const { return matched_; }
         inline unsigned size() const { return match_count_; }
         std::string operator[](const unsigned group) const;
+        // Empty for a successful match or an ordinary no-match result.
+        const std::string &getErrorMessage() const { return error_message_; }
     };
 
     friend class MatchResult;
@@ -59,9 +61,12 @@ public:
 
     public:
         PcreData(): pcre_(nullptr) { }
+        PcreData(const PcreData &) = delete;
+        PcreData &operator=(const PcreData &) = delete;
         ~PcreData() { ::pcre2_code_free(pcre_); }
     };
 
+    // Wrapper options, translated internally to PCRE2 flags.
     enum Option { ENABLE_UTF8 = 1, CASE_INSENSITIVE = 2, MULTILINE = 4, ENABLE_UCP = 8 };
 
 private:
@@ -73,23 +78,22 @@ public:
     ThreadSafeRegexMatcher(const std::string &pattern, const unsigned options = ENABLE_UTF8);
     ThreadSafeRegexMatcher(const ThreadSafeRegexMatcher &rhs)
         : pattern_(rhs.pattern_), options_(rhs.options_), pcre_data_(rhs.pcre_data_) { }
-    MatchResult &operator=(const MatchResult &) = delete;
+    ThreadSafeRegexMatcher &operator=(const ThreadSafeRegexMatcher &) = delete;
 
     inline const std::string &getPattern() const { return pattern_; }
     MatchResult match(const std::string &subject, const size_t subject_start_offset = 0, size_t * const start_pos = nullptr,
                       size_t * const end_pos = nullptr) const;
     std::string replaceAll(const std::string &subject, const std::string &replacement) const;
     /* c.f. description of RegexMatcher::replaceWithBackreferences below for usage and examples */
-    std::string replaceWithBackreferences(const std::string &subject, const std::string &replacement, const bool global = false);
+    std::string replaceWithBackreferences(const std::string &subject, const std::string &replacement, const bool global = false) const;
 };
 
 
 /** \class (DEPRECATED) RegexMatcher
  *  \brief DEPRECATED. Use ThreadSafeRegexMatcher instead.
-           Wrapper class for simple use cases of the PCRE library and UTF-8 strings.
+           Wrapper class for simple use cases of the PCRE2 library and UTF-8 strings.
  */
 class RegexMatcher {
-    static bool utf8_configured_;
     std::string pattern_;
     unsigned options_;
     pcre2_code *pcre_;
@@ -98,6 +102,7 @@ class RegexMatcher {
     mutable unsigned last_match_count_;
 
 public:
+    // Wrapper options, translated internally to PCRE2 flags.
     enum Option { ENABLE_UTF8 = 1, CASE_INSENSITIVE = 2, MULTILINE = 4, ENABLE_UCP = 8 }; // These need to be powers of 2.
 public:
     /** Copy constructor. */
@@ -191,7 +196,7 @@ public:
     static std::string ReplaceAll(const std::string &regex, const std::string &subject, const std::string &replacement,
                                   const unsigned options = 0);
 
-    /** \brief Escape all PCRE metacharacters in the given string with a backslash (see `man pcrepattern`) */
+    /** \brief Escape all PCRE metacharacters in the given string with a backslash (see `man pcre2pattern`) */
     static std::string Escape(const std::string &subpattern);
 
 private:
