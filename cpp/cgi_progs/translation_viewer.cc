@@ -1,4 +1,25 @@
-// Generated using AI
+/** \file    translation_viewer.cc
+ *  \brief   A CGI-based SPA tool for viewing existing translations in a specific language
+ */
+/* This file was written with the support of generative AI */
+/*
+    Copyright (C) 2026, Library of the University of Tübingen
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+
 #include <format>
 #include <iostream>
 #include <sstream>
