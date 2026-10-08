@@ -176,9 +176,9 @@ if [[ "$MODE" = "LIVE" ]]; then
         Echo "No new changes to commit"
     else
         Echo "Push changes to GitHub"
-        git add *
-        git commit "--author=\"ubtue_robot <>\"" "-mUpdates via cronjob"
-        git push
+        git add * >> "${LOG}" 2>&1
+        git commit "--author=\"ubtue_robot <>\"" "-mUpdates via cronjob" >> "${LOG}" 2>&1
+        git push >> "${LOG}" 2>&1
     fi
 fi
 
