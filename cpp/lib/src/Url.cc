@@ -1588,7 +1588,7 @@ std::string Url::getSite() const {
         LoadUrlConfigFile();
 
     for (const auto &pair : pattern_to_site_map) {
-        if (PerlCompatRegExp::Match(pair.first, url_, PCRE_ANCHORED | PCRE_CASELESS))
+        if (PerlCompatRegExp::Match(pair.first, url_, PCRE2_ANCHORED | PCRE2_CASELESS))
             return pair.second;
     }
 
@@ -1854,7 +1854,7 @@ public:
 std::string UrlMaps::map(const std::string &url) const {
     for (const auto &url_map : url_maps_) {
         const std::string new_url(PerlCompatRegExp::Subst(url_map.getFromPattern(), url_map.getToPattern(), url,
-                                                          /*global = */ false, PCRE_ANCHORED));
+                                                          /*global = */ false, PCRE2_ANCHORED));
         if (new_url != url)
             return new_url;
     }
