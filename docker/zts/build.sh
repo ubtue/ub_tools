@@ -11,5 +11,5 @@ cp /usr/local/ub_tools/docker/zts/* /tmp/zotero-translation-server
 cp /usr/local/ub_tools/docker/zts/.dockerignore /tmp/zotero-translation-server
 cp -r /usr/local/ub_tools/docker/zts/extra_certs /tmp/zotero-translation-server
 cd /tmp/zotero-translation-server
-cat Dockerfile | envsubst | docker build -t zts . -f -
+cat Dockerfile | envsubst | docker build --pull -t zts . -f -
 rm -rf /tmp/zotero-translation-server

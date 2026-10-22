@@ -1,4 +1,4 @@
-FROM node:lts
+FROM node:22.23.4
 
 # install npm dependencies
 WORKDIR /app
