@@ -1,6 +1,7 @@
 /** \file    PerlCompatRegExp.h
- *  \brief   Declaration of class PerlCompatRegExp, a wrapper around libpcre.
+ *  \brief   Declaration of class PerlCompatRegExp, a wrapper around libpcre2.
  *  \author  Dr. Johannes Ruscheinski
+ *  \author  Steven Lolong (steven.lolong@uni-tuebingen.de)
  */
 
 /*
@@ -26,21 +27,21 @@
  */
 #pragma once
 
+#define PCRE2_CODE_UNIT_WIDTH 8
 
 #include <list>
 #include <stdexcept>
 #include <string>
 #include <vector>
-#include <pcre.h>
+#include <pcre2.h>
 
 
 /** \class  PerlCompatRegExp
- *  \brief  A convenience wrapper around the pcre(3) API.
+ *  \brief  A convenience wrapper around the pcre2api(3) API.
  */
 class PerlCompatRegExp {
     mutable std::string subject_text_; // The "subject text" to be processed.
-    pcre *compiled_pattern_;
-    pcre_extra *extra_pattern_info_;
+    pcre2_code *compiled_pattern_;
     mutable unsigned substring_match_count_;
     std::string pattern_;
 
@@ -50,16 +51,14 @@ public:
 private:
     ProcessingMode processing_mode_;
     unsigned options_;
-    static const int OFFSET_VECTOR_SIZE = 300; // Must be a multiple of 3!
-    mutable int offset_vector_[OFFSET_VECTOR_SIZE];
-    static const unsigned char *&GetCharacterTable();
-    static std::string &GetCodeset();
+    mutable std::vector<PCRE2_SIZE> offset_vector_;
 
 public:
-    PerlCompatRegExp(): compiled_pattern_(nullptr), extra_pattern_info_(nullptr) { }
+    PerlCompatRegExp()
+        : compiled_pattern_(nullptr), substring_match_count_(0), processing_mode_(DONT_OPTIMIZE_FOR_MULTIPLE_USE), options_(0) { }
     PerlCompatRegExp(const PerlCompatRegExp &rhs);
 
-    /** \note  See pcre_compile(3) for which options are available.
+    /** \note  See pcre2_compile(3) for which options are available.
      */
     PerlCompatRegExp(const std::string &pattern, const ProcessingMode processing_mode = DONT_OPTIMIZE_FOR_MULTIPLE_USE,
                      const int options = 0);
@@ -89,7 +88,7 @@ public:
      *  \param  start_offset  Where to start scanning for a match.
      *  \param  start_pos     If we have a match this is the (zero-based) index of the start of the match.
      *  \param  length        If we have a match this is the length of the matching section of "subject_string".
-     *  \param  options       See pcre_compile(3) for which options are available.
+     *  \param  options       See pcre2_compile(3) for which options are available.
      *  \return True if "subject_text" is a match for the pattern, else false.  Please note that a successful return does not imply that
      * there are any substring matches.
      */
@@ -106,7 +105,7 @@ public:
 
     /** \brief  Match "subject_text " against this regexp.
      *  \param  subject_text  The string to match against.  May legitimately contain zero bytes!
-     *  \param  options       See pcre_compile(3) for which options are available.
+     *  \param  options       See pcre2_compile(3) for which options are available.
      *  \return True if "subject_text" is a match for the pattern, else false.  Please note that a successful return does not imply that
      * there are any substring matches.
      */
@@ -117,7 +116,7 @@ public:
      *         PerlCompatRegExp object with a processing mode of OPTIMIZE_FOR_MULTIPLE_USE.
      *  \param  pattern       The regexp to match against.
      *  \param  subject_text  The string to match against.  May legitimately contain zero bytes!
-     *  \param  options       See pcre_compile(3) for which options are available.
+     *  \param  options       See pcre2_compile(3) for which options are available.
      *  \return True if "subject_text" matched the regexp "pattern", otherwise false.
      */
     static bool Match(const std::string &pattern, const std::string &subject_text, int options = 0);
@@ -125,7 +124,7 @@ public:
     /** \brief  Attempts to extract all matches of the pattern that has been specified via the constructor.
      *  \param  subject_text        The string to match against.  May legitimately contain zero bytes!
      *  \param  matched_substrings  Upon a successful
-     *  \param  options             See pcre_compile(3) for which options are available.
+     *  \param  options             See pcre2_compile(3) for which options are available.
      *  \return True if at least one match was found, otherwise false.
      */
     bool multiMatch(const std::string &subject_text, std::vector<std::string> * const matched_substrings, const int options = 0) const;
@@ -135,7 +134,7 @@ public:
      * use of this function as for one-shot matching.  If you want to repeatedly match against the same pattern it is probably better to
      * create a PerlCompatRegExp object with a processing mode of OPTIMIZE_FOR_MULTIPLE_USE. \param  pattern             The regexp to match
      * against. \param  subject_text        The string to match against.  May legitimately contain zero bytes! \param  matched_substrings
-     * Upon a successful \param  options             See pcre_compile(3) for which options are available. \return True if at least one match
+     * Upon a successful \param  options             See pcre2_compile(3) for which options are available. \return True if at least one match
      * was found, otherwise false.
      */
     static bool MultiMatch(const std::string &pattern, const std::string &subject_text, std::vector<std::string> * const matched_substrings,
@@ -161,7 +160,7 @@ public:
      *                        starting at 1 and refers to the N-th matched substring of the pattern.
      *  \param  subject_text  The text that the pattern gets applied to.
      *  \param  global        If true perform a global search-and-replace.
-     *  \param  options       See pcre_compile(3) for which options are available.
+     *  \param  options       See pcre2_compile(3) for which options are available.
      *  \return The substituted string.
      */
     static std::string Subst(const std::string &pattern, const std::string &replacement, const std::string &subject_text,
@@ -186,7 +185,7 @@ public:
      *                             character besides slash can be used as a delimiter.  To remove the special meaning of a character you
      *                             must escape it with a backslash.
      *  \param   subject_text      The text that the pattern gets applied to.
-     *  \param   options           See pcre_compile(3) for which options are available.
+     *  \param   options           See pcre2_compile(3) for which options are available.
      *  \return  The substituted string.
      */
     static std::string Subst(const std::string &subst_expression, const std::string &subject_text, const int options = 0);
@@ -212,9 +211,6 @@ private:
     /** Specifies a new pattern to match against. */
     bool internalResetPattern(const std::string &new_pattern, const ProcessingMode new_processing_mode, const int new_options,
                               std::string * const error_message);
-
-    /** Makes "character_table_" current.  Must be called before pcre_compile(3). */
-    static void UpdateCharacterTable();
 };
 
 
@@ -265,28 +261,28 @@ public:
      *  \param  start_offset  Where to start scanning for a match.
      *  \param  start_pos     If we have a match this is the (zero-based) index of the start of the match.
      *  \param  length        If we have a match this is the length of the matching section of "subject_string".
-     *  \param  options       See pcre_compile(3) for which options are available.
+     *  \param  options       See pcre2_compile(3) for which options are available.
      *  \return True if "subject_text" is a match for at least one of the patterns, else false.
      *          Please note that a successful return does not imply that there are any substring matches.
-     *  \note   See the description of pcre_exec in pcre(3) for which options are available.
+     *  \note   See the description of pcre2_match in pcre2api(3) for which options are available.
      */
     bool matchAny(const std::string &subject_text, const size_t start_offset, size_t * const start_pos, size_t * const length,
                   const int options = 0) const;
 
     /** \brief  Match "subject_text " against all regexps.
      *  \param  subject_text  The string to match against.  May legitimately contain zero bytes!
-     *  \param  options       See pcre_compile(3) for which options are available.
+     *  \param  options       See pcre2_compile(3) for which options are available.
      *  \return True if "subject_text" is a match for at least one of the pattern, else false.
      *          Please note that a successful return does not imply that there are any substring
      *          matches.
-     *  \note   See the description of pcre_exec in pcre(3) for which options are available.
+     *  \note   See the description of pcre2_match in pcre2api(3) for which options are available.
      */
     bool matchAny(const std::string &subject_text, const int options = 0) const;
 
     /** \brief  Attempts to extract all matches of the pattern that has been specified via calls to addPattern().
      *  \param  subject_text        The string to match against.  May legitimately contain zero bytes!
      *  \param  matched_substrings  Upon a successful
-     *  \param  options             See pcre_compile(3) for which options are available.
+     *  \param  options             See pcre2_compile(3) for which options are available.
      *  \return True if at least one match was found, otherwise false.
      */
     bool multiMatch(const std::string &subject_text, std::vector<std::string> * const matched_substrings, const int options = 0) const;

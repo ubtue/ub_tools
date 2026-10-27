@@ -19,12 +19,13 @@
  */
 #pragma once
 
+#define PCRE2_CODE_UNIT_WIDTH 8
 
 #include <memory>
 #include <stdexcept>
 #include <string>
 #include <vector>
-#include <pcre.h>
+#include <pcre2.h>
 
 
 class ThreadSafeRegexMatcher {
@@ -35,7 +36,7 @@ public:
         std::string subject_;
         bool matched_;
         unsigned match_count_;
-        std::vector<int> substr_indices_;
+        std::vector<PCRE2_SIZE> substr_indices_;
         std::string error_message_;
 
     public:
@@ -47,6 +48,8 @@ public:
         inline operator bool() const { return matched_; }
         inline unsigned size() const { return match_count_; }
         std::string operator[](const unsigned group) const;
+        // Empty for a successful match or an ordinary no-match result.
+        const std::string &getErrorMessage() const { return error_message_; }
     };
 
     friend class MatchResult;
@@ -54,25 +57,19 @@ public:
     // We need this wrapper class to use the incomplete
     // PCRE types with the STL smart pointers
     struct PcreData {
-        ::pcre *pcre_;
-        ::pcre_extra *pcre_extra_;
+        ::pcre2_code *pcre_;
 
     public:
-        PcreData(): pcre_(nullptr), pcre_extra_(nullptr) { }
-        ~PcreData() {
-            if (pcre_extra_ != nullptr)
-                ::pcre_free_study(pcre_extra_);
-
-            if (pcre_)
-                ::pcre_free(pcre_);
-        }
+        PcreData(): pcre_(nullptr) { }
+        PcreData(const PcreData &) = delete;
+        PcreData &operator=(const PcreData &) = delete;
+        ~PcreData() { ::pcre2_code_free(pcre_); }
     };
 
+    // Wrapper options, translated internally to PCRE2 flags.
     enum Option { ENABLE_UTF8 = 1, CASE_INSENSITIVE = 2, MULTILINE = 4, ENABLE_UCP = 8 };
 
 private:
-    static constexpr size_t MAX_SUBSTRING_MATCHES = 40;
-
     const std::string pattern_;
     const unsigned options_;
     std::shared_ptr<PcreData> pcre_data_;
@@ -81,33 +78,31 @@ public:
     ThreadSafeRegexMatcher(const std::string &pattern, const unsigned options = ENABLE_UTF8);
     ThreadSafeRegexMatcher(const ThreadSafeRegexMatcher &rhs)
         : pattern_(rhs.pattern_), options_(rhs.options_), pcre_data_(rhs.pcre_data_) { }
-    MatchResult &operator=(const MatchResult &) = delete;
+    ThreadSafeRegexMatcher &operator=(const ThreadSafeRegexMatcher &) = delete;
 
     inline const std::string &getPattern() const { return pattern_; }
     MatchResult match(const std::string &subject, const size_t subject_start_offset = 0, size_t * const start_pos = nullptr,
                       size_t * const end_pos = nullptr) const;
     std::string replaceAll(const std::string &subject, const std::string &replacement) const;
     /* c.f. description of RegexMatcher::replaceWithBackreferences below for usage and examples */
-    std::string replaceWithBackreferences(const std::string &subject, const std::string &replacement, const bool global = false);
+    std::string replaceWithBackreferences(const std::string &subject, const std::string &replacement, const bool global = false) const;
 };
 
 
 /** \class (DEPRECATED) RegexMatcher
  *  \brief DEPRECATED. Use ThreadSafeRegexMatcher instead.
-           Wrapper class for simple use cases of the PCRE library and UTF-8 strings.
+           Wrapper class for simple use cases of the PCRE2 library and UTF-8 strings.
  */
 class RegexMatcher {
-    static bool utf8_configured_;
     std::string pattern_;
     unsigned options_;
-    pcre *pcre_;
-    pcre_extra *pcre_extra_;
-    static constexpr size_t MAX_SUBSTRING_MATCHES = 20;
+    pcre2_code *pcre_;
     mutable std::string last_subject_;
-    mutable std::vector<int> substr_vector_;
+    mutable std::vector<PCRE2_SIZE> substr_vector_;
     mutable unsigned last_match_count_;
 
 public:
+    // Wrapper options, translated internally to PCRE2 flags.
     enum Option { ENABLE_UTF8 = 1, CASE_INSENSITIVE = 2, MULTILINE = 4, ENABLE_UCP = 8 }; // These need to be powers of 2.
 public:
     /** Copy constructor. */
@@ -117,10 +112,7 @@ public:
     RegexMatcher(RegexMatcher &&that);
 
     /** Destructor. */
-    virtual ~RegexMatcher() {
-        ::pcre_free_study(pcre_extra_);
-        ::pcre_free(pcre_);
-    }
+    virtual ~RegexMatcher() { ::pcre2_code_free(pcre_); }
 
     /** Returns true if "s" was matched, false, if an error occurred or no match was found. In the case of an
      *  error "err_msg", if provided, will be set to a non-empty string, otherwise "err_msg" will be cleared.
@@ -156,7 +148,7 @@ public:
     /** \return The number of matched parenthesised groups in the pattern.
      *  \note   Obviously you may only call this after a call to matched().
      */
-    unsigned getNoOfGroups() const { return last_match_count_ - 1; }
+    unsigned getNoOfGroups() const { return last_match_count_ == 0 ? 0 : last_match_count_ - 1; }
 
     /** \brief Returns either the full last match or matched substrings.
      *  \param group  When "group" is 0, the full last match will be returned, o/w the n-th substring match
@@ -204,11 +196,11 @@ public:
     static std::string ReplaceAll(const std::string &regex, const std::string &subject, const std::string &replacement,
                                   const unsigned options = 0);
 
-    /** \brief Escape all PCRE metacharacters in the given string with a backslash (see `man pcrepattern`) */
+    /** \brief Escape all PCRE metacharacters in the given string with a backslash (see `man pcre2pattern`) */
     static std::string Escape(const std::string &subpattern);
 
 private:
-    RegexMatcher(const std::string &pattern, const unsigned options, pcre * const pcre_arg, pcre_extra * const pcre_extra_arg)
-        : pattern_(pattern), options_(options), pcre_(pcre_arg), pcre_extra_(pcre_extra_arg),
-          substr_vector_((1 + MAX_SUBSTRING_MATCHES) * 3), last_match_count_(0) { }
+    RegexMatcher(const std::string &pattern, const unsigned options, pcre2_code * const pcre_arg)
+        : pattern_(pattern), options_(options), pcre_(pcre_arg),
+          last_match_count_(0) { }
 };
