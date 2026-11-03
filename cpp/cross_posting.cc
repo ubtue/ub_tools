@@ -208,41 +208,117 @@ public:
             throw std::runtime_error("Invalid API token");
     }
 
-    std::shared_ptr<JSON::JSONNode> Get(const std::string &path) const {
-        if (path.empty() || path[0] != '/' || path.rfind("//", 0) == 0 || path.find("..") != std::string::npos
-            || path.find_first_of("\r\n#") != std::string::npos)
+    // Validate a workspace-relative API path. Only GET may include a query string.
+    static void ValidateApiPath(const std::string &path, const bool allow_query) {
+        if (path.empty() || path.front() != '/' || path.rfind("//", 0) == 0 || path.find("..") != std::string::npos
+            || path.find_first_of(allow_query ? "\r\n#" : "\r\n?#") != std::string::npos)
         {
             throw std::runtime_error("Invalid API path");
         }
-
-        Downloader::Params params;
-
-        params.additional_headers_ = { "Accept: application/json", "Authorization: Bearer " + token_ };
-
-        params.follow_redirects_ = false;
-        params.fail_on_error_ = true;
-        params.ignore_ssl_certificates_ = false;
-
-        return REST::QueryJSON(Url(base_url_ + path), REST::GET, nullptr, params);
     }
 
+    Downloader::Params MakeRequestParams(const bool has_json_body) const {
+        Downloader::Params params;
+        params.additional_headers_ = { "Accept: application/json", "Authorization: Bearer " + token_ };
 
-    std::shared_ptr<JSON::JSONNode> PostJson(const std::string &path, const JSON::JSONNode &payload) const {
-        if (path.empty() || path[0] != '/' || path.rfind("//", 0) == 0 || path.find("..") != std::string::npos
-            || path.find_first_of("\r\n?#") != std::string::npos)
-        {
-            throw std::runtime_error("Invalid API path");
+        if (has_json_body)
+            params.additional_headers_.push_back("Content-Type: application/json");
+
+        // QueryResponse returns HTTP errors with status, headers and body.
+        // Never silently follow redirects with a bearer token.
+        params.fail_on_error_ = false;
+        params.follow_redirects_ = false;
+        params.ignore_ssl_certificates_ = false;
+        params.use_cookies_txt_ = false;
+        return params;
+    }
+
+    static std::string SanitizeServerText(std::string text, const std::size_t limit) {
+        if (text.size() > limit)
+            text.resize(limit);
+
+        for (char &ch : text) {
+            if (static_cast<unsigned char>(ch) < 32 || ch == 127)
+                ch = ' ';
+        }
+        return text;
+    }
+
+    static std::string HttpErrorMessage(const REST::Response &response) {
+        std::string detail;
+
+        if (!response.body.empty()) {
+            try {
+                JSON::Parser parser(response.body);
+                std::shared_ptr<JSON::JSONNode> error_json;
+
+                if (parser.parse(&error_json) && error_json && error_json->getType() == JSON::JSONNode::OBJECT_NODE) {
+                    const auto object = std::static_pointer_cast<JSON::ObjectNode>(error_json);
+                    detail = object->getOptionalStringValue("message");
+                    if (detail.empty())
+                        detail = object->getOptionalStringValue("error");
+
+                    if (response.status_code == 422) {
+                        const auto errors = object->getOptionalObjectNode("errors");
+                        if (errors) {
+                            if (!detail.empty())
+                                detail += " ";
+                            detail += errors->toString();
+                        }
+                    }
+                }
+            } catch (const std::exception &) {
+                // Keep the HTTP status if the error payload is malformed.
+            }
         }
 
-        Downloader::Params params;
+        std::string error = "Mixpost API returned HTTP " + std::to_string(response.status_code);
+        detail = SanitizeServerText(std::move(detail), 500);
+        if (!detail.empty())
+            error += ": " + detail;
 
-        params.additional_headers_ = { "Accept: application/json", "Content-Type: application/json", "Authorization: Bearer " + token_ };
+        if (response.status_code == 429 && response.headers.isValid()) {
+            const std::string retry_after = SanitizeServerText(response.headers.getRetryAfter(), 64);
+            if (!retry_after.empty())
+                error += " (Retry-After: " + retry_after + ")";
+        }
 
-        params.follow_redirects_ = false;
-        params.fail_on_error_ = true;
-        params.ignore_ssl_certificates_ = false;
+        return error;
+    }
 
-        return REST::QueryJSON(Url(base_url_ + path), REST::POST, &payload, params);
+    static std::shared_ptr<JSON::JSONNode> ReadJsonResponse(const REST::Response &response, const bool allow_no_content) {
+        if (!response.isSuccess())
+            throw std::runtime_error(HttpErrorMessage(response));
+
+        if (response.status_code == 204) {
+            if (allow_no_content)
+                return nullptr;
+            throw std::runtime_error("Unexpected HTTP 204 from Mixpost");
+        }
+
+        if (response.body.empty())
+            throw std::runtime_error("Mixpost returned an empty JSON response (HTTP " + std::to_string(response.status_code) + ")");
+
+        JSON::Parser parser(response.body);
+        std::shared_ptr<JSON::JSONNode> result;
+        if (!parser.parse(&result) || !result)
+            throw std::runtime_error("Mixpost returned invalid JSON (HTTP " + std::to_string(response.status_code) + ")");
+
+        return result;
+    }
+
+    std::shared_ptr<JSON::JSONNode> Get(const std::string &path) const {
+        ValidateApiPath(path, /* allow_query = */ true);
+
+        const REST::Response response = REST::QueryResponse(Url(base_url_ + path), REST::GET, "", MakeRequestParams(false));
+        return ReadJsonResponse(response, /* allow_no_content = */ false);
+    }
+
+    std::shared_ptr<JSON::JSONNode> PostJson(const std::string &path, const JSON::JSONNode &payload) const {
+        ValidateApiPath(path, /* allow_query = */ false);
+
+        const REST::Response response = REST::QueryResponse(Url(base_url_ + path), REST::POST, payload.toString(), MakeRequestParams(true));
+        return ReadJsonResponse(response, /* allow_no_content = */ true);
     }
 
 
@@ -278,7 +354,7 @@ public:
         for (unsigned page = 1; page <= MAX_PAGES; ++page) {
             const std::string path = "/" + workspace + "/posts?page=" + std::to_string(page);
 
-            // GET request through ub_tools REST::QueryJSON().
+            // GET via REST::QueryResponse(), including HTTP status validation.
             const auto response = Get(path);
 
             if (!response || response->getType() != JSON::JSONNode::OBJECT_NODE) {
@@ -595,8 +671,11 @@ public:
 
         const auto response = PostJson(path, request);
 
-        if (!response)
-            throw std::runtime_error("Empty Mixpost response");
+        // HTTP 204 No Content is a successful draft request.
+        if (!response) {
+            std::cout << "Draft request completed successfully (HTTP 204 No Content).\n";
+            return;
+        }
 
         std::cout << "Draft creation request completed.\n"
                   << "Response: " << response->toString() << '\n';
@@ -683,7 +762,7 @@ Examples:
 
 )HELP";
 
-    std::exit(reason.empty() ? EXIT_FAILURE : 2);
+    std::exit(reason.empty() ? EXIT_SUCCESS : 2);
 }
 
 
