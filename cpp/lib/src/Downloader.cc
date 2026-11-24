@@ -578,7 +578,7 @@ void Downloader::GlobalCleanup(const bool forever) {
 
 const PerlCompatRegExps &Downloader::GetBannedUrlRegExps() {
     static bool initialised(false);
-    static PerlCompatRegExps ini_file_reg_exps(PerlCompatRegExp::DONT_OPTIMIZE_FOR_MULTIPLE_USE, PCRE_CASELESS);
+    static PerlCompatRegExps ini_file_reg_exps(PerlCompatRegExp::DONT_OPTIMIZE_FOR_MULTIPLE_USE, PCRE2_CASELESS);
     if (not initialised) {
         initialised = true;
         const IniFile ini_file(ETC_DIR "/BannedUrlRegExps.conf");

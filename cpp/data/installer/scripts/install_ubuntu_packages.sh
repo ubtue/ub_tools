@@ -33,12 +33,12 @@ apt-add-repository --yes --update 'ppa:alex-p/tesseract-ocr5'
 
 # main installation
 apt-get --quiet --yes --allow-unauthenticated install \
-        ant apache2 apparmor-utils ca-certificates cifs-utils clang clang-format cron curl gcc git imagemagick incron ipset jq libarchive-dev \
-        libboost-all-dev libcurl4-gnutls-dev libdb-dev liblept5 libleptonica-dev liblz4-tool libmagic-dev libmysqlclient-dev \
-        libpcre3-dev libpq-dev libsqlite3-dev libssl-dev libstemmer-dev libsystemd-dev libtesseract-dev libwebp7 libxerces-c-dev \
-        libxml2-dev libxml2-utils locales-all libxxhash-dev make mawk moreutils mpack mutt needrestart nlohmann-json3-dev openjdk-21-jdk p7zip-full \
+        ant apache2 apparmor-utils build-essential ca-certificates cifs-utils clang clang-format cron curl gcc git imagemagick incron ipset jq libarchive-dev \
+        libboost-all-dev libcurl4-gnutls-dev libdb-dev libleptonica-dev lz4 libmagic-dev libmysqlclient-dev \
+        libpcre2-dev libpq-dev libsqlite3-dev libssl-dev libstemmer-dev libsystemd-dev libtesseract-dev libwebp-dev libxerces-c-dev \
+        libxml2-dev libxml2-utils locales-all libxxhash-dev make mawk moreutils mpack mutt needrestart nlohmann-json3-dev openjdk-21-jdk 7zip pkg-config \
         poppler-utils postgresql-client python3 python3-paramiko rsync sqlite3 tesseract-ocr tesseract-ocr-all \
-        tcl-expect-dev tidy unzip uuid-dev xsltproc
+        tcl-expect-dev  tidy unzip uuid-dev xsltproc
 
 # Explicitly enable mod_cgi. If we would use `a2enmod cgi`, it would enable mod_cgid, which would fail on apache startup.
 a2enmod cgi
@@ -78,19 +78,21 @@ fi
 #---------------------------------- TUEFIND ---------------------------------#
 if [[ $1 == "ixtheo" || $1 == "krimdok" ]]; then
     ColorEcho "installing/updating tuefind dependencies..."
-    # 24.04 uses 8.3 by default, but we want to use 8.4 due to longer support period
+    # 26.04 uses 8.5 by default, but we need 8.4 for tuefind.
     # Also, we use php-fpm with fcgi instead of libapache2-mod-php to avoid HTTP/2 compatibility issues with mpm_prefork.
+    PHP_VERSION=8.4
     add-apt-repository --yes --update ppa:ondrej/php
     apt-get --quiet --yes install \
         composer npm node-grunt-cli \
-        php8.4 php8.4-curl php8.4-gd php8.4-intl php8.4-ldap php8.4-mbstring php8.4-memcached php8.4-mysql php8.4-soap php8.4-xml \
-        php8.4-fpm
+        "php${PHP_VERSION}" "php${PHP_VERSION}-cli" "php${PHP_VERSION}-curl" "php${PHP_VERSION}-gd" \
+        "php${PHP_VERSION}-intl" "php${PHP_VERSION}-ldap" "php${PHP_VERSION}-mbstring" "php${PHP_VERSION}-memcached" \
+        "php${PHP_VERSION}-mysql" "php${PHP_VERSION}-soap" "php${PHP_VERSION}-xml" "php${PHP_VERSION}-fpm"
 
-    update-alternatives --set php /usr/bin/php8.4
+    update-alternatives --set php "/usr/bin/php${PHP_VERSION}"
 
     a2dismod mpm_prefork
     a2enmod mpm_event proxy_fcgi http2 rewrite setenvif ssl
-    a2enconf php8.4-fpm
+    a2enconf "php${PHP_VERSION}-fpm"
     /etc/init.d/apache2 restart
 fi
 

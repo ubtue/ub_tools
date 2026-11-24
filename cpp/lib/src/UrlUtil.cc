@@ -131,7 +131,7 @@ bool Blacklister::UrlRegExpList::block(const std::string &url, std::string * con
 
 Blacklister::ReferenceCountedPerlCompatRegExp::ReferenceCountedPerlCompatRegExp(const std::string &pattern, const bool initial_block)
     : pattern_(new std::string(PrivoxyToPerlRegExpPattern(pattern))),
-      reg_exp_(new PerlCompatRegExp(*pattern_, PerlCompatRegExp::OPTIMIZE_FOR_MULTIPLE_USE, PCRE_ANCHORED)), count_(new unsigned(1)),
+      reg_exp_(new PerlCompatRegExp(*pattern_, PerlCompatRegExp::OPTIMIZE_FOR_MULTIPLE_USE, PCRE2_ANCHORED)), count_(new unsigned(1)),
       block_(initial_block) {
 }
 

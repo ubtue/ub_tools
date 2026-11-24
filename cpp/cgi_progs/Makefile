@@ -17,9 +17,9 @@ $(PROGS): % : %.o ../lib/libubtue.a Makefile
 	@echo "Linking $@..."
 	@$(CCC) -rdynamic $(LD_FLAGS) $< -o $@ $(LIBS)
 
-record_aggregator_server: record_aggregator_server.o ../lib/libubtue.a
+record_aggregator_server: record_aggregator_server.o ../lib/libubtue.a Makefile
 	@echo "Linking $@ with Boost..."
-	@$(CCC) -rdynamic $(LD_FLAGS) record_aggregator_server.o -o $@ -lboost_system -lboost_filesystem -lpthread $(LIBS)
+	@$(CCC) -rdynamic $(LD_FLAGS) record_aggregator_server.o -o $@ -lboost_filesystem -lpthread $(LIBS)
 
 -include .deps
 .deps: *.cc $(INC)/*.h
