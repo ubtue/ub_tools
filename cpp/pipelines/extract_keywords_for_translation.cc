@@ -245,11 +245,13 @@ void DownloadWikidataTranslations(const std::string &query, std::string * const 
             if (response_code != 200) {
                 LOG_WARNING("Definitely failed to download Wikidata Translations for query \"" + query + "\"(Error Code "
                             + std::to_string(response_code));
-                return;
+                LOG_WARNING("Abandoning all further processing to maintain consistency for further runs");
+                std::exit(0);
             }
         } else {
             LOG_WARNING("Aborting Download because of Error Code " + std::to_string(response_code));
-            return;
+            LOG_WARNING("Abandoning all further processing to maintain consistency for further runs");
+            std::exit(0);
         }
     }
     *results = downloader.getMessageBody();
