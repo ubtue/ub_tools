@@ -1,8 +1,9 @@
 /** \file    REST.h
  *  \brief   Various utility functions for REST API's.
  *  \author  Mario Trojan
+ *  \author  Steven Lolong (steven.lolong@uni-tuebingen.de)
  *
- *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018 - 2026 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -47,6 +48,26 @@ std::string Query(const Url &url, const QueryType query_type, const std::string 
  */
 std::shared_ptr<JSON::JSONNode> QueryJSON(const Url &url, const QueryType query_type, const JSON::JSONNode * const data = nullptr,
                                           const Downloader::Params &params = Downloader::Params());
+
+
+struct Response {
+    unsigned status_code = 0;
+    HttpHeader headers;
+    std::string body;
+
+    bool isSuccess() const noexcept { return status_code >= 200 && status_code < 300; }
+};
+
+/**
+ * Executes a REST request and returns the complete HTTP response.
+ *
+ * HTTP 4xx/5xx responses are returned normally.
+ * Transport failures throw std::runtime_error.
+ *
+ * The caller must inspect response.status_code.
+ */
+Response QueryResponse(const Url &url, QueryType query_type, const std::string &data = "",
+                       const Downloader::Params &params = Downloader::Params());
 
 
 } // namespace REST

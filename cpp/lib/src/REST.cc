@@ -1,8 +1,9 @@
 /** \file    Elasticsearch.cc
  *  \brief   Implementation of utility functions for REST APIs.
  *  \author  Mario Trojan
+ *  \author  Steven Lolong (steven.lolong@uni-tuebingen.de)
  *
- *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018 - 2026 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -61,6 +62,58 @@ std::shared_ptr<JSON::JSONNode> QueryJSON(const Url &url, const QueryType query_
         throw std::runtime_error("in REST::QueryJSON: could not parse JSON response: " + json_out);
 
     return tree_root;
+}
+
+
+Response QueryResponse(const Url &url, const QueryType query_type, const std::string &data, const Downloader::Params &params) {
+    Downloader::Params request_params(params);
+
+    // Preserve response bodies for HTTP errors.
+    request_params.fail_on_error_ = false;
+
+    Downloader downloader(request_params);
+
+    bool transferred = false;
+
+    switch (query_type) {
+    case QueryType::GET:
+        transferred = downloader.newUrl(url);
+        break;
+
+    case QueryType::POST:
+        transferred = downloader.postData(url, data);
+        break;
+
+    case QueryType::PUT:
+        transferred = downloader.putData(url, data);
+        break;
+
+    case QueryType::DELETE:
+        transferred = downloader.deleteUrl(url);
+        break;
+
+    default:
+        throw std::invalid_argument("Unsupported REST query type");
+    }
+
+    // Network, TLS, timeout, or other transport failure.
+    if (!transferred || downloader.anErrorOccurred()) {
+        const std::string error = downloader.getLastErrorMessage();
+
+        throw std::runtime_error(error.empty() ? "REST transport failed" : "REST transport failed: " + error);
+    }
+
+    Response response;
+
+    response.status_code = downloader.getResponseCode();
+    response.headers = downloader.getMessageHeaderObject();
+    response.body = downloader.getMessageBody();
+
+    if (response.status_code == 0) {
+        throw std::runtime_error("REST request did not receive an HTTP status");
+    }
+
+    return response;
 }
 
 
